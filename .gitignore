@@ -54,3 +54,6 @@ release-output/
 keystore_base64.txt
 *_base64.txt
 android/key.properties
+
+# CI şema anlık görüntüsü (yalnızca CI artefaktı)
+predeploy/

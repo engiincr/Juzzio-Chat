@@ -12,6 +12,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -19,6 +20,7 @@ import 'juzzio_e2ee.dart';
 import '../core/app_theme_and_locale.dart';
 import '../core/config.dart';
 import 'juzzio_features_service.dart';
+import 'juzzio_media_url.dart';
 
 // -----------------------------------------------------------------------------
 // MODELLER
@@ -954,6 +956,16 @@ class SupabaseService {
       code = e.code ?? e.statusCode ?? '';
     } else if (e is JuzzioServiceException) {
       return e.message;
+    } else if (e is JuzzioE2eeRequiredException) {
+      // v0.9.0: şifreleme yapılamadı → mesaj GÖNDERİLMEDİ (düz metne düşülmez)
+      if (e.status == JuzzioE2eeStatus.peerKeyMissing) {
+        return _app.trEn('Bu kişinin uygulaması uçtan uca şifrelemeyi henüz desteklemiyor. Mesaj gönderilmedi.',
+            'This person\'s app does not support end-to-end encryption yet. The message was not sent.',
+            'Die App dieser Person unterstützt noch keine Ende-zu-Ende-Verschlüsselung. Die Nachricht wurde nicht gesendet.');
+      }
+      return _app.trEn('Mesaj uçtan uca şifrelenemedi ve güvenlik için gönderilmedi. Bağlantınızı kontrol edip tekrar deneyin.',
+          'The message could not be end-to-end encrypted and was not sent for your security. Check your connection and try again.',
+          'Die Nachricht konnte nicht Ende-zu-Ende-verschlüsselt werden und wurde zu deiner Sicherheit nicht gesendet. Prüfe deine Verbindung und versuche es erneut.');
     } else {
       raw = e.toString();
     }
@@ -1225,6 +1237,7 @@ class SupabaseService {
       await setPresence(false);
     } catch (_) {}
     await clearLocalCacheForCurrentUser();
+    JuzzioMediaUrl.clearCache();
     await client.auth.signOut();
   }
 
@@ -1291,6 +1304,7 @@ class SupabaseService {
       throw AuthException(_app.t('err_password_wrong'));
     }
     await client.rpc('delete_my_juzzio_account');
+    JuzzioMediaUrl.clearCache();
     await client.auth.signOut();
   }
 
@@ -1307,7 +1321,24 @@ class SupabaseService {
   /// sunucudaki gizlilik ayarlarının üzerine yazılmaz.
   Map<String, dynamic>? _prefsSyncBaseline;
 
+  /// v0.9.0 (G12): Arayüz dil paketi metinleri sunucu önbellekli `batch_ui` moduyla çevrilir
+  /// (her metin tüm kullanıcılar için bir kez çevrilir; telefon doğrudan Google'a yüklenmez).
+  Future<Map<String, String>> translateUiBatch(String lang, List<String> texts) async {
+    if (currentUserId == null || texts.isEmpty) return const <String, String>{};
+    try {
+      final res = await client.functions
+          .invoke('translate-bridge', body: {'mode': 'batch_ui', 'targetLang': lang, 'texts': texts})
+          .timeout(const Duration(seconds: 25));
+      final data = res.data is String ? jsonDecode(res.data as String) : res.data;
+      if (data is Map && data['translations'] is Map) {
+        return (data['translations'] as Map).map((k, v) => MapEntry(k.toString(), v.toString()));
+      }
+    } catch (_) {}
+    return const <String, String>{};
+  }
+
   void attachPreferenceSync() {
+    JuzzioAppController.serverUiTranslator = translateUiBatch;
     _prefsSyncBaseline = _profileFieldsFromPrefs(_app.preferencesSnapshot());
     JuzzioAppController.remotePreferenceSync = (prefs) {
       _prefsSyncDebounce?.cancel();
@@ -2088,6 +2119,25 @@ class SupabaseService {
     }).asyncMap(JuzzioE2ee.instance.decryptAll);
   }
 
+  /// v0.9.0: Benzersiz istemci mesaj kimliği (idempotency anahtarı).
+  static String newClientMsgId([String prefix = 'm']) {
+    final r = math.Random.secure();
+    final hex = List<String>.generate(16, (_) => r.nextInt(256).toRadixString(16).padLeft(2, '0')).join();
+    return '${prefix}_$hex';
+  }
+
+  /// Metin mesajı gönderir.
+  ///
+  /// v0.9.0 güvenlik kuralları (denetim D — fail-closed E2EE):
+  ///  • Birebir sohbet uçtan uca şifrelenemezse (ağ hatası, anahtar hatası) mesaj
+  ///    GÖNDERİLMEZ; [JuzzioE2eeRequiredException] fırlatılır. Düz metne sessiz düşüş yok.
+  ///  • Karşı tarafın hiç şifreleme anahtarı yoksa (eski sürüm) düz metin YALNIZCA
+  ///    [allowPlaintextFallback] = true (kullanıcının açık onayı) ile gönderilir ve
+  ///    mesaj `metadata.security = plaintext_consented` olarak işaretlenir.
+  ///  • Şifreli sohbette metin, şifrelemeden ÖNCE üçüncü taraf çeviriye gönderilmez;
+  ///    yalnızca kullanıcı "E2EE mesajlarda çeviri" iznini açtıysa çevrilir.
+  ///  • [clientMsgId] aynı gönderimin iki kez kaydedilmesini engeller (yeniden deneme,
+  ///    bildirimden hızlı yanıt, çevrimdışı kuyruk). Yinelenen kayıt başarı sayılır.
   Future<void> sendTextMessage({
     required String text,
     String sourceLang = 'auto',
@@ -2095,6 +2145,8 @@ class SupabaseService {
     String? targetRoomId,
     String? receiverId,
     String? replyToId,
+    String? clientMsgId,
+    bool allowPlaintextFallback = false,
   }) async {
     final uid = currentUserId;
     final clean = text.trim();
@@ -2109,10 +2161,42 @@ class SupabaseService {
 
     final mySubLang = _app.subtitleLang;
     final targetLang = _defaultTargetLang;
-    final translated = await translateText(text: clean, sourceLang: 'auto', targetLang: targetLang);
-    // v0.7.0: 1'e 1 sohbette karşı tarafın anahtarı varsa uçtan uca şifreli gönder
-    final e2ee = await JuzzioE2ee.instance.encryptForRoom(roomId, text: clean, translated: translated);
+    final isDirect = await JuzzioE2ee.instance.isDirectRoom(roomId);
+    if (isDirect == null) {
+      // Oda türü bilinmiyorsa şifresiz gönderim riski alınmaz
+      throw const JuzzioE2eeRequiredException(JuzzioE2eeStatus.unavailable);
+    }
+    // Grup sohbetleri bu sürümde E2EE değildir (belgelenmiş); birebirde çeviri yalnız onayla
+    final mayTranslate = !isDirect || _app.e2eeTranslationOptIn;
+    final translated = mayTranslate
+        ? await translateText(text: clean, sourceLang: 'auto', targetLang: targetLang)
+        : '';
 
+    Map<String, dynamic>? e2ee;
+    var plaintextConsented = false;
+    if (isDirect) {
+      final outcome = await JuzzioE2ee.instance.encryptForRoomStrict(roomId, text: clean, translated: translated);
+      switch (outcome.status) {
+        case JuzzioE2eeStatus.encrypted:
+          e2ee = outcome.payload;
+          break;
+        case JuzzioE2eeStatus.peerKeyMissing:
+          if (!allowPlaintextFallback) throw const JuzzioE2eeRequiredException(JuzzioE2eeStatus.peerKeyMissing);
+          plaintextConsented = true;
+          break;
+        case JuzzioE2eeStatus.group:
+          break;
+        case JuzzioE2eeStatus.unavailable:
+          throw const JuzzioE2eeRequiredException(JuzzioE2eeStatus.unavailable);
+      }
+      if (e2ee == null && !plaintextConsented) {
+        throw const JuzzioE2eeRequiredException(JuzzioE2eeStatus.unavailable);
+      }
+    }
+
+    final msgId = (clientMsgId != null && RegExp(r'^[A-Za-z0-9_-]{8,80}$').hasMatch(clientMsgId))
+        ? clientMsgId
+        : newClientMsgId();
     try {
       await client.from('messages').insert({
         'room_id': roomId,
@@ -2123,9 +2207,17 @@ class SupabaseService {
         'target_lang': targetLang,
         'original_text': e2ee == null ? clean : '',
         'translated_text': e2ee == null ? translated : '',
-        if (e2ee != null) 'metadata': {'e2ee': e2ee},
+        if (e2ee != null || plaintextConsented)
+          'metadata': e2ee != null ? <String, dynamic>{'e2ee': e2ee} : <String, dynamic>{'security': 'plaintext_consented'},
         if (replyToId != null) 'reply_to_id': replyToId,
+        'client_msg_id': msgId,
       });
+    } on PostgrestException catch (e) {
+      // Aynı istemci kimliğiyle daha önce kaydedilmiş → zaten gönderildi (idempotent)
+      if (e.code == '23505' && (e.message.contains('client_msg') || (e.details?.toString() ?? '').contains('client_msg'))) {
+        return;
+      }
+      throw JuzzioServiceException(_friendlyError(e));
     } catch (e) {
       throw JuzzioServiceException(_friendlyError(e));
     }
@@ -2237,6 +2329,8 @@ class SupabaseService {
     try {
       final res = await client.functions.invoke('translate-bridge', body: {
         'mode': 'voice_note',
+        // v0.9.0: sunucu yolu veritabanından ve oda üyeliğinden doğrular; URL yetki değildir
+        'storagePath': storagePath,
         'audioUrl': publicUrl,
         'sourceLang': mySubLang,
         'targetLang': targetLang,
@@ -2406,6 +2500,32 @@ class SupabaseService {
   Future<String> getOrCreateDirectRoomId(String otherUserId) => ensureDirectRoomWithFriend(friendId: otherUserId);
 
   /// Profil kartı arka planı vb. herkese açık görseli yükler, adresini döndürür.
+  /// v0.9.0: Geri bildirim ekran görüntüsü ÖZEL bucket'a (chat-media/<uid>/feedback/…)
+  /// yüklenir; yalnızca sahibi ve 'feedback.manage' izinli personel görebilir. Önceden
+  /// herkese açık avatars bucket'ına gidiyor ve kalıcı açık adres üretiyordu.
+  Future<String> uploadFeedbackImage(File file) async {
+    final uid = currentUserId;
+    if (uid == null) throw JuzzioServiceException(_app.t('err_session'));
+    if (!file.existsSync() || file.lengthSync() > 15 * 1024 * 1024) {
+      throw JuzzioServiceException(_app.trEn('Görsel 15 MB\'tan küçük olmalı.', 'The image must be under 15 MB.', 'Das Bild muss kleiner als 15 MB sein.'));
+    }
+    final ext = file.path.split('.').last.toLowerCase();
+    final safeExt = const ['png', 'webp', 'jpg', 'jpeg'].contains(ext) ? ext : 'jpg';
+    final mime = safeExt == 'png' ? 'image/png' : (safeExt == 'webp' ? 'image/webp' : 'image/jpeg');
+    final path = '$uid/feedback/${DateTime.now().millisecondsSinceEpoch}.$safeExt';
+    try {
+      await client.storage.from(JuzzioConfig.chatMediaBucket).upload(
+            path,
+            file,
+            fileOptions: FileOptions(contentType: mime, upsert: false),
+          );
+      // Kalıcı kimlik adresi; görüntülerken JuzzioMediaUrl ile imzalanır
+      return client.storage.from(JuzzioConfig.chatMediaBucket).getPublicUrl(path);
+    } catch (e) {
+      throw JuzzioServiceException(_friendlyError(e));
+    }
+  }
+
   Future<String> uploadPublicImage(File file, {String prefix = 'img'}) async {
     final uid = currentUserId;
     if (uid == null) throw JuzzioServiceException(_app.t('err_session'));

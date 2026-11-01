@@ -164,9 +164,10 @@ class JuzzioFcmPushService {
         case 'onQuickReply':
           final args = call.arguments;
           if (args is Map) {
-            return JuzzioQuickReply.send(roomId: '${args['room_id'] ?? ''}', text: '${args['text'] ?? ''}');
+            // v0.9.0 N-E: {ok, status} döner; client_msg_id Android'den gelir (idempotent)
+            return JuzzioQuickReply.handleChannelArgs(args);
           }
-          return false;
+          return {'ok': false, 'status': JuzzioQuickReplyStatus.invalid.name};
         case 'onForegroundFcmMessage':
           final args = call.arguments;
           if (args is Map) {

@@ -14,6 +14,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../services/juzzio_media_url.dart';
 import '../../core/app_theme_and_locale.dart';
 import '../../core/config.dart';
 import '../../core/native_bridge.dart';
@@ -1081,7 +1082,7 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
                           ),
                         )
                       else if (url.startsWith('http') && !JuzzioPost.looksLikeVideoUrl(url))
-                        Image.network(url, fit: BoxFit.cover, errorBuilder: (_, __, ___) => ColoredBox(color: tileBg))
+                        JuzzioStorageImage(url, fit: BoxFit.cover, errorBuilder: (_, __, ___) => ColoredBox(color: tileBg))
                       else
                         ColoredBox(
                           color: tileBg,

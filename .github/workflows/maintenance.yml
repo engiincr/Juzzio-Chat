@@ -1,0 +1,42 @@
+name: Juzzio Bakım — Storage temizliği
+
+# v0.9.0 (G22): Silinen gönderi/hikâye/mesaj ve hesaplara ait dosyalar veritabanında
+# kuyruğa alınır; bu iş akışı saatte bir `storage-cleanup` Edge Function'ını çağırarak
+# dosyaları Storage API ile siler. Gerekli secret'lar: SUPABASE_URL, STORAGE_CLEANUP_SECRET
+# (en az 24 karakter; aynı değer Supabase → Edge Functions → Secrets'a da eklenir).
+# Secret yoksa iş akışı uyarı verip başarıyla biter (hiçbir şey silinmez).
+on:
+  schedule:
+    - cron: "23 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: juzzio-maintenance
+  cancel-in-progress: false
+
+jobs:
+  storage-cleanup:
+    name: "🧹 Storage temizliği"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      STORAGE_CLEANUP_SECRET: ${{ secrets.STORAGE_CLEANUP_SECRET }}
+    steps:
+      - name: Kuyruğu boşalt
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_URL:-}" ] || [ -z "${STORAGE_CLEANUP_SECRET:-}" ]; then
+            echo "::warning::SUPABASE_URL / STORAGE_CLEANUP_SECRET tanımlı değil; storage temizliği atlandı."
+            exit 0
+          fi
+          for i in 1 2 3 4 5; do
+            RES=$(curl -sS --fail-with-body -X POST "${SUPABASE_URL%/}/functions/v1/storage-cleanup" \
+              -H "x-cron-secret: ${STORAGE_CLEANUP_SECRET}" -H "Content-Type: application/json" -d '{}')
+            echo "$RES"
+            CLAIMED=$(echo "$RES" | python3 -c "import json,sys; print(json.load(sys.stdin).get('claimed', 0))")
+            [ "$CLAIMED" -lt 200 ] && break
+          done

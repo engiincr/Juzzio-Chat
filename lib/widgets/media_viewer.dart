@@ -8,6 +8,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import '../services/juzzio_media_url.dart';
 import 'package:video_player/video_player.dart';
 
 class JuzzioVideoController {
@@ -17,7 +18,7 @@ class JuzzioVideoController {
     this.trimEndMs = 0,
     this.speed = 1.0,
     bool muted = false,
-  })  : _controller = VideoPlayerController.networkUrl(Uri.parse(url)),
+  })  : _remoteUrl = url,
         isMuted = muted;
 
   /// Yerel dosya (oluşturma ekranlarındaki önizleme) için.
@@ -28,9 +29,13 @@ class JuzzioVideoController {
     this.speed = 1.0,
     bool muted = false,
   })  : _controller = VideoPlayerController.file(file),
+        _remoteUrl = null,
         isMuted = muted;
 
-  final VideoPlayerController _controller;
+  /// v0.9.0: Ağ videosunun oynatıcısı, özel bucket için imzalı adres alındıktan SONRA
+  /// (initialize içinde) oluşturulur; o zamana kadar null'dır.
+  VideoPlayerController? _controller;
+  final String? _remoteUrl;
   final int trimStartMs;
   final int trimEndMs;
   final double speed;
@@ -41,10 +46,10 @@ class JuzzioVideoController {
   bool _ended = false;
   bool isMuted;
 
-  bool get isInitialized => _initialized && !_failed && !_disposed;
+  bool get isInitialized => _initialized && !_failed && !_disposed && _controller != null;
   bool get hasError => _failed;
 
-  int get _rawDurationMs => isInitialized ? _controller.value.duration.inMilliseconds : 0;
+  int get _rawDurationMs => isInitialized ? _controller!.value.duration.inMilliseconds : 0;
   int get _startMs {
     final s = trimStartMs < 0 ? 0 : trimStartMs;
     final raw = _rawDurationMs;
@@ -67,33 +72,45 @@ class JuzzioVideoController {
   int? get positionMs {
     if (!isInitialized) return null;
     if (_ended) return durationMs;
-    final p = _controller.value.position.inMilliseconds - _startMs;
+    final p = _controller!.value.position.inMilliseconds - _startMs;
     final d = durationMs;
     if (p < 0) return 0;
     return p > d ? d : p;
   }
 
-  bool get isPlaying => isInitialized && _controller.value.isPlaying;
+  bool get isPlaying => isInitialized && _controller!.value.isPlaying;
   bool get hasEnded => _ended;
-  VideoPlayerController get raw => _controller;
+  VideoPlayerController? get raw => _controller;
 
   Future<void> initialize({bool loop = false}) async {
     _loop = loop;
     try {
-      await _controller.initialize();
+      final remote = _remoteUrl;
+      if (_controller == null && remote != null) {
+        final playable = await JuzzioMediaUrl.resolve(remote);
+        if (_disposed) return;
+        _controller = VideoPlayerController.networkUrl(Uri.parse(playable));
+      }
+      final ctrl = _controller;
+      if (ctrl == null) {
+        _failed = true;
+        return;
+      }
+      await ctrl.initialize();
+      if (_disposed) return;
       final hasTrimEnd = trimEndMs > trimStartMs && trimEndMs > 0;
       // Kırpma sonu varsa döngüyü dinleyici yönetir (video_player kendi döngüsünü sona göre yapar)
-      await _controller.setLooping(loop && !hasTrimEnd);
+      await ctrl.setLooping(loop && !hasTrimEnd);
       if (trimStartMs > 0) {
-        await _controller.seekTo(Duration(milliseconds: trimStartMs));
+        await ctrl.seekTo(Duration(milliseconds: trimStartMs));
       }
       if ((speed - 1.0).abs() > 0.01) {
         try {
-          await _controller.setPlaybackSpeed(speed.clamp(0.25, 3.0));
+          await ctrl.setPlaybackSpeed(speed.clamp(0.25, 3.0));
         } catch (_) {}
       }
-      if (isMuted) await _controller.setVolume(0);
-      _controller.addListener(_onTick);
+      if (isMuted) await ctrl.setVolume(0);
+      ctrl.addListener(_onTick);
       _initialized = true;
     } catch (_) {
       _failed = true;
@@ -102,18 +119,18 @@ class JuzzioVideoController {
 
   void _onTick() {
     if (_disposed || !_initialized) return;
-    final v = _controller.value;
+    final v = _controller!.value;
     final pos = v.position.inMilliseconds;
     final end = _endMs;
     final reachedTrimEnd = end > 0 && trimEndMs > 0 && pos >= end;
     final reachedNaturalEnd = !_loop && end > 0 && pos >= end - 40 && !v.isPlaying;
     if (reachedTrimEnd || reachedNaturalEnd) {
       if (_loop) {
-        _controller.seekTo(Duration(milliseconds: _startMs));
-        if (!v.isPlaying) _controller.play();
+        _controller!.seekTo(Duration(milliseconds: _startMs));
+        if (!v.isPlaying) _controller!.play();
       } else if (!_ended) {
         _ended = true;
-        _controller.pause();
+        _controller!.pause();
       }
     }
   }
@@ -122,50 +139,50 @@ class JuzzioVideoController {
     if (!isInitialized) return;
     if (_ended) {
       _ended = false;
-      _controller.seekTo(Duration(milliseconds: _startMs));
+      _controller!.seekTo(Duration(milliseconds: _startMs));
     }
-    _controller.play();
+    _controller!.play();
   }
 
   void pause() {
-    if (isInitialized) _controller.pause();
+    if (isInitialized) _controller!.pause();
   }
 
   Future<void> restart() async {
     if (!isInitialized) return;
     _ended = false;
-    await _controller.seekTo(Duration(milliseconds: _startMs));
-    await _controller.play();
+    await _controller!.seekTo(Duration(milliseconds: _startMs));
+    await _controller!.play();
   }
 
   void toggleMute() {
     if (!isInitialized) return;
     isMuted = !isMuted;
-    _controller.setVolume(isMuted ? 0 : 1);
+    _controller!.setVolume(isMuted ? 0 : 1);
   }
 
   Widget buildView({BoxFit fit = BoxFit.contain}) {
     if (!isInitialized) {
       return const Center(child: Icon(Icons.videocam_off_outlined, color: Colors.white54, size: 48));
     }
-    final ratio = _controller.value.aspectRatio;
+    final ratio = _controller!.value.aspectRatio;
     final safeRatio = ratio > 0 ? ratio : 9 / 16;
     if (fit == BoxFit.cover) {
-      final size = _controller.value.size;
+      final size = _controller!.value.size;
       return ClipRect(
         child: FittedBox(
           fit: BoxFit.cover,
           child: SizedBox(
             width: size.width > 0 ? size.width : 1080,
             height: size.height > 0 ? size.height : 1920,
-            child: VideoPlayer(_controller),
+            child: VideoPlayer(_controller!),
           ),
         ),
       );
     }
     return AspectRatio(
       aspectRatio: safeRatio,
-      child: VideoPlayer(_controller),
+      child: VideoPlayer(_controller!),
     );
   }
 
@@ -173,9 +190,9 @@ class JuzzioVideoController {
     if (_disposed) return;
     _disposed = true;
     try {
-      _controller.removeListener(_onTick);
+      _controller?.removeListener(_onTick);
     } catch (_) {}
-    _controller.dispose();
+    _controller?.dispose();
   }
 }
 
@@ -251,7 +268,7 @@ class _JuzzioMediaViewerPageState extends State<JuzzioMediaViewerPage> {
             : InteractiveViewer(
                 minScale: 1,
                 maxScale: 5,
-                child: Image.network(
+                child: JuzzioStorageImage(
                   widget.url,
                   fit: BoxFit.contain,
                   loadingBuilder: (ctx, child, progress) =>

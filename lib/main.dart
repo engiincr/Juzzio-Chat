@@ -89,18 +89,19 @@ Future<void> main() async {
 Future<void> juzzioQuickReplyMain() async {
   WidgetsFlutterBinding.ensureInitialized();
   const channel = MethodChannel('juzzio/quick_reply');
-  var ok = false;
+  Map<String, Object> outcome = {'ok': false, 'status': JuzzioQuickReplyStatus.failed.name};
   try {
     await Supabase.initialize(url: JuzzioConfig.supabaseUrl, anonKey: JuzzioConfig.supabaseAnonKey);
     final req = await channel.invokeMapMethod<String, dynamic>('take');
     if (req != null) {
-      ok = await JuzzioQuickReply.send(roomId: '${req['room_id'] ?? ''}', text: '${req['text'] ?? ''}');
+      // v0.9.0 N-E: Android'in ürettiği client_msg_id ile idempotent gönderim
+      outcome = await JuzzioQuickReply.handleChannelArgs(req);
     }
   } catch (_) {
-    ok = false;
+    outcome = {'ok': false, 'status': JuzzioQuickReplyStatus.failed.name};
   }
   try {
-    await channel.invokeMethod('result', {'ok': ok});
+    await channel.invokeMethod('result', outcome);
   } catch (_) {}
 }
 
@@ -609,7 +610,7 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: p.isDark
-                        ? Colors.white.withOpacity(0.02)
+                        ? Colors.white.withValues(alpha: 0.02)
                         : JuzzioColors.surfaceF5F6FA,
                   ),
                 ),
@@ -619,8 +620,8 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: p.isDark
-                        ? Colors.white.withOpacity(0.03)
-                        : JuzzioColors.surfaceECEFF5.withOpacity(0.7),
+                        ? Colors.white.withValues(alpha: 0.03)
+                        : JuzzioColors.surfaceECEFF5.withValues(alpha: 0.7),
                   ),
                 ),
                 // Yörüngedeki yuvarlatılmış kare profil kartları
@@ -643,7 +644,7 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
                           border: Border.all(color: Colors.white, width: 2),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.14),
+                              color: Colors.black.withValues(alpha: 0.14),
                               blurRadius: 14,
                               offset: const Offset(0, 6),
                             ),
@@ -677,7 +678,7 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
                     border: Border.all(color: Colors.white, width: 3),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.18),
+                        color: Colors.black.withValues(alpha: 0.18),
                         blurRadius: 24,
                         offset: const Offset(0, 12),
                       ),
@@ -785,7 +786,7 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
                   '9:41',
                   style: TextStyle(
                     fontFamily: JuzzioConfig.fontRegularBold,
-                    color: p.isDark ? Colors.white.withOpacity(0.85) : JuzzioColors.surface4A2E40.withOpacity(0.55),
+                    color: p.isDark ? Colors.white.withValues(alpha: 0.85) : JuzzioColors.surface4A2E40.withValues(alpha: 0.55),
                     fontSize: 44,
                     fontWeight: FontWeight.w800,
                     height: 1.05,
@@ -889,7 +890,7 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
         borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 18,
             offset: const Offset(0, 6),
           ),
@@ -902,7 +903,7 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
             children: [
               CircleAvatar(
                 radius: 21,
-                backgroundColor: avatarColor.withOpacity(0.25),
+                backgroundColor: avatarColor.withValues(alpha: 0.25),
                 child: Text(
                   name.substring(0, 1),
                   style: const TextStyle(
@@ -1356,9 +1357,9 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: p.dangerRed.withOpacity(0.10),
+                      color: p.dangerRed.withValues(alpha: 0.10),
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: p.dangerRed.withOpacity(0.40)),
+                      border: Border.all(color: p.dangerRed.withValues(alpha: 0.40)),
                     ),
                     child: Text(
                       _errorText!,

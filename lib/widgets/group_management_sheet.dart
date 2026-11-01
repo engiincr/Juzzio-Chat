@@ -382,7 +382,7 @@ class _GroupManagementSheetState extends State<_GroupManagementSheet> {
                           : Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                               decoration: BoxDecoration(
-                                color: roleColor.withOpacity(0.15),
+                                color: roleColor.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(999),
                               ),
                               child: Text(

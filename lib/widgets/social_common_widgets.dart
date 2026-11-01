@@ -7,6 +7,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../services/juzzio_media_url.dart';
 import '../core/app_theme_and_locale.dart';
 import '../models/social_models.dart';
 import '../services/social_service.dart';
@@ -134,7 +135,7 @@ class JuzzioDarkHeaderBar extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.74),
+                              color: Colors.white.withValues(alpha: 0.74),
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
                             ),
@@ -426,7 +427,7 @@ class JuzzioEmptyStateView extends StatelessWidget {
               width: 72,
               height: 72,
               decoration: BoxDecoration(
-                color: JuzzioSocialTokens.royalBlue.withOpacity(0.12),
+                color: JuzzioSocialTokens.royalBlue.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -853,7 +854,7 @@ Future<void> showJuzzioSharePostModalSheet({
                       width: 42,
                       height: 42,
                       decoration: BoxDecoration(
-                        color: JuzzioSocialTokens.royalBlue.withOpacity(0.12),
+                        color: JuzzioSocialTokens.royalBlue.withValues(alpha: 0.12),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.link_rounded, color: JuzzioSocialTokens.royalBlue),
@@ -1721,7 +1722,7 @@ class _JuzzioPostCardWidgetState extends State<JuzzioPostCardWidget> {
                           fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => _mediaErrorFallback(isDark),
                         )
-                      : Image.network(
+                      : JuzzioStorageImage(
                           url,
                           fit: BoxFit.cover,
                           loadingBuilder: (ctx, child, progress) {
@@ -1745,7 +1746,7 @@ class _JuzzioPostCardWidgetState extends State<JuzzioPostCardWidget> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.62),
+                    color: Colors.black.withValues(alpha: 0.62),
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Row(
@@ -1772,7 +1773,7 @@ class _JuzzioPostCardWidgetState extends State<JuzzioPostCardWidget> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.62),
+                    color: Colors.black.withValues(alpha: 0.62),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
@@ -1836,7 +1837,7 @@ class _JuzzioPostCardWidgetState extends State<JuzzioPostCardWidget> {
             ? const []
             : [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.035),
+                  color: Colors.black.withValues(alpha: 0.035),
                   blurRadius: 14,
                   offset: const Offset(0, 4),
                 ),

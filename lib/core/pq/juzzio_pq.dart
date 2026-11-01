@@ -14,6 +14,7 @@
 //  aritmetiği kullanır.
 // =============================================================================
 
+import 'dart:isolate';
 import 'dart:typed_data';
 
 // -----------------------------------------------------------------------------
@@ -584,5 +585,41 @@ class JuzzioMlDsa65 {
       w1.addAll(_pack4([for (var n = 0; n < 256; n++) _useHint(h[i][n], wa[n])]));
     }
     return _ctEq(juzzioShake256(_cat([mu, w1]), off), ct);
+  }
+}
+
+// =============================================================================
+// v0.9.0 (G17): Arka plan isolate sarmalayıcıları
+//  Saf Dart ML-KEM-768 / ML-DSA-65 işlemleri (NTT, Keccak-f[1600]) yoğun hesaplamadır;
+//  ana (UI) isolate'te çalışınca mesaj açarken ve açılışta kare kaybına yol açar. Bu
+//  sarmalayıcılar aynı fonksiyonları Isolate.run ile ayrı bir isolate'te çalıştırır.
+//  Sonuçlar senkron sürümlerle bayt bayt aynıdır (test/juzzio_v090_test.dart).
+// =============================================================================
+class JuzzioPqAsync {
+  JuzzioPqAsync._();
+
+  static Future<(Uint8List, Uint8List)> keyPairFromSeed(List<int> seed64) {
+    final seed = List<int>.of(seed64);
+    return Isolate.run(() => JuzzioMlKem768.keyPairFromSeed(seed));
+  }
+
+  static Future<(Uint8List, Uint8List)> encapsulate(List<int> ek, List<int> m) {
+    final e = List<int>.of(ek);
+    final mm = List<int>.of(m);
+    return Isolate.run(() => JuzzioMlKem768.encapsulate(e, mm));
+  }
+
+  static Future<Uint8List> decapsulate(List<int> dk, List<int> c) {
+    final d = List<int>.of(dk);
+    final cc = List<int>.of(c);
+    return Isolate.run(() => JuzzioMlKem768.decapsulate(d, cc));
+  }
+
+  static Future<bool> verify(List<int> pk, List<int> msg, List<int> sig, {List<int> ctx = const <int>[]}) {
+    final p = List<int>.of(pk);
+    final m = List<int>.of(msg);
+    final sg = List<int>.of(sig);
+    final cx = List<int>.of(ctx);
+    return Isolate.run(() => JuzzioMlDsa65.verify(p, m, sg, ctx: cx));
   }
 }

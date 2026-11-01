@@ -39,7 +39,7 @@ Future<String?> showJuzzioCreateContentBottomSheet(BuildContext context) async {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.14),
+              color: color.withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(15),
             ),
             child: Icon(icon, color: color, size: 24),
@@ -948,7 +948,7 @@ class _JuzzioUnifiedSearchPageState extends State<JuzzioUnifiedSearchPage> {
                   'Kişi, kullanıcı adı, gönderi veya #etiket ara...',
                   'Search people, username, posts, or #tags...', 'Personen, Benutzernamen, Beiträge oder #Tags suchen...',
                 ),
-                hintStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
+                hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
                 prefixIcon: const Icon(Icons.search_rounded, color: Colors.white70),
                 suffixIcon: query.isNotEmpty
                     ? IconButton(
@@ -961,7 +961,7 @@ class _JuzzioUnifiedSearchPageState extends State<JuzzioUnifiedSearchPage> {
                       )
                     : null,
                 filled: true,
-                fillColor: Colors.white.withOpacity(0.12),
+                fillColor: Colors.white.withValues(alpha: 0.12),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(18),
@@ -1177,7 +1177,7 @@ class _JuzzioUnifiedSearchPageState extends State<JuzzioUnifiedSearchPage> {
             final count = tagMap['count'] as int;
             return ListTile(
               leading: CircleAvatar(
-                backgroundColor: JuzzioSocialTokens.royalBlue.withOpacity(0.14),
+                backgroundColor: JuzzioSocialTokens.royalBlue.withValues(alpha: 0.14),
                 child: const Text(
                   '#',
                   style: TextStyle(
@@ -1389,10 +1389,10 @@ class _JuzzioFriendsAndRelationsPageState
               style: const TextStyle(color: Colors.white, fontSize: 14),
               decoration: InputDecoration(
                 hintText: app.loc('Kişi ara...', 'Search people...', 'Personen suchen...'),
-                hintStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
+                hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
                 prefixIcon: const Icon(Icons.search_rounded, color: Colors.white70),
                 filled: true,
-                fillColor: Colors.white.withOpacity(0.12),
+                fillColor: Colors.white.withValues(alpha: 0.12),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),

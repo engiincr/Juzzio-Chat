@@ -13,6 +13,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:cryptography/cryptography.dart' show Sha256;
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'config.dart';
@@ -349,6 +350,9 @@ class JuzzioAppController extends ChangeNotifier {
   /// Gizlilik/bildirim tercihleri kaydedildiğinde Supabase profiline de yansıtılması için
   /// (SupabaseService tarafından atanır; döngüsel bağımlılığı önler).
   static void Function(Map<String, dynamic> prefs)? remotePreferenceSync;
+  /// v0.9.0 (G12): Sunucu önbellekli arayüz çevirisi (translate-bridge batch_ui). Kaynak →
+  /// çeviri haritası döner; ulaşılamazsa boş harita. SupabaseService bağlar.
+  static Future<Map<String, String>> Function(String lang, List<String> texts)? serverUiTranslator;
   static List<JuzzioLanguageOption> get supportedLanguages => kJuzzioSupportedLanguages;
 
   static const MethodChannel _notifChannel = MethodChannel('juzzio/notifications');
@@ -429,6 +433,9 @@ class JuzzioAppController extends ChangeNotifier {
   bool _blockUnknownVolumeMessages = true;
   bool _protectIpInCalls = false;
   bool _disableLinkPreviews = false;
+  /// v0.9.0 (denetim D): Uçtan uca şifreli (E2EE) mesaj metni üçüncü taraf çeviri
+  /// servisine YALNIZCA kullanıcı bunu açıkça açtıysa gönderilir. Varsayılan: kapalı.
+  bool _e2eeTranslationOptIn = false;
   bool _strictAccountSettings = false;
 
   // Erişilebilirlik & Sosyal Akış Tercihleri
@@ -552,6 +559,7 @@ class JuzzioAppController extends ChangeNotifier {
   bool get blockUnknownVolumeMessages => _blockUnknownVolumeMessages;
   bool get protectIpInCalls => _protectIpInCalls;
   bool get disableLinkPreviews => _disableLinkPreviews;
+  bool get e2eeTranslationOptIn => _e2eeTranslationOptIn;
   bool get strictAccountSettings => _strictAccountSettings;
 
   bool get highContrastMode => _highContrastMode;
@@ -686,8 +694,36 @@ class JuzzioAppController extends ChangeNotifier {
       languagePackProgress.value = null;
       return true;
     }
-    final alreadyHad = catalog.length - missing.length;
+    var alreadyHad = catalog.length - missing.length;
     languagePackProgress.value = alreadyHad / catalog.length;
+    // v0.9.0 (G12): Önce sunucu önbelleği (translate-bridge batch_ui). Yer tutucular
+    // ({name}) maskelenerek gönderilir ve geri açılır; bozulan çeviri kullanılmaz.
+    final server = serverUiTranslator;
+    if (server != null) {
+      for (var i = 0; i < missing.length; i += 80) {
+        final chunk = missing.sublist(i, math.min(i + 80, missing.length));
+        final masked = <String, String>{for (final en in chunk) maskUiPlaceholders(en): en};
+        final got = await server(lang, masked.keys.toList());
+        if (got.isEmpty) break; // sunucuya ulaşılamıyor → yedek yol
+        got.forEach((maskedSrc, translated) {
+          final en = masked[maskedSrc];
+          if (en == null) return;
+          final restored = unmaskUiPlaceholders(en, translated);
+          if (restored != null) _dynamicUiCache['$lang|$en'] = restored;
+        });
+        languagePackProgress.value =
+            (catalog.length - catalog.where((en) => !_dynamicUiCache.containsKey('$lang|$en')).length) / catalog.length;
+      }
+      missing.removeWhere((en) => _dynamicUiCache.containsKey('$lang|$en'));
+      alreadyHad = catalog.length - missing.length;
+      if (missing.isEmpty) {
+        languagePackProgress.value = null;
+        await _persistPack(lang);
+        _loadedPackLangs.add(lang);
+        if (lang == _uiLang) notifyListeners();
+        return true;
+      }
+    }
     var done = 0;
     var ok = 0;
     // Çok satırlı olmayan metinler 20'şerli paketlerle (tek istekte, satır satır) çevrilir;
@@ -732,15 +768,41 @@ class JuzzioAppController extends ChangeNotifier {
         consecutiveFailures = batchOk == 0 ? consecutiveFailures + 1 : 0;
         languagePackProgress.value = (alreadyHad + done) / catalog.length;
         if (lang == _uiLang) notifyListeners();
+        // v0.9.0 (G12): art arda başarısızlıkta üstel geri çekilme (HTTP 429 / IP engeli önlenir)
+        if (consecutiveFailures > 0) {
+          await Future<void>.delayed(Duration(milliseconds: math.min(8000, 500 * (1 << consecutiveFailures))));
+        }
       }
     }
-    await Future.wait(List.generate(6, (_) => worker()));
+    // v0.9.0 (G12): Yedek yol yalnızca sunucuya ulaşılamazsa; en fazla 2 eşzamanlı işçi.
+    await Future.wait(List.generate(2, (_) => worker()));
     languagePackProgress.value = null;
     await _persistPack(lang);
     if (ok > 0) _loadedPackLangs.add(lang);
     if (lang == _uiLang) notifyListeners();
     // Paketin en az %90'ı hazır değilse dil geçişi yapılmaz.
     return (alreadyHad + ok) >= (catalog.length * 0.9);
+  }
+
+  static final RegExp _placeholderRe = RegExp(r'\{[a-zA-Z_]+\}');
+
+  /// {name} → __0__ (makine çevirisi yer tutucuları bozmasın)
+  static String maskUiPlaceholders(String source) {
+    var i = 0;
+    return source.replaceAllMapped(_placeholderRe, (_) => '__${i++}__');
+  }
+
+  /// __0__ → {name}; yer tutucu sayısı/sırası tutmazsa null (İngilizce kaynak kullanılır).
+  static String? unmaskUiPlaceholders(String source, String translated) {
+    final holders = _placeholderRe.allMatches(source).map((m) => m.group(0)!).toList();
+    var out = translated;
+    for (var i = 0; i < holders.length; i++) {
+      final token = '__${i}__';
+      if (!out.contains(token)) return null;
+      out = out.replaceFirst(token, holders[i]);
+    }
+    if (RegExp(r'__\d+__').hasMatch(out) || out.trim().isEmpty) return null;
+    return out;
   }
 
   /// Birden çok tek satırlık metni tek istekte çevirir. Satır sayısı ya da yer
@@ -795,6 +857,8 @@ class JuzzioAppController extends ChangeNotifier {
 
   Future<void> loadUserPreferences(String? userId) async {
     final uid = (userId == null || userId.trim().isEmpty) ? 'guest' : userId.trim();
+    // v0.9.0: önceki kullanıcının bekleyen kaydı, kullanıcı değişmeden yazılır
+    await flushPreferences();
     _activePrefsUserId = uid;
     try {
       final f = await _prefsFileForUser(uid);
@@ -903,6 +967,7 @@ class JuzzioAppController extends ChangeNotifier {
       _blockUnknownVolumeMessages = raw['blockUnknownVolumeMessages'] is bool ? raw['blockUnknownVolumeMessages'] as bool : _blockUnknownVolumeMessages;
       _protectIpInCalls = raw['protectIpInCalls'] == true;
       _disableLinkPreviews = raw['disableLinkPreviews'] == true;
+      _e2eeTranslationOptIn = raw['e2eeTranslationOptIn'] == true;
       _strictAccountSettings = raw['strictAccountSettings'] == true;
       _highContrastMode = raw['highContrastMode'] == true;
       _reduceMotion = raw['reduceMotion'] == true;
@@ -926,6 +991,8 @@ class JuzzioAppController extends ChangeNotifier {
   /// v0.8.0: Google Drive yedeğinden ayarları geri yükler (tema, gizlilik, yıldızlı mesajlar...).
   Future<void> restorePreferencesSnapshot(Map<String, dynamic> snapshot) async {
     try {
+      // Bekleyen (eski) kayıt geri yüklenen dosyanın üzerine yazılmasın
+      await flushPreferences();
       final f = await _prefsFileForUser(_activePrefsUserId);
       await f.writeAsString(jsonEncode(snapshot));
       await loadUserPreferences(_activePrefsUserId);
@@ -933,11 +1000,41 @@ class JuzzioAppController extends ChangeNotifier {
     } catch (_) {}
   }
 
+  // v0.9.0 (G14): Tercih kaydı 400 ms gecikmeyle birleştirilir (kaydırıcı hareketinde
+  // her karede disk yazımı + sunucu senkronu yapılmaz), yazım sıraya alınır ve atomiktir
+  // (önce .tmp dosyası, sonra rename — yarım yazılmış/bozuk tercih dosyası oluşmaz).
+  static const Duration _prefsDebounce = Duration(milliseconds: 400);
+  Timer? _prefsSaveTimer;
+  String? _prefsSaveUser;
+  Future<void> _prefsWriteChain = Future<void>.value();
+
   Future<void> _persistUserPreferences() async {
+    _prefsSaveUser = _activePrefsUserId;
+    _prefsSaveTimer?.cancel();
+    _prefsSaveTimer = Timer(_prefsDebounce, () {
+      flushPreferences();
+    });
+  }
+
+  /// Bekleyen tercih kaydını hemen yazar (uygulama arka plana geçerken, kullanıcı
+  /// değişmeden önce). Bekleyen kayıt yoksa hiçbir şey yapmaz.
+  Future<void> flushPreferences() {
+    _prefsSaveTimer?.cancel();
+    _prefsSaveTimer = null;
+    final uid = _prefsSaveUser;
+    _prefsSaveUser = null;
+    if (uid == null || uid != _activePrefsUserId) return _prefsWriteChain;
+    final map = preferencesSnapshot();
+    _prefsWriteChain = _prefsWriteChain.then((_) => _writePreferencesAtomic(uid, map)).catchError((_) {});
+    return _prefsWriteChain;
+  }
+
+  Future<void> _writePreferencesAtomic(String uid, Map<String, dynamic> map) async {
     try {
-      final f = await _prefsFileForUser(_activePrefsUserId);
-      final map = preferencesSnapshot();
-      await f.writeAsString(jsonEncode(map));
+      final f = await _prefsFileForUser(uid);
+      final tmp = File('${f.path}.tmp');
+      await tmp.writeAsString(jsonEncode(map), flush: true);
+      await tmp.rename(f.path);
       remotePreferenceSync?.call(map);
     } catch (_) {}
   }
@@ -989,6 +1086,7 @@ class JuzzioAppController extends ChangeNotifier {
         'blockUnknownVolumeMessages': _blockUnknownVolumeMessages,
         'protectIpInCalls': _protectIpInCalls,
         'disableLinkPreviews': _disableLinkPreviews,
+        'e2eeTranslationOptIn': _e2eeTranslationOptIn,
         'strictAccountSettings': _strictAccountSettings,
         'highContrastMode': _highContrastMode,
         'reduceMotion': _reduceMotion,
@@ -1548,6 +1646,12 @@ class JuzzioAppController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setE2eeTranslationOptIn(bool val) {
+    _e2eeTranslationOptIn = val;
+    _persistUserPreferences();
+    notifyListeners();
+  }
+
   void setDisableLinkPreviews(bool val) {
     _disableLinkPreviews = val;
     _persistUserPreferences();
@@ -1658,6 +1762,8 @@ class JuzzioAppController extends ChangeNotifier {
   bool _otaMandatory = false;
   Map<String, dynamic> _otaDetails = const <String, dynamic>{};
   String _otaApkUrl = JuzzioConfig.otaDirectApkUrl;
+  /// v0.9.0 (G13): imzası doğrulanmış version.json'daki APK SHA-256 özeti (küçük harf hex).
+  String _otaExpectedSha256 = '';
   DateTime? _otaSnoozedUntil;
   DateTime? _lastUpdateCheckTime;
   bool _isCheckingUpdate = false;
@@ -2154,6 +2260,20 @@ class JuzzioAppController extends ChangeNotifier {
     }
   }
 
+  /// v0.9.0 (G17): aynı doğrulama, ML-DSA-65 hesaplaması arka plan isolate'inde.
+  static Future<bool> verifyReleaseSignatureAsync(Map<String, dynamic> data) async {
+    final pkB64 = JuzzioConfig.mlDsaPublicKey.trim();
+    if (pkB64.isEmpty) return true;
+    try {
+      final sig = base64Decode('${data['mldsa65Sig'] ?? ''}');
+      final build = _asIntStatic(data['build']) ?? _asIntStatic(data['buildNumber']) ?? _asIntStatic(data['versionCode']) ?? 0;
+      final msg = utf8.encode('juzzio-release|${'${data['version'] ?? ''}'.trim()}|$build|${'${data['apkSha256'] ?? ''}'.trim().toLowerCase()}');
+      return await JuzzioPqAsync.verify(base64Decode(pkB64), msg, sig, ctx: utf8.encode('juzzio-release'));
+    } catch (_) {
+      return false;
+    }
+  }
+
   static int? _asIntStatic(Object? v) => v is int ? v : (v is num ? v.toInt() : int.tryParse('${v ?? ''}'.trim()));
 
   Future<bool> checkForOtaUpdate({bool manualCheck = false}) async {
@@ -2184,7 +2304,8 @@ class JuzzioAppController extends ChangeNotifier {
 
         if ((_compareSemver(remoteVer, JuzzioConfig.appVersion) > 0 ||
                 remoteCode > JuzzioConfig.appVersionCode) &&
-            verifyReleaseSignature(data)) {
+            await verifyReleaseSignatureAsync(data)) {
+          final verifiedSha = normalizeSha256('${data['apkSha256'] ?? ''}');
           await applyDetectedRemoteRelease(
             mandatory: data['mandatory'] == true,
             details: details,
@@ -2196,6 +2317,7 @@ class JuzzioAppController extends ChangeNotifier {
             apkUrl: apkUrl,
             ignoreSnooze: manualCheck,
           );
+          if (verifiedSha.isNotEmpty && _otaRemoteVersion == remoteVer) _otaExpectedSha256 = verifiedSha;
           _isCheckingUpdate = false;
           notifyListeners();
           return true;
@@ -2228,6 +2350,8 @@ class JuzzioAppController extends ChangeNotifier {
       // Yönetici not yazmadıysa notlar GitHub sürüm sayfasından otomatik çekilir
       details = await fetchGithubReleaseDetails(versionName);
     }
+    // Başka bir sürüme geçildiyse eski sürümün özeti kullanılmaz (G13)
+    if (_otaRemoteVersion != versionName || _otaRemoteCode != versionCode) _otaExpectedSha256 = '';
     _otaRemoteVersion = versionName;
     _otaRemoteCode = versionCode;
     _otaReleaseNotesTr = notesTr;
@@ -2267,6 +2391,40 @@ class JuzzioAppController extends ChangeNotifier {
     }
   }
 
+  /// 64 haneli küçük harf hex SHA-256 özeti; geçersizse boş dize.
+  static String normalizeSha256(String raw) {
+    final v = raw.trim().toLowerCase();
+    return RegExp(r'^[0-9a-f]{64}$').hasMatch(v) ? v : '';
+  }
+
+  /// İndirilen dosyanın özeti beklenen özetle birebir aynı mı? (sabit zamanlı karşılaştırma)
+  static bool otaShaMatches(String expectedHex, List<int> digest) {
+    final expected = normalizeSha256(expectedHex);
+    if (expected.isEmpty || digest.length != 32) return false;
+    final actual = digest.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    var diff = 0;
+    for (var i = 0; i < 64; i++) {
+      diff |= expected.codeUnitAt(i) ^ actual.codeUnitAt(i);
+    }
+    return diff == 0;
+  }
+
+  /// Beklenen özet yoksa (ör. güncelleme Realtime ile geldiyse) imzası doğrulanmış
+  /// version.json'dan alınır; sürüm eşleşmezse veya özet yoksa boş kalır (kurulum reddedilir).
+  Future<void> _ensureOtaExpectedSha() async {
+    if (_otaExpectedSha256.isNotEmpty) return;
+    try {
+      final uri = Uri.parse('${JuzzioConfig.otaVersionJsonUrl}?t=${DateTime.now().millisecondsSinceEpoch}');
+      final res = await http.get(uri).timeout(const Duration(seconds: 8));
+      if (res.statusCode != 200) return;
+      final data = parseVersionManifest(res.bodyBytes);
+      if (data == null || !await verifyReleaseSignatureAsync(data)) return;
+      final ver = '${data['version'] ?? ''}'.trim();
+      if (ver.isNotEmpty && _otaRemoteVersion.isNotEmpty && ver != _otaRemoteVersion) return;
+      _otaExpectedSha256 = normalizeSha256('${data['apkSha256'] ?? ''}');
+    } catch (_) {}
+  }
+
   Future<String> startOtaDownloadAndInstall() async {
     String connType = 'wifi';
     try {
@@ -2297,6 +2455,18 @@ class JuzzioAppController extends ChangeNotifier {
     // APK uygulama içinde indirilir (GitHub/tarayıcı açılmaz), ardından Android paket
     // yükleyicisi mevcut uygulamanın ÜZERİNE kurar. Aynı paket adı (com.juzzio.app) ve aynı
     // imza anahtarı kullanıldığı için veriler korunur; eski uygulamayı silmek gerekmez.
+    // v0.9.0 (G13): bütünlük özeti olmadan APK indirilmez/kurulmaz (fail-closed)
+    await _ensureOtaExpectedSha();
+    if (_otaExpectedSha256.isEmpty) {
+      _isDownloadingOta = false;
+      notifyListeners();
+      return trEn(
+        'Güncellemenin doğrulama bilgisi henüz yayınlanmadı. Güvenliğiniz için birkaç dakika sonra tekrar deneyin.',
+        'The update\'s verification data is not published yet. For your security, try again in a few minutes.',
+        'Die Prüfdaten des Updates sind noch nicht veröffentlicht. Versuche es zu deiner Sicherheit in einigen Minuten erneut.',
+      );
+    }
+    var integrityFailed = false;
     File? apkFile;
     final client = http.Client();
     try {
@@ -2314,11 +2484,13 @@ class JuzzioAppController extends ChangeNotifier {
       if (res.statusCode != 200) throw HttpException('status ${res.statusCode}');
       final total = res.contentLength ?? 0;
       final sink = apkFile.openWrite();
+      final hashSink = Sha256().newHashSink();
       var received = 0;
       var lastNotify = DateTime.now();
       try {
         await for (final chunk in res.stream.timeout(const Duration(seconds: 45))) {
           sink.add(chunk);
+          hashSink.add(chunk);
           received += chunk.length;
           if (total > 0 && DateTime.now().difference(lastNotify).inMilliseconds > 150) {
             _otaDownloadProgress = (received / total).clamp(0.0, 0.99);
@@ -2332,6 +2504,15 @@ class JuzzioAppController extends ChangeNotifier {
       if (received < 1024 * 100 || (total > 0 && received < total)) {
         throw const FileSystemException('incomplete');
       }
+      hashSink.close();
+      final digest = (await hashSink.hash()).bytes;
+      if (!otaShaMatches(_otaExpectedSha256, digest)) {
+        integrityFailed = true;
+        try {
+          apkFile.deleteSync();
+        } catch (_) {}
+        throw const FileSystemException('sha256_mismatch');
+      }
       _otaDownloadProgress = 1.0;
       notifyListeners();
     } catch (_) {
@@ -2339,6 +2520,13 @@ class JuzzioAppController extends ChangeNotifier {
       _otaDownloadProgress = 0.0;
       notifyListeners();
       client.close();
+      if (integrityFailed) {
+        return trEn(
+          'İndirilen güncelleme doğrulanamadı (SHA-256 uyuşmuyor) ve güvenliğiniz için silindi. Kurulum yapılmadı.',
+          'The downloaded update failed verification (SHA-256 mismatch) and was deleted for your security. Nothing was installed.',
+          'Das heruntergeladene Update konnte nicht verifiziert werden (SHA-256 stimmt nicht überein) und wurde zu deiner Sicherheit gelöscht. Es wurde nichts installiert.',
+        );
+      }
       return trEn(
         'Güncelleme indirilemedi. İnternet bağlantınızı kontrol edip tekrar deneyin.',
         'The update could not be downloaded. Check your internet connection and try again.',
@@ -2459,7 +2647,7 @@ class JuzzioPalette {
       ? const Color(0x2EFFFFFF)
       : const Color(0xB3FFFFFF));
   Color get glassHighlight => isDark
-      ? Colors.white.withOpacity(0.08)
+      ? Colors.white.withValues(alpha: 0.08)
       : Colors.white;
 
   // "Cool!" ve "Turn on notifications" butonlarının karakteristik derin siyah (#161618) tonu
@@ -2520,14 +2708,14 @@ class JuzzioPalette {
   List<BoxShadow> get softCardShadow => isDark
       ? [
           BoxShadow(
-            color: Colors.black.withOpacity(0.32),
+            color: Colors.black.withValues(alpha: 0.32),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
         ]
       : [
           BoxShadow(
-            color: JuzzioColors.slate900.withOpacity(0.06),
+            color: JuzzioColors.slate900.withValues(alpha: 0.06),
             blurRadius: 24,
             spreadRadius: 0,
             offset: const Offset(0, 8),
@@ -2536,7 +2724,7 @@ class JuzzioPalette {
 
   List<BoxShadow> get coolButtonShadow => [
         BoxShadow(
-          color: JuzzioColors.surface141416.withOpacity(isDark ? 0.38 : 0.22),
+          color: JuzzioColors.surface141416.withValues(alpha: isDark ? 0.38 : 0.22),
           blurRadius: 24,
           spreadRadius: 0,
           offset: const Offset(0, 10),
@@ -3083,6 +3271,18 @@ class JuzzioStrings {
 // TELEGRAM / WHATSAPP SEVİYESİ MODERN GÖRSEL KIRPMA, DÖNDÜRME & FİLTRE STÜDYOSU
 // =============================================================================
 class JuzzioImageCropperModal extends StatefulWidget {
+  /// [current] dönüşümünü, [focal] noktasının altındaki sahne noktası yerinde kalacak
+  /// şekilde [targetScale] ölçeğine taşır (1.0–5.0). Test edilebilir saf fonksiyon.
+  static Matrix4 zoomAroundFocal(Matrix4 current, double targetScale, Offset focal) {
+    final target = targetScale.clamp(1.0, 5.0).toDouble();
+    final oldScale = current.getMaxScaleOnAxis();
+    final t = current.getTranslation();
+    final sceneX = oldScale > 0 ? (focal.dx - t.x) / oldScale : focal.dx;
+    final sceneY = oldScale > 0 ? (focal.dy - t.y) / oldScale : focal.dy;
+    return Matrix4.diagonal3Values(target, target, 1.0)
+      ..setTranslationRaw(focal.dx - sceneX * target, focal.dy - sceneY * target, 0.0);
+  }
+
   final File sourceFile;
   final bool isCircular;
   final double aspectRatio;
@@ -3191,10 +3391,19 @@ class _JuzzioImageCropperModalState extends State<JuzzioImageCropperModal> {
     super.dispose();
   }
 
+  // v0.9.0 (G16): Kaydırıcıyla yakınlaştırma artık kullanıcının parmakla yaptığı kaydırmayı
+  // (pan) SIFIRLAMAZ: görüntü alanının merkezindeki sahne noktası sabit kalacak şekilde
+  // ölçeklenir. Kullanımdan kalkan Matrix4.scale/translate yerine doğrudan matris kurulur.
   void _applySliderZoom(double zoom) {
+    final size = _cropBoundaryKey.currentContext?.size ?? Size.zero;
+    final next = JuzzioImageCropperModal.zoomAroundFocal(
+      _transformController.value,
+      zoom,
+      Offset(size.width / 2, size.height / 2),
+    );
     setState(() {
-      _currentScale = zoom;
-      _transformController.value = Matrix4.identity()..scale(zoom);
+      _currentScale = zoom.clamp(1.0, 5.0);
+      _transformController.value = next;
     });
   }
 
@@ -3310,7 +3519,7 @@ class _JuzzioImageCropperModalState extends State<JuzzioImageCropperModal> {
                   border: Border.all(color: Colors.white, width: 2.2),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.55),
+                      color: Colors.black.withValues(alpha: 0.55),
                       blurRadius: 30,
                       spreadRadius: 2,
                     ),
@@ -3452,7 +3661,7 @@ class _CropGridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.white.withOpacity(0.26)
+      ..color = Colors.white.withValues(alpha: 0.26)
       ..strokeWidth = 1.0;
 
     final thirdW = size.width / 3;
@@ -3522,10 +3731,14 @@ class _JuzzioLanguagePickerSheetState extends State<JuzzioLanguagePickerSheet> {
           lang.code.toLowerCase().contains(q);
     }).toList();
 
-    return Container(
+    // v0.9.0 (G15): Önceden arka plan p.bgPrimary (Colors.transparent) idi ve blur yoktu;
+    // pencere arkasındaki ekran okunurluğu bozuyordu. Artık temanın sayfa (sheet) cam rengi +
+    // arka plan bulanıklığı; performans/azaltılmış efekt modunda opak yüzey kullanılır.
+    final reduced = JuzzioGlassTokens.reducedEffects;
+    final sheet = Container(
       height: MediaQuery.of(context).size.height * 0.86,
       decoration: BoxDecoration(
-        color: p.bgPrimary,
+        color: reduced ? JuzzioGlassTokens.surfaceSolid : p.sheetBg,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
         border: Border.all(color: p.glassBorder),
       ),
@@ -3536,7 +3749,7 @@ class _JuzzioLanguagePickerSheetState extends State<JuzzioLanguagePickerSheet> {
             width: 44,
             height: 4,
             decoration: BoxDecoration(
-              color: p.textMuted.withOpacity(0.4),
+              color: p.textMuted.withValues(alpha: 0.4),
               borderRadius: BorderRadius.circular(4),
             ),
           ),
@@ -3669,6 +3882,14 @@ class _JuzzioLanguagePickerSheetState extends State<JuzzioLanguagePickerSheet> {
             ),
           ),
         ],
+      ),
+    );
+    if (reduced) return sheet;
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+      child: BackdropFilter(
+        filter: ui.ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+        child: sheet,
       ),
     );
   }

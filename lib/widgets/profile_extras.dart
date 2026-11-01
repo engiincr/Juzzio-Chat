@@ -156,9 +156,9 @@ class _JuzzioBadgeRowState extends State<JuzzioBadgeRow> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: JuzzioBadgeStyle.all[code]!.color.withOpacity(0.14),
+                  color: JuzzioBadgeStyle.all[code]!.color.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: JuzzioBadgeStyle.all[code]!.color.withOpacity(0.55)),
+                  border: Border.all(color: JuzzioBadgeStyle.all[code]!.color.withValues(alpha: 0.55)),
                 ),
                 child: Text(
                   '${JuzzioBadgeStyle.all[code]!.emoji} ${app.t(JuzzioBadgeStyle.all[code]!.labelKey)}',

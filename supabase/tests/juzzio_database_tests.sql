@@ -586,3 +586,426 @@ DELETE FROM admin_sessions WHERE user_id = :'A';
 DELETE FROM global_themes;
 UPDATE profiles SET username = 'ali' WHERE id = :'A';
 SELECT 'TÜM v0.8.3 TESTLERİ GEÇTİ';
+
+-- =============================================================================
+-- v0.9.0: GÜVENLİK SERTLEŞTİRMESİ (Bölüm 10) — pozitif + NEGATİF yetki testleri
+-- =============================================================================
+\set A 'aaaaaaaa-0000-0000-0000-000000000001'
+\set B 'bbbbbbbb-0000-0000-0000-000000000002'
+\set C 'cccccccc-0000-0000-0000-000000000003'
+\set D 'dddddddd-0000-0000-0000-000000000004'
+\set S9 '99999999-0000-0000-0000-000000000090'
+\set R9 'lk_test_v090_room'
+RESET ROLE;
+DELETE FROM banned_users WHERE user_id IN (:'A', :'B', :'C', :'D');
+DELETE FROM call_removals WHERE session_id = :'S9';
+DELETE FROM call_logs WHERE session_id = :'S9';
+-- A arayan, B cevapladı (etkin), C çıkarıldı (bitmiş), D cevapladı ama çağrıdan çıktı (bitmiş)
+INSERT INTO call_logs (caller_id, receiver_id, is_video, status, session_id, livekit_room_name, is_group, answered_at, ended_at)
+VALUES (:'A', :'B', false, 'answered', :'S9', :'R9', true, NOW() - INTERVAL '3 minutes', NULL),
+       (:'A', :'C', false, 'answered', :'S9', :'R9', true, NOW() - INTERVAL '3 minutes', NULL),
+       (:'A', :'D', false, 'answered', :'S9', :'R9', true, NOW() - INTERVAL '3 minutes', NOW() - INTERVAL '1 minute');
+SELECT juzzio_remove_call_participant(:'A', :'R9', :'C');
+
+-- G01: LiveKit token
+SELECT pg_temp.check('G01 etkin katılımcı B token alır', can_join_livekit_room(:'B', :'R9'));
+SELECT pg_temp.check('G01 çıkarılan C token alamaz', NOT can_join_livekit_room(:'C', :'R9'));
+SELECT pg_temp.check('G01 çağrıdan çıkmış D (bitmiş answered) token alamaz', NOT can_join_livekit_room(:'D', :'R9'));
+SELECT pg_temp.check('G01 boş oda adı reddedilir', NOT can_join_livekit_room(:'B', ''));
+INSERT INTO banned_users (user_id, reason_code, expires_at) VALUES (:'B', 'test', NOW() + INTERVAL '1 hour');
+SELECT pg_temp.check('G01 süreli yasaklı B token alamaz', NOT can_join_livekit_room(:'B', :'R9'));
+UPDATE banned_users SET expires_at = NOW() - INTERVAL '1 second' WHERE user_id = :'B';
+SELECT pg_temp.check('G01 yasak süresi dolunca B tekrar alır', can_join_livekit_room(:'B', :'R9'));
+DELETE FROM banned_users WHERE user_id = :'B';
+
+-- G02: content-moderation geri dönüşü — yalnız ETKİN katılımcı
+SELECT pg_temp.check('G02 A (arayan) etkin', juzzio_is_active_call_participant(:'A', :'R9'));
+SELECT pg_temp.check('G02 B etkin', juzzio_is_active_call_participant(:'B', :'R9'));
+SELECT pg_temp.check('G02 çıkarılan C etkin DEĞİL', NOT juzzio_is_active_call_participant(:'C', :'R9'));
+SELECT pg_temp.check('G02 çıkmış D etkin DEĞİL', NOT juzzio_is_active_call_participant(:'D', :'R9'));
+SELECT pg_temp.check('G02 başka oda adı reddedilir', NOT juzzio_is_active_call_participant(:'B', 'lk_baska_oda'));
+
+-- G05: canlı altyazı
+SELECT pg_temp.check('G05 B (etkin) altyazı alır', juzzio_can_use_live_captions(:'B'));
+SELECT pg_temp.check('G05 çıkarılan C alamaz', NOT juzzio_can_use_live_captions(:'C'));
+SELECT pg_temp.check('G05 çıkmış D alamaz', NOT juzzio_can_use_live_captions(:'D'));
+INSERT INTO banned_users (user_id, reason_code) VALUES (:'B', 'test');
+SELECT pg_temp.check('G05 yasaklı B alamaz', NOT juzzio_can_use_live_captions(:'B'));
+DELETE FROM banned_users WHERE user_id = :'B';
+
+-- G06: invite_to_call
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'C');
+DO $$ BEGIN
+  PERFORM invite_to_call('99999999-0000-0000-0000-000000000090', ARRAY['dddddddd-0000-0000-0000-000000000004'::uuid]);
+  RAISE EXCEPTION 'FAIL G06 çıkarılan C davet edebildi';
+EXCEPTION WHEN raise_exception THEN
+  IF SQLERRM <> 'not_in_call' THEN RAISE; END IF;
+END $$;
+SELECT pg_temp.as_user(:'D');
+DO $$ BEGIN
+  PERFORM invite_to_call('99999999-0000-0000-0000-000000000090', ARRAY['cccccccc-0000-0000-0000-000000000003'::uuid]);
+  RAISE EXCEPTION 'FAIL G06 çağrıdan çıkmış D davet edebildi';
+EXCEPTION WHEN raise_exception THEN
+  IF SQLERRM <> 'not_in_call' THEN RAISE; END IF;
+END $$;
+RESET ROLE;
+INSERT INTO banned_users (user_id, reason_code) VALUES (:'B', 'test');
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'B');
+DO $$ BEGIN
+  PERFORM invite_to_call('99999999-0000-0000-0000-000000000090', ARRAY['dddddddd-0000-0000-0000-000000000004'::uuid]);
+  RAISE EXCEPTION 'FAIL G06 yasaklı B davet edebildi';
+EXCEPTION WHEN raise_exception THEN
+  IF SQLERRM <> 'account_banned' THEN RAISE; END IF;
+END $$;
+RESET ROLE;
+DELETE FROM banned_users WHERE user_id = :'B';
+-- Pozitif: B etkin; çıkarılmış C yeniden davet EDİLEMEZ (0), arkadaşı olmayan D davet edilemez
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'B');
+SELECT pg_temp.check('G06 çıkarılan kişi yeniden davet edilemez', invite_to_call(:'S9', ARRAY[:'C'::uuid]) = 0);
+RESET ROLE;
+
+-- G07: get_or_create_dm_room yasak kontrolü (kaynakta zaten var — regresyon testi)
+INSERT INTO banned_users (user_id, reason_code) VALUES (:'D', 'test');
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'D');
+DO $$ BEGIN
+  PERFORM get_or_create_dm_room('aaaaaaaa-0000-0000-0000-000000000001');
+  RAISE EXCEPTION 'FAIL G07 yasaklı DM açabildi';
+EXCEPTION WHEN raise_exception THEN
+  IF SQLERRM <> 'account_banned' THEN RAISE; END IF;
+END $$;
+RESET ROLE;
+DELETE FROM banned_users WHERE user_id = :'D';
+
+-- G04: sesli mesaj transkripsiyonu — üyelik
+SELECT get_or_create_dm_room_test.id AS dmroom FROM (SELECT r.id FROM rooms r
+  JOIN room_participants pa ON pa.room_id = r.id AND pa.user_id = :'A'
+  JOIN room_participants pb ON pb.room_id = r.id AND pb.user_id = :'B'
+  WHERE NOT r.is_group LIMIT 1) get_or_create_dm_room_test \gset
+INSERT INTO messages (room_id, sender_id, original_text, message_type) VALUES (:'dmroom', :'A', '', 'voice') RETURNING id AS vmsg \gset
+INSERT INTO voice_notes (message_id, room_id, sender_id, storage_path, public_url)
+VALUES (:'vmsg', :'dmroom', :'A', :'A' || '/' || :'dmroom' || '/v090.m4a', '') RETURNING id AS vn \gset
+SELECT pg_temp.check('G04 oda üyesi B çözebilir', (juzzio_voice_note_for_transcription(:'B', :'vn')->>'ok')::boolean);
+SELECT pg_temp.check('G04 mesaj kimliğiyle de çözülür', (juzzio_voice_note_for_transcription(:'B', NULL, :'vmsg')->>'ok')::boolean);
+SELECT pg_temp.check('G04 üye olmayan D reddedilir', (juzzio_voice_note_for_transcription(:'D', :'vn')->>'error') = 'forbidden');
+SELECT pg_temp.check('G04 başkasının yolu ile D reddedilir',
+  (juzzio_voice_note_for_transcription(:'D', NULL, NULL, :'A' || '/' || :'dmroom' || '/v090.m4a')->>'error') = 'forbidden');
+SELECT pg_temp.check('G04 yol geçişi (..) reddedilir',
+  (juzzio_voice_note_for_transcription(:'D', NULL, NULL, :'D' || '/../x.m4a')->>'error') = 'invalid_path');
+SELECT pg_temp.check('G04 D kendi adına sahte oda yolu kullanamaz',
+  (juzzio_voice_note_for_transcription(:'D', NULL, NULL, :'D' || '/' || :'dmroom' || '/y.m4a')->>'error') = 'not_found');
+SELECT pg_temp.check('G04 A kendi yeni yüklemesini çözebilir',
+  (juzzio_voice_note_for_transcription(:'A', NULL, NULL, :'A' || '/' || :'dmroom' || '/yeni.m4a')->>'pending_owner_upload')::boolean);
+INSERT INTO banned_users (user_id, reason_code) VALUES (:'B', 'test');
+SELECT pg_temp.check('G04 yasaklı B reddedilir', (juzzio_voice_note_for_transcription(:'B', :'vn')->>'error') = 'account_banned');
+DELETE FROM banned_users WHERE user_id = :'B';
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'B');
+DO $$ BEGIN
+  PERFORM juzzio_voice_note_for_transcription('bbbbbbbb-0000-0000-0000-000000000002', NULL, NULL, NULL);
+  RAISE EXCEPTION 'FAIL G04 authenticated doğrudan çağırabildi';
+EXCEPTION WHEN insufficient_privilege THEN NULL; END $$;
+RESET ROLE;
+
+-- Hız sınırlayıcı
+DELETE FROM juzzio_rate_events WHERE user_id = :'D';
+SELECT pg_temp.check('hız sınırı 1', juzzio_rate_check(:'D', 'test', 2, 60));
+SELECT pg_temp.check('hız sınırı 2', juzzio_rate_check(:'D', 'test', 2, 60));
+SELECT pg_temp.check('hız sınırı 3. istek reddedilir', NOT juzzio_rate_check(:'D', 'test', 2, 60));
+SELECT pg_temp.check('farklı eylem bağımsız', juzzio_rate_check(:'D', 'test2', 2, 60));
+
+-- G08: askıda kalan push kilidi
+DELETE FROM push_delivery_logs WHERE idempotency_key LIKE 'v090_%';
+INSERT INTO push_delivery_logs (idempotency_key, recipient_id, delivery_status, created_at)
+VALUES ('v090_stale', :'A', 'processing', NOW() - INTERVAL '5 minutes'),
+       ('v090_fresh', :'A', 'processing', NOW() - INTERVAL '10 seconds'),
+       ('v090_done',  :'A', 'fcm_accepted', NOW() - INTERVAL '10 minutes');
+SELECT pg_temp.check('G08 eski processing devralınır', juzzio_claim_stale_push_delivery('v090_stale') IS NOT NULL);
+SELECT pg_temp.check('G08 ikinci devralma yok (çift gönderim yok)', juzzio_claim_stale_push_delivery('v090_stale') IS NULL);
+SELECT pg_temp.check('G08 taze processing devralınmaz', juzzio_claim_stale_push_delivery('v090_fresh') IS NULL);
+SELECT pg_temp.check('G08 sonuçlanmış kayıt devralınmaz', juzzio_claim_stale_push_delivery('v090_done') IS NULL);
+DELETE FROM push_delivery_logs WHERE idempotency_key LIKE 'v090_%';
+
+-- 10.7 Storage gizliliği
+SELECT pg_temp.check('bucket chat-media özel', (SELECT NOT public FROM storage.buckets WHERE id = 'chat-media'));
+SELECT pg_temp.check('bucket voice-notes özel', (SELECT NOT public FROM storage.buckets WHERE id = 'voice-notes'));
+SELECT pg_temp.check('bucket stories özel', (SELECT NOT public FROM storage.buckets WHERE id = 'stories'));
+SELECT pg_temp.check('bucket posts özel', (SELECT NOT public FROM storage.buckets WHERE id = 'posts'));
+SELECT pg_temp.check('bucket reels özel', (SELECT NOT public FROM storage.buckets WHERE id = 'reels'));
+SELECT pg_temp.check('bucket avatars herkese açık', (SELECT public FROM storage.buckets WHERE id = 'avatars'));
+DELETE FROM storage.objects WHERE name LIKE '%v090%';
+INSERT INTO storage.objects (bucket_id, name, owner) VALUES
+  ('voice-notes', :'A' || '/' || :'dmroom' || '/v090.m4a', :'A'),
+  ('chat-media',  :'A' || '/' || :'dmroom' || '/v090.jpg', :'A'),
+  ('stories',     :'A' || '/v090_story.jpg', :'A'),
+  ('posts',       :'A' || '/v090_post.jpg', :'A'),
+  ('posts',       :'A' || '/v090_private.jpg', :'A');
+INSERT INTO stories (user_id, media_type, media_url, visibility)
+VALUES (:'A', 'image', 'https://x.supabase.co/storage/v1/object/public/stories/' || :'A' || '/v090_story.jpg', 'close_friends');
+INSERT INTO posts (author_id, content_type, caption, media_storage_paths, visibility)
+VALUES (:'A', 'image', 'v090 public', jsonb_build_array('posts:' || :'A' || '/v090_post.jpg'), 'public'),
+       (:'A', 'image', 'v090 private', jsonb_build_array('posts:' || :'A' || '/v090_private.jpg'), 'private');
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'B');
+SELECT pg_temp.check('oda üyesi B sesli mesajı okur', (SELECT count(*) FROM storage.objects WHERE bucket_id = 'voice-notes' AND name LIKE '%v090%') = 1);
+SELECT pg_temp.check('oda üyesi B sohbet medyasını okur', (SELECT count(*) FROM storage.objects WHERE bucket_id = 'chat-media' AND name LIKE '%v090%') = 1);
+SELECT pg_temp.check('B yakın arkadaş değil → hikâye medyasını okuyamaz', (SELECT count(*) FROM storage.objects WHERE bucket_id = 'stories' AND name LIKE '%v090%') = 0);
+SELECT pg_temp.check('B herkese açık gönderi medyasını okur', (SELECT count(*) FROM storage.objects WHERE bucket_id = 'posts' AND name LIKE '%v090_post%') = 1);
+SELECT pg_temp.check('B özel gönderi medyasını okuyamaz', (SELECT count(*) FROM storage.objects WHERE bucket_id = 'posts' AND name LIKE '%v090_private%') = 0);
+SELECT pg_temp.as_user(:'D');
+SELECT pg_temp.check('üye olmayan D sesli mesajı okuyamaz', (SELECT count(*) FROM storage.objects WHERE bucket_id = 'voice-notes' AND name LIKE '%v090%') = 0);
+SELECT pg_temp.check('üye olmayan D sohbet medyasını okuyamaz', (SELECT count(*) FROM storage.objects WHERE bucket_id = 'chat-media' AND name LIKE '%v090%') = 0);
+SELECT pg_temp.as_user(:'A');
+SELECT pg_temp.check('sahip A kendi dosyalarını okur', (SELECT count(*) FROM storage.objects WHERE name LIKE '%v090%') = 5);
+RESET ROLE;
+INSERT INTO close_friends (owner_id, friend_id) VALUES (:'A', :'B') ON CONFLICT DO NOTHING;
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'B');
+SELECT pg_temp.check('yakın arkadaş B hikâye medyasını okur', (SELECT count(*) FROM storage.objects WHERE bucket_id = 'stories' AND name LIKE '%v090%') = 1);
+-- Personel erişimi en az yetkiyle
+RESET ROLE;
+INSERT INTO storage.objects (bucket_id, name, owner) VALUES ('chat-media', :'A' || '/feedback/v090_fb.jpg', :'A');
+INSERT INTO staff_roles (user_id, role) VALUES (:'D', 'moderator');
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'D');
+SELECT pg_temp.check('moderatör özel gönderi medyasını inceleyebilir', (SELECT count(*) FROM storage.objects WHERE bucket_id = 'posts' AND name LIKE '%v090_private%') = 1);
+SELECT pg_temp.check('moderatör özel sohbet medyasını GÖREMEZ', (SELECT count(*) FROM storage.objects WHERE bucket_id IN ('chat-media', 'voice-notes') AND name LIKE '%v090%') = 0);
+RESET ROLE;
+UPDATE staff_roles SET role = 'support' WHERE user_id = :'D';
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'D');
+SELECT pg_temp.check('destek geri bildirim görüntüsünü görür', (SELECT count(*) FROM storage.objects WHERE name LIKE '%feedback/v090_fb%') = 1);
+SELECT pg_temp.check('destek ÖZEL gönderi medyasını göremez', (SELECT count(*) FROM storage.objects WHERE bucket_id = 'posts' AND name LIKE '%v090_private%') = 0);
+RESET ROLE;
+DELETE FROM staff_roles WHERE user_id = :'D';
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'D');
+SELECT pg_temp.check('rolsüz kullanıcı geri bildirim görüntüsünü göremez', (SELECT count(*) FROM storage.objects WHERE name LIKE '%feedback/v090_fb%') = 0);
+RESET ROLE;
+SET ROLE anon;
+SELECT pg_temp.check('anonim hiçbir özel nesneyi okuyamaz', (SELECT count(*) FROM storage.objects WHERE name LIKE '%v090%') = 0);
+RESET ROLE;
+DELETE FROM close_friends WHERE owner_id = :'A' AND friend_id = :'B';
+DELETE FROM stories WHERE media_url LIKE '%v090_story%';
+DELETE FROM posts WHERE caption IN ('v090 public', 'v090 private');
+DELETE FROM storage.objects WHERE name LIKE '%v090%';
+DELETE FROM voice_notes WHERE id = :'vn';
+DELETE FROM messages WHERE id = :'vmsg';
+DELETE FROM call_removals WHERE session_id = :'S9';
+DELETE FROM call_logs WHERE session_id = :'S9';
+SELECT 'TÜM v0.9.0 GÜVENLİK TESTLERİ GEÇTİ';
+
+-- =============================================================================
+-- v0.9.0: RBAC izin matrisi (G20/G21) — HER ROL için izin VE ret testleri
+-- =============================================================================
+RESET ROLE;
+SET search_path = public, extensions;
+-- pg_temp.allowed(sql): çağrı yetki hatası VERMEZSE true (yan etkiler her durumda geri alınır)
+CREATE OR REPLACE FUNCTION pg_temp.allowed(p_sql TEXT) RETURNS BOOLEAN LANGUAGE plpgsql AS $$
+BEGIN
+  BEGIN
+    EXECUTE p_sql;
+    RAISE EXCEPTION 'juzzio_test_rollback';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM LIKE 'permission_denied:%' OR SQLERRM = 'admin_session_invalid' THEN RETURN false; END IF;
+    RETURN true;  -- yetki geçti (iş kuralı hatası veya bilinçli geri alma)
+  END;
+END $$;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA pg_temp TO authenticated, anon;
+DELETE FROM staff_roles WHERE user_id IN (:'A', :'B', :'C', :'D');
+UPDATE profiles SET username = 'tugkancr' WHERE id = :'A';
+DELETE FROM admin_sessions WHERE user_id = :'A';
+INSERT INTO admin_sessions (token_hash, user_id, expires_at)
+VALUES ((SELECT encode(digest('tok090', 'sha256'), 'hex')), :'A', NOW() + INTERVAL '1 hour');
+SELECT set_config('juzzio.d', :'D', false);
+
+-- Matris: rol | sql | beklenen
+CREATE TEMP TABLE rbac_cases (role TEXT, label TEXT, sql TEXT, expect BOOLEAN);
+INSERT INTO rbac_cases VALUES
+ -- rolü olmayan kullanıcı: hiçbir şey
+ ('none', 'kullanıcı arama', $q$SELECT admin_search_users('', 'x')$q$, false),
+ ('none', 'istatistik', $q$SELECT admin_stats('')$q$, false),
+ ('none', 'denetim kaydı', $q$SELECT admin_audit('', 5)$q$, false),
+ -- moderatör
+ ('moderator', 'kullanıcı arama', $q$SELECT admin_search_users('', 'x')$q$, true),
+ ('moderator', 'şikâyet listesi', $q$SELECT admin_list_reports('', 'open', 5)$q$, true),
+ ('moderator', 'şikâyet çözme', $q$SELECT admin_set_report_status('', gen_random_uuid(), 'resolved', '')$q$, true),
+ ('moderator', 'içerik silme', $q$SELECT admin_delete_content('', 'post', gen_random_uuid()::text)$q$, true),
+ ('moderator', 'uyarı', $q$SELECT admin_warn_user('', current_setting('juzzio.d')::uuid, 'x')$q$, true),
+ ('moderator', 'yasaklama YOK', $q$SELECT admin_ban_user('', current_setting('juzzio.d')::uuid, 'spam', '', false)$q$, false),
+ ('moderator', 'e-posta YOK', $q$SELECT admin_get_user_email('', current_setting('juzzio.d')::uuid)$q$, false),
+ ('moderator', 'ayar YOK', $q$SELECT admin_set_setting('', 'x', '1'::jsonb)$q$, false),
+ ('moderator', 'duyuru YOK', $q$SELECT admin_broadcast('', 't', 'b', '', 'all')$q$, false),
+ ('moderator', 'denetim kaydı YOK', $q$SELECT admin_audit('', 5)$q$, false),
+ -- destek
+ ('support', 'kullanıcı arama', $q$SELECT admin_search_users('', 'x')$q$, true),
+ ('support', 'geri bildirim', $q$SELECT admin_list_feedback('', 'open')$q$, true),
+ ('support', 'şikâyet görüntüleme', $q$SELECT admin_list_reports('', 'open', 5)$q$, true),
+ ('support', 'şikâyet çözme YOK', $q$SELECT admin_set_report_status('', gen_random_uuid(), 'resolved', '')$q$, false),
+ ('support', 'içerik silme YOK', $q$SELECT admin_delete_content('', 'post', gen_random_uuid()::text)$q$, false),
+ ('support', 'e-posta YOK', $q$SELECT admin_get_user_email('', current_setting('juzzio.d')::uuid)$q$, false),
+ ('support', 'hesap silme YOK', $q$SELECT admin_delete_user('', current_setting('juzzio.d')::uuid, 'x')$q$, false),
+ -- analist
+ ('analyst', 'istatistik', $q$SELECT admin_stats('')$q$, true),
+ ('analyst', 'kullanıcı arama YOK', $q$SELECT admin_search_users('', 'x')$q$, false),
+ ('analyst', 'denetim kaydı YOK', $q$SELECT admin_audit('', 5)$q$, false),
+ -- içerik yöneticisi
+ ('content_manager', 'duyuru', $q$SELECT admin_broadcast('', 't', 'b', '', 'nobody_test')$q$, true),
+ ('content_manager', 'kullanıcı arama YOK', $q$SELECT admin_search_users('', 'x')$q$, false),
+ ('content_manager', 'içerik silme YOK', $q$SELECT admin_delete_content('', 'post', gen_random_uuid()::text)$q$, false),
+ -- denetçi (salt okunur)
+ ('auditor', 'denetim kaydı', $q$SELECT admin_audit('', 5)$q$, true),
+ ('auditor', 'istatistik', $q$SELECT admin_stats('')$q$, true),
+ ('auditor', 'uyarı YOK', $q$SELECT admin_warn_user('', current_setting('juzzio.d')::uuid, 'x')$q$, false),
+ ('auditor', 'ayar YOK', $q$SELECT admin_set_setting('', 'x', '1'::jsonb)$q$, false),
+ -- yönetici
+ ('admin', 'yasaklama', $q$SELECT admin_ban_user('', current_setting('juzzio.d')::uuid, 'spam', '', false)$q$, true),
+ ('admin', 'e-posta (users.pii)', $q$SELECT admin_get_user_email('', current_setting('juzzio.d')::uuid)$q$, true),
+ ('admin', 'ayar', $q$SELECT admin_set_setting('', 'x', '1'::jsonb)$q$, true),
+ ('admin', 'hesap silme YOK (yalnız süper yönetici)', $q$SELECT admin_delete_user('', current_setting('juzzio.d')::uuid, 'x')$q$, false),
+ ('admin', 'rol verme YOK (yalnız süper yönetici)', $q$SELECT admin_grant_role('', current_setting('juzzio.d')::uuid, 'support')$q$, false);
+
+DO $$
+DECLARE r RECORD; v BOOLEAN; n INT := 0;
+BEGIN
+  FOR r IN SELECT * FROM rbac_cases ORDER BY role LOOP
+    DELETE FROM staff_roles WHERE user_id = 'cccccccc-0000-0000-0000-000000000003';
+    IF r.role <> 'none' THEN
+      INSERT INTO staff_roles (user_id, role) VALUES ('cccccccc-0000-0000-0000-000000000003', r.role);
+    END IF;
+    PERFORM set_config('request.jwt.claim.sub', 'cccccccc-0000-0000-0000-000000000003', true);
+    SET LOCAL ROLE authenticated;
+    v := pg_temp.allowed(r.sql);
+    RESET ROLE;
+    IF v IS DISTINCT FROM r.expect THEN
+      RAISE EXCEPTION 'FAIL RBAC % / % beklenen=% gerçek=%', r.role, r.label, r.expect, v;
+    END IF;
+    n := n + 1;
+  END LOOP;
+  RAISE NOTICE 'RBAC matrisi: % durum doğrulandı', n;
+END $$;
+DELETE FROM staff_roles WHERE user_id = :'C';
+SELECT pg_temp.check('RBAC matrisi (35 durum) geçti', true);
+
+-- Süper yönetici: belirteçsiz '*' GEÇMEZ; geçerli belirteçle geçer; yanlış belirteç → admin_session_invalid
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+SELECT pg_temp.check('süper yönetici belirteçsiz reddedilir', NOT pg_temp.allowed($q$SELECT admin_stats('')$q$));
+SELECT pg_temp.check('süper yönetici belirteçle geçer', pg_temp.allowed($q$SELECT admin_stats('tok090')$q$));
+DO $$ BEGIN
+  PERFORM admin_stats('yanlis');
+  RAISE EXCEPTION 'FAIL yanlış belirteç';
+EXCEPTION WHEN raise_exception THEN
+  IF SQLERRM <> 'admin_session_invalid' THEN RAISE; END IF;
+END $$;
+-- Destek görevlisi kullanıcı ayrıntısında e-postayı GÖREMEZ; okuma denetime yazılır
+RESET ROLE;
+INSERT INTO staff_roles (user_id, role) VALUES (:'C', 'support');
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'C');
+SELECT pg_temp.check('destek: e-posta maskeli', (admin_user_detail('', :'D')->>'email') IS NULL);
+RESET ROLE;
+SELECT pg_temp.check('ayrıcalıklı okuma denetimde', EXISTS (SELECT 1 FROM admin_audit_log WHERE admin_id = :'C' AND action = 'view_user_detail' AND target = :'D'));
+UPDATE staff_roles SET role = 'admin' WHERE user_id = :'C';
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'C');
+SELECT pg_temp.check('yönetici: e-posta görünür', (admin_user_detail('', :'D')->>'email') = 'd@test.local');
+RESET ROLE;
+-- Rol geri alınınca ANINDA etkisiz
+DELETE FROM staff_roles WHERE user_id = :'C';
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'C');
+SELECT pg_temp.check('rol geri alındı → ret', NOT pg_temp.allowed($q$SELECT admin_search_users('', 'x')$q$));
+RESET ROLE;
+DELETE FROM admin_sessions WHERE user_id = :'A';
+UPDATE profiles SET username = 'ali' WHERE id = :'A';
+SELECT 'TÜM v0.9.0 RBAC TESTLERİ GEÇTİ';
+
+-- =============================================================================
+-- v0.9.0: STORAGE TEMİZLİĞİ (G22 / G33)
+-- =============================================================================
+RESET ROLE;
+DELETE FROM juzzio_storage_cleanup_queue;
+SELECT pg_temp.check('URL ayrıştırma (public)', (SELECT bucket || '|' || object_name FROM juzzio_storage_ref_from_url('https://x.supabase.co/storage/v1/object/public/chat-media/u/r/a.jpg')) = 'chat-media|u/r/a.jpg');
+SELECT pg_temp.check('URL ayrıştırma (sign + sorgu)', (SELECT object_name FROM juzzio_storage_ref_from_url('https://x.supabase.co/storage/v1/object/sign/stories/u/s.mp4?token=abc')) = 'u/s.mp4');
+SELECT pg_temp.check('yabancı URL yok sayılır', NOT EXISTS (SELECT 1 FROM juzzio_storage_ref_from_url('https://evil.example/a.jpg')));
+-- Gönderi yumuşak silme → medya + kapak kuyruğa
+INSERT INTO posts (author_id, content_type, caption, media_storage_paths, cover_url)
+VALUES (:'A', 'image', 'v090 cleanup', '["posts:aaaa/p1.jpg","reels:aaaa/r1.mp4"]'::jsonb,
+        'https://x.supabase.co/storage/v1/object/public/posts/aaaa/cover1.jpg') RETURNING id AS cpost \gset
+UPDATE posts SET is_deleted = true WHERE id = :'cpost';
+SELECT pg_temp.check('gönderi silme: 3 nesne kuyrukta',
+  (SELECT count(*) FROM juzzio_storage_cleanup_queue WHERE reason = 'post_deleted' AND processed_at IS NULL) = 3);
+UPDATE posts SET caption = 'x' WHERE id = :'cpost';
+SELECT pg_temp.check('ilgisiz güncelleme tekrar kuyruğa yazmaz',
+  (SELECT count(*) FROM juzzio_storage_cleanup_queue WHERE reason = 'post_deleted') = 3);
+DELETE FROM posts WHERE id = :'cpost';
+SELECT pg_temp.check('sert silme yinelenen kuyruk kaydı üretmez',
+  (SELECT count(*) FROM juzzio_storage_cleanup_queue WHERE reason = 'post_deleted' AND processed_at IS NULL) = 3);
+-- Hikâye silme
+INSERT INTO stories (user_id, media_type, media_url) VALUES (:'A', 'image', 'https://x.supabase.co/storage/v1/object/public/stories/aaaa/st1.jpg') RETURNING id AS cstory \gset
+DELETE FROM stories WHERE id = :'cstory';
+SELECT pg_temp.check('hikâye silme kuyrukta', EXISTS (SELECT 1 FROM juzzio_storage_cleanup_queue WHERE bucket = 'stories' AND object_name = 'aaaa/st1.jpg'));
+-- Mesaj "herkesten sil" (URL'ler temizlenir) + sesli mesaj
+SELECT room_id AS croom FROM room_participants WHERE user_id = :'A' LIMIT 1 \gset
+INSERT INTO messages (room_id, sender_id, original_text, message_type, image_url)
+VALUES (:'croom', :'A', '', 'image', 'https://x.supabase.co/storage/v1/object/public/chat-media/aaaa/r/m1.jpg') RETURNING id AS cmsg \gset
+INSERT INTO voice_notes (message_id, room_id, sender_id, storage_path, public_url) VALUES (:'cmsg', :'croom', :'A', 'aaaa/r/v1.m4a', '');
+UPDATE messages SET is_deleted = true, image_url = NULL WHERE id = :'cmsg';
+SELECT pg_temp.check('mesaj medyası kuyrukta', EXISTS (SELECT 1 FROM juzzio_storage_cleanup_queue WHERE bucket = 'chat-media' AND object_name = 'aaaa/r/m1.jpg'));
+SELECT pg_temp.check('sesli mesaj kaydı silindi ve dosyası kuyrukta',
+  NOT EXISTS (SELECT 1 FROM voice_notes WHERE message_id = :'cmsg')
+  AND EXISTS (SELECT 1 FROM juzzio_storage_cleanup_queue WHERE bucket = 'voice-notes' AND object_name = 'aaaa/r/v1.m4a'));
+-- Süreli mesaj süresi dolunca
+INSERT INTO messages (room_id, sender_id, original_text, message_type, image_url, expires_at)
+VALUES (:'croom', :'A', '', 'image', 'https://x.supabase.co/storage/v1/object/public/chat-media/aaaa/r/exp.jpg', NOW() - INTERVAL '2 hours');
+SELECT pg_temp.check('süresi dolan içerik temizlendi', (juzzio_purge_expired_content()->>'messages')::int >= 1);
+SELECT pg_temp.check('süresi dolan mesaj medyası kuyrukta', EXISTS (SELECT 1 FROM juzzio_storage_cleanup_queue WHERE object_name = 'aaaa/r/exp.jpg'));
+-- Güvenlik: yol geçişi ve bilinmeyen bucket reddedilir
+SELECT juzzio_enqueue_storage_cleanup('chat-media', 'a/../b.jpg', 't');
+SELECT juzzio_enqueue_storage_cleanup('secret-bucket', 'a/b.jpg', 't');
+SELECT pg_temp.check('kötü yol/bucket kuyruğa girmez', NOT EXISTS (SELECT 1 FROM juzzio_storage_cleanup_queue WHERE reason = 't'));
+-- İşçi talebi: kilitli talep, tamamlandı işareti
+SELECT count(*) AS claimed FROM juzzio_storage_cleanup_claim(2) \gset
+SELECT pg_temp.check('işçi en fazla istenen kadar alır', :'claimed'::int = 2);
+SELECT juzzio_storage_cleanup_done(ARRAY(SELECT id FROM juzzio_storage_cleanup_queue WHERE attempts = 1), '');
+SELECT pg_temp.check('işlenenler kapandı', (SELECT count(*) FROM juzzio_storage_cleanup_queue WHERE processed_at IS NOT NULL) = 2);
+-- Yetkisiz kullanıcı kuyruğa erişemez / temizlik başlatamaz
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'B');
+DO $$ BEGIN
+  PERFORM count(*) FROM juzzio_storage_cleanup_queue;
+  RAISE EXCEPTION 'FAIL kuyruk okunabildi';
+EXCEPTION WHEN insufficient_privilege THEN NULL; END $$;
+DO $$ BEGIN
+  PERFORM juzzio_purge_expired_content();
+  RAISE EXCEPTION 'FAIL authenticated temizlik başlattı';
+EXCEPTION WHEN insufficient_privilege THEN NULL; END $$;
+RESET ROLE;
+DELETE FROM messages WHERE room_id = :'croom' AND sender_id = :'A' AND message_type = 'image';
+DELETE FROM juzzio_storage_cleanup_queue;
+SELECT 'TÜM v0.9.0 STORAGE TEMİZLİK TESTLERİ GEÇTİ';
+-- Hesap silme → kullanıcının 6 bucket'taki klasörü kuyrukta (dosyanın EN SONUNDA: D silinir)
+DELETE FROM auth.users WHERE id = :'D';
+SELECT pg_temp.check('hesap silme: 6 klasör kuyrukta',
+  (SELECT count(*) FROM juzzio_storage_cleanup_queue WHERE is_prefix AND object_name = :'D' || '/' AND reason = 'account_deleted') = 6);
+SELECT 'TÜM v0.9.0 HESAP SİLME TEMİZLİK TESTLERİ GEÇTİ';
+-- v0.9.0: mesaj idempotency
+RESET ROLE;
+SELECT room_id AS iroom FROM room_participants WHERE user_id = :'A' LIMIT 1 \gset
+INSERT INTO messages (room_id, sender_id, original_text, client_msg_id) VALUES (:'iroom', :'A', 'idem', 'qr_0123456789abcdef');
+DO $$ BEGIN
+  INSERT INTO messages (room_id, sender_id, original_text, client_msg_id)
+  SELECT room_id, 'aaaaaaaa-0000-0000-0000-000000000001', 'idem2', 'qr_0123456789abcdef' FROM messages WHERE client_msg_id = 'qr_0123456789abcdef';
+  RAISE EXCEPTION 'FAIL aynı client_msg_id iki kez eklendi';
+EXCEPTION WHEN unique_violation THEN NULL; END $$;
+DO $$ BEGIN
+  INSERT INTO messages (room_id, sender_id, original_text, client_msg_id)
+  SELECT room_id, 'aaaaaaaa-0000-0000-0000-000000000001', 'x', 'bad id!' FROM messages WHERE client_msg_id = 'qr_0123456789abcdef';
+  RAISE EXCEPTION 'FAIL geçersiz client_msg_id kabul edildi';
+EXCEPTION WHEN check_violation THEN NULL; END $$;
+DELETE FROM messages WHERE client_msg_id = 'qr_0123456789abcdef';
+SELECT 'TÜM v0.9.0 MESAJ İDEMPOTENCY TESTLERİ GEÇTİ';

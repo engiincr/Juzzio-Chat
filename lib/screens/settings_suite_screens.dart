@@ -354,15 +354,22 @@ class _JuzzioSettingsMainPageState extends State<JuzzioSettingsMainPage> {
                           ),
                         ),
 
-                        // YÖNETİCİ PANELİ: yalnızca @tugkancr hesabında görünür
-                        if (uname.toLowerCase() == 'tugkancr')
-                          _cleanCategoryTile(
-                            p: p,
-                            icon: Icons.admin_panel_settings_outlined,
-                            title: appCtrl.t('admin_title'),
-                            subtitle: appCtrl.t('admin_subtitle'),
-                            onTap: () => openJuzzioAdminPanel(context),
-                          ),
+                        // YÖNETİCİ PANELİ: süper yönetici (@tugkancr) ve v0.9.0 itibarıyla personel
+                        // rolleri (RBAC). Görünürlük yalnızca kolaylıktır; yetki sunucuda denetlenir.
+                        FutureBuilder<Map<String, dynamic>>(
+                          future: JuzzioFeaturesService.instance.myPermissionsCached(),
+                          builder: (context, snap) {
+                            final staff = JuzzioFeaturesService.permissionSet(snap.data ?? const <String, dynamic>{}).isNotEmpty;
+                            if (uname.toLowerCase() != 'tugkancr' && !staff) return const SizedBox.shrink();
+                            return _cleanCategoryTile(
+                              p: p,
+                              icon: Icons.admin_panel_settings_outlined,
+                              title: appCtrl.t('admin_title'),
+                              subtitle: appCtrl.t('admin_subtitle'),
+                              onTap: () => openJuzzioAdminPanel(context),
+                            );
+                          },
+                        ),
 
                         const SizedBox(height: 12),
                         Divider(height: 1, color: p.glassBorder),
@@ -388,7 +395,7 @@ class _JuzzioSettingsMainPageState extends State<JuzzioSettingsMainPage> {
                                   width: 42,
                                   height: 42,
                                   decoration: BoxDecoration(
-                                    color: p.dangerRed.withOpacity(0.10),
+                                    color: p.dangerRed.withValues(alpha: 0.10),
                                     shape: BoxShape.circle,
                                   ),
                                   child: Icon(
@@ -842,12 +849,12 @@ class _JuzzioNotificationsFeedPageState
                                         decoration: BoxDecoration(
                                           color: item.isRead
                                               ? JuzzioSocialTokens.cardBg(isDark)
-                                              : JuzzioSocialTokens.royalBlue.withOpacity(isDark ? 0.14 : 0.07),
+                                              : JuzzioSocialTokens.royalBlue.withValues(alpha: isDark ? 0.14 : 0.07),
                                           borderRadius: BorderRadius.circular(18),
                                           border: Border.all(
                                             color: item.isRead
                                                 ? JuzzioSocialTokens.borderSubtle(isDark)
-                                                : JuzzioSocialTokens.royalBlue.withOpacity(0.35),
+                                                : JuzzioSocialTokens.royalBlue.withValues(alpha: 0.35),
                                           ),
                                         ),
                                         child: ListTile(
@@ -1433,9 +1440,9 @@ class _JuzzioEditProfilePageState extends State<JuzzioEditProfilePage> {
                             margin: const EdgeInsets.only(bottom: 14),
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: p.dangerRed.withOpacity(0.1),
+                              color: p.dangerRed.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: p.dangerRed.withOpacity(0.4)),
+                              border: Border.all(color: p.dangerRed.withValues(alpha: 0.4)),
                             ),
                             child: Text(
                               _validationError!,
@@ -2126,7 +2133,7 @@ class _JuzzioChangePasswordPageState extends State<JuzzioChangePasswordPage> {
                   Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: (_isSuccess ? p.onlineGreen : p.dangerRed).withOpacity(0.16),
+                      color: (_isSuccess ? p.onlineGreen : p.dangerRed).withValues(alpha: 0.16),
                       borderRadius: BorderRadius.circular(999),
                       border: Border.all(color: _isSuccess ? p.onlineGreen : p.dangerRed),
                     ),
@@ -2226,7 +2233,7 @@ class JuzzioSecurityNotificationsPage extends StatelessWidget {
                         gradient: p.amberButtonGradient,
                         boxShadow: [
                           BoxShadow(
-                            color: p.amberPrimary.withOpacity(0.35),
+                            color: p.amberPrimary.withValues(alpha: 0.35),
                             blurRadius: 24,
                             spreadRadius: 2,
                           ),
@@ -2311,7 +2318,7 @@ class JuzzioSecurityNotificationsPage extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: p.amberPrimary.withOpacity(0.18),
+              color: p.amberPrimary.withValues(alpha: 0.18),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, color: p.amberGlow, size: 20),
@@ -2499,7 +2506,7 @@ class _JuzzioUsernameSettingsPageState extends State<JuzzioUsernameSettingsPage>
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: (_isAvailable == true ? p.onlineGreen : p.dangerRed).withOpacity(0.15),
+                      color: (_isAvailable == true ? p.onlineGreen : p.dangerRed).withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(color: _isAvailable == true ? p.onlineGreen : p.dangerRed),
                     ),
@@ -2672,7 +2679,7 @@ class _JuzzioDeleteAccountPageState extends State<JuzzioDeleteAccountPage> {
             decoration: BoxDecoration(
               color: p.cardBg,
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: p.dangerRed.withOpacity(0.5), width: 1.4),
+              border: Border.all(color: p.dangerRed.withValues(alpha: 0.5), width: 1.4),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -3572,7 +3579,7 @@ class _JuzzioContactsAndBlockedPageState extends State<JuzzioContactsAndBlockedP
                       (uname) => ListTile(
                         contentPadding: EdgeInsets.zero,
                         leading: CircleAvatar(
-                          backgroundColor: p.dangerRed.withOpacity(0.2),
+                          backgroundColor: p.dangerRed.withValues(alpha: 0.2),
                           child: Icon(Icons.block_rounded, color: p.dangerRed, size: 18),
                         ),
                         title: Text(
@@ -3683,6 +3690,21 @@ class JuzzioAdvancedPrivacyPage extends StatelessWidget {
                       onChanged: appCtrl.setDisableLinkPreviews,
                     ),
                     Divider(height: 1, color: p.glassBorder),
+                    // v0.9.0 (denetim D): E2EE mesaj metni yalnızca açık izinle çeviriye gider
+                    SwitchListTile(
+                      activeColor: p.amberGlow,
+                      title: Text(
+                        JuzzioAppController.instance.loc('Şifreli mesajlarda otomatik çeviri', 'Automatic translation in encrypted chats', 'Automatische Übersetzung in verschlüsselten Chats'),
+                        style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w800),
+                      ),
+                      subtitle: Text(
+                        JuzzioAppController.instance.loc('Açarsanız uçtan uca şifreli birebir sohbetlerdeki mesaj metni, çeviri için üçüncü taraf bir çeviri servisine (Google Translate) gönderilir. Kapalıyken şifreli mesajlar cihazınızdan çıkmadan, çevrilmeden gösterilir.', 'If enabled, message text in end-to-end encrypted one-to-one chats is sent to a third-party translation service (Google Translate). While off, encrypted messages are shown untranslated and never leave your device for translation.', 'Wenn aktiviert, wird der Nachrichtentext in Ende-zu-Ende-verschlüsselten Einzelchats an einen Übersetzungsdienst eines Drittanbieters (Google Translate) gesendet. Ausgeschaltet werden verschlüsselte Nachrichten unübersetzt angezeigt und verlassen dein Gerät nicht zur Übersetzung.'),
+                        style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textSecondary, fontSize: 12),
+                      ),
+                      value: appCtrl.e2eeTranslationOptIn,
+                      onChanged: appCtrl.setE2eeTranslationOptIn,
+                    ),
+                    Divider(height: 1, color: p.glassBorder),
                     ListTile(
                       title: Row(
                         children: [
@@ -3696,7 +3718,7 @@ class JuzzioAdvancedPrivacyPage extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
                               color: appCtrl.strictAccountSettings
-                                  ? p.onlineGreen.withOpacity(0.18)
+                                  ? p.onlineGreen.withValues(alpha: 0.18)
                                   : p.inputBg,
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -3901,7 +3923,7 @@ class _JuzzioStrictAccountSettingsPageState extends State<JuzzioStrictAccountSet
             width: 84,
             height: 84,
             decoration: BoxDecoration(
-              color: p.amberPrimary.withOpacity(0.2),
+              color: p.amberPrimary.withValues(alpha: 0.2),
               shape: BoxShape.circle,
             ),
             child: Icon(Icons.warning_amber_rounded, color: p.amberGlow, size: 48),
