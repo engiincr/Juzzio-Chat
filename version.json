@@ -1,16 +1,16 @@
 {
   "version": "0.8.4",
-  "buildNumber": 84,
+  "buildNumber": 1038,
   "releaseDate": "2026-11-01",
   "releaseTitle": "Liquid Glass Tasarım Ailesi ve Tema Galerisi",
   "mandatory": false,
   "minSupportedVersion": "0.1.0",
   "apkUrl": "https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk",
   "versionedApkUrl": "https://github.com/engiincr/Juzzio-Chat/releases/download/v0.8.4/juzzio-v0.8.4-release.apk",
-  "apkSha256": "",
-  "apkSize": "",
-  "verifiedBuild": false,
-  "verifiedAt": "",
+  "apkSha256": "2ddeaa96db0ca7e952b6f8feaa945024ce357e7e8105b02dc809db800fb513d7",
+  "apkSize": "99.17 MB",
+  "verifiedBuild": true,
+  "verifiedAt": "2026-11-01 15:23 UTC",
   "developer": {
     "name": "Engin ÇIRPAN",
     "instagram": "https://ig.me/tugkancr",
@@ -22,8 +22,8 @@
     "en": "v0.8.4: Unifies the 12 themes into one Liquid Glass design family, makes every theme selectable as both app and chat theme, and fixes the CI analyze error.",
     "de": "v0.8.4: Unifies the 12 themes into one Liquid Glass design family, makes every theme selectable as both app and chat theme, and fixes the CI analyze error."
   },
-  "build": 84,
-  "versionCode": 84,
+  "build": 1038,
+  "versionCode": 1038,
   "url": "https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk",
   "changelog_tr": "v0.8.4: 12 temayı tek bir Liquid Glass tasarım ailesinde birleştirmek, her temayı hem uygulama hem sohbet teması olarak seçilebilir yapmak ve CI analiz hatasını gidermek için getirildi.",
   "changelog_en": "v0.8.4: Unifies the 12 themes into one Liquid Glass design family, makes every theme selectable as both app and chat theme, and fixes the CI analyze error.",
@@ -65,5 +65,7 @@
         "No database changes; theme choices are stored only in the user's own preferences"
       ]
     }
-  }
+  },
+  "mldsa65Sig": "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",
+  "signatureAlg": "ML-DSA-65 (FIPS 204)"
 }

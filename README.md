@@ -22,7 +22,7 @@
 <!-- JUZZIO_VERIFIED_APK_START -->
 | Sürüm | APK | Boyut | SHA-256 | Derleme |
 | :-- | :-- | :-- | :-- | :-- |
-| v0.8.4 (+84) | GitHub Actions derlemesi bekleniyor | – | – | – |
+| v0.8.4 (+1038) | [Juzzio-latest.apk](https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk) | 99.17 MB | `2ddeaa96db0ca7e952b6f8feaa945024ce357e7e8105b02dc809db800fb513d7` | 2026-11-01 15:23 UTC |
 <!-- JUZZIO_VERIFIED_APK_END -->
 
 ---

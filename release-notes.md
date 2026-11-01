@@ -50,3 +50,16 @@ Unifies the 12 themes into one Liquid Glass design family, makes every theme sel
 
 </details>
 
+## İndirme
+
+- Son sürüm: [Juzzio-latest.apk](https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk)
+- Bu sürüm: `juzzio-v0.8.4-release.apk` (99.17 MB)
+
+## APK doğrulama
+
+```bash
+sha256sum Juzzio-latest.apk
+# 2ddeaa96db0ca7e952b6f8feaa945024ce357e7e8105b02dc809db800fb513d7  Juzzio-latest.apk
+```
+
+Derleme zamanı: 2026-11-01 15:23 UTC — GitHub Actions
