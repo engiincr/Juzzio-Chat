@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Juzzio v0.6 Glassmorphism açılış zemini: derin gece mavisi aurora -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="radial"
+                android:gradientRadius="140%p"
+                android:centerX="0.15"
+                android:centerY="0.1"
+                android:startColor="#FF16307A"
+                android:centerColor="#FF070D24"
+                android:endColor="#FF03060F" />
+        </shape>
+    </item>
+</layer-list>

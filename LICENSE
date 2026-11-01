@@ -1,0 +1,66 @@
+JUZZIO TESCİLLİ YAZILIM LİSANSI (Tüm Hakları Saklıdır)
+Juzzio Proprietary Software License (All Rights Reserved)
+
+Telif Hakkı (c) 2026 Engin (@tugkancr) — Juzzio. Tüm hakları saklıdır.
+Copyright (c) 2026 Engin (@tugkancr) — Juzzio. All rights reserved.
+
+1. KAPSAM
+Bu lisans; Juzzio uygulamasının kaynak kodunu, derlenmiş uygulama paketlerini (APK
+dahil), veritabanı şemasını, sunucu fonksiyonlarını, tasarımını, arayüzünü, ses ve
+görsel varlıklarını, "Juzzio" adını ve logosunu ("Yazılım") kapsar. Yazılım 5846
+sayılı Fikir ve Sanat Eserleri Kanunu ve uluslararası telif hakkı anlaşmalarıyla
+korunmaktadır.
+
+2. İZİN VERİLENLER
+a) Resmi kanaldan (GitHub sürüm sayfası) indirilen uygulamanın kişisel ve ticari
+   olmayan amaçla cihazınıza kurulup kullanılması.
+b) Kaynak kodun yalnızca şeffaflık, güvenlik incelemesi ve eğitim amacıyla
+   GitHub üzerinde görüntülenmesi.
+
+3. YASAK OLANLAR (yazılı izin olmadan)
+a) Yazılımın tamamının veya bir bölümünün kopyalanması, çoğaltılması, yeniden
+   yayımlanması veya dağıtılması (çatallanmış depolar ve aynalar dahil).
+b) Yazılımın satılması, kiralanması, lisanslanması, ücret karşılığı sunulması veya
+   ticari bir ürün ya da hizmette kullanılması.
+c) Yazılıma dayalı türev çalışma, klon veya benzer uygulama üretilmesi; adının,
+   logosunun veya tasarımının başka bir üründe kullanılması.
+d) Lisans, telif hakkı veya kaynak bildirimlerinin kaldırılması ya da değiştirilmesi.
+e) Yazılımın imzasının değiştirilerek yeniden paketlenmesi veya resmi olmayan
+   kanallardan dağıtılması.
+
+4. KATKILAR
+Depoya gönderilen katkılar (pull request vb.), gönderen tarafından Yazılım sahibine
+süresiz, dünya çapında ve münhasır olmayan kullanım hakkıyla devredilmiş sayılır.
+
+5. GARANTİ REDDİ
+Yazılım "OLDUĞU GİBİ" sunulur. Açık veya zımni hiçbir garanti verilmez. Yürürlükteki
+hukukun izin verdiği azami ölçüde Yazılım sahibi, kullanımdan doğan zararlardan
+sorumlu tutulamaz.
+
+6. FESİH
+Bu koşulların ihlali hâlinde verilen kullanım izni kendiliğinden sona erer; ihlal
+eden taraf Yazılımın tüm kopyalarını silmekle yükümlüdür. Yazılım sahibinin yasal
+yollara başvurma hakkı saklıdır.
+
+7. GÜVENLİK VE İZİNSİZ ERİŞİM
+Yazılımın, sunucularının veya veritabanının güvenlik önlemlerini aşmak, izinsiz erişim,
+hizmet engelleme, veri ele geçirme, değiştirilmiş/korsan sürüm dağıtma ve tersine
+mühendislik; 5237 sayılı TCK m.132-136 ve m.243-245, 6698 sayılı KVKK, 5846 sayılı
+FSEK m.71-72 ve 5651 sayılı Kanun kapsamında suçtur. Tespit edilen girişimler kayıt
+altına alınır, delil olarak saklanır ve suç duyurusunda bulunulur; doğan zararlar
+tazmin ettirilir. İyi niyetli güvenlik bildirimleri: engiincr@pm.me
+
+8. UYGULANACAK HUKUK
+Bu lisans Türkiye Cumhuriyeti hukukuna tabidir. Yetkili yer: İstanbul (Merkez)
+Mahkemeleri ve İcra Daireleri.
+
+İzin ve iletişim: engiincr@pm.me
+
+-------------------------------------------------------------------------------
+ENGLISH SUMMARY: This software is proprietary. You may install and use the official
+release for personal, non-commercial purposes and view the source for transparency
+and security review only. Copying, redistributing, selling, sublicensing, creating
+derivative works or clones, or reusing the name, logo or design without prior written
+permission is prohibited. Unauthorized access, attacks, tampering and reverse
+engineering are criminal offences under Turkish law and will be prosecuted. Provided "AS IS" without warranty. Governed by the laws of
+the Republic of Türkiye.

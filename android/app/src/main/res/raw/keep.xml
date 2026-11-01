@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- v0.7.0: Zil sesleri ve bildirim tonları adıyla (dinamik) kullanıldığından küçültmede silinmez -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@raw/juzzio_*" />

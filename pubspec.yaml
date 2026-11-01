@@ -1,0 +1,70 @@
+name: juzzio
+description: "JUZZIO - Zero-Latency Bidirectional Translation, LiveKit Group Conference Audio/Video Call & Voice Note Messenger"
+publish_to: 'none'
+version: 0.8.4+84
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # Sistem metinleri (tarih seçici, kopyala/yapıştır menüsü) ve RTL yazı yönü
+  flutter_localizations:
+    sdk: flutter
+
+  # Backend, Auth, Realtime & Storage
+  supabase_flutter: ^2.5.0
+
+  # Gerçek Zamanlı SFU Ses/Görüntü ve DataChannel Altyapısı (flutter_webrtc dahildir)
+  livekit_client: 2.13.2
+
+  # Deepgram Nova-2 WebSocket & HTTP Çeviri Köprüsü
+  web_socket_channel: ^3.0.1
+  http: ^1.2.2
+
+  # Asenkron Sesli Mesaj (.m4a / AAC) Kayıt, Oynatma ve Medya Seçimi
+  record: ^5.1.2
+  just_audio: ^0.9.40
+  path_provider: ^2.1.4
+  permission_handler: ^11.3.1
+  image_picker: ^1.1.2
+
+  # Hikâye ve sohbet videolarını oynatma
+  video_player: ^2.9.2
+
+  # v0.3.0: profil web sitesi bağlantısı, profil müziği (v0.7.0: isimle arama, just_audio önizleme),
+  # aramada pil uyarıları, cihaz kimliği ve yönetici "beni hatırla" (şifreli depolama)
+  url_launcher: ^6.3.0
+  battery_plus: ^7.0.0
+  flutter_secure_storage: ^11.0.0
+  # v0.7.0: uçtan uca şifreleme (X25519 + HKDF + AES-256-GCM), saf Dart
+  cryptography: ^2.7.0
+  # v0.8.0: şifreli sohbet yedeği için Google hesabı seçimi (Drive appDataFolder)
+  google_sign_in: 6.2.2
+
+  # v0.4.0: profil kartındaki QR kod
+  qr_flutter: ^4.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+dependency_overrides:
+  record_platform_interface: 1.1.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/logo/juzzio_logo.png
+    - assets/creator/engin.jpg
+
+  # v0.5: Uygulama genelinde tek ve tutarlı emoji görünümü (mesajlar, tepkiler,
+  # emoji seçici, hikâye çıkartmaları). Noto Color Emoji — SIL Open Font License 1.1
+  # (lisans: assets/fonts/NotoColorEmoji-OFL.txt). Apple emoji yazı tipi lisans
+  # gereği uygulamaya gömülemez; bu set ücretsiz ve yeniden dağıtılabilirdir.
+  fonts:
+    - family: JuzzioEmoji
+      fonts:
+        - asset: assets/fonts/NotoColorEmoji.ttf

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 3) Okunmamış sayacı 1x1 -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/w_root" android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@drawable/juzzio_wbg_dark" android:padding="8dp">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:orientation="vertical">
+        <ImageView android:id="@+id/w_icon" android:layout_width="24dp" android:layout_height="24dp" android:contentDescription="@null" android:src="@drawable/ic_juzzio_widget_chat" />
+        <TextView android:id="@+id/w_count" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp"
+            android:maxLines="1" android:textColor="#FFFFFFFF" android:textSize="22sp" android:textStyle="bold" />
+        <TextView android:id="@+id/w_label" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:maxLines="1" android:textColor="#B3FFFFFF" android:textSize="10.5sp" />
+    </LinearLayout>
+</FrameLayout>

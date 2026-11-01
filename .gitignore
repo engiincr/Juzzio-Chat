@@ -1,0 +1,56 @@
+# Flutter / Android / IDE Generated Files
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+android/.gradle/
+android/app/build/
+android/local.properties
+ios/Pods/
+coverage/
+.idea/
+.vscode/
+
+# Security: Environment, Firebase & Secret Files (Never commit plain-text secrets!)
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+.envrc
+*.pem
+*.p12
+*.pfx
+*.key
+key.properties
+id_rsa
+id_ed25519
+android/app/google-services.json
+!android/app/google-services.json.example
+*service-account*.json
+*firebase-adminsdk*.json
+
+# Diagnostic & Temporary Logs
+*.log
+*.tmp
+*.bak
+*.swp
+.DS_Store
+/push.txt
+/log.txt
+/build_error.log
+
+# Supabase CLI yerel durum dosyaları ve CI çıktıları
+supabase/.temp/
+release-output/
+
+# İmza anahtarları ve türevleri ASLA depoya girmez (yalnızca GitHub Secrets)
+*.jks
+*.jks.*
+*.keystore
+keystore_base64.txt
+*_base64.txt
+android/key.properties

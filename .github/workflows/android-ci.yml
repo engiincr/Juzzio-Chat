@@ -1,0 +1,348 @@
+name: Juzzio CI — Güvenlik Taraması, Supabase Senkronu ve APK Yayını
+
+# Termux (scripts/push.sh) veya Windows CMD (scripts\push.bat) ile main dalına
+# yapılan her push bu iş akışını başlatır. Elle çalıştırmak için: Actions → Run workflow.
+on:
+  push:
+    branches: [main, master]
+    # v0.8.0: yol filtresi kaldırıldı — geçmiş temizlenip zorla gönderilen (force push)
+    # tek commit'te de iş akışı her zaman başlar.
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+    inputs:
+      deploy_supabase:
+        description: "Supabase migration ve Edge Function dağıtımı yapılsın mı?"
+        type: boolean
+        default: true
+
+concurrency:
+  group: juzzio-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+env:
+  FLUTTER_CHANNEL: stable
+  JAVA_VERSION: "17"
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1) Gizli anahtar sızıntı taraması — base64 ile "gizlenmiş" anahtarlar dahil
+  # ---------------------------------------------------------------------------
+  secret-scan:
+    name: "🛡️ Gizli Anahtar Taraması"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Takip edilmemesi gereken dosyalar
+        run: |
+          set -e
+          bad=0
+          for f in .env .env.local .env.production android/key.properties android/app/google-services.json; do
+            if git ls-files --error-unmatch "$f" >/dev/null 2>&1; then
+              echo "::error file=$f::Bu dosya Git'e eklenmemeli. 'git rm --cached $f' ile kaldırın."
+              bad=1
+            fi
+          done
+          exit $bad
+
+      - name: Anahtar kalıpları (düz ve base64)
+        run: |
+          set -e
+          # ghp_/github_pat_/sb_secret_/özel anahtar + bunların base64 karşılıkları (Z2hwX = "ghp_", c2Jfc2VjcmV0 = "sb_secret")
+          # v0.7.0: Google API anahtarı (AIza), Supabase service_role JWT, Deepgram/LiveKit gizlileri ve
+          # README dahil tüm Markdown dosyaları da taranır.
+          python3 scripts/check_secrets.py
+          PATTERN='(ghp_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{40,}|sb_secret_[A-Za-z0-9_-]{20,}|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----|Z2hwX[A-Za-z0-9+/=]{20,}|c2Jfc2VjcmV0[A-Za-z0-9+/=]{10,}|"private_key"[[:space:]]*:)'
+          if git grep -nIE "$PATTERN" -- . ':!.github/workflows/android-ci.yml' ':!scripts/push.sh' ':!scripts/push.bat' ':!scripts/check_secrets.py'; then
+            echo "::error::Depoda gizli anahtar/token bulundu. Anahtarı iptal edip yenileyin ve dosyadan kaldırın."
+            exit 1
+          fi
+          echo "Gizli anahtar bulunmadı ✅"
+
+  # ---------------------------------------------------------------------------
+  # 2) Supabase: tek kanonik veritabanı dosyası (özet değişince) + Edge Functions
+  # ---------------------------------------------------------------------------
+  supabase-sync:
+    name: "🗄️ Supabase Migration & Edge Functions"
+    needs: secret-scan
+    if: github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.deploy_supabase)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Veritabanı dosyasını uygula
+        if: env.SUPABASE_DB_URL != ''
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client >/dev/null
+          fi
+          # Çalışan bağlantı adresini bul (IPv6-only direct adres → IPv4 Session pooler'a otomatik geçiş)
+          DB_URL="$(python3 scripts/resolve_db_url.py)"
+          echo "::add-mask::$DB_URL"
+          PSQL="psql $DB_URL -v ON_ERROR_STOP=1 -q -X"
+          # Tek kanonik veritabanı dosyası: içerik özeti (SHA-256) değiştiğinde tamamı
+          # tek transaction içinde uygulanır (dosya idempotenttir; hata olursa hiçbir şey değişmez).
+          DB_FILE="supabase/juzzio_database.sql"
+          DB_NAME="$(basename "$DB_FILE")"
+          DB_SUM="$(sha256sum "$DB_FILE" | cut -d' ' -f1)"
+          $PSQL -c "CREATE TABLE IF NOT EXISTS public.juzzio_schema_migrations (filename text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now()); ALTER TABLE public.juzzio_schema_migrations ADD COLUMN IF NOT EXISTS checksum text; REVOKE ALL ON public.juzzio_schema_migrations FROM anon, authenticated;"
+          DONE_ALREADY=$($PSQL -tAc "SELECT 1 FROM public.juzzio_schema_migrations WHERE filename = '$DB_NAME' AND checksum = '$DB_SUM'")
+          if [ "$DONE_ALREADY" = "1" ]; then
+            echo "⏭  $DB_NAME değişmedi (özet: ${DB_SUM:0:12})"
+          else
+            echo "▶  $DB_NAME uygulanıyor (özet: ${DB_SUM:0:12})..."
+            $PSQL --single-transaction -f "$DB_FILE"
+            $PSQL -c "INSERT INTO public.juzzio_schema_migrations(filename, checksum, applied_at) VALUES ('$DB_NAME', '$DB_SUM', now()) ON CONFLICT (filename) DO UPDATE SET checksum = EXCLUDED.checksum, applied_at = now()"
+            echo "✅ $DB_NAME uygulandı"
+          fi
+
+      - name: Migration atlandı
+        if: env.SUPABASE_DB_URL == ''
+        run: echo "::warning::SUPABASE_DB_URL secret tanımlı değil; veritabanı migration'ları atlandı."
+
+      - uses: actions/setup-node@v5
+        if: env.SUPABASE_ACCESS_TOKEN != '' && env.SUPABASE_PROJECT_REF != ''
+        with:
+          node-version: '22'
+
+      - name: Edge Function'ları dağıt
+        if: env.SUPABASE_ACCESS_TOKEN != '' && env.SUPABASE_PROJECT_REF != ''
+        run: |
+          set -euo pipefail
+          for fn in get-livekit-token translate-bridge push-webhook auth-username-login content-moderation; do
+            npx --yes supabase@latest functions deploy "$fn" --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt --use-api
+          done
+
+      - name: Edge Function dağıtımı atlandı
+        if: env.SUPABASE_ACCESS_TOKEN == '' || env.SUPABASE_PROJECT_REF == ''
+        run: echo "::warning::SUPABASE_ACCESS_TOKEN / SUPABASE_PROJECT_REF secret'ları tanımlı değil; Edge Function dağıtımı atlandı."
+
+  # ---------------------------------------------------------------------------
+  # 3) Kod kalitesi: analiz + test (APK derlemesiyle PARALEL çalışır)
+  # ---------------------------------------------------------------------------
+  quality:
+    name: "🔍 Analiz ve Test"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      - name: Bağımlılıklar
+        run: flutter pub get
+
+      - name: Statik analiz (hatalar derlemeyi durdurur)
+        run: |
+          # Karışık (eski+yeni) dosya yüklendiyse hangi dosyaların bozuk olduğunu açıkça yazar
+          python3 scripts/verify_tree.py || true
+          # v0.8.3: eksik/eskimiş çeviri kapısı (139+ dil kaynağı)
+          python3 scripts/l10n_tools.py check
+          flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Birim testleri
+        run: flutter test
+
+      - name: version.json / release betiği kontrolü
+        run: |
+          python3 scripts/release_meta.py title
+          cp version.json /tmp/version.json.bak
+          python3 scripts/release_meta.py check
+          cp /tmp/version.json.bak version.json
+
+  # ---------------------------------------------------------------------------
+  # 4) İmzalı APK (önbellekli Gradle + Flutter; tarama/analizle paralel)
+  # ---------------------------------------------------------------------------
+  build-android:
+    name: "🐦 APK Derleme"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: gradle
+
+      # Android NDK + CMake her derlemede ~1-2 dk indiriliyordu; önbellekten gelsin
+      - uses: actions/cache@v5
+        with:
+          path: |
+            /usr/local/lib/android/sdk/ndk/28.2.13676358
+            /usr/local/lib/android/sdk/cmake/3.22.1
+          key: android-ndk-28.2.13676358-cmake-3.22.1
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      - name: Firebase yapılandırması (google-services.json)
+        env:
+          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GOOGLE_SERVICES_JSON_BASE64:-}" ]; then
+            echo "::warning::GOOGLE_SERVICES_JSON_BASE64 secret yok; APK push bildirimleri olmadan derlenecek."
+            exit 0
+          fi
+          printf '%s' "$GOOGLE_SERVICES_JSON_BASE64" | tr -d '[:space:]' | base64 --decode > android/app/google-services.json
+          python3 - <<'PY'
+          import json, sys
+          data = json.load(open("android/app/google-services.json", encoding="utf-8"))
+          pkgs = {c.get("client_info", {}).get("android_client_info", {}).get("package_name") for c in data.get("client", [])}
+          if "com.juzzio.app" not in pkgs:
+              sys.exit("google-services.json içinde com.juzzio.app paketi yok")
+          print("Firebase yapılandırması doğrulandı.")
+          PY
+
+      - name: İmza anahtarı (key.properties)
+        if: github.event_name != 'pull_request'
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: bash scripts/ci_signing.sh
+
+      - name: APK derle
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          LIVEKIT_URL: ${{ secrets.LIVEKIT_URL }}
+          ML_DSA_PUBLIC_KEY: ${{ vars.ML_DSA_PUBLIC_KEY }}
+        run: |
+          set -euo pipefail
+          DEFINES=()
+          [ -n "${ML_DSA_PUBLIC_KEY:-}" ] && DEFINES+=(--dart-define=ML_DSA_PUBLIC_KEY="$ML_DSA_PUBLIC_KEY")
+          [ -n "${SUPABASE_URL:-}" ] && DEFINES+=(--dart-define=SUPABASE_URL="$SUPABASE_URL")
+          [ -n "${SUPABASE_ANON_KEY:-}" ] && DEFINES+=(--dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY")
+          [ -n "${LIVEKIT_URL:-}" ] && DEFINES+=(--dart-define=LIVEKIT_URL="$LIVEKIT_URL")
+          # Her derlemede artan sürüm kodu: telefondaki uygulama, yeni APK'yı silmeden
+          # "güncelleme" olarak kabul eder ve uygulama içi güncelleme bildirimi doğru çalışır.
+          BUILD_NO=$((1000 + GITHUB_RUN_NUMBER))
+          DEFINES+=(--dart-define=APP_BUILD="$BUILD_NO")
+          flutter build apk --release --target-platform android-arm,android-arm64 --android-skip-build-dependency-validation --build-number="$BUILD_NO" "${DEFINES[@]}"
+          mkdir -p release-output
+          echo "$BUILD_NO" > release-output/build_number.txt
+          APP_VER=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f1)
+          cp build/app/outputs/flutter-apk/app-release.apk release-output/Juzzio-latest.apk
+          cp build/app/outputs/flutter-apk/app-release.apk "release-output/juzzio-v${APP_VER}-release.apk"
+          (cd release-output && sha256sum Juzzio-latest.apk > Juzzio-latest.apk.sha256)
+
+      - name: Geçici dosyaları temizle
+        if: always()
+        run: rm -f android/key.properties android/app/google-services.json
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: juzzio-apk
+          path: release-output/
+          retention-days: 14
+          compression-level: 0
+
+  # ---------------------------------------------------------------------------
+  # 5) Yayın: yalnızca tarama + analiz + derleme başarılıysa
+  # ---------------------------------------------------------------------------
+  release:
+    name: "🚀 GitHub Release ve OTA"
+    needs: [secret-scan, quality, build-android]
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: juzzio-apk
+          path: release-output
+
+      - name: GitHub Release yayınla ve version.json güncelle
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ML_DSA_SEED: ${{ secrets.ML_DSA_SEED }}
+        run: |
+          set -euo pipefail
+          # Sürüm pubspec.yaml'dan; version.json bozuk olsa bile release_meta.py onarır.
+          APP_VER=$(grep -m1 '^version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f1 | tr -d '\r')
+          SHA=$(awk '{print $1}' release-output/Juzzio-latest.apk.sha256)
+          SIZE=$(awk "BEGIN {printf \"%.2f MB\", $(stat -c%s release-output/Juzzio-latest.apk)/1048576}")
+          DATE=$(date -u +"%Y-%m-%d %H:%M UTC")
+          export JUZZIO_BUILD_NUMBER=$(cat release-output/build_number.txt 2>/dev/null || echo "")
+          python3 scripts/release_meta.py update "$SHA" "$SIZE" "$DATE"
+          # v0.8.0: kuantum sonrası yayın imzası (ML-DSA-65, FIPS 204) — ML_DSA_SEED varsa
+          if [ -n "${ML_DSA_SEED:-}" ]; then
+            python3 -m pip install -q "cryptography>=46" && python3 scripts/mldsa_sign.py version.json
+          fi
+          TITLE=$(python3 scripts/release_meta.py title)
+
+          TAG="v${APP_VER}"
+          ASSETS=(release-output/Juzzio-latest.apk release-output/Juzzio-latest.apk.sha256 "release-output/juzzio-v${APP_VER}-release.apk")
+          # v0.8.0: aynı etiketli eski (taslak/ön sürüm olabilir) Release silinip temiz yayınlanır;
+          # "Latest release cannot be draft or prerelease" (HTTP 422) hatası böyle önlenir.
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release delete "$TAG" --cleanup-tag -y || true
+            git push origin ":refs/tags/$TAG" >/dev/null 2>&1 || true
+          fi
+          gh release create "$TAG" "${ASSETS[@]}" --target "$GITHUB_SHA" \
+            --title "Juzzio $TAG — $TITLE" --notes-file release-notes.md --draft=false --prerelease=false --latest
+
+          # v0.8.0: yalnızca güncel sürüm kalsın — eski Release'ler, etiketler ve
+          # main dışındaki dallar silinir (hata olursa yayın yine de tamamlanır).
+          for t in $(gh release list --limit 300 --json tagName -q '.[].tagName' 2>/dev/null || true); do
+            if [ "$t" != "$TAG" ]; then gh release delete "$t" --cleanup-tag -y >/dev/null 2>&1 || true; fi
+          done
+          for t in $(git ls-remote --tags origin 2>/dev/null | awk '{print $2}' | sed 's#refs/tags/##; s#\^{}##' | sort -u); do
+            if [ "$t" != "$TAG" ]; then git push origin ":refs/tags/$t" >/dev/null 2>&1 || true; fi
+          done
+          for b in $(git ls-remote --heads origin 2>/dev/null | awk '{print $2}' | sed 's#refs/heads/##'); do
+            if [ "$b" != "${GITHUB_REF_NAME}" ]; then git push origin --delete "$b" >/dev/null 2>&1 || true; fi
+          done
+
+          # v0.8.0: Contributors'ta yalnızca depo sahibi görünsün diye otomatik commit
+          # sahibin GitHub noreply kimliğiyle atılır (github-actions[bot] görünmez).
+          git config user.name "${{ github.repository_owner }}"
+          git config user.email "${{ github.repository_owner_id }}+${{ github.repository_owner }}@users.noreply.github.com"
+          git add version.json README.md release-notes.md
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: v${APP_VER} APK SHA-256 doğrulaması [skip ci]"
+            for i in 1 2 3; do
+              git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin "HEAD:${GITHUB_REF_NAME}" && break
+              sleep 5
+            done
+          fi
+
+      # v0.7.0: Yeni sürüm yayınlandığı anda app_releases tablosuna (ayrıntılı notlarla)
+      # eklenir; uygulamalar bunu realtime ile anında görür ve "Güncelleme geldi" bildirimi
+      # alır. Yöneticinin panelde ayrıca not yazmasına gerek yoktur.
+      - name: Tüm kullanıcılara anında güncelleme bildirimi
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_DB_URL:-}" ]; then echo "SUPABASE_DB_URL yok, atlandı"; exit 0; fi
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client >/dev/null
+          fi
+          DB_URL="$(python3 scripts/resolve_db_url.py)"
+          echo "::add-mask::$DB_URL"
+          python3 scripts/release_meta.py publish-sql > /tmp/publish_release.sql
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -q -X -f /tmp/publish_release.sql
+          echo "app_releases güncellendi; kullanıcılara anlık bildirim gönderildi"

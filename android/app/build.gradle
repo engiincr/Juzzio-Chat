@@ -1,0 +1,102 @@
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    id "dev.flutter.flutter-gradle-plugin"
+}
+
+if (file("google-services.json").exists()) {
+    apply plugin: "com.google.gms.google-services"
+}
+
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withReader("UTF-8") { reader ->
+        localProperties.load(reader)
+    }
+}
+
+def flutterVersionCode = localProperties.getProperty("flutter.versionCode") ?: "20"
+def flutterVersionName = localProperties.getProperty("flutter.versionName") ?: "0.2.0"
+
+// İmza ayarları: CI'da GitHub Secrets'tan üretilen android/key.properties kullanılır.
+// (Eski sürümde şifreler bu dosyaya düz metin yazılmıştı.)
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.withReader("UTF-8") { reader -> keystoreProperties.load(reader) }
+}
+
+// Eski paket adından (com.engiincr.juzzio) kalan kalıntı klasörleri derleme öncesi otomatik temizle
+def legacyKotlinDir = file("src/main/kotlin/com/engiincr")
+if (legacyKotlinDir.exists()) {
+    legacyKotlinDir.deleteDir()
+}
+def legacyJavaDir = file("src/main/java/com/engiincr")
+if (legacyJavaDir.exists()) {
+    legacyJavaDir.deleteDir()
+}
+
+android {
+    namespace "com.juzzio.app"
+    compileSdk 36
+    ndkVersion flutter.ndkVersion
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
+    sourceSets {
+        main.java.srcDirs += "src/main/kotlin"
+    }
+
+    defaultConfig {
+        applicationId "com.juzzio.app"
+        minSdkVersion 24
+        targetSdkVersion 36
+        versionCode flutterVersionCode.toInteger()
+        versionName flutterVersionName
+        multiDexEnabled true
+    }
+
+    signingConfigs {
+        juzzioRelease {
+            def storePath = keystoreProperties.getProperty("storeFile")
+            if (storePath != null && file(storePath).exists()) {
+                storeFile file(storePath)
+                storePassword keystoreProperties.getProperty("storePassword")
+                keyAlias keystoreProperties.getProperty("keyAlias")
+                keyPassword keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+        }
+        release {
+            signingConfig signingConfigs.juzzioRelease.storeFile != null ? signingConfigs.juzzioRelease : signingConfigs.debug
+            minifyEnabled false
+            shrinkResources false
+        }
+    }
+}
+
+flutter {
+    source "../.."
+}
+
+dependencies {
+    implementation "androidx.multidex:multidex:2.0.1"
+    implementation platform("com.google.firebase:firebase-bom:33.5.1")
+    implementation "com.google.firebase:firebase-messaging"
+    // Görüntülü arama güzelleştirme filtresi (JuzzioBeautyProcessor) WebRTC kare sınıflarını kullanır;
+    // flutter_webrtc ile aynı paket olduğundan Gradle tek kopya kullanır (yüksek sürüm seçilir).
+    implementation "io.github.webrtc-sdk:android:150.7871.04"
+}

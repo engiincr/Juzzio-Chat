@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="juzzio_widget_desc_chat">Juzzio Sohbet: son sohbet ve okunmamış rozeti (sade)</string>
+    <string name="juzzio_widget_desc_actions">Hızlı eylemler: sohbet, yeni mesaj, kamera, aramalar</string>
+    <string name="juzzio_widget_desc_unread">Okunmamış mesaj sayacı</string>
+    <string name="juzzio_widget_desc_camera">Tek dokunuşla hikâye kamerası</string>
+    <string name="juzzio_widget_desc_calls">Son arama: kim, ne zaman, cevapsız mı</string>
+    <string name="juzzio_widget_desc_recent">Son 3 sohbet ve okunmamış sayıları</string>
+
+    <string name="juzzio_widget_label_chat">Juzzio Sohbet</string>
+    <string name="juzzio_widget_label_actions">Juzzio Hızlı Eylemler</string>
+    <string name="juzzio_widget_label_unread">Juzzio Okunmamış</string>
+    <string name="juzzio_widget_label_camera">Juzzio Hikâye Kamerası</string>
+    <string name="juzzio_widget_label_calls">Juzzio Son Arama</string>
+    <string name="juzzio_widget_label_recent">Juzzio Son Sohbetler</string>
+</resources>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="juzzio_widget_desc_chat">Juzzio Chat: latest chat and unread badge (compact)</string>
+    <string name="juzzio_widget_desc_actions">Quick actions: chats, new message, camera, calls</string>
+    <string name="juzzio_widget_desc_unread">Unread message counter</string>
+    <string name="juzzio_widget_desc_camera">One-tap story camera</string>
+    <string name="juzzio_widget_desc_calls">Last call: who, when, missed or not</string>
+    <string name="juzzio_widget_desc_recent">Latest 3 chats with unread counts</string>
+
+    <string name="juzzio_widget_label_chat">Juzzio Chat</string>
+    <string name="juzzio_widget_label_actions">Juzzio Quick Actions</string>
+    <string name="juzzio_widget_label_unread">Juzzio Unread</string>
+    <string name="juzzio_widget_label_camera">Juzzio Story Camera</string>
+    <string name="juzzio_widget_label_calls">Juzzio Last Call</string>
+    <string name="juzzio_widget_label_recent">Juzzio Recent Chats</string>
+</resources>

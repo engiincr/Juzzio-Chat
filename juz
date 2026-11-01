@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# JUZZIO — Termux / Linux kısayolu: güvenli push betiğini çalıştırır.
+#   bash juz "Commit mesajı"      veya kurulumdan sonra:  juz "Commit mesajı"
+#   Kısayolu kurmak için: bash juz --install
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec bash "${SCRIPT_DIR}/scripts/push.sh" "$@"

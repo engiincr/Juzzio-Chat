@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="juzzio_widget_desc_chat">Juzzio Chat: letzter Chat und Ungelesen-Zähler (kompakt)</string>
+    <string name="juzzio_widget_desc_actions">Schnellaktionen: Chats, neue Nachricht, Kamera, Anrufe</string>
+    <string name="juzzio_widget_desc_unread">Zähler für ungelesene Nachrichten</string>
+    <string name="juzzio_widget_desc_camera">Story-Kamera mit einem Tippen</string>
+    <string name="juzzio_widget_desc_calls">Letzter Anruf: wer, wann, verpasst</string>
+    <string name="juzzio_widget_desc_recent">Die letzten 3 Chats mit Ungelesen-Zählern</string>
+
+    <string name="juzzio_widget_label_chat">Juzzio Chat</string>
+    <string name="juzzio_widget_label_actions">Juzzio Schnellaktionen</string>
+    <string name="juzzio_widget_label_unread">Juzzio Ungelesen</string>
+    <string name="juzzio_widget_label_camera">Juzzio Story-Kamera</string>
+    <string name="juzzio_widget_label_calls">Juzzio Letzter Anruf</string>
+    <string name="juzzio_widget_label_recent">Juzzio Letzte Chats</string>
+</resources>

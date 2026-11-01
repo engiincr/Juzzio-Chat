@@ -1,0 +1,192 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.juzzio.app">
+
+    <!-- Ağ ve WebRTC / LiveKit SFU İzinleri -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+
+    <!-- Android 13+ (API 33+) Çalışma Zamanı Bildirim İzni -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Mikrofon ve Kamera İzinleri -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+
+    <!-- Galeri ve Medya İzinleri (Android 13+ ve Öncesi) -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
+
+    <!-- Konum izni İSTENMEZ: uygulama konum verisi toplamaz (v0.6.1'de kaldırıldı) -->
+
+    <!-- OTA Güncelleme ve Pil Optimizasyonu İzinleri -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- Bluetooth Kulaklık & Kesintisiz Arama İzinleri -->
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- Android 14+ Foreground Call Service İzinleri -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+    <uses-feature android:name="android.hardware.microphone" android:required="true" />
+
+    <!-- url_launcher (Android 11+): web sitesi ve YouTube bağlantılarını açabilmek için -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="http" />
+        </intent>
+    </queries>
+
+    <application
+        android:label="Juzzio"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher"
+        android:enableOnBackInvokedCallback="true"
+        android:hardwareAccelerated="true"
+        android:usesCleartextTraffic="false">
+
+        <!-- Varsayılan Firebase Cloud Messaging (FCM) Bildirim Kanalı -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="juzzio_high_priority_v2" />
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <meta-data
+                android:name="io.flutter.embedding.android.NormalTheme"
+                android:resource="@style/NormalTheme" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="FLUTTER_NOTIFICATION_CLICK" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <!-- Gerçek Firebase Cloud Messaging (FCM) Servisi -->
+        <service
+            android:name=".JuzzioFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+        <!-- Uygulama içi güncelleme: indirilen APK'yı paket yükleyiciye güvenli şekilde verir -->
+        <provider
+            android:name="com.juzzio.app.JuzzioOtaFileProvider"
+            android:authorities="${applicationId}.juzzio.otaprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/juzzio_ota_paths" />
+        </provider>
+        <!-- v0.7.0: 6 farklı ana ekran widget'ı (tema ve dil uyumlu) -->
+        <!-- v0.8.3: bildirimden hızlı yanıt -->
+        <receiver
+            android:name=".JuzzioReplyReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.juzzio.app.QUICK_REPLY" />
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name=".JuzzioHomeWidgetProvider"
+            android:exported="false"
+            android:label="@string/juzzio_widget_label_chat">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/juzzio_widget_info" />
+        </receiver>
+        <receiver
+            android:name=".JuzzioActionsWidget"
+            android:exported="false"
+            android:label="@string/juzzio_widget_label_actions">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/juzzio_widget_actions_info" />
+        </receiver>
+        <receiver
+            android:name=".JuzzioUnreadWidget"
+            android:exported="false"
+            android:label="@string/juzzio_widget_label_unread">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/juzzio_widget_unread_info" />
+        </receiver>
+        <receiver
+            android:name=".JuzzioCameraWidget"
+            android:exported="false"
+            android:label="@string/juzzio_widget_label_camera">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/juzzio_widget_camera_info" />
+        </receiver>
+        <receiver
+            android:name=".JuzzioCallsWidget"
+            android:exported="false"
+            android:label="@string/juzzio_widget_label_calls">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/juzzio_widget_calls_info" />
+        </receiver>
+        <receiver
+            android:name=".JuzzioRecentWidget"
+            android:exported="false"
+            android:label="@string/juzzio_widget_label_recent">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/juzzio_widget_recent_info" />
+        </receiver>
+    </application>
+</manifest>

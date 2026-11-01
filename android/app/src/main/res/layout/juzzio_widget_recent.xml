@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 6) Son sohbetler 4x2: en son 3 sohbet -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/w_root" android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@drawable/juzzio_wbg_dark" android:orientation="vertical" android:padding="10dp">
+    <LinearLayout android:id="@+id/w_header" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:gravity="center_vertical" android:orientation="horizontal">
+        <ImageView android:layout_width="22dp" android:layout_height="22dp" android:contentDescription="@null" android:src="@mipmap/ic_launcher" />
+        <TextView android:id="@+id/w_title" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+            android:layout_marginStart="8dp" android:maxLines="1" android:textColor="#FFFFFFFF" android:textSize="13.5sp" android:textStyle="bold" />
+        <TextView android:id="@+id/w_badge" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:background="@drawable/juzzio_widget_badge" android:minWidth="22dp" android:gravity="center"
+            android:paddingStart="7dp" android:paddingEnd="7dp" android:paddingTop="2dp" android:paddingBottom="2dp"
+            android:textColor="#FFFFFFFF" android:textSize="11sp" android:textStyle="bold" android:visibility="gone" />
+    </LinearLayout>
+    <LinearLayout android:id="@+id/w_r1" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
+        android:layout_marginTop="4dp" android:background="@drawable/juzzio_wrow_dark" android:gravity="center_vertical"
+        android:orientation="horizontal" android:paddingStart="10dp" android:paddingEnd="10dp">
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+            <TextView android:id="@+id/w_r1_name" android:layout_width="match_parent" android:layout_height="wrap_content" android:maxLines="1"
+                android:ellipsize="end" android:textColor="#FFFFFFFF" android:textSize="13sp" android:textStyle="bold" />
+            <TextView android:id="@+id/w_r1_text" android:layout_width="match_parent" android:layout_height="wrap_content" android:maxLines="1"
+                android:ellipsize="end" android:textColor="#B3FFFFFF" android:textSize="11.5sp" />
+        </LinearLayout>
+        <TextView android:id="@+id/w_r1_badge" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:background="@drawable/juzzio_widget_badge" android:minWidth="20dp" android:gravity="center"
+            android:paddingStart="6dp" android:paddingEnd="6dp" android:textColor="#FFFFFFFF" android:textSize="10.5sp"
+            android:textStyle="bold" android:visibility="gone" />
+    </LinearLayout>
+    <LinearLayout android:id="@+id/w_r2" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
+        android:layout_marginTop="4dp" android:background="@drawable/juzzio_wrow_dark" android:gravity="center_vertical"
+        android:orientation="horizontal" android:paddingStart="10dp" android:paddingEnd="10dp">
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+            <TextView android:id="@+id/w_r2_name" android:layout_width="match_parent" android:layout_height="wrap_content" android:maxLines="1"
+                android:ellipsize="end" android:textColor="#FFFFFFFF" android:textSize="13sp" android:textStyle="bold" />
+            <TextView android:id="@+id/w_r2_text" android:layout_width="match_parent" android:layout_height="wrap_content" android:maxLines="1"
+                android:ellipsize="end" android:textColor="#B3FFFFFF" android:textSize="11.5sp" />
+        </LinearLayout>
+        <TextView android:id="@+id/w_r2_badge" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:background="@drawable/juzzio_widget_badge" android:minWidth="20dp" android:gravity="center"
+            android:paddingStart="6dp" android:paddingEnd="6dp" android:textColor="#FFFFFFFF" android:textSize="10.5sp"
+            android:textStyle="bold" android:visibility="gone" />
+    </LinearLayout>
+    <LinearLayout android:id="@+id/w_r3" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
+        android:layout_marginTop="4dp" android:background="@drawable/juzzio_wrow_dark" android:gravity="center_vertical"
+        android:orientation="horizontal" android:paddingStart="10dp" android:paddingEnd="10dp">
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+            <TextView android:id="@+id/w_r3_name" android:layout_width="match_parent" android:layout_height="wrap_content" android:maxLines="1"
+                android:ellipsize="end" android:textColor="#FFFFFFFF" android:textSize="13sp" android:textStyle="bold" />
+            <TextView android:id="@+id/w_r3_text" android:layout_width="match_parent" android:layout_height="wrap_content" android:maxLines="1"
+                android:ellipsize="end" android:textColor="#B3FFFFFF" android:textSize="11.5sp" />
+        </LinearLayout>
+        <TextView android:id="@+id/w_r3_badge" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:background="@drawable/juzzio_widget_badge" android:minWidth="20dp" android:gravity="center"
+            android:paddingStart="6dp" android:paddingEnd="6dp" android:textColor="#FFFFFFFF" android:textSize="10.5sp"
+            android:textStyle="bold" android:visibility="gone" />
+    </LinearLayout>
+</LinearLayout>
