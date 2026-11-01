@@ -25,3 +25,10 @@ verify_jwt = false
 [functions.auth-username-login]
 # Giriş öncesi çağrılır (anon anahtarı ile); şifre doğrulaması fonksiyonda Supabase Auth ile yapılır.
 verify_jwt = false
+
+[functions.storage-cleanup]
+# x-cron-secret (sabit zamanlı karşılaştırma) veya kullanıcı JWT + "settings" izni gövdede doğrulanır.
+verify_jwt = false
+
+[functions.content-moderation]
+verify_jwt = false

@@ -7,6 +7,12 @@ Komutlar:
   release_meta.py check                          → version.json'ı okur/onarır, sonucu yazdırır
   release_meta.py notes                          → yalnızca bu sürümün notlarını release-notes.md'ye yazar
   release_meta.py publish-sql                    → app_releases satırını (ayrıntılarla) ekleyen SQL'i yazdırır
+  release_meta.py build-number <ci_run_number>   → APK sürüm kodu (tek kaynak; her zaman artar)
+
+v0.9.0: Sürüm kodu tek kaynaktan üretilir: CI'da 1000 + çalıştırma numarası (daha önce
+yayınlanmış APK'lar 1000+N kullandığından monoton artış korunur), pubspec'teki +N'den
+asla küçük olmaz. `check`, lib/core/config.dart içindeki appVersion ve yerel varsayılan
+APP_BUILD değerinin pubspec.yaml ile aynı olduğunu doğrular (uyuşmazlıkta hata).
 
 v0.7.0: Sürüm notlarının TEK kaynağı version.json → "details" alanıdır
 ({"tr": {"reason", "features", "fixes", "security"}, "en": {...}}). GitHub sürüm
@@ -137,7 +143,38 @@ def cmd_title() -> None:
     print(title.replace("\n", " "))
 
 
+CONFIG_DART = os.path.join("lib", "core", "config.dart")
+
+
+def cmd_build_number(run_number: str) -> None:
+    _, pub_build = read_pubspec_version()
+    run = int(run_number) if str(run_number).strip().isdigit() else 0
+    print(max(pub_build, 1000 + run))
+
+
+def check_config_dart() -> list:
+    """config.dart sürüm sabitleri pubspec ile aynı olmalı (Hakkında ekranı, OTA, geri bildirim)."""
+    errors = []
+    if not os.path.exists(CONFIG_DART):
+        return errors
+    ver, build = read_pubspec_version()
+    with open(CONFIG_DART, "rb") as f:
+        txt = _decode_text(f.read())
+    m = re.search(r"appVersion\s*=\s*'([^']+)'", txt)
+    if not m or m.group(1) != ver:
+        errors.append(f"config.dart appVersion ({m.group(1) if m else '?'}) != pubspec ({ver})")
+    m = re.search(r"fromEnvironment\('APP_BUILD',\s*defaultValue:\s*(\d+)\)", txt)
+    if not m or int(m.group(1)) != build:
+        errors.append(f"config.dart APP_BUILD varsayılanı ({m.group(1) if m else '?'}) != pubspec +{build}")
+    return errors
+
+
 def cmd_check() -> None:
+    errs = check_config_dart()
+    if errs:
+        for e in errs:
+            print(f"::error file={CONFIG_DART}::{e}")
+        sys.exit(1)
     data = normalized(read_json_lenient(VERSION_FILE))
     write_text_atomic(VERSION_FILE, dump(data))
     json.loads(open(VERSION_FILE, encoding="utf-8").read())  # doğrulama
@@ -274,6 +311,8 @@ def main(argv) -> int:
         cmd_notes()
     elif cmd == "publish-sql":
         cmd_publish_sql()
+    elif cmd == "build-number" and len(argv) >= 3:
+        cmd_build_number(argv[2])
     elif cmd == "update" and len(argv) >= 5:
         cmd_update(argv[2], argv[3], argv[4])
     else:

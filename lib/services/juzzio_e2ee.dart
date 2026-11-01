@@ -62,6 +62,34 @@ class _Epoch {
   _Epoch(this.id, this.key, this.peerKeyId, this.epk, this.kct, this.selfWrap, this.created);
 }
 
+/// v0.9.0 (denetim D): Şifreleme sonucunun açık durumu. Önceden şifreleme başarısız
+/// olduğunda `null` dönüyor ve çağıran mesajı SESSİZCE düz metin gönderiyordu.
+enum JuzzioE2eeStatus {
+  /// Grup/kanal: bu sürümde uçtan uca şifreli DEĞİL (belgelenmiş sınırlama).
+  group,
+  /// Birebir sohbet, yük uçtan uca şifrelendi.
+  encrypted,
+  /// Karşı tarafın yayımlanmış şifreleme anahtarı yok (eski sürüm). Düz metin yalnızca
+  /// kullanıcının açık, bilgilendirilmiş onayıyla gönderilebilir.
+  peerKeyMissing,
+  /// Oda/anahtar bilgisi alınamadı veya şifreleme hata verdi → GÖNDERİLMEZ (fail-closed).
+  unavailable,
+}
+
+class JuzzioE2eeOutcome {
+  const JuzzioE2eeOutcome(this.status, [this.payload]);
+  final JuzzioE2eeStatus status;
+  final Map<String, dynamic>? payload;
+}
+
+/// Birebir sohbette şifreleme yapılamadığında fırlatılır; mesaj GÖNDERİLMEMİŞTİR.
+class JuzzioE2eeRequiredException implements Exception {
+  const JuzzioE2eeRequiredException(this.status);
+  final JuzzioE2eeStatus status;
+  @override
+  String toString() => 'e2ee_required:${status.name}';
+}
+
 class JuzzioE2ee {
   JuzzioE2ee._();
   static final JuzzioE2ee instance = JuzzioE2ee._();
@@ -119,7 +147,7 @@ class JuzzioE2ee {
     k.xPair ??= await _x25519.newKeyPairFromSeed(k.xSeed);
     if (k.xPub.isEmpty) k.xPub = base64Encode((await k.xPair!.extractPublicKey()).bytes);
     if (k.kemEk == null) {
-      final (ek, dk) = JuzzioMlKem768.keyPairFromSeed(k.kemSeed);
+      final (ek, dk) = await JuzzioPqAsync.keyPairFromSeed(k.kemSeed);
       k.kemEk = ek;
       k.kemDk = dk;
     }
@@ -239,6 +267,44 @@ class JuzzioE2ee {
     }
   }
 
+  /// Oda türü: true = birebir, false = grup/kanal, null = belirlenemedi (ağ hatası).
+  /// Belirlenemeyen oda ASLA grup gibi (şifresiz) değerlendirilmez.
+  final Map<String, bool> _roomIsDirect = {};
+
+  Future<bool?> isDirectRoom(String roomId) async {
+    final hit = _roomIsDirect[roomId];
+    if (hit != null) return hit;
+    try {
+      final room = await SupabaseService.instance.client.from('rooms').select('is_group').eq('id', roomId).maybeSingle();
+      if (room == null) return null;
+      final direct = room['is_group'] != true;
+      _roomIsDirect[roomId] = direct;
+      return direct;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// v0.9.0: Açık sonuçlu şifreleme. `encryptForRoom` geriye uyumluluk için korunur.
+  Future<JuzzioE2eeOutcome> encryptForRoomStrict(String roomId, {required String text, required String translated}) async {
+    final direct = await isDirectRoom(roomId);
+    if (direct == null) return const JuzzioE2eeOutcome(JuzzioE2eeStatus.unavailable);
+    if (!direct) return const JuzzioE2eeOutcome(JuzzioE2eeStatus.group);
+    try {
+      await ensureReady();
+    } catch (_) {
+      return const JuzzioE2eeOutcome(JuzzioE2eeStatus.unavailable);
+    }
+    final peer = await peerForRoom(roomId);
+    if (peer == null) return const JuzzioE2eeOutcome(JuzzioE2eeStatus.unavailable);
+    final bundle = await _peerBundle(peer);
+    if (bundle == null) return const JuzzioE2eeOutcome(JuzzioE2eeStatus.unavailable);
+    if (bundle.$1.isEmpty) return const JuzzioE2eeOutcome(JuzzioE2eeStatus.peerKeyMissing);
+    final payload = await encryptForRoom(roomId, text: text, translated: translated);
+    if (payload == null) return const JuzzioE2eeOutcome(JuzzioE2eeStatus.unavailable);
+    return JuzzioE2eeOutcome(JuzzioE2eeStatus.encrypted, payload);
+  }
+
   Future<String?> peerForRoom(String roomId) async {
     if (_roomPeers.containsKey(roomId)) return _roomPeers[roomId];
     final svc = SupabaseService.instance;
@@ -301,7 +367,7 @@ class JuzzioE2ee {
     // Yeni oturum: geçici X25519 + ML-KEM kapsülü
     final eph = await _x25519.newKeyPair();
     final ephPub = base64Encode((await eph.extractPublicKey()).bytes);
-    final (kemSs, kemCt) = JuzzioMlKem768.encapsulate(base64Decode(bundle.$2), _random(32));
+    final (kemSs, kemCt) = await JuzzioPqAsync.encapsulate(base64Decode(bundle.$2), _random(32));
     final epochId = _hex(_random(12));
     final dh1 = await _dh(cur.xPair!, bundle.$1);
     final dh2 = await _dh(eph, bundle.$1);
@@ -409,7 +475,7 @@ class JuzzioE2ee {
       if (_keys.containsKey(rk)) {
         // Alıcı: ML-KEM kapsülünü aç + iki X25519
         final mine = await _materialize(_keys[rk]!);
-        final kemSs = JuzzioMlKem768.decapsulate(mine.kemDk!, base64Decode((e['kct'] ?? '').toString()));
+        final kemSs = await JuzzioPqAsync.decapsulate(mine.kemDk!, base64Decode((e['kct'] ?? '').toString()));
         final dh1 = await _dh(mine.xPair!, (e['spk'] ?? '').toString());
         final dh2 = await _dh(mine.xPair!, (e['epk'] ?? '').toString());
         key = await _epochKey(dh1, dh2, kemSs, epochId);

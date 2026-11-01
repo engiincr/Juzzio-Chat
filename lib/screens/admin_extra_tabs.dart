@@ -11,6 +11,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../services/juzzio_media_url.dart';
 import '../core/app_theme_and_locale.dart';
 import '../core/theme/juzzio_colors.dart';
 import '../core/theme/juzzio_glass.dart';
@@ -430,7 +431,7 @@ class _JuzzioAdminModerationTabState extends State<JuzzioAdminModerationTab> {
                   height: 64,
                   child: '${m['url'] ?? ''}'.isEmpty
                       ? const ColoredBox(color: Color(0x33000000), child: Icon(Icons.videocam_off_rounded))
-                      : Image.network('${m['url']}', fit: BoxFit.cover,
+                      : JuzzioStorageImage('${m['url']}', fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => const ColoredBox(color: Color(0x33000000))),
                 ),
               ),
@@ -1035,7 +1036,7 @@ class _JuzzioAdminLiveTabState extends State<JuzzioAdminLiveTab> {
                         child: SizedBox(
                           width: 56,
                           height: 56,
-                          child: Image.network('${c['media_url']}', fit: BoxFit.cover,
+                          child: JuzzioStorageImage('${c['media_url']}', fit: BoxFit.cover,
                               errorBuilder: (_, __, ___) => const ColoredBox(color: Color(0x33000000))),
                         ),
                       ),
@@ -1398,7 +1399,7 @@ class _JuzzioAdminFeedbackTabState extends State<JuzzioAdminFeedbackTab> {
                     const SizedBox(height: 8),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(14),
-                      child: Image.network('${f['image_url']}', height: 220, fit: BoxFit.contain,
+                      child: JuzzioStorageImage('${f['image_url']}', height: 220, fit: BoxFit.contain,
                           errorBuilder: (_, __, ___) => const SizedBox.shrink()),
                     ),
                   ],

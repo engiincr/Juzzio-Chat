@@ -15,6 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 
+import '../services/juzzio_media_url.dart';
 import '../core/app_theme_and_locale.dart';
 import '../core/config.dart';
 import '../core/native_bridge.dart';
@@ -278,7 +279,7 @@ class JuzzioOverlayText extends StatelessWidget {
             shadows: [
               Shadow(color: color, blurRadius: 6),
               Shadow(color: color, blurRadius: 16),
-              Shadow(color: color.withOpacity(0.9), blurRadius: 30),
+              Shadow(color: color.withValues(alpha: 0.9), blurRadius: 30),
             ],
           ),
         );
@@ -286,7 +287,7 @@ class JuzzioOverlayText extends StatelessWidget {
       case 'typewriter':
         main = Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          color: isLight ? Colors.black.withOpacity(0.55) : Colors.white.withOpacity(0.85),
+          color: isLight ? Colors.black.withValues(alpha: 0.55) : Colors.white.withValues(alpha: 0.85),
           child: Text(
             text,
             textAlign: TextAlign.center,
@@ -355,7 +356,7 @@ class JuzzioOverlayText extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.45),
+            color: Colors.black.withValues(alpha: 0.45),
             borderRadius: BorderRadius.circular(999),
           ),
           child: Text(
@@ -726,7 +727,7 @@ class _JuzzioVideoTrimmerPageState extends State<JuzzioVideoTrimmerPage> {
                                 Container(
                                   padding: const EdgeInsets.all(14),
                                   decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.45),
+                                    color: Colors.black.withValues(alpha: 0.45),
                                     shape: BoxShape.circle,
                                   ),
                                   child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 44),
@@ -768,7 +769,7 @@ class _JuzzioVideoTrimmerPageState extends State<JuzzioVideoTrimmerPage> {
                       Container(
                         padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.08),
+                          color: Colors.white.withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(999),
                         ),
                         child: Row(
@@ -816,7 +817,7 @@ class _JuzzioVideoTrimmerPageState extends State<JuzzioVideoTrimmerPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.55),
+        color: Colors.black.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: Colors.white24),
       ),
@@ -834,7 +835,7 @@ class _JuzzioVideoTrimmerPageState extends State<JuzzioVideoTrimmerPage> {
         width: 42,
         height: 42,
         decoration: BoxDecoration(
-          color: active ? Colors.white : Colors.white.withOpacity(0.1),
+          color: active ? Colors.white : Colors.white.withValues(alpha: 0.1),
           shape: BoxShape.circle,
         ),
         child: Icon(icon, color: active ? Colors.black : Colors.white, size: 22),
@@ -897,14 +898,14 @@ class _JuzzioVideoTrimmerPageState extends State<JuzzioVideoTrimmerPage> {
                   width: (left - _handleW).clamp(0.0, fullW),
                   top: 4,
                   height: h,
-                  child: Container(color: Colors.black.withOpacity(0.62)),
+                  child: Container(color: Colors.black.withValues(alpha: 0.62)),
                 ),
                 Positioned(
                   left: right,
                   width: (fullW - _handleW - right).clamp(0.0, fullW),
                   top: 4,
                   height: h,
-                  child: Container(color: Colors.black.withOpacity(0.62)),
+                  child: Container(color: Colors.black.withValues(alpha: 0.62)),
                 ),
                 // Seçili pencere (sürükleyerek kaydır)
                 Positioned(
@@ -1198,7 +1199,7 @@ class _JuzzioInlineVideoState extends State<JuzzioInlineVideo> {
           else if (_hasImageCover)
             JuzzioMediaFilters.apply(
               widget.filterPreset,
-              Image.network(
+              JuzzioStorageImage(
                 widget.coverUrl!,
                 fit: widget.fit,
                 errorBuilder: (_, __, ___) => const SizedBox.shrink(),
@@ -1211,7 +1212,7 @@ class _JuzzioInlineVideoState extends State<JuzzioInlineVideo> {
                   : Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.45),
+                        color: Colors.black.withValues(alpha: 0.45),
                         shape: BoxShape.circle,
                         border: Border.all(color: Colors.white38),
                       ),
@@ -1233,7 +1234,7 @@ class _JuzzioInlineVideoState extends State<JuzzioInlineVideo> {
                 child: Container(
                   padding: const EdgeInsets.all(7),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.6),
+                    color: Colors.black.withValues(alpha: 0.6),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
@@ -1251,7 +1252,7 @@ class _JuzzioInlineVideoState extends State<JuzzioInlineVideo> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.62),
+                  color: Colors.black.withValues(alpha: 0.62),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Row(

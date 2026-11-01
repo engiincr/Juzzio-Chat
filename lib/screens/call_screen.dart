@@ -284,7 +284,7 @@ class _CallScreenState extends State<CallScreen> {
                 decoration: BoxDecoration(
                   color: _callGlassTint(0.72),
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: a.color.withOpacity(0.7)),
+                  border: Border.all(color: a.color.withValues(alpha: 0.7)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -309,23 +309,6 @@ class _CallScreenState extends State<CallScreen> {
           ),
       ],
     );
-  }
-
-  /// İki Türk görüşüyorsa false döner; yabancı birisiyle görüşülüyorsa veya
-  /// aramaya katılan 3. kişi yabancıysa true döner.
-  bool _checkInitialForeignPresence() {
-    final myLang = widget.myLanguage.trim().toLowerCase();
-    if (widget.partnerLanguage != null &&
-        widget.partnerLanguage!.trim().isNotEmpty &&
-        widget.partnerLanguage!.trim().toLowerCase() != myLang) {
-      return true;
-    }
-    for (final lang in widget.groupMemberLanguages) {
-      if (lang.trim().isNotEmpty && lang.trim().toLowerCase() != myLang) {
-        return true;
-      }
-    }
-    return false;
   }
 
   void _handleForeignParticipantJoined() {
@@ -1038,7 +1021,7 @@ class _CallScreenState extends State<CallScreen> {
                         borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.22),
+                            color: Colors.black.withValues(alpha: 0.22),
                             blurRadius: 30,
                             offset: const Offset(0, -6),
                           ),
@@ -1091,7 +1074,7 @@ class _CallScreenState extends State<CallScreen> {
                                           Container(
                                             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                                             decoration: BoxDecoration(
-                                              color: JuzzioColors.emerald500.withOpacity(0.16),
+                                              color: JuzzioColors.emerald500.withValues(alpha: 0.16),
                                               borderRadius: BorderRadius.circular(999),
                                             ),
                                             child: Text(
@@ -1597,7 +1580,7 @@ class _CallScreenState extends State<CallScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.12),
+                      color: Colors.white.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
@@ -1678,12 +1661,12 @@ class _CallScreenState extends State<CallScreen> {
               color: JuzzioColors.surface181A22,
               borderRadius: BorderRadius.circular(22),
               border: Border.all(
-                color: Colors.white.withOpacity(0.55),
+                color: Colors.white.withValues(alpha: 0.55),
                 width: 2.0,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.45),
+                  color: Colors.black.withValues(alpha: 0.45),
                   blurRadius: 20,
                   offset: const Offset(0, 8),
                 ),
@@ -1897,9 +1880,9 @@ class _CallScreenState extends State<CallScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.08),
+                color: Colors.white.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: healthColor.withOpacity(0.45)),
+                border: Border.all(color: healthColor.withValues(alpha: 0.45)),
               ),
               child: Text(
                 '${_controller.networkStatusLabel} • ${_controller.latencyMs} ms',
@@ -2073,7 +2056,7 @@ class _CallScreenState extends State<CallScreen> {
   }
 
   /// Canlı Altyazı Çeviri Kartı:
-  /// - Arka planı kapatmayan hafif blurlu buzlu cam (Colors.white.withOpacity(0.72))
+  /// - Arka planı kapatmayan hafif blurlu buzlu cam (Colors.white.withValues(alpha: 0.72))
   /// - Okunurluğu artıran yüksek kontrastlı siyah yazı fontu (JuzzioColors.midnight)
   /// - Özel boyutlandırma tutamacı (en ve boy sürükleyerek ayarlanabilir)
   /// - Mini geçmiş kapalıyken bile son 3 mesajı gösterme

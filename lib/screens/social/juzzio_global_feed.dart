@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../services/juzzio_media_url.dart';
 import '../../core/app_theme_and_locale.dart';
 import '../../core/theme/juzzio_colors.dart';
 import '../../core/theme/juzzio_glass.dart';
@@ -778,7 +779,7 @@ class _JuzzioGlobalFeedViewState extends State<JuzzioGlobalFeedView> {
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      Image.network(
+                      JuzzioStorageImage(
                         media,
                         fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) => const ColoredBox(color: JuzzioColors.obsidianElevated),

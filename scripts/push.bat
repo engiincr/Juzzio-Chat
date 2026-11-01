@@ -113,28 +113,94 @@ if "%ANALYZE%"=="1" (
 )
 
 echo [4/4] Commit ve push...
-where python >nul 2>nul && (
-  python scripts\check_secrets.py
-  if errorlevel 1 (
-    echo [HATA] Hassas bilgi bulundu, gonderim durduruldu.
-    exit /b 1
-  )
+!PY! scripts\check_secrets.py
+if errorlevel 1 (
+  echo [HATA] Hassas bilgi bulundu, gonderim durduruldu.
+  exit /b 1
+)
+!PY! scripts\ci_guards.py
+if errorlevel 1 (
+  echo [HATA] CI koruma kapisi basarisiz, gonderim durduruldu.
+  exit /b 1
 )
 set "MSG=%~1"
 if "%MSG%"=="" set "MSG=Juzzio guncellemesi %DATE% %TIME:~0,5%"
 
-REM v0.8.0: VARSAYILAN olarak tum gecmis silinir -> tek temiz commit (yalnizca sizin
-REM adinizla), eski etiketler, Release'ler ve main disindaki dallar silinir.
-REM Gecmisi korumak icin: set JUZZIO_KEEP_HISTORY=1
-if "%JUZZIO_KEEP_HISTORY%"=="1" goto :keep_history
+REM Yarim kalmis rebase/merge veya eski kilit dosyasi push'u engellemesin
+if exist ".git\rebase-merge" git rebase --abort >nul 2>&1
+if exist ".git\rebase-apply" git rebase --abort >nul 2>&1
+if exist ".git\MERGE_HEAD" git merge --abort >nul 2>&1
+if exist ".git\index.lock" (
+  tasklist /FI "IMAGENAME eq git.exe" 2>nul | find /I "git.exe" >nul
+  if errorlevel 1 (
+    del /f /q ".git\index.lock" >nul 2>&1
+    echo [UYARI] Eski index.lock kaldirildi.
+  )
+)
+git config http.postBuffer 524288000 >nul 2>&1
 
-echo [4/6] Gecmis temizleniyor (tek commit)...
-git rebase --abort >nul 2>&1
-git merge --abort >nul 2>&1
+REM Ayrik HEAD ise hedef dala gec
+set "CUR="
+for /f "usebackq delims=" %%B in (`git symbolic-ref --quiet --short HEAD 2^>nul`) do set "CUR=%%B"
+if "!CUR!"=="" (
+  git checkout -q -B %BRANCH%
+  set "CUR=%BRANCH%"
+)
+
+REM v0.9.0: VARSAYILAN olarak Git GECMISI KORUNUR (normal commit + normal push).
+REM Eski surumler, etiketler, Release'ler ve diger dallar ASLA silinmez.
+REM Istege bagli tek-commit kipi: set JUZZIO_SQUASH_HISTORY=1 (yalnizca bu dal,
+REM --force-with-lease ile; baska hicbir sey silinmez).
+if "%JUZZIO_SQUASH_HISTORY%"=="1" goto :squash
+
+git diff --cached --quiet
+if errorlevel 1 (
+  git commit -q -m "%MSG%"
+  if errorlevel 1 (
+    echo [HATA] Commit olusturulamadi.
+    exit /b 1
+  )
+  echo [OK] Commit: %MSG%
+) else (
+  echo [BILGI] Commit edilecek degisiklik yok; yalnizca push denenecek.
+)
+
+set /a TRY=0
+:push_retry
+set /a TRY+=1
+git push -q -u origin !CUR! 2>"%TEMP%\juzzio_push_err.txt"
+if not errorlevel 1 goto :done
+findstr /I /C:"Authentication failed" /C:"could not read Username" /C:"403" /C:"denied" "%TEMP%\juzzio_push_err.txt" >nul
+if not errorlevel 1 (
+  type "%TEMP%\juzzio_push_err.txt"
+  echo [HATA] GitHub kimlik dogrulamasi gerekli: gh auth login
+  exit /b 1
+)
+if !TRY! GEQ 3 (
+  type "%TEMP%\juzzio_push_err.txt"
+  echo [HATA] Push 3 denemede basarisiz. Internet ve "gh auth status" ciktisini kontrol edin.
+  exit /b 1
+)
+echo [BILGI] Uzakta yeni commit var; birlestiriliyor (deneme !TRY!/3)...
+REM Rebase sirasinda "theirs" = yerel commit'ler: ayni satirda cakismada YEREL surum kazanir
+git pull -q --rebase --autostash -X theirs origin !CUR!
+if errorlevel 1 (
+  git rebase --abort >nul 2>&1
+  git pull -q --no-rebase --no-edit -X ours origin !CUR!
+  if errorlevel 1 (
+    git merge --abort >nul 2>&1
+    echo [HATA] Uzak degisikliklerle cakisma cozulemedi. "git status" ile kontrol edin.
+    exit /b 1
+  )
+)
+goto :push_retry
+
+:squash
+echo [UYARI] JUZZIO_SQUASH_HISTORY=1: !CUR! dalinin gecmisi tek commit'e indiriliyor...
 git branch -D juzzio_clean_tmp >nul 2>&1
 git checkout -q --orphan juzzio_clean_tmp
 if errorlevel 1 (
-  echo [HATA] Gecici dal olusturulamadi. "git status" ciktisini kontrol edin.
+  echo [HATA] Gecici dal olusturulamadi.
   exit /b 1
 )
 git add -A
@@ -143,55 +209,13 @@ if errorlevel 1 (
   echo [HATA] Commit olusturulamadi.
   exit /b 1
 )
-git branch -D %BRANCH% >nul 2>&1
-git branch -m %BRANCH%
-git reflog expire --expire=now --all >nul 2>&1
-git gc -q --prune=now >nul 2>&1
-
-echo [5/6] Zorla gonderiliyor (force push)...
-git push -f -u origin %BRANCH%
+git branch -D !CUR! >nul 2>&1
+git branch -m !CUR!
+git fetch -q origin !CUR! >nul 2>&1
+git push --force-with-lease -u origin !CUR!
 if errorlevel 1 (
   echo [HATA] Push basarisiz. GitHub girisi: gh auth login
-  echo        Ayarlar ^> Branches ^> main kurali "force push" engelliyorsa kapatin.
   exit /b 1
-)
-
-echo [6/6] Eski etiketler, Release'ler ve dallar siliniyor...
-where gh >nul 2>&1
-if not errorlevel 1 (
-  for /f "usebackq delims=" %%T in (`gh release list --limit 300 --json tagName -q ".[].tagName" 2^>nul`) do (
-    gh release delete "%%T" --cleanup-tag -y >nul 2>&1
-  )
-)
-for /f "usebackq tokens=2" %%R in (`git ls-remote --tags origin 2^>nul`) do (
-  set "REF=%%R"
-  set "REF=!REF:^{}=!"
-  git push -q origin ":!REF!" >nul 2>&1
-)
-for /f "usebackq tokens=2" %%R in (`git ls-remote --heads origin 2^>nul`) do (
-  set "REF=%%R"
-  set "BR=!REF:refs/heads/=!"
-  if /I not "!BR!"=="%BRANCH%" git push -q origin --delete "!BR!" >nul 2>&1
-)
-for /f "usebackq delims=" %%T in (`git tag -l`) do git tag -d "%%T" >nul 2>&1
-goto :done
-
-:keep_history
-git diff --cached --quiet
-if errorlevel 1 (
-  git commit -q -m "%MSG%"
-  echo [OK] Commit: %MSG%
-) else (
-  echo [BILGI] Commit edilecek degisiklik yok.
-)
-git push -q -u origin %BRANCH% 2>nul
-if errorlevel 1 (
-  git pull -q --rebase -X theirs origin %BRANCH%
-  git push -q -u origin %BRANCH%
-  if errorlevel 1 (
-    echo [HATA] Push basarisiz. GitHub girisi icin: gh auth login
-    exit /b 1
-  )
 )
 
 :done
@@ -200,3 +224,4 @@ echo [OK] Push tamamlandi.
 echo Derleme durumu: https://github.com/engiincr/Juzzio-Chat/actions
 echo APK (derleme bitince): https://github.com/engiincr/Juzzio-Chat/releases/latest
 endlocal
+exit /b 0

@@ -6,88 +6,11 @@
 // - LIVEKIT_URL / LIVEKIT_API_KEY / LIVEKIT_API_SECRET yalnızca Supabase Secrets'tan okunur.
 // =============================================================================
 
-import { adminClient, corsHeaders, jsonResponse, requiredEnv, requireUser } from "../_shared/auth.ts";
+import { adminClient, corsHeaders, isUuid, jsonResponse, rateLimit, requiredEnv, requireUser } from "../_shared/auth.ts";
+import { listUserIdentities, participantJwt, removeIdentities } from "../_shared/livekit_admin.ts";
 
-function base64UrlEncode(input: Uint8Array | string): string {
-  const bytes = typeof input === "string" ? new TextEncoder().encode(input) : input;
-  let binary = "";
-  for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-
-async function generateLiveKitJWT(params: {
-  apiKey: string;
-  apiSecret: string;
-  identity: string;
-  name: string;
-  roomName: string;
-  lang: string;
-}): Promise<string> {
-  const header = { alg: "HS256", typ: "JWT" };
-  const now = Math.floor(Date.now() / 1000);
-  const payload = {
-    iss: params.apiKey,
-    sub: params.identity,
-    nbf: now - 10,
-    exp: now + 60 * 60 * 4, // 4 saat
-    name: params.name,
-    metadata: JSON.stringify({ preferred_lang: params.lang }),
-    video: {
-      room: params.roomName,
-      roomJoin: true,
-      roomCreate: true,
-      canPublish: true,
-      canSubscribe: true,
-      canPublishData: true,
-      canUpdateOwnMetadata: true,
-    },
-  };
-
-  const signingInput = `${base64UrlEncode(JSON.stringify(header))}.${base64UrlEncode(JSON.stringify(payload))}`;
-  const cryptoKey = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(params.apiSecret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-  const signature = await crypto.subtle.sign("HMAC", cryptoKey, new TextEncoder().encode(signingInput));
-  return `${signingInput}.${base64UrlEncode(new Uint8Array(signature))}`;
-}
-
-/** LiveKit sunucu API'si (Twirp) için kısa ömürlü yönetici JWT'si: yalnız tek odada roomAdmin. */
-async function generateRoomAdminJWT(apiKey: string, apiSecret: string, roomName: string): Promise<string> {
-  const header = { alg: "HS256", typ: "JWT" };
-  const now = Math.floor(Date.now() / 1000);
-  const payload = {
-    iss: apiKey,
-    sub: "juzzio-server",
-    nbf: now - 10,
-    exp: now + 120,
-    video: { room: roomName, roomAdmin: true },
-  };
-  const signingInput = `${base64UrlEncode(JSON.stringify(header))}.${base64UrlEncode(JSON.stringify(payload))}`;
-  const cryptoKey = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(apiSecret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-  const signature = await crypto.subtle.sign("HMAC", cryptoKey, new TextEncoder().encode(signingInput));
-  return `${signingInput}.${base64UrlEncode(new Uint8Array(signature))}`;
-}
-
-function liveKitHttpBase(wsUrl: string): string {
-  const trimmed = wsUrl.trim().replace(/\/+$/, "");
-  if (trimmed.startsWith("wss://")) return `https://${trimmed.slice(6)}`;
-  if (trimmed.startsWith("ws://")) return `http://${trimmed.slice(5)}`;
-  return trimmed;
-}
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// v0.9.0 (G11): JWT imzalama ve LiveKit HTTP adres çözümü _shared/livekit_admin.ts'de
+// tek yerde; bu dosyadaki kopya generateRoomAdminJWT / liveKitHttpBase kaldırıldı.
 
 /**
  * Konferanstan katılımcı çıkarma. Yetki veritabanında doğrulanır
@@ -99,7 +22,7 @@ async function removeParticipant(userId: string, body: Record<string, unknown>):
   const targetIdentity = String(body.targetIdentity ?? "").trim();
   const targetUserId = String(body.targetUserId ?? targetIdentity.slice(0, 36)).trim();
   if (!roomName || roomName.length > 128) return jsonResponse({ error: "room_name_required" }, 400);
-  if (!UUID_RE.test(targetUserId)) return jsonResponse({ error: "invalid_target" }, 400);
+  if (!isUuid(targetUserId)) return jsonResponse({ error: "invalid_target" }, 400);
   if (targetIdentity && !targetIdentity.startsWith(targetUserId)) {
     return jsonResponse({ error: "invalid_target" }, 400);
   }
@@ -120,47 +43,9 @@ async function removeParticipant(userId: string, body: Record<string, unknown>):
     return jsonResponse({ error: code }, code === "forbidden" ? 403 : 409);
   }
 
-  const apiKey = requiredEnv("LIVEKIT_API_KEY");
-  const apiSecret = requiredEnv("LIVEKIT_API_SECRET");
-  const base = liveKitHttpBase(requiredEnv("LIVEKIT_URL"));
-  const jwt = await generateRoomAdminJWT(apiKey, apiSecret, roomName);
-  const headers = { Authorization: `Bearer ${jwt}`, "Content-Type": "application/json" };
-
   // Kimlik `${userId}_${lang}` biçimindedir; istemcinin gördüğü kimlik yoksa odadaki eşleşmeler bulunur
-  let identities: string[] = targetIdentity ? [targetIdentity] : [];
-  if (identities.length === 0) {
-    try {
-      const listRes = await fetch(`${base}/twirp/livekit.RoomService/ListParticipants`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ room: roomName }),
-      });
-      if (listRes.ok) {
-        const listed = await listRes.json().catch(() => ({}));
-        const participants = Array.isArray(listed?.participants) ? listed.participants : [];
-        identities = participants
-          .map((p: { identity?: string }) => String(p?.identity ?? ""))
-          .filter((id: string) => id === targetUserId || id.startsWith(`${targetUserId}_`));
-      }
-    } catch (_) {
-      // Liste alınamazsa veritabanı kaydı yine de yeniden katılımı engeller
-    }
-  }
-
-  let disconnected = 0;
-  for (const identity of identities) {
-    try {
-      const res = await fetch(`${base}/twirp/livekit.RoomService/RemoveParticipant`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ room: roomName, identity }),
-      });
-      if (res.ok) disconnected++;
-      else await res.body?.cancel();
-    } catch (_) {
-      // ağ hatası: kayıt engeli geçerlidir, istemci de ayrılma sinyali alır
-    }
-  }
+  const identities = targetIdentity ? [targetIdentity] : await listUserIdentities(roomName, targetUserId);
+  const disconnected = await removeIdentities(roomName, identities);
   return jsonResponse({ ok: true, removed: targetUserId, disconnected });
 }
 
@@ -177,11 +62,16 @@ Deno.serve(async (req: Request) => {
       return await removeParticipant(user.id, body);
     }
     const roomName = String(body.roomName ?? "").trim();
-    const lang = String(body.lang ?? "tr").trim().toLowerCase().slice(0, 8) || "tr";
+    const rawLang = String(body.lang ?? "tr").trim().toLowerCase().slice(0, 8);
+    // Kimlik ve meta veriye giren dil kodu yalnızca güvenli karakterlerden oluşur
+    const lang = /^[a-z]{2,3}(-[a-z0-9]{2,4})?$/.test(rawLang) ? rawLang : "tr";
     if (!roomName || roomName.length > 128) {
       return jsonResponse({ error: "room_name_required" }, 400);
     }
 
+    if (!(await rateLimit(user.id, "livekit_token", 60, 60))) {
+      return jsonResponse({ error: "rate_limited" }, 429);
+    }
     const admin = adminClient();
     const { data: allowed, error: allowErr } = await admin.rpc("can_join_livekit_room", {
       p_user: user.id,
@@ -202,7 +92,7 @@ Deno.serve(async (req: Request) => {
       .maybeSingle();
     const displayName = String(profile?.display_name || profile?.username || body.displayName || "Juzzio").slice(0, 64);
 
-    const token = await generateLiveKitJWT({
+    const token = await participantJwt({
       apiKey: requiredEnv("LIVEKIT_API_KEY"),
       apiSecret: requiredEnv("LIVEKIT_API_SECRET"),
       identity: `${user.id}_${lang}`,

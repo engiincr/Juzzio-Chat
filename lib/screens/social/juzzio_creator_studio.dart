@@ -1104,7 +1104,7 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
           if (_editingText) _buildTextEditorOverlay(),
           if (_countdown != null)
             Container(
-              color: Colors.black.withOpacity(0.55),
+              color: Colors.black.withValues(alpha: 0.55),
               alignment: Alignment.center,
               child: TweenAnimationBuilder<double>(
                 key: ValueKey(_countdown),
@@ -1343,7 +1343,7 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
     return Container(
       padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.09),
+        color: Colors.white.withValues(alpha: 0.09),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: Colors.white12),
       ),
@@ -1796,7 +1796,7 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
                 height: 74,
                 margin: const EdgeInsets.only(right: 12, left: 4),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.08),
+                  color: Colors.white.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.white24),
                 ),
@@ -1898,7 +1898,7 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.08),
+            color: Colors.white.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(999),
             border: Border.all(color: Colors.white12),
           ),
@@ -1953,8 +1953,8 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
                   color: _storyAudience == 'close_friends'
-                      ? const Color(0xFF34C759).withOpacity(0.28)
-                      : Colors.white.withOpacity(0.1),
+                      ? const Color(0xFF34C759).withValues(alpha: 0.28)
+                      : Colors.white.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Row(
@@ -1990,7 +1990,7 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
           Container(
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.08),
+              color: Colors.white.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(999),
             ),
             child: Row(
@@ -2040,7 +2040,7 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
       child: BackdropFilter(
         filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
         child: Container(
-          color: Colors.black.withOpacity(0.55),
+          color: Colors.black.withValues(alpha: 0.55),
           child: SafeArea(
             child: Column(
               children: [
@@ -2162,7 +2162,7 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
   Widget _buildPublishingOverlay() {
     return Positioned.fill(
       child: Container(
-        color: Colors.black.withOpacity(0.72),
+        color: Colors.black.withValues(alpha: 0.72),
         alignment: Alignment.center,
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -2416,7 +2416,7 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: JuzzioColors.red500.withOpacity(0.12),
+                    color: JuzzioColors.red500.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Row(
@@ -2503,7 +2503,7 @@ class _CircleGlassButton extends StatelessWidget {
           child: Container(
             width: 42,
             height: 42,
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withValues(alpha: 0.3),
             child: Icon(icon, color: Colors.white, size: 20),
           ),
         ),
@@ -2536,7 +2536,7 @@ class _RailButton extends StatelessWidget {
               width: 42,
               height: 42,
               decoration: BoxDecoration(
-                color: active ? Colors.white : Colors.black.withOpacity(0.35),
+                color: active ? Colors.white : Colors.black.withValues(alpha: 0.35),
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.white24),
               ),
@@ -2575,7 +2575,7 @@ class _GlassLabel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.5),
+        color: Colors.black.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: Colors.white12),
       ),
@@ -2667,7 +2667,7 @@ class _GlassSheet extends StatelessWidget {
             filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
             child: Container(
               padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-              color: const Color(0xFF1B1B22).withOpacity(0.92),
+              color: const Color(0xFF1B1B22).withValues(alpha: 0.92),
               child: child,
             ),
           ),

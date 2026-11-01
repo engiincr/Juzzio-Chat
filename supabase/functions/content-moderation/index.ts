@@ -13,7 +13,7 @@
 // Sağlayıcı yoksa görüntü "unchecked" sayılır: profil fotoğrafı yönetici kuyruğuna düşer.
 // =============================================================================
 
-import { adminClient, corsHeaders, jsonResponse, requireUser } from "../_shared/auth.ts";
+import { adminClient, corsHeaders, isUuid, jsonResponse, rateLimit, requireUser } from "../_shared/auth.ts";
 import { getGoogleAccessToken, loadServiceAccount } from "../_shared/google.ts";
 import { deleteRoom, removeUserFromRoom } from "../_shared/livekit_admin.ts";
 
@@ -113,6 +113,17 @@ async function settingBool(key: string, fallback: boolean): Promise<boolean> {
 /** İhlal sonrası LiveKit yaptırımı: grup aramasında yalnız kişi çıkarılır, birebirde oda kapanır. */
 async function enforceInRoom(roomName: string, userId: string): Promise<{ removed: number; roomClosed: boolean }> {
   const admin = adminClient();
+  // Yalnız şu an etkin katılımcı yaptırım tetikleyebilir (G02 — oda kapatma koruması)
+  try {
+    const { data: active } = await admin.rpc("juzzio_is_active_call_participant", { p_user: userId, p_livekit_room: roomName });
+    if (active !== true) {
+      const removed = await removeUserFromRoom(roomName, userId);
+      return { removed, roomClosed: false };
+    }
+  } catch (_) {
+    const removed = await removeUserFromRoom(roomName, userId);
+    return { removed, roomClosed: false };
+  }
   let isGroup = false;
   try {
     const { data } = await admin
@@ -188,21 +199,26 @@ async function handleAvatar(userId: string, body: Record<string, unknown>): Prom
   return jsonResponse({ ok: true, verdict: result.verdict });
 }
 
+/**
+ * v0.9.0 (G02): Görüntü denetimi yalnızca odaya katılabilen VEYA şu an bu odadaki bir çağrının
+ * ETKİN katılımcısı olan kişi için çalışır. Önceki geri dönüş, son 12 saatte herhangi bir çağrı
+ * kaydı olanı (bitmiş/çıkarılmış dahil) kabul ediyordu; böyle biri sahte bir "ihlal" karesi
+ * gönderip birebir odayı herkes için kapatabiliyordu (DoS). Kural artık SQL'de
+ * (juzzio_is_active_call_participant) ve testlidir.
+ */
 async function canUseRoom(userId: string, roomName: string): Promise<boolean> {
-  if (!roomName || roomName.length > 128) return false;
+  if (!isUuid(userId)) return false;
+  if (!roomName || roomName.length > 128 || !/^[A-Za-z0-9_.:-]+$/.test(roomName)) return false;
   try {
-    const { data } = await adminClient().rpc("can_join_livekit_room", { p_user: userId, p_livekit_room: roomName });
+    const admin = adminClient();
+    const { data } = await admin.rpc("can_join_livekit_room", { p_user: userId, p_livekit_room: roomName });
     if (data === true) return true;
-    // Bağlıyken engellenmiş olabilir: son 12 saatte bu odada kaydı var mı?
-    const { data: row } = await adminClient()
-      .from("call_logs")
-      .select("id")
-      .eq("livekit_room_name", roomName)
-      .or(`caller_id.eq.${userId},receiver_id.eq.${userId}`)
-      .gte("created_at", new Date(Date.now() - 12 * 3600 * 1000).toISOString())
-      .limit(1)
-      .maybeSingle();
-    return !!row;
+    // Bağlıyken yasaklanmış olabilir: yalnızca bitmemiş ve çıkarılmamış etkin katılım sayılır
+    const { data: active } = await admin.rpc("juzzio_is_active_call_participant", {
+      p_user: userId,
+      p_livekit_room: roomName,
+    });
+    return active === true;
   } catch (_) {
     return false;
   }
@@ -214,6 +230,8 @@ async function handleCallFrame(userId: string, body: Record<string, unknown>): P
   if (!image || image.length > 2_800_000) return jsonResponse({ error: "invalid_image" }, 400);
   if (!(await settingBool("call_moderation_enabled", true))) return jsonResponse({ ok: true, verdict: "disabled" });
   if (!(await canUseRoom(userId, roomName))) return jsonResponse({ error: "forbidden_room" }, 403);
+  // Görüntü sınıflandırma ücretli bir sağlayıcıdır: kare gönderimi sınırlıdır
+  if (!(await rateLimit(userId, "call_frame", 30, 60))) return jsonResponse({ error: "rate_limited" }, 429);
 
   const result = await classify(image, false);
   if (result.verdict !== "nsfw") return jsonResponse({ ok: true, verdict: result.verdict });

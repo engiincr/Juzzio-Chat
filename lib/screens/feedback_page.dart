@@ -60,7 +60,7 @@ class _JuzzioFeedbackPageState extends State<JuzzioFeedbackPage> {
     });
     try {
       var url = '';
-      if (_image != null) url = await svc.uploadPublicImage(_image!, prefix: 'feedback');
+      if (_image != null) url = await svc.uploadFeedbackImage(_image!);
       await svc.client.from('app_feedback').insert({
         'user_id': uid,
         'kind': _kind,

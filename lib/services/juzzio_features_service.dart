@@ -908,6 +908,27 @@ class JuzzioFeaturesService {
     }
   }
 
+  /// v0.9.0 (G21): Personel rolü/izinleri (5 dk önbellek). Yalnızca arayüzde neyin
+  /// GÖSTERİLECEĞİNİ belirler; her işlem sunucuda _staff_require ile ayrıca denetlenir.
+  Future<Map<String, dynamic>>? _permsFuture;
+  DateTime _permsAt = DateTime.fromMillisecondsSinceEpoch(0);
+
+  Future<Map<String, dynamic>> myPermissionsCached({bool refresh = false}) {
+    final stale = DateTime.now().difference(_permsAt) > const Duration(minutes: 5);
+    if (refresh || stale || _permsFuture == null) {
+      _permsAt = DateTime.now();
+      _permsFuture = myPermissions();
+    }
+    return _permsFuture!;
+  }
+
+  /// Rol izin listesini kümeye çevirir ('*' = tümü).
+  static Set<String> permissionSet(Map<String, dynamic> perms) {
+    final raw = perms['permissions'];
+    if (raw is List) return raw.map((e) => e.toString()).toSet();
+    return <String>{};
+  }
+
   Future<List<Map<String, dynamic>>> adminListStaff(String token) async =>
       _list(await _adminRpc('admin_list_staff', {'p_token': token}));
   Future<void> adminGrantRole(String token, String userId, String role) async =>

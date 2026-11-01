@@ -42,7 +42,14 @@ Future<void> openJuzzioAdminPanel(BuildContext context) async {
   final messenger = ScaffoldMessenger.maybeOf(context);
   final navigator = Navigator.of(context);
   if (!await features.isAdmin()) {
-    messenger?.showSnackBar(SnackBar(content: Text(app.t('err_not_allowed'))));
+    // v0.9.0 (G21): Personel rolleri (yönetici, moderatör, destek, analist, içerik yöneticisi,
+    // denetçi) şifresiz girer; yalnızca izinli sekmeleri görür. Her işlem sunucuda denetlenir.
+    final perms = JuzzioFeaturesService.permissionSet(await features.myPermissionsCached(refresh: true));
+    if (perms.isEmpty) {
+      messenger?.showSnackBar(SnackBar(content: Text(app.t('err_not_allowed'))));
+      return;
+    }
+    await navigator.push(MaterialPageRoute(builder: (_) => JuzzioAdminPanelScreen(token: '', permissions: perms)));
     return;
   }
   var token = await features.storedAdminToken();
@@ -258,7 +265,9 @@ class _AdminUnlockDialogState extends State<_AdminUnlockDialog> {
 
 class JuzzioAdminPanelScreen extends StatefulWidget {
   final String token;
-  const JuzzioAdminPanelScreen({super.key, required this.token});
+  /// v0.9.0 (G21): Görünür sekmeleri belirleyen izinler. Süper yönetici: {'*'}.
+  final Set<String> permissions;
+  const JuzzioAdminPanelScreen({super.key, required this.token, this.permissions = const {'*'}});
 
   @override
   State<JuzzioAdminPanelScreen> createState() => _JuzzioAdminPanelScreenState();
@@ -268,7 +277,17 @@ String _al(String tr, String en, String de) => JuzzioAppController.instance.trEn
 
 class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> with SingleTickerProviderStateMixin {
   final JuzzioFeaturesService _f = JuzzioFeaturesService.instance;
-  late final TabController _tabs = TabController(length: 13, vsync: this);
+  // v0.9.0 (G21): sekme → gerekli izin (sunucudaki juzzio_role_permissions ile aynı adlar)
+  static const List<String> _tabPermissions = [
+    'stats.read', 'users.read', 'reports', 'users.read', 'moderation', 'moderation',
+    'groups.read', 'calls.manage', 'broadcast', 'releases', 'settings', 'feedback.manage', 'audit.read',
+  ];
+  bool _can(String perm) => widget.permissions.contains('*') || widget.permissions.contains(perm);
+  late final List<int> _visibleTabs = [
+    for (var i = 0; i < _tabPermissions.length; i++)
+      if (_can(_tabPermissions[i])) i,
+  ];
+  late final TabController _tabs = TabController(length: _visibleTabs.isEmpty ? 1 : _visibleTabs.length, vsync: this);
 
   Map<String, dynamic> _stats = const {};
   List<Map<String, dynamic>> _reports = const [];
@@ -489,12 +508,13 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> with Si
   Future<void> _reloadAll() async {
     setState(() => _loading = true);
     await _guard(() async {
+      // v0.9.0 (G21): yalnızca izinli veriler istenir (yetkisiz istek sunucuda zaten reddedilir)
       final results = await Future.wait<Object>([
-        _f.adminStats(widget.token),
-        _f.adminListReports(widget.token, status: _reportFilter),
-        _f.adminListBans(widget.token),
-        _f.adminListReleases(widget.token),
-        _f.adminAudit(widget.token),
+        _can('stats.read') ? _f.adminStats(widget.token) : Future<Object>.value(const <String, dynamic>{}),
+        _can('reports') ? _f.adminListReports(widget.token, status: _reportFilter) : Future<Object>.value(const <Map<String, dynamic>>[]),
+        _can('users.read') ? _f.adminListBans(widget.token) : Future<Object>.value(const <Map<String, dynamic>>[]),
+        _can('releases') ? _f.adminListReleases(widget.token) : Future<Object>.value(const <Map<String, dynamic>>[]),
+        _can('audit.read') ? _f.adminAudit(widget.token) : Future<Object>.value(const <Map<String, dynamic>>[]),
         _f.fetchAppConfig(),
       ]);
       if (!mounted) return;
@@ -518,7 +538,7 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> with Si
       }
     });
     if (mounted) setState(() => _loading = false);
-    if (_users.isEmpty) _searchUsers(allowEmpty: true);
+    if (_users.isEmpty && _can('users.read')) _searchUsers(allowEmpty: true);
   }
 
   Future<void> _searchUsers({bool allowEmpty = false}) async {
@@ -1008,6 +1028,24 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> with Si
           indicatorColor: JuzzioGlassTokens.textPrimary,
           dividerColor: Colors.transparent,
           tabs: [
+            for (final i in _visibleTabs) _allTabs(app)[i],
+            if (_visibleTabs.isEmpty) Tab(text: _al('Yetki yok', 'No access', 'Kein Zugriff')),
+          ],
+        ),
+      ),
+      body: _loading && _stats.isEmpty
+          ? const Center(child: CircularProgressIndicator())
+          : TabBarView(
+              controller: _tabs,
+              children: [
+                for (final i in _visibleTabs) _tabView(i, app, isDark),
+                if (_visibleTabs.isEmpty) const SizedBox.shrink(),
+              ],
+            ),
+    );
+  }
+
+  List<Widget> _allTabs(JuzzioAppController app) => [
             Tab(icon: const Icon(Icons.insights_rounded, size: 20), text: _al('Genel', 'Overview', 'Übersicht')),
             Tab(icon: const Icon(Icons.people_alt_rounded, size: 20), text: app.t('admin_tab_users')),
             Tab(
@@ -1028,30 +1066,39 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> with Si
             Tab(icon: const Icon(Icons.tune_rounded, size: 20), text: _al('Ayarlar', 'Settings', 'Einstellungen')),
             Tab(icon: const Icon(Icons.bug_report_rounded, size: 20), text: _al('Hata bildirimleri', 'Bug reports', 'Fehlermeldungen')),
             Tab(icon: const Icon(Icons.history_rounded, size: 20), text: _al('Kayıtlar', 'Audit', 'Protokoll')),
-          ],
-        ),
-      ),
-      body: _loading && _stats.isEmpty
-          ? const Center(child: CircularProgressIndicator())
-          : TabBarView(
-              controller: _tabs,
-              children: [
-                _buildOverview(isDark),
-                _buildUsers(app, isDark),
-                _buildReports(app),
-                _buildBans(app),
-                JuzzioAdminModerationTab(token: widget.token),
-                _buildModeration(isDark),
-                JuzzioAdminGroupsTab(token: widget.token),
-                JuzzioAdminLiveTab(token: widget.token),
-                _buildBroadcast(isDark),
-                _buildReleases(isDark),
-                _buildSettings(isDark),
-                JuzzioAdminFeedbackTab(token: widget.token),
-                _buildAudit(isDark),
-              ],
-            ),
-    );
+      ];
+
+  Widget _tabView(int i, JuzzioAppController app, bool isDark) {
+    switch (i) {
+      case 0:
+        return _buildOverview(isDark);
+      case 1:
+        return _buildUsers(app, isDark);
+      case 2:
+        return _buildReports(app);
+      case 3:
+        return _buildBans(app);
+      case 4:
+        return JuzzioAdminModerationTab(token: widget.token);
+      case 5:
+        return _buildModeration(isDark);
+      case 6:
+        return JuzzioAdminGroupsTab(token: widget.token);
+      case 7:
+        return JuzzioAdminLiveTab(token: widget.token);
+      case 8:
+        return _buildBroadcast(isDark);
+      case 9:
+        return _buildReleases(isDark);
+      case 10:
+        return _buildSettings(isDark);
+      case 11:
+        return JuzzioAdminFeedbackTab(token: widget.token);
+      case 12:
+        return _buildAudit(isDark);
+      default:
+        return const SizedBox.shrink();
+    }
   }
 
   Widget _card({required Widget child, required bool isDark, EdgeInsets padding = const EdgeInsets.all(16)}) {
@@ -1306,7 +1353,7 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> with Si
                             ? Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: JuzzioColors.red500.withOpacity(0.12),
+                                  color: JuzzioColors.red500.withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(999),
                                 ),
                                 child: Text(
@@ -1765,7 +1812,7 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> with Si
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: CircleAvatar(
-                    backgroundColor: JuzzioColors.indigo500.withOpacity(0.15),
+                    backgroundColor: JuzzioColors.indigo500.withValues(alpha: 0.15),
                     child: Icon(r['is_mandatory'] == true ? Icons.priority_high_rounded : Icons.android_rounded, color: JuzzioColors.indigo500),
                   ),
                   title: Text('v${r['version_name']} (${r['version_code']})', style: const TextStyle(fontWeight: FontWeight.w800)),
@@ -2228,7 +2275,7 @@ class _AdminUserDetailSheetState extends State<_AdminUserDetailSheet> {
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: JuzzioColors.red500.withOpacity(0.1), borderRadius: BorderRadius.circular(14)),
+              decoration: BoxDecoration(color: JuzzioColors.red500.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(14)),
               child: Text(
                 '${_al('Engel', 'Ban', 'Sperre')}: ${ban['reason_code'] ?? ''}'
                 '${ban['expires_at'] != null ? ' • ${_al('bitiş', 'until', 'bis')} ${fmt(DateTime.tryParse(ban['expires_at'].toString()))}' : ' • ${_al('süresiz', 'permanent', 'dauerhaft')}'}',
@@ -2493,7 +2540,7 @@ class _LinePainter extends CustomPainter {
           ..shader = LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [color.withOpacity(0.28), color.withOpacity(0.0)],
+            colors: [color.withValues(alpha: 0.28), color.withValues(alpha: 0.0)],
           ).createShader(Rect.fromLTWH(left, top, w, h)),
       );
       canvas.drawPath(

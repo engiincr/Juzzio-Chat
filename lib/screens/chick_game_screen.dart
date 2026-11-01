@@ -436,9 +436,9 @@ class _JuzzioChickGameScreenState extends State<JuzzioChickGameScreen> with Tick
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              color: moodColor.withOpacity(0.15),
+              color: moodColor.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: moodColor.withOpacity(0.6)),
+              border: Border.all(color: moodColor.withValues(alpha: 0.6)),
             ),
             child: Text(_speech(st),
                 textAlign: TextAlign.center,

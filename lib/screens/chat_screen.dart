@@ -28,6 +28,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
+import '../services/juzzio_media_url.dart';
 import '../core/app_theme_and_locale.dart';
 import '../core/config.dart';
 import '../core/native_bridge.dart';
@@ -47,6 +48,7 @@ import '../core/theme/juzzio_colors.dart';
 import '../core/theme/juzzio_glass.dart';
 import '../core/content_filter.dart';
 import '../core/juzzio_sounds.dart';
+import '../core/juzzio_back_navigation.dart';
 import '../services/juzzio_features_service.dart';
 import '../services/juzzio_e2ee.dart';
 import '../widgets/group_management_sheet.dart';
@@ -157,6 +159,11 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
   // Emoji paneli
   bool _showEmojiPanel = false;
+
+  // v0.9.0 Faz 2: geri tuşu durum makinesi + engellemeyen çıkış ipucu
+  final JuzzioBackNavigator _backNav = JuzzioBackNavigator();
+  bool _exitHintVisible = false;
+  Timer? _exitHintTimer;
   bool _showJumpDown = false;
   final FocusNode _composerFocus = FocusNode();
 
@@ -178,10 +185,6 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   StreamSubscription<List<JuzzioCallLog>>? _callLogSub;
 
   bool get _incomingCallBannerVisible => _incomingCall != null;
-
-  JuzzioMessage? _headsUpMessage;
-  final TextEditingController _quickReplyCtrl = TextEditingController();
-  bool _isSendingQuickReply = false;
 
   JuzzioFriendship? _headsUpFriendRequest;
   final Set<String> _seenFriendReqIds = {};
@@ -317,6 +320,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       _syncHomeWidget();
       JuzzioAppController.instance.ensureBackgroundNotificationReady();
       if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
+        // v0.9.0 (G14): gecikmeli tercih kaydı süreç sonlanmadan diske yazılır
+        JuzzioAppController.instance.flushPreferences();
         SupabaseService.instance.setPresence(false);
         SupabaseService.instance.setActiveRoom(null);
       }
@@ -506,20 +511,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       SupabaseService.instance.markRoomRead(msg.roomId);
       return;
     }
-    final conv = _conversationById(msg.roomId);
-    final isMuted = (conv?.isMuted ?? false) || _mutedConversationIds.contains(msg.roomId);
-    if (isMuted) return;
-    final subLang = JuzzioAppController.instance.subtitleLang;
-    final displayBody = msg.isDeleted ? '' : await _resolveTranslatedMessageText(msg, subLang);
-    final senderLabel = msg.senderName.isNotEmpty ? msg.senderName : _resolveSenderName(msg.senderId);
-    final body = msg.storyReplyMeta != null
-        ? '📸 ${JuzzioAppController.instance.trEn("Hikâyene yanıt", "Replied to your story", "Hat auf deine Story geantwortet")}: $displayBody'
-        : _messagePreviewLabel(msg, displayBody);
-    // Sistem bildirimi FCM'den gelir (_handleForegroundPush); burada yalnızca
-    // uygulama içi üst şerit gösterilir.
-    if (mounted && !_isInsideConversation && body.isNotEmpty && senderLabel.isNotEmpty) {
-      setState(() => _headsUpMessage = msg);
-    }
+    // v0.9.0 (ek paket N-G): Sohbetler ana ekranındaki uygulama içi "hızlı yanıt" bandı
+    // kaldırıldı. Sistem bildirimi FCM'den gelir (_handleForegroundPush); okunmamış sayaçları
+    // sohbet listesi akışından güncellenir. Mesaj metni artık bant için çevrilmez/çözülmez.
   }
 
   void _handleForegroundPush(JuzzioPushEventPayload payload) {
@@ -547,20 +541,6 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       isCall: et == 'missed_call',
       channelId: payload.channelId.startsWith('juzzio_') ? payload.channelId : null,
     );
-  }
-
-  String _messagePreviewLabel(JuzzioMessage msg, String text) {
-    final app = JuzzioAppController.instance;
-    switch (msg.messageType) {
-      case 'voice':
-        return '🎤 ${app.trEn("Sesli mesaj", "Voice message", "Sprachnachricht")}${text.isNotEmpty && !text.startsWith("🎤") ? ": $text" : ""}';
-      case 'image':
-        return '📷 ${text.isNotEmpty ? text : app.trEn("Fotoğraf", "Photo", "Foto")}';
-      case 'video':
-        return '🎬 ${text.isNotEmpty ? text : app.trEn("Video", "Video", "Video")}';
-      default:
-        return text;
-    }
   }
 
   void _handleIncomingCalls(List<JuzzioCallLog> ringing) {
@@ -630,10 +610,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     _scrollCtrl.dispose();
     _profileNameCtrl.dispose();
     _profileBioCtrl.dispose();
-    _quickReplyCtrl.dispose();
     _voiceRecorder.dispose();
     _audioPlayer.dispose();
     JuzzioStorySeen.instance.removeListener(_onStorySeenChanged);
+    _exitHintTimer?.cancel();
     super.dispose();
   }
 
@@ -752,6 +732,11 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   Future<String> _resolveTranslatedMessageText(JuzzioMessage msg, String desiredLang) async {
     final cleanDesired = desiredLang.toLowerCase();
     if (msg.originalText.trim().isEmpty) return '';
+    // v0.9.0 (denetim D): Uçtan uca şifreli mesajın çözülmüş metni, kullanıcı açıkça izin
+    // vermedikçe üçüncü taraf çeviri servisine GÖNDERİLMEZ.
+    if (msg.metadata['e2ee'] is Map && !JuzzioAppController.instance.e2eeTranslationOptIn) {
+      return msg.translatedText.trim().isNotEmpty ? msg.translatedText : msg.originalText;
+    }
     if (msg.targetLang.toLowerCase() == cleanDesired && msg.translatedText.trim().isNotEmpty) {
       return msg.translatedText;
     }
@@ -791,7 +776,6 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       _activeConversationRoomId = roomId;
       _selectedBottomTab = 0;
       _isInsideConversation = true;
-      _headsUpMessage = null;
     });
     SupabaseService.instance.markRoomRead(roomId);
     SupabaseService.instance.setActiveRoom(roomId);
@@ -933,6 +917,28 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     return null;
   }
 
+  /// v0.9.0: Karşı tarafın şifreleme anahtarı yoksa düz metin gönderimi için AÇIK ve
+  /// bilgilendirilmiş onay ister. Onay verilmezse mesaj gönderilmez.
+  Future<bool> _confirmPlaintextSend() async {
+    final app = JuzzioAppController.instance;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(app.trEn('Şifresiz gönderilsin mi?', 'Send without encryption?', 'Ohne Verschlüsselung senden?')),
+        content: Text(app.trEn(
+          'Bu kişinin uygulaması uçtan uca şifrelemeyi henüz desteklemiyor. Mesajınız ŞİFRELENMEDEN gönderilir ve sohbette "şifresiz" olarak işaretlenir. Juzzio sunucusu bu mesajın içeriğini görebilir.',
+          'This person\'s app does not support end-to-end encryption yet. Your message will be sent WITHOUT encryption and marked as "unencrypted" in the chat. The Juzzio server can see its content.',
+          'Die App dieser Person unterstützt noch keine Ende-zu-Ende-Verschlüsselung. Deine Nachricht wird OHNE Verschlüsselung gesendet und im Chat als „unverschlüsselt“ markiert. Der Juzzio-Server kann den Inhalt sehen.',
+        )),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(app.trEn('Vazgeç', 'Cancel', 'Abbrechen'))),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(app.trEn('Şifresiz gönder', 'Send unencrypted', 'Unverschlüsselt senden'))),
+        ],
+      ),
+    );
+    return ok == true;
+  }
+
   Future<void> _sendText() async {
     final txt = _msgCtrl.text.trim();
     final roomId = _activeConversationRoomId;
@@ -940,41 +946,34 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     final replyTarget = _replyingTo;
     _msgCtrl.clear();
     if (replyTarget != null) setState(() => _replyingTo = null);
+    // Aynı gönderimin yeniden denemeleri aynı kimliği taşır (çift mesaj oluşmaz)
+    final clientMsgId = SupabaseService.newClientMsgId();
+    Future<void> send({bool allowPlaintext = false}) => SupabaseService.instance.sendTextMessage(
+          text: txt,
+          sourceLang: JuzzioAppController.instance.subtitleLang,
+          senderName: _myProfile?.displayName ?? widget.myDisplayName,
+          targetRoomId: roomId,
+          replyToId: replyTarget?.id,
+          clientMsgId: clientMsgId,
+          allowPlaintextFallback: allowPlaintext,
+        );
     try {
-      await SupabaseService.instance.sendTextMessage(
-        text: txt,
-        sourceLang: JuzzioAppController.instance.subtitleLang,
-        senderName: _myProfile?.displayName ?? widget.myDisplayName,
-        targetRoomId: roomId,
-        replyToId: replyTarget?.id,
-      );
+      try {
+        await send();
+      } on JuzzioE2eeRequiredException catch (e) {
+        if (e.status != JuzzioE2eeStatus.peerKeyMissing || !mounted) rethrow;
+        if (!await _confirmPlaintextSend()) {
+          _msgCtrl.text = txt;
+          if (mounted && replyTarget != null) setState(() => _replyingTo = replyTarget);
+          return;
+        }
+        await send(allowPlaintext: true);
+      }
       _scrollMessagesToBottom(force: true);
     } catch (e) {
       _msgCtrl.text = txt;
       if (mounted && replyTarget != null) setState(() => _replyingTo = replyTarget);
       _showSnack(SupabaseService.instance.friendlyError(e), isError: true);
-    }
-  }
-
-  Future<void> _sendQuickReplyFromBanner() async {
-    final txt = _quickReplyCtrl.text.trim();
-    final target = _headsUpMessage;
-    if (txt.isEmpty || _isSendingQuickReply || target == null) return;
-
-    setState(() => _isSendingQuickReply = true);
-    try {
-      await SupabaseService.instance.sendTextMessage(
-        text: txt,
-        sourceLang: JuzzioAppController.instance.subtitleLang,
-        senderName: _myProfile?.displayName ?? widget.myDisplayName,
-        targetRoomId: target.roomId,
-      );
-      _quickReplyCtrl.clear();
-      if (mounted) setState(() => _headsUpMessage = null);
-    } catch (e) {
-      _showSnack(SupabaseService.instance.friendlyError(e), isError: true);
-    } finally {
-      if (mounted) setState(() => _isSendingQuickReply = false);
     }
   }
 
@@ -1195,7 +1194,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
     try {
       setState(() => _playingMessageId = msg.id);
-      await _audioPlayer.setUrl(msg.audioUrl!);
+      // v0.9.0: sesli mesajlar özel bucket'ta — kısa ömürlü imzalı adresle oynatılır
+      await _audioPlayer.setUrl(await JuzzioMediaUrl.resolve(msg.audioUrl!));
       _audioPlayer.play();
       await _audioPlayer.playerStateStream.firstWhere(
         (state) => state.processingState == ProcessingState.completed,
@@ -1522,7 +1522,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                       width: 44,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: p.textMuted.withOpacity(0.4),
+                        color: p.textMuted.withValues(alpha: 0.4),
                         borderRadius: BorderRadius.circular(4),
                       ),
                     ),
@@ -1760,16 +1760,102 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     );
   }
 
+  /// v0.9.0 Faz 2: sistem geri hareketi. Kararı saf durum makinesi verir.
+  void _handleSystemBack() {
+    final action = _backNav.decide(
+      insideConversation: _isInsideConversation,
+      emojiPanelOpen: _showEmojiPanel,
+      selectedTab: _selectedBottomTab,
+      chatFilter: _selectedFilterIndex,
+    );
+    switch (action) {
+      case JuzzioBackAction.closeEmojiPanel:
+        setState(() => _showEmojiPanel = false);
+        break;
+      case JuzzioBackAction.leaveConversation:
+        _leaveConversation();
+        break;
+      case JuzzioBackAction.goToChatsTab:
+        setState(() => _selectedBottomTab = JuzzioBackNavigator.chatsTab);
+        break;
+      case JuzzioBackAction.resetChatFilter:
+        setState(() => _selectedFilterIndex = JuzzioBackNavigator.defaultFilter);
+        break;
+      case JuzzioBackAction.showExitHint:
+        _exitHintTimer?.cancel();
+        setState(() => _exitHintVisible = true);
+        _exitHintTimer = Timer(_backNav.exitWindow, () {
+          if (mounted) setState(() => _exitHintVisible = false);
+        });
+        break;
+      case JuzzioBackAction.exitApp:
+        _exitHintTimer?.cancel();
+        _exitHintVisible = false;
+        SystemNavigator.pop();
+        break;
+    }
+  }
+
+  /// Engellemeyen (IgnorePointer) "çıkmak için tekrar basın" ipucu; ekran okuyucuya canlı bölge.
+  Widget _buildExitHint(JuzzioPalette p, JuzzioAppController appCtrl) {
+    final text = appCtrl.trEn('Çıkmak için tekrar geri basın', 'Press back again to exit', 'Zum Beenden erneut zurück drücken');
+    return IgnorePointer(
+      child: AnimatedOpacity(
+        opacity: _exitHintVisible ? 1 : 0,
+        duration: Duration(milliseconds: appCtrl.reduceMotion ? 0 : 180),
+        child: Align(
+          alignment: Alignment.bottomCenter,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+            child: Semantics(
+              liveRegion: true,
+              label: _exitHintVisible ? text : null,
+              child: ExcludeSemantics(
+                child: JuzzioGlass(
+                  radius: 999,
+                  blur: !appCtrl.reduceMotion,
+                  blurSigma: JuzzioGlassTokens.blurNavigation,
+                  color: appCtrl.isDark ? JuzzioColors.surface.withValues(alpha: 0.92) : const Color(0xF2FFFFFF),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                    child: Text(
+                      text,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: JuzzioConfig.fontRegularBold,
+                        color: p.textPrimary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final appCtrl = JuzzioAppController.instance;
     final p = JuzzioPalette(appCtrl.isDark);
     final s = JuzzioStrings(appCtrl.uiLang);
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _handleSystemBack();
+      },
+      child: Scaffold(
       backgroundColor: p.headerDarkForest,
       bottomNavigationBar: _isInsideConversation ? null : _buildFloatingGlassBottomDock(p, s),
-      body: SafeArea(
+      body: Stack(
+        children: [
+          Positioned.fill(child: SafeArea(
         bottom: false,
         child: Column(
           children: [
@@ -1778,8 +1864,6 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
               _buildAnnouncementBanner(JuzzioFeaturesService.instance.lastAppConfig.announcementBanner.trim()),
             if (_incomingCallBannerVisible) _buildIncomingCallBanner(p, s),
             if (_headsUpFriendRequest != null) _buildIncomingFriendRequestBanner(p, s),
-            if (_headsUpMessage != null && !_isInsideConversation)
-              _buildQuickReplyMessageBanner(p, s),
             Expanded(
               child: AnimatedSwitcher(
                 duration: Duration(milliseconds: appCtrl.reduceMotion ? 0 : 220),
@@ -1800,6 +1884,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             ),
           ],
         ),
+      )),
+          if (!_isInsideConversation) Positioned.fill(child: _buildExitHint(p, appCtrl)),
+        ],
+      ),
       ),
     );
   }
@@ -2211,7 +2299,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         border: Border.all(color: p.glassBorder, width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.14),
+            color: Colors.black.withValues(alpha: 0.14),
             blurRadius: 28,
             offset: const Offset(0, 10),
           ),
@@ -2391,132 +2479,6 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                 fontSize: 12,
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuickReplyMessageBanner(JuzzioPalette p, JuzzioStrings s) {
-    final msg = _headsUpMessage!;
-    final senderName = msg.senderName.isNotEmpty ? msg.senderName : _resolveSenderName(msg.senderId);
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 10, 16, 8),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: p.cardBg,
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: p.glassBorder, width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.12),
-            blurRadius: 26,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 23,
-                backgroundColor: p.amberPrimary,
-                child: Text(
-                  senderName.isNotEmpty ? senderName[0].toUpperCase() : 'J',
-                  style: const TextStyle(
-                    fontFamily: JuzzioConfig.fontRegularBold,
-                    color: Colors.white,
-                    fontSize: 16,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      senderName,
-                      style: TextStyle(
-                        fontFamily: JuzzioConfig.fontRegularBold,
-                        color: p.textPrimary,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 15.5,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      msg.translatedText.isNotEmpty ? msg.translatedText : msg.originalText,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontFamily: JuzzioConfig.fontRegularBold,
-                        color: p.textSecondary,
-                        fontSize: 13.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              IconButton(
-                icon: Icon(Icons.close_rounded, color: p.textMuted, size: 20),
-                onPressed: () => setState(() => _headsUpMessage = null),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: SizedBox(
-                  height: 44,
-                  child: TextField(
-                    controller: _quickReplyCtrl,
-                    onSubmitted: (_) => _sendQuickReplyFromBanner(),
-                    style: TextStyle(
-                      fontFamily: JuzzioConfig.fontRegularBold,
-                      color: p.textPrimary,
-                      fontSize: 13.5,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: s.t('quick_reply_hint'),
-                      hintStyle: TextStyle(color: p.textMuted, fontSize: 12.5),
-                      filled: true,
-                      fillColor: p.inputBg,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(999),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              SizedBox(
-                height: 44,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: p.amberPrimary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-                    padding: const EdgeInsets.symmetric(horizontal: 18),
-                  ),
-                  onPressed: _sendQuickReplyFromBanner,
-                  icon: const Icon(Icons.send_rounded, size: 16),
-                  label: Text(
-                    s.t('send'),
-                    style: const TextStyle(
-                      fontFamily: JuzzioConfig.fontRegularBold,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ),
-            ],
           ),
         ],
       ),
@@ -2913,7 +2875,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                   'The global feed is under maintenance and will be back shortly.',
                   'Der globale Feed wird gewartet und ist bald wieder verfügbar.'),
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, height: 1.4),
+              // v0.9.0: sabit beyaz yerine tema metin rengi (açık temalarda okunur)
+              style: TextStyle(color: p.textPrimary, fontWeight: FontWeight.w700, height: 1.4),
             ),
           ),
         ),
@@ -4484,7 +4447,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         decoration: BoxDecoration(
-          color: isMe ? Colors.white.withOpacity(0.14) : JuzzioColors.slate200.withOpacity(0.65),
+          color: isMe ? Colors.white.withValues(alpha: 0.14) : JuzzioColors.slate200.withValues(alpha: 0.65),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isMe ? Colors.white24 : JuzzioColors.slate300,
@@ -4549,7 +4512,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                 alignment: Alignment.center,
                 children: [
                   if (mediaUrl != null && mediaUrl.startsWith('http') && !isVideo)
-                    Image.network(
+                    JuzzioStorageImage(
                       mediaUrl,
                       height: 150,
                       width: double.infinity,
@@ -4813,7 +4776,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                               margin: const EdgeInsets.only(bottom: 6),
                               padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
                               decoration: BoxDecoration(
-                                color: (isMe ? Colors.white : p.textPrimary).withOpacity(0.10),
+                                color: (isMe ? Colors.white : p.textPrimary).withValues(alpha: 0.10),
                                 borderRadius: BorderRadius.circular(10),
                                 border: Border(left: BorderSide(color: isMe ? Colors.white70 : p.amberPrimary, width: 3)),
                               ),
@@ -4835,7 +4798,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                               onTap: () => JuzzioMediaViewerPage.open(context, url: msg.imageUrl!, isVideo: false),
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(14),
-                                child: Image.network(
+                                child: JuzzioStorageImage(
                                   msg.imageUrl!,
                                   height: 190,
                                   width: double.infinity,
@@ -5934,7 +5897,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
                     decoration: BoxDecoration(
-                      color: selected ? Colors.white : Colors.white.withOpacity(0.12),
+                      color: selected ? Colors.white : Colors.white.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(999),
                     ),
                     alignment: Alignment.center,
@@ -6563,7 +6526,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                                     ),
                                     decoration: BoxDecoration(
                                       color: selectedTag == tag
-                                          ? p.activeNavIndigo.withOpacity(0.15)
+                                          ? p.activeNavIndigo.withValues(alpha: 0.15)
                                           : p.inputBg,
                                       borderRadius: BorderRadius.circular(999),
                                     ),
@@ -6840,11 +6803,13 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
   Widget _buildFloatingGlassBottomDock(JuzzioPalette p, JuzzioStrings s) {
     final app = JuzzioAppController.instance;
-    // v0.7.0: Küresel akış kaldırıldı. (ikon, aktif ikon, etiket, sekme indeksi)
+    // v0.9.0 Faz 2: 5 sekmeli kabuk — Sohbetler · Keşfet · Oluştur · Aramalar · Profil.
+    // (ikon, aktif ikon, etiket, sekme indeksi) — indeksler geriye uyum için korunur.
     final items = [
-      (Icons.chat_bubble_outline_rounded, Icons.chat_bubble_rounded, app.trEn('Mesajlar', 'Chats', 'Chats'), 0),
+      (Icons.chat_bubble_outline_rounded, Icons.chat_bubble_rounded, app.trEn('Sohbetler', 'Chats', 'Chats'), 0),
+      (Icons.explore_outlined, Icons.explore_rounded, app.trEn('Keşfet', 'Explore', 'Entdecken'), 3),
+      (Icons.add_rounded, Icons.add_rounded, app.trEn('Oluştur', 'Create', 'Erstellen'), 2),
       (Icons.call_outlined, Icons.call_rounded, app.trEn('Aramalar', 'Calls', 'Anrufe'), 1),
-      (Icons.add_rounded, Icons.add_rounded, app.trEn('Paylaş', 'Share', 'Teilen'), 2),
       (Icons.person_outline_rounded, Icons.person_rounded, app.trEn('Profil', 'Profile', 'Profil'), 4),
     ];
     // Seçili: cyan (açık modda okunur electric blue), seçili değil: ikincil metin
@@ -7613,7 +7578,7 @@ class _JuzzioStoryViewerModalState extends State<JuzzioStoryViewerModal> {
               else if (st.mediaType == 'image' && hasRemoteMedia)
                 JuzzioMediaFilters.apply(
                   st.filterPreset,
-                  Image.network(
+                  JuzzioStorageImage(
                     st.mediaUrl!,
                     fit: BoxFit.contain,
                     loadingBuilder: (ctx, child, progress) =>
@@ -7832,7 +7797,7 @@ class _JuzzioStoryViewerModalState extends State<JuzzioStoryViewerModal> {
                         margin: const EdgeInsets.only(bottom: 12),
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.62),
+                          color: Colors.black.withValues(alpha: 0.62),
                           borderRadius: BorderRadius.circular(18),
                         ),
                         child: Text(
@@ -7851,7 +7816,7 @@ class _JuzzioStoryViewerModalState extends State<JuzzioStoryViewerModal> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.12),
+                          color: Colors.white.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(999),
                         ),
                         child: Row(
@@ -7877,7 +7842,7 @@ class _JuzzioStoryViewerModalState extends State<JuzzioStoryViewerModal> {
                         margin: const EdgeInsets.only(bottom: 10),
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.12),
+                          color: Colors.white.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(999),
                         ),
                         child: Row(
@@ -7917,7 +7882,7 @@ class _JuzzioStoryViewerModalState extends State<JuzzioStoryViewerModal> {
                                 hintText: s.t('story_swipe_up_hint'),
                                 hintStyle: const TextStyle(color: Colors.white60, fontSize: 13),
                                 filled: true,
-                                fillColor: Colors.white.withOpacity(0.14),
+                                fillColor: Colors.white.withValues(alpha: 0.14),
                                 contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(999),
@@ -7935,7 +7900,7 @@ class _JuzzioStoryViewerModalState extends State<JuzzioStoryViewerModal> {
                             child: Container(
                               padding: const EdgeInsets.all(11),
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.14),
+                                color: Colors.white.withValues(alpha: 0.14),
                                 shape: BoxShape.circle,
                               ),
                               child: Icon(

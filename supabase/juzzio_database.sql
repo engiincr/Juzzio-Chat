@@ -6854,7 +6854,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'stats.read');
     RETURN jsonb_build_object(
         'users', (SELECT COUNT(*) FROM public.profiles),
         'online', (SELECT COUNT(*) FROM public.profiles WHERE is_online),
@@ -6875,7 +6875,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'reports');
     RETURN COALESCE((
         SELECT jsonb_agg(row_to_json(x) ORDER BY x.created_at DESC) FROM (
             SELECT r.id, r.target_type, r.target_id, r.reason_code, r.details, r.status, r.created_at,
@@ -6902,7 +6902,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'reports.resolve');
     IF p_status NOT IN ('open', 'reviewed', 'resolved', 'dismissed') THEN RAISE EXCEPTION 'invalid_status'; END IF;
     UPDATE public.reports SET status = p_status, resolution_note = LEFT(COALESCE(p_note, ''), 500),
                               reviewed_by = auth.uid(), reviewed_at = NOW()
@@ -6949,7 +6949,7 @@ AS $$
 DECLARE
     v_devices INTEGER := 0;
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'users.ban');
     IF p_reason IS NULL OR NOT (p_reason = ANY (public.juzzio_ban_reasons())) THEN RAISE EXCEPTION 'invalid_reason'; END IF;
     IF public.is_juzzio_admin(p_user) THEN RAISE EXCEPTION 'cannot_ban_admin'; END IF;
 
@@ -6982,7 +6982,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'users.ban');
     DELETE FROM public.banned_users WHERE user_id = p_user;
     DELETE FROM public.banned_devices bd USING public.user_devices d
     WHERE d.user_id = p_user AND d.device_id = bd.device_id;
@@ -6999,7 +6999,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'users.read');
     RETURN COALESCE((
         SELECT jsonb_agg(row_to_json(x) ORDER BY x.created_at DESC) FROM (
             SELECT b.user_id, p.username, p.display_name, b.reason_code, b.note, b.created_at,
@@ -7590,7 +7590,7 @@ AS $$
 DECLARE
     v_storage JSONB := '{}'::jsonb;
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'stats.read');
     BEGIN
         EXECUTE $q$
             SELECT jsonb_build_object(
@@ -7645,7 +7645,7 @@ AS $$
 DECLARE
     v_q TEXT := '%' || LOWER(BTRIM(COALESCE(p_query, ''))) || '%';
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'users.read');
     RETURN COALESCE((
         SELECT jsonb_agg(row_to_json(x)) FROM (
             SELECT p.id, p.username, p.display_name, p.avatar_url, p.is_verified, p.created_at, p.last_seen,
@@ -7668,16 +7668,20 @@ GRANT EXECUTE ON FUNCTION public.admin_search_users(TEXT, TEXT) TO authenticated
 CREATE OR REPLACE FUNCTION public.admin_user_detail(p_token TEXT, p_user UUID)
 RETURNS JSONB
 LANGUAGE plpgsql
-STABLE
+VOLATILE
 SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'users.read');
+    -- v0.9.0: ayrıcalıklı okuma da denetim kaydına yazılır
+    INSERT INTO public.admin_audit_log (admin_id, action, target, details)
+    VALUES (auth.uid(), 'view_user_detail', p_user::text, jsonb_build_object('pii', public._staff_has(p_token, 'users.pii')));
     RETURN (
         SELECT jsonb_build_object(
             'id', p.id, 'username', p.username, 'display_name', p.display_name, 'avatar_url', p.avatar_url,
-            'email', (SELECT u.email FROM auth.users u WHERE u.id = p.id),
+            -- v0.9.0: e-posta yalnızca 'users.pii' iznine açık (destek görevlisi göremez)
+            'email', CASE WHEN public._staff_has(p_token, 'users.pii') THEN (SELECT u.email FROM auth.users u WHERE u.id = p.id) END,
             'created_at', p.created_at, 'last_seen', p.last_seen,
             'is_online', public.juzzio_effective_online(p.is_online, p.last_seen),
             'is_verified', p.is_verified, 'app_role', p.app_role, 'is_private', p.is_private_account,
@@ -7707,7 +7711,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'users.manage');
     UPDATE public.profiles SET is_verified = COALESCE(p_verified, false), updated_at = NOW() WHERE id = p_user;
     INSERT INTO public.admin_audit_log (admin_id, action, target, details)
     VALUES (auth.uid(), 'set_verified', p_user::text, jsonb_build_object('verified', p_verified));
@@ -7722,7 +7726,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'roles.manage');
     IF p_role NOT IN ('user', 'moderator') THEN RAISE EXCEPTION 'invalid_role'; END IF;
     UPDATE public.profiles SET app_role = p_role, updated_at = NOW() WHERE id = p_user;
     INSERT INTO public.admin_audit_log (admin_id, action, target, details)
@@ -7739,7 +7743,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'users.ban');
     IF p_reason IS NULL OR NOT (p_reason = ANY (public.juzzio_ban_reasons())) THEN RAISE EXCEPTION 'invalid_reason'; END IF;
     IF public.is_juzzio_admin(p_user) THEN RAISE EXCEPTION 'cannot_ban_admin'; END IF;
     INSERT INTO public.banned_users (user_id, reason_code, note, banned_by, expires_at)
@@ -7764,7 +7768,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'users.pii');
     RETURN (SELECT u.email FROM auth.users u WHERE u.id = p_user);
 END;
 $$;
@@ -7777,7 +7781,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'users.warn');
     IF BTRIM(COALESCE(p_message, '')) = '' THEN RAISE EXCEPTION 'empty_message'; END IF;
     INSERT INTO public.notifications (recipient_id, actor_id, actor_username, actor_display_name,
                                       event_type, target_id, preview_text, dedupe_key)
@@ -7801,7 +7805,7 @@ DECLARE
     v_key TEXT := 'broadcast_' || EXTRACT(EPOCH FROM clock_timestamp())::bigint;
     v_text TEXT;
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'broadcast');
     IF BTRIM(COALESCE(p_body, '')) = '' THEN RAISE EXCEPTION 'empty_message'; END IF;
     IF p_audience NOT IN ('all', 'online', 'verified', 'active_week') THEN RAISE EXCEPTION 'invalid_audience'; END IF;
     v_text := CASE WHEN BTRIM(COALESCE(p_title, '')) = '' THEN BTRIM(p_body)
@@ -7836,7 +7840,7 @@ AS $$
 DECLARE
     v_rows INTEGER := 0;
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'content.delete');
     CASE p_target_type
         WHEN 'post' THEN DELETE FROM public.posts WHERE id::text = p_target_id;
         WHEN 'story' THEN DELETE FROM public.stories WHERE id::text = p_target_id;
@@ -7895,7 +7899,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'releases');
     RETURN COALESCE((SELECT jsonb_agg(row_to_json(r) ORDER BY r.version_code DESC, r.published_at DESC)
                      FROM (SELECT * FROM public.app_releases ORDER BY version_code DESC LIMIT 30) r), '[]'::jsonb);
 END;
@@ -7909,7 +7913,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'releases');
     DELETE FROM public.app_releases WHERE version_name = p_version_name;
     INSERT INTO public.admin_audit_log (admin_id, action, target) VALUES (auth.uid(), 'delete_release', p_version_name);
 END;
@@ -7950,7 +7954,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'audit.read');
     RETURN COALESCE((
         SELECT jsonb_agg(row_to_json(x) ORDER BY x.created_at DESC) FROM (
             SELECT l.id, l.action, l.target, l.details, l.created_at, p.username AS admin_username
@@ -8330,7 +8334,7 @@ AS $$
 DECLARE
     v JSONB;
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'stats.read');
     SELECT jsonb_build_object(
         'server_time', NOW(),
         'active_voice_calls', (SELECT COUNT(DISTINCT COALESCE(session_id::text, id::text)) FROM public.call_logs
@@ -8551,7 +8555,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'settings');
     IF p_key IN ('maintenance_message', 'announcement_banner') THEN
         IF jsonb_typeof(p_value) <> 'string' THEN RAISE EXCEPTION 'invalid_setting'; END IF;
         p_value := to_jsonb(LEFT(p_value #>> '{}', 500));
@@ -8788,7 +8792,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'users.read');
     RETURN COALESCE((
         SELECT jsonb_agg(row_to_json(x) ORDER BY x.created_at DESC) FROM (
             SELECT s.id, s.user_id, p.username, p.display_name, p.avatar_url, s.kind, s.detail, s.room_name,
@@ -8812,7 +8816,7 @@ AS $$
 DECLARE
     v_user UUID;
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'users.warn');
     UPDATE public.moderation_strikes SET revoked = true WHERE id = p_strike RETURNING user_id INTO v_user;
     IF v_user IS NULL THEN RAISE EXCEPTION 'not_found'; END IF;
     IF p_lift_ban THEN
@@ -8835,7 +8839,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'users.warn');
     IF public.is_juzzio_admin(p_user) THEN RAISE EXCEPTION 'cannot_ban_admin'; END IF;
     RETURN public.juzzio_record_violation(p_user, 'admin', COALESCE(p_detail, ''), '', 'admin', auth.uid());
 END;
@@ -8850,7 +8854,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'moderation');
     RETURN COALESCE((
         SELECT jsonb_agg(row_to_json(x) ORDER BY x.created_at DESC) FROM (
             SELECT m.id, m.user_id, p.username, p.display_name, m.kind, m.url, m.verdict, m.provider, m.scores,
@@ -8877,7 +8881,7 @@ DECLARE
     v_row public.media_moderation%ROWTYPE;
     v_strike JSONB;
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'moderation');
     SELECT * INTO v_row FROM public.media_moderation WHERE id = p_id;
     IF NOT FOUND THEN RAISE EXCEPTION 'not_found'; END IF;
     UPDATE public.media_moderation
@@ -8907,7 +8911,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'moderation');
     RETURN COALESCE((SELECT jsonb_agg(jsonb_build_object('term', term, 'match_mode', match_mode, 'speech_strike', speech_strike)
                                       ORDER BY term) FROM public.banned_terms), '[]'::jsonb);
 END;
@@ -8923,7 +8927,7 @@ AS $$
 DECLARE
     v_term TEXT := REGEXP_REPLACE(public.juzzio_fold_text(BTRIM(COALESCE(p_term, ''))), '[^a-z ]+', '', 'g');
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'moderation.config');
     IF LENGTH(v_term) < 2 OR LENGTH(v_term) > 40 THEN RAISE EXCEPTION 'invalid_term'; END IF;
     IF p_match_mode NOT IN ('contains', 'word') THEN RAISE EXCEPTION 'invalid_term'; END IF;
     INSERT INTO public.banned_terms (term, match_mode, speech_strike) VALUES (v_term, p_match_mode, COALESCE(p_speech_strike, false))
@@ -8941,7 +8945,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'moderation.config');
     DELETE FROM public.banned_terms WHERE term = p_term;
     INSERT INTO public.admin_audit_log (admin_id, action, target) VALUES (auth.uid(), 'delete_banned_term', COALESCE(p_term, ''));
 END;
@@ -8957,7 +8961,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'moderation');
     RETURN jsonb_build_object(
         'users', COALESCE((SELECT jsonb_agg(row_to_json(x)) FROM (
             SELECT p.id, p.username, p.display_name, p.bio, p.avatar_url FROM public.profiles p
@@ -8993,7 +8997,7 @@ AS $$
 DECLARE
     v_username TEXT := LOWER(REGEXP_REPLACE(BTRIM(COALESCE(p_username, '')), '^@+', ''));
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'users.manage');
     IF v_username <> '' THEN
         IF v_username !~ '^[a-z0-9_.]{3,30}$' THEN RAISE EXCEPTION 'invalid_username'; END IF;
         IF EXISTS (SELECT 1 FROM public.profiles WHERE LOWER(username) = v_username AND id <> p_user) THEN
@@ -9024,7 +9028,7 @@ AS $$
 DECLARE
     v_rows INTEGER := 0;
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'users.manage');
     BEGIN
         EXECUTE 'DELETE FROM auth.sessions WHERE user_id = $1' USING p_user;
         GET DIAGNOSTICS v_rows = ROW_COUNT;
@@ -9049,7 +9053,7 @@ AS $$
 DECLARE
     v_username TEXT;
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'users.delete');
     IF public.is_juzzio_admin(p_user) THEN RAISE EXCEPTION 'cannot_ban_admin'; END IF;
     SELECT username INTO v_username FROM public.profiles WHERE id = p_user;
     IF v_username IS NULL OR LOWER(COALESCE(p_confirm, '')) <> LOWER(v_username) THEN RAISE EXCEPTION 'confirm_mismatch'; END IF;
@@ -9072,7 +9076,7 @@ AS $$
 DECLARE
     v_q TEXT := '%' || LOWER(BTRIM(COALESCE(p_query, ''))) || '%';
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'groups.read');
     RETURN COALESCE((
         SELECT jsonb_agg(row_to_json(x) ORDER BY x.created_at DESC) FROM (
             SELECT r.id, r.title, r.group_type, r.group_purpose, r.description, r.created_at,
@@ -9097,7 +9101,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'groups.read');
     RETURN COALESCE((
         SELECT jsonb_agg(row_to_json(x)) FROM (
             SELECT rp.user_id, p.username, p.display_name, p.avatar_url, rp.role, rp.joined_at
@@ -9117,7 +9121,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'groups.manage');
     UPDATE public.rooms
     SET title = COALESCE(NULLIF(BTRIM(p_title), ''), title),
         description = COALESCE(p_description, description),
@@ -9136,7 +9140,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'groups.manage');
     UPDATE public.room_participants SET left_at = NOW() WHERE room_id = p_room AND user_id = p_user AND left_at IS NULL;
     INSERT INTO public.admin_audit_log (admin_id, action, target, details)
     VALUES (auth.uid(), 'remove_group_member', p_room::text, jsonb_build_object('user', p_user));
@@ -9153,7 +9157,7 @@ AS $$
 DECLARE
     v_title TEXT;
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'groups.manage');
     SELECT title INTO v_title FROM public.rooms WHERE id = p_room AND is_group;
     IF NOT FOUND THEN RAISE EXCEPTION 'not_found'; END IF;
     DELETE FROM public.rooms WHERE id = p_room AND is_group;
@@ -9172,7 +9176,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'calls.manage');
     RETURN COALESCE((
         SELECT jsonb_agg(row_to_json(x) ORDER BY x.started_at DESC) FROM (
             SELECT COALESCE(c.session_id::text, c.id::text) AS session_key,
@@ -9202,7 +9206,7 @@ AS $$
 DECLARE
     v_rows INTEGER := 0;
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'calls.manage');
     UPDATE public.call_logs c
     SET status = CASE WHEN c.status = 'ringing' THEN 'cancelled' ELSE c.status END,
         status_reason = 'admin',
@@ -9231,7 +9235,7 @@ AS $$
 DECLARE
     v_q TEXT := '%' || LOWER(BTRIM(COALESCE(p_query, ''))) || '%';
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'moderation');
     IF p_kind = 'post' THEN
         RETURN COALESCE((SELECT jsonb_agg(row_to_json(x)) FROM (
             SELECT po.id, po.author_id AS user_id, po.author_username AS username, po.caption AS text,
@@ -9266,7 +9270,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'moderation');
     RETURN jsonb_build_object(
         'strikes_24h', (SELECT COUNT(*) FROM public.moderation_strikes WHERE created_at > NOW() - INTERVAL '24 hours' AND NOT revoked),
         'strikes_total', (SELECT COUNT(*) FROM public.moderation_strikes WHERE NOT revoked),
@@ -9462,7 +9466,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'releases');
     IF COALESCE(p_version_name, '') !~ '^[0-9]+\.[0-9]+\.[0-9]+$' THEN RAISE EXCEPTION 'invalid_version'; END IF;
     IF COALESCE(p_version_code, 0) <= 0 THEN RAISE EXCEPTION 'invalid_version'; END IF;
     IF COALESCE(p_apk_url, '') !~* '^https://[^ ]+\.apk(\?[^ ]*)?$' THEN RAISE EXCEPTION 'invalid_apk_url'; END IF;
@@ -9758,7 +9762,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'feedback.manage');
     RETURN COALESCE((
         SELECT jsonb_agg(x ORDER BY x.created_at DESC) FROM (
             SELECT f.id, f.kind, f.message, f.image_url, f.app_version, f.device_info, f.status, f.admin_note, f.created_at,
@@ -9778,7 +9782,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'feedback.manage');
     IF p_status NOT IN ('open', 'in_progress', 'resolved') THEN RAISE EXCEPTION 'invalid_setting'; END IF;
     UPDATE public.app_feedback SET status = p_status, admin_note = LEFT(COALESCE(p_note, ''), 1000) WHERE id = p_id;
 END;
@@ -9938,11 +9942,33 @@ SET search_path = public
 AS $$
 BEGIN
     IF COALESCE(p_token, '') <> '' AND public.admin_check_token(p_token) THEN RETURN; END IF;
-    IF public.juzzio_has_permission(p_perm) THEN RETURN; END IF;
+    -- v0.9.0: Süper yönetici ('*') YALNIZCA şifreyle açılmış oturum belirteciyle geçer
+    -- (belirteçsiz '*' yetkisi bir zayıflama olurdu). Personel rolleri kendi izinleriyle geçer.
+    IF COALESCE(public.juzzio_staff_role(auth.uid()), '') <> 'super_admin'
+       AND public.juzzio_has_permission(p_perm) THEN
+        RETURN;
+    END IF;
+    -- Geriye uyumluluk: belirteç verilip geçersizse istemci şifre ekranını yeniden açar
+    IF COALESCE(p_token, '') <> '' THEN RAISE EXCEPTION 'admin_session_invalid'; END IF;
     RAISE EXCEPTION 'permission_denied:%', p_perm;
 END;
 $$;
 REVOKE ALL ON FUNCTION public._staff_require(TEXT, TEXT) FROM PUBLIC, anon, authenticated;
+
+-- v0.9.0: izin VAR MI (istisna fırlatmadan) — alan bazlı maskeleme için (ör. e-posta)
+CREATE OR REPLACE FUNCTION public._staff_has(p_token TEXT, p_perm TEXT)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    IF COALESCE(p_token, '') <> '' AND public.admin_check_token(p_token) THEN RETURN true; END IF;
+    RETURN COALESCE(public.juzzio_staff_role(auth.uid()), '') <> 'super_admin' AND public.juzzio_has_permission(p_perm);
+END;
+$$;
+REVOKE ALL ON FUNCTION public._staff_has(TEXT, TEXT) FROM PUBLIC, anon, authenticated;
 
 CREATE OR REPLACE FUNCTION public.admin_list_staff(p_token TEXT)
 RETURNS JSONB
@@ -9970,7 +9996,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'roles.manage');
     IF p_role NOT IN ('admin', 'moderator', 'support', 'analyst', 'content_manager', 'auditor') THEN
         RAISE EXCEPTION 'invalid_role';
     END IF;
@@ -9993,7 +10019,7 @@ SET search_path = public
 AS $$
 DECLARE v_old TEXT;
 BEGIN
-    PERFORM public._admin_require(p_token);
+    PERFORM public._staff_require(p_token, 'roles.manage');
     DELETE FROM public.staff_roles WHERE user_id = p_user RETURNING role INTO v_old;
     INSERT INTO public.admin_audit_log (admin_id, action, target, details)
     VALUES (auth.uid(), 'revoke_role', p_user::text, jsonb_build_object('role', v_old));
@@ -10185,3 +10211,716 @@ AS $$
      LIMIT 1;
 $$;
 GRANT EXECUTE ON FUNCTION public.get_active_global_theme() TO authenticated;
+
+
+-- #############################################################################
+-- BÖLÜM 10 — v0.9.0 GÜVENLİK SERTLEŞTİRMESİ (kaynak denetimi: Gemini + ChatGPT bulguları)
+--   10.1 LiveKit token: biten/çıkarılan katılımcı yeniden token alamaz (G01)
+--   10.2 Aktif çağrı katılımcısı kontrolü — content-moderation geri dönüşü (G02)
+--   10.3 invite_to_call: davet eden yasaklı/çıkarılmış olamaz (G06)
+--   10.4 Canlı altyazı (Deepgram) yalnızca aktif çağrıda ve yasaklı değilse (G05)
+--   10.5 Sesli mesaj transkripsiyonu: oda üyeliği + hız sınırı (G04)
+--   10.6 Push teslim kilidi: askıda kalan "processing" kaydı güvenle devralınır (G08)
+--   10.7 Storage gizliliği: özel sohbet/hikâye/gönderi medyası artık herkese açık DEĞİL
+-- Tümü idempotent; veri silmez. Testler: supabase/tests/juzzio_database_tests.sql (v0.9.0 bloğu)
+-- #############################################################################
+
+-- 10.0 Yardımcı: metni güvenle UUID'ye çevir (geçersizse NULL, istisna fırlatmaz)
+CREATE OR REPLACE FUNCTION public.juzzio_try_uuid(p_text TEXT)
+RETURNS UUID
+LANGUAGE plpgsql
+IMMUTABLE
+AS $$
+BEGIN
+    IF p_text IS NULL OR p_text !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
+        RETURN NULL;
+    END IF;
+    RETURN p_text::uuid;
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.juzzio_try_uuid(TEXT) TO authenticated, service_role;
+
+-- 10.1 LiveKit token yetkisi.
+--  Önceki sürüm (Bölüm 7) yasak ve call_removals kontrolünü zaten yapıyordu; kalan açık:
+--  "answered" durumundaki BİTMİŞ bir çağrı kaydı 12 saat boyunca token almaya yetiyordu.
+--  Artık yalnızca çalan veya bitmemiş (ended_at IS NULL) çağrı ile oda dışı katılım mümkün.
+CREATE OR REPLACE FUNCTION public.can_join_livekit_room(p_user UUID, p_livekit_room TEXT)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_session UUID;
+    v_caller UUID;
+BEGIN
+    IF p_user IS NULL OR COALESCE(p_livekit_room, '') = '' THEN RETURN false; END IF;
+    IF public.juzzio_is_banned(p_user) THEN RETURN false; END IF;
+    IF NOT (
+        EXISTS (
+            SELECT 1 FROM public.rooms r
+            JOIN public.room_participants rp ON rp.room_id = r.id
+            WHERE r.livekit_room_name = p_livekit_room AND rp.user_id = p_user AND rp.left_at IS NULL
+        ) OR EXISTS (
+            SELECT 1 FROM public.call_logs c
+            WHERE c.livekit_room_name = p_livekit_room
+              AND (c.caller_id = p_user OR c.receiver_id = p_user)
+              AND c.created_at > NOW() - INTERVAL '12 hours'
+              AND (c.status = 'ringing' OR (c.status = 'answered' AND c.ended_at IS NULL))
+        )
+    ) THEN
+        RETURN false;
+    END IF;
+
+    SELECT c.session_id, c.caller_id INTO v_session, v_caller
+    FROM public.call_logs c
+    WHERE c.livekit_room_name = p_livekit_room AND c.created_at > NOW() - INTERVAL '6 hours'
+      AND (c.status = 'ringing' OR (c.status = 'answered' AND c.ended_at IS NULL))
+    ORDER BY c.created_at DESC LIMIT 1;
+    IF v_session IS NULL OR v_caller = p_user THEN RETURN true; END IF;
+    IF EXISTS (SELECT 1 FROM public.call_removals cr WHERE cr.session_id = v_session AND cr.user_id = p_user) THEN
+        RETURN false;
+    END IF;
+    IF EXISTS (SELECT 1 FROM public.call_logs c WHERE c.session_id = v_session AND c.receiver_id = p_user
+               AND c.status = 'answered' AND c.ended_at IS NULL) THEN
+        RETURN true;
+    END IF;
+    RETURN public.call_session_active_count(v_session) < public.juzzio_max_call_participants();
+END;
+$$;
+REVOKE ALL ON FUNCTION public.can_join_livekit_room(UUID, TEXT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.can_join_livekit_room(UUID, TEXT) TO service_role;
+
+-- 10.2 Kişi şu anda bu LiveKit odasındaki bir çağrının ETKİN katılımcısı mı?
+--  (yasaklı olsa bile — görüntü denetimi süren çağrıda devam etmeli; ama bitmiş veya
+--   çıkarılmış katılımcı ASLA sayılmaz → odayı kapatma/DoS açığı kapanır)
+CREATE OR REPLACE FUNCTION public.juzzio_is_active_call_participant(p_user UUID, p_livekit_room TEXT)
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT p_user IS NOT NULL AND COALESCE(p_livekit_room, '') <> '' AND EXISTS (
+        SELECT 1 FROM public.call_logs c
+        WHERE c.livekit_room_name = p_livekit_room
+          AND c.created_at > NOW() - INTERVAL '6 hours'
+          AND c.ended_at IS NULL
+          AND (
+                (c.caller_id = p_user AND c.status IN ('ringing', 'answered'))
+             OR (c.receiver_id = p_user AND c.status = 'answered')
+          )
+          AND NOT EXISTS (
+              SELECT 1 FROM public.call_removals cr
+              WHERE cr.session_id = c.session_id AND cr.user_id = p_user
+          )
+    );
+$$;
+REVOKE ALL ON FUNCTION public.juzzio_is_active_call_participant(UUID, TEXT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.juzzio_is_active_call_participant(UUID, TEXT) TO service_role;
+
+-- 10.3 Çağrıya davet: davet eden yasaklı olamaz; yalnızca ETKİN (bitmemiş, çıkarılmamış)
+--      katılımcı davet edebilir; dört kişilik sınır korunur.
+CREATE OR REPLACE FUNCTION public.invite_to_call(p_session UUID, p_user_ids UUID[])
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_uid UUID := auth.uid();
+    v_base RECORD;
+    v_me RECORD;
+    v_target RECORD;
+    v_count INTEGER := 0;
+    v_slots INTEGER;
+BEGIN
+    IF v_uid IS NULL THEN RAISE EXCEPTION 'not_authenticated'; END IF;
+    IF public.juzzio_is_banned(v_uid) THEN RAISE EXCEPTION 'account_banned'; END IF;
+    IF COALESCE(array_length(p_user_ids, 1), 0) > 16 THEN RAISE EXCEPTION 'too_many_invites'; END IF;
+
+    SELECT * INTO v_base FROM public.call_logs
+    WHERE session_id = p_session
+      AND ended_at IS NULL
+      AND ((caller_id = v_uid AND status IN ('ringing', 'answered'))
+           OR (receiver_id = v_uid AND status = 'answered'))
+    ORDER BY created_at LIMIT 1;
+    IF v_base.id IS NULL THEN RAISE EXCEPTION 'not_in_call'; END IF;
+    IF EXISTS (SELECT 1 FROM public.call_removals cr WHERE cr.session_id = p_session AND cr.user_id = v_uid) THEN
+        RAISE EXCEPTION 'not_in_call';
+    END IF;
+
+    v_slots := public.juzzio_max_call_participants() - public.call_session_active_count(p_session)
+               - (SELECT COUNT(*)::INTEGER FROM public.call_logs c
+                  WHERE c.session_id = p_session AND c.status = 'ringing' AND c.created_at > NOW() - INTERVAL '60 seconds');
+    IF v_slots <= 0 THEN RAISE EXCEPTION 'call_full'; END IF;
+
+    SELECT COALESCE(NULLIF(display_name, ''), username, 'Juzzio') AS name, avatar_url INTO v_me
+    FROM public.profiles WHERE id = v_uid;
+
+    FOR v_target IN
+        SELECT p.id, COALESCE(NULLIF(p.display_name, ''), p.username, 'Juzzio') AS name, p.avatar_url
+        FROM public.profiles p
+        WHERE p.id = ANY (COALESCE(p_user_ids, ARRAY[]::UUID[]))
+          AND p.id <> v_uid
+          AND p.id <> v_base.caller_id
+          AND NOT public.is_blocked_between(v_uid, p.id)
+          AND NOT public.juzzio_is_banned(p.id)
+          AND NOT EXISTS (SELECT 1 FROM public.call_removals cr WHERE cr.session_id = p_session AND cr.user_id = p.id)
+          AND (public.is_friends_accepted(v_uid, p.id)
+               OR (v_base.room_id IS NOT NULL AND public.is_room_member(v_base.room_id, p.id)))
+          AND NOT EXISTS (
+              SELECT 1 FROM public.call_logs c
+              WHERE c.session_id = p_session AND c.receiver_id = p.id
+                AND (c.status = 'ringing' OR (c.status = 'answered' AND c.ended_at IS NULL))
+          )
+        LIMIT v_slots
+    LOOP
+        INSERT INTO public.call_logs (
+            session_id, room_id, livekit_room_name, is_group, group_title,
+            caller_id, caller_name, caller_avatar, receiver_id, receiver_name, receiver_avatar,
+            is_video, status, status_reason
+        ) VALUES (
+            p_session, v_base.room_id, v_base.livekit_room_name, true,
+            COALESCE(NULLIF(v_base.group_title, ''), ''),
+            v_uid, v_me.name, v_me.avatar_url, v_target.id, v_target.name, v_target.avatar_url,
+            v_base.is_video, 'ringing', public.juzzio_call_preview_key(true, v_base.is_video)
+        );
+        v_count := v_count + 1;
+    END LOOP;
+    RETURN v_count;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.invite_to_call(UUID, UUID[]) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.invite_to_call(UUID, UUID[]) TO authenticated;
+
+-- 10.4/10.5 Genel amaçlı hız sınırlayıcı (yalnız service_role; Edge Function'lar kullanır)
+CREATE TABLE IF NOT EXISTS public.juzzio_rate_events (
+    id BIGSERIAL PRIMARY KEY,
+    user_id UUID NOT NULL,
+    action TEXT NOT NULL CHECK (char_length(action) BETWEEN 1 AND 64),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_juzzio_rate_events_lookup ON public.juzzio_rate_events (user_id, action, created_at DESC);
+ALTER TABLE public.juzzio_rate_events ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.juzzio_rate_events FROM anon, authenticated;
+
+-- true → izin verildi (olay kaydedildi); false → sınır aşıldı. Eski olaylar kendiliğinden budanır.
+CREATE OR REPLACE FUNCTION public.juzzio_rate_check(p_user UUID, p_action TEXT, p_limit INTEGER, p_window_seconds INTEGER)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_count INTEGER;
+BEGIN
+    IF p_user IS NULL OR COALESCE(p_action, '') = '' OR p_limit < 1 OR p_window_seconds < 1 THEN
+        RETURN false;
+    END IF;
+    -- Aynı kullanıcı+eylem için eşzamanlı çağrılar sırayla sayılır
+    PERFORM pg_advisory_xact_lock(hashtextextended(p_user::text || ':' || p_action, 0));
+    SELECT COUNT(*) INTO v_count FROM public.juzzio_rate_events
+     WHERE user_id = p_user AND action = p_action
+       AND created_at > NOW() - make_interval(secs => p_window_seconds);
+    IF v_count >= p_limit THEN RETURN false; END IF;
+    INSERT INTO public.juzzio_rate_events (user_id, action) VALUES (p_user, p_action);
+    DELETE FROM public.juzzio_rate_events
+     WHERE user_id = p_user AND action = p_action AND created_at < NOW() - INTERVAL '2 days';
+    RETURN true;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.juzzio_rate_check(UUID, TEXT, INTEGER, INTEGER) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.juzzio_rate_check(UUID, TEXT, INTEGER, INTEGER) TO service_role;
+
+-- 10.4 Canlı altyazı token'ı: yasaklı değil + şu an etkin bir çağrının katılımcısı
+CREATE OR REPLACE FUNCTION public.juzzio_can_use_live_captions(p_user UUID)
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT p_user IS NOT NULL
+       AND NOT public.juzzio_is_banned(p_user)
+       AND EXISTS (
+           SELECT 1 FROM public.call_logs c
+           WHERE c.created_at > NOW() - INTERVAL '6 hours'
+             AND c.ended_at IS NULL
+             AND ((c.caller_id = p_user AND c.status IN ('ringing', 'answered'))
+                  OR (c.receiver_id = p_user AND c.status = 'answered'))
+             AND NOT EXISTS (SELECT 1 FROM public.call_removals cr
+                             WHERE cr.session_id = c.session_id AND cr.user_id = p_user)
+       );
+$$;
+REVOKE ALL ON FUNCTION public.juzzio_can_use_live_captions(UUID) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.juzzio_can_use_live_captions(UUID) TO service_role;
+
+-- 10.5 Sesli mesaj transkripsiyonu için nesne çözümü.
+--  İstemci URL'si yetki DEĞİLDİR. Kayıt, kimlik (voice note / mesaj id) veya depolama yolu
+--  ile veritabanından bulunur; çağıranın o odada ETKİN üye olması, yasaklı olmaması ve
+--  gönderenle arasında engel bulunmaması gerekir. Dönüş: {ok, bucket, storage_path, mime_type}
+--  veya {ok:false, error}. Yalnızca service_role (translate-bridge) çağırır.
+CREATE OR REPLACE FUNCTION public.juzzio_voice_note_for_transcription(
+    p_user UUID, p_voice_note UUID DEFAULT NULL, p_message UUID DEFAULT NULL, p_storage_path TEXT DEFAULT NULL)
+RETURNS JSONB
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v RECORD;
+    v_path TEXT := NULLIF(BTRIM(COALESCE(p_storage_path, '')), '');
+BEGIN
+    IF p_user IS NULL THEN RETURN jsonb_build_object('ok', false, 'error', 'unauthorized'); END IF;
+    IF public.juzzio_is_banned(p_user) THEN RETURN jsonb_build_object('ok', false, 'error', 'account_banned'); END IF;
+    IF v_path IS NOT NULL AND (v_path LIKE '%..%' OR v_path LIKE '/%' OR char_length(v_path) > 512) THEN
+        RETURN jsonb_build_object('ok', false, 'error', 'invalid_path');
+    END IF;
+    SELECT vn.id, vn.room_id, vn.sender_id, vn.storage_path, vn.mime_type INTO v
+      FROM public.voice_notes vn
+     WHERE (p_voice_note IS NOT NULL AND vn.id = p_voice_note)
+        OR (p_message IS NOT NULL AND vn.message_id = p_message)
+        OR (v_path IS NOT NULL AND vn.storage_path = v_path)
+     ORDER BY vn.created_at DESC
+     LIMIT 1;
+    IF v.id IS NULL THEN
+        -- Henüz kaydı oluşmamış KENDİ yüklemesi: yol <uid>/<oda>/... ve kişi o odanın üyesi
+        IF v_path IS NOT NULL AND split_part(v_path, '/', 1) = p_user::text
+           AND public.is_room_member(public.juzzio_try_uuid(split_part(v_path, '/', 2)), p_user) THEN
+            RETURN jsonb_build_object('ok', true, 'bucket', 'voice-notes', 'storage_path', v_path,
+                                      'mime_type', 'audio/mp4', 'pending_owner_upload', true);
+        END IF;
+        RETURN jsonb_build_object('ok', false, 'error', 'not_found');
+    END IF;
+    IF NOT public.is_room_member(v.room_id, p_user) THEN
+        RETURN jsonb_build_object('ok', false, 'error', 'forbidden');
+    END IF;
+    IF v.sender_id <> p_user AND public.is_blocked_between(p_user, v.sender_id) THEN
+        RETURN jsonb_build_object('ok', false, 'error', 'forbidden');
+    END IF;
+    RETURN jsonb_build_object('ok', true, 'bucket', 'voice-notes', 'storage_path', v.storage_path,
+                              'mime_type', COALESCE(NULLIF(v.mime_type, ''), 'audio/mp4'),
+                              'voice_note_id', v.id, 'room_id', v.room_id);
+END;
+$$;
+REVOKE ALL ON FUNCTION public.juzzio_voice_note_for_transcription(UUID, UUID, UUID, TEXT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.juzzio_voice_note_for_transcription(UUID, UUID, UUID, TEXT) TO service_role;
+
+-- 10.6 Push teslim kilidi: aynı idempotency anahtarı için "processing" kaydı 2 dakikadan
+--  eskiyse (ilk çalışma zaman aşımına uğramış) tek bir çağıran kilidi atomik olarak devralır.
+--  Dönüş: devralınan kaydın id'si veya NULL (kayıt güncel/sonuçlanmış → tekrar gönderme yok).
+CREATE OR REPLACE FUNCTION public.juzzio_claim_stale_push_delivery(p_idempotency_key TEXT, p_stale_seconds INTEGER DEFAULT 120)
+RETURNS UUID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_id UUID;
+BEGIN
+    UPDATE public.push_delivery_logs
+       SET created_at = NOW(),
+           fcm_error_code = 'stale_lock_reclaimed'
+     WHERE id = (
+            SELECT id FROM public.push_delivery_logs
+             WHERE idempotency_key = p_idempotency_key
+               AND delivery_status = 'processing'
+               AND created_at < NOW() - make_interval(secs => GREATEST(p_stale_seconds, 30))
+             FOR UPDATE SKIP LOCKED
+             LIMIT 1)
+    RETURNING id INTO v_id;
+    RETURN v_id;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.juzzio_claim_stale_push_delivery(TEXT, INTEGER) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.juzzio_claim_stale_push_delivery(TEXT, INTEGER) TO service_role;
+
+-- 10.7 STORAGE GİZLİLİĞİ (denetim bulgusu C — P0/P1)
+--  Önce: 6 bucket'ın tamamı public=true idi. Herkese açık bucket'ta nesne, OKUMA RLS'i
+--  atlanarak /object/public/... adresinden indirilebilir; v0.6.1'deki "yalnız kendi klasörü"
+--  politikası yalnızca LİSTELEMEYİ engelliyordu, özel sohbet fotoğrafı/sesli mesajı değil.
+--  Şimdi:
+--   • avatars          → herkese açık kalır (ürün gereği: profil fotoğrafı)
+--   • chat-media, voice-notes → ÖZEL; okuma: yol <yükleyen>/<oda>/... ve okuyan o odanın üyesi
+--   • stories          → ÖZEL; okuma: hikâye satırını RLS ile görebilen (görünürlük, yakın
+--                         arkadaş, engel, süre dolumu) — politika çağıranın yetkisiyle çalışır
+--   • posts, reels     → ÖZEL; okuma: media_storage_paths içinde bu nesne bulunan ve RLS ile
+--                         görülebilen gönderi (public/followers/friends/private kuralları)
+--  Nesneler TAŞINMAZ ve silinmez (veri kaybı yok); yalnızca erişim yolu değişir. v0.9.0
+--  istemcisi bu bucket'lar için kısa ömürlü imzalı URL (createSignedUrl) kullanır.
+--  ÖNEMLİ: Daha önce herkese açık bağlantıyla indirilmiş kopyalar geri alınamaz.
+DO $$
+BEGIN
+    IF to_regclass('storage.buckets') IS NOT NULL THEN
+        UPDATE storage.buckets SET public = false
+         WHERE id IN ('chat-media', 'voice-notes', 'stories', 'posts', 'reels') AND public IS DISTINCT FROM false;
+        UPDATE storage.buckets SET public = true WHERE id = 'avatars' AND public IS DISTINCT FROM true;
+    END IF;
+EXCEPTION WHEN insufficient_privilege THEN
+    RAISE NOTICE 'storage.buckets güncellenemedi (yetki yok) — Supabase panelinden bucket''ları özel yapın.';
+END $$;
+
+-- posts.media_storage_paths ("bucket:yol" dizisi) üzerinde hızlı arama
+CREATE INDEX IF NOT EXISTS idx_posts_media_storage_paths ON public.posts USING GIN (media_storage_paths);
+
+-- Sohbet medyası okuma yetkisi (yol: <yükleyen_uid>/<oda_id>/<dosya>)
+CREATE OR REPLACE FUNCTION public.juzzio_can_read_room_object(p_name TEXT, p_user UUID DEFAULT auth.uid())
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT p_user IS NOT NULL
+       AND COALESCE(p_name, '') NOT LIKE '%..%'
+       AND public.is_room_member(public.juzzio_try_uuid(split_part(p_name, '/', 2)), p_user)
+       AND NOT public.juzzio_is_banned(p_user);
+$$;
+REVOKE ALL ON FUNCTION public.juzzio_can_read_room_object(TEXT, UUID) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.juzzio_can_read_room_object(TEXT, UUID) TO authenticated, service_role;
+
+DO $$
+BEGIN
+    IF to_regclass('storage.objects') IS NOT NULL THEN
+        DROP POLICY IF EXISTS "juzzio_v061_storage_read_own" ON storage.objects;
+        DROP POLICY IF EXISTS "juzzio_v090_storage_read" ON storage.objects;
+        -- Not: stories/posts alt sorguları ÇAĞIRANIN yetkisiyle çalışır; böylece hikâye ve
+        -- gönderi görünürlük kuralları (RLS) depolama erişimine birebir yansır.
+        CREATE POLICY "juzzio_v090_storage_read" ON storage.objects FOR SELECT TO authenticated
+            USING (
+                (bucket_id IN ('stories', 'avatars', 'voice-notes', 'chat-media', 'posts', 'reels')
+                 AND (storage.foldername(name))[1] = auth.uid()::text)
+             OR bucket_id = 'avatars'
+             OR (bucket_id IN ('chat-media', 'voice-notes') AND public.juzzio_can_read_room_object(name))
+             -- Personel (en az yetki): geri bildirim ekran görüntüleri yalnız 'feedback.manage';
+             -- hikâye/gönderi/reels medyası yalnız 'moderation' (şikâyet incelemesi). Özel sohbet
+             -- medyası ve sesli mesajlar personele AÇILMAZ.
+             OR (bucket_id = 'chat-media' AND split_part(name, '/', 2) = 'feedback'
+                 AND public.juzzio_has_permission('feedback.manage'))
+             OR (bucket_id IN ('stories', 'posts', 'reels') AND public.juzzio_has_permission('moderation'))
+             OR (bucket_id = 'stories' AND EXISTS (
+                    SELECT 1 FROM public.stories s
+                     WHERE s.media_url IS NOT NULL
+                       AND right(s.media_url, char_length('/stories/' || name)) = '/stories/' || name))
+             OR (bucket_id IN ('posts', 'reels') AND EXISTS (
+                    SELECT 1 FROM public.posts p
+                     WHERE p.media_storage_paths ? (bucket_id || ':' || name)
+                        OR (p.cover_url IS NOT NULL
+                            AND right(p.cover_url, char_length('/' || bucket_id || '/' || name)) = '/' || bucket_id || '/' || name)))
+            );
+    END IF;
+EXCEPTION WHEN insufficient_privilege THEN
+    RAISE NOTICE 'storage.objects okuma politikası değiştirilemedi (yetki yok) — Supabase panelinden uygulayın.';
+END $$;
+
+-- 10.8 Arayüz dil paketi önbelleği (translate-bridge "batch_ui" modu — G12)
+--  Önceden her telefon 1.231 arayüz metnini 6 paralel kolla doğrudan resmi olmayan
+--  translate.googleapis.com uç noktasına gönderiyordu (HTTP 429 / IP engeli riski).
+--  Artık her (dil, metin) çifti SUNUCUDA bir kez çevrilir ve herkes için önbellekten gelir.
+--  Yalnızca service_role erişir; satırlar kişisel veri içermez (yalnızca uygulama metinleri).
+CREATE TABLE IF NOT EXISTS public.ui_translations (
+    target_lang TEXT NOT NULL CHECK (target_lang ~ '^[a-z]{2,3}(-[a-z0-9]{2,4})?$'),
+    source_hash TEXT NOT NULL CHECK (source_hash ~ '^[0-9a-f]{64}$'),
+    translated_text TEXT NOT NULL CHECK (char_length(translated_text) <= 2000),
+    provider TEXT NOT NULL DEFAULT 'gtx',
+    review_status TEXT NOT NULL DEFAULT 'machine' CHECK (review_status IN ('machine', 'reviewed')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (target_lang, source_hash)
+);
+ALTER TABLE public.ui_translations ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.ui_translations FROM anon, authenticated;
+
+-- 10.9 RBAC — en az yetki izin matrisi (G20/G21)
+--  Tüm admin_* RPC'leri artık _admin_require (yalnız süper yönetici) yerine
+--  _staff_require(p_token, '<izin>') kullanır. Süper yönetici yine şifreli oturum ister.
+--  Görev ayrımı: hesap silme ve rol yönetimi YALNIZCA süper yöneticide ('*').
+--  Destek görevlisi e-posta (users.pii) göremez; denetçi salt okunurdur.
+--  İzinler her çağrıda staff_roles'tan canlı okunur → rol geri alındığı anda etkisizdir.
+CREATE OR REPLACE FUNCTION public.juzzio_role_permissions(p_role TEXT)
+RETURNS TEXT[]
+LANGUAGE sql
+IMMUTABLE
+SET search_path = public
+AS $$
+    SELECT CASE p_role
+        WHEN 'super_admin' THEN ARRAY['*']
+        WHEN 'admin' THEN ARRAY['users.read', 'users.manage', 'users.warn', 'users.ban', 'users.pii',
+                                'moderation', 'moderation.config', 'content.delete', 'reports', 'reports.resolve',
+                                'groups.read', 'groups.manage', 'calls.manage', 'feedback.manage',
+                                'theme.publish', 'settings', 'broadcast', 'releases',
+                                'audit.read', 'roles.read', 'stats.read']
+        WHEN 'moderator' THEN ARRAY['users.read', 'users.warn', 'moderation', 'content.delete', 'reports',
+                                    'reports.resolve', 'groups.read', 'calls.manage']
+        WHEN 'support' THEN ARRAY['users.read', 'reports', 'feedback.manage', 'groups.read']
+        WHEN 'analyst' THEN ARRAY['stats.read']
+        WHEN 'content_manager' THEN ARRAY['theme.publish', 'broadcast', 'releases']
+        WHEN 'auditor' THEN ARRAY['audit.read', 'roles.read', 'stats.read']
+        ELSE ARRAY[]::TEXT[]
+    END;
+$$;
+GRANT EXECUTE ON FUNCTION public.juzzio_role_permissions(TEXT) TO authenticated;
+
+-- 10.10 STORAGE TEMİZLİĞİ (G22)
+--  Supabase, storage.objects satırlarının SQL ile silinmesine izin vermez (nesne diskte
+--  kalır). Bu yüzden silinecek nesneler bir KUYRUĞA yazılır; `storage-cleanup` Edge
+--  Function'ı kuyruğu Storage API ile boşaltır (GitHub Actions bakım iş akışı saatlik
+--  tetikler; yönetici panelinden de tetiklenebilir).
+--  Kaynaklar: gönderi silme (yumuşak/sert), hikâye silme, mesaj silme veya "herkesten sil"
+--  (URL alanları temizlenince), süreli mesajın süresinin dolması, hesap silme (kullanıcı
+--  klasörlerinin tamamı). Süresi dolan hikâyeler sahibinin arşivi için 30 gün tutulur.
+CREATE TABLE IF NOT EXISTS public.juzzio_storage_cleanup_queue (
+    id BIGSERIAL PRIMARY KEY,
+    bucket TEXT NOT NULL CHECK (bucket IN ('stories', 'avatars', 'voice-notes', 'chat-media', 'posts', 'reels')),
+    object_name TEXT NOT NULL CHECK (char_length(object_name) BETWEEN 1 AND 512 AND object_name NOT LIKE '%..%'),
+    is_prefix BOOLEAN NOT NULL DEFAULT false,
+    reason TEXT NOT NULL DEFAULT '',
+    enqueued_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    attempts INTEGER NOT NULL DEFAULT 0,
+    last_error TEXT NOT NULL DEFAULT '',
+    processed_at TIMESTAMPTZ
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_juzzio_storage_cleanup_pending
+    ON public.juzzio_storage_cleanup_queue (bucket, object_name, is_prefix) WHERE processed_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_juzzio_storage_cleanup_due
+    ON public.juzzio_storage_cleanup_queue (enqueued_at) WHERE processed_at IS NULL;
+ALTER TABLE public.juzzio_storage_cleanup_queue ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.juzzio_storage_cleanup_queue FROM anon, authenticated;
+
+-- Storage URL'sinden (public / sign / authenticated) bucket + nesne yolu çıkarır
+CREATE OR REPLACE FUNCTION public.juzzio_storage_ref_from_url(p_url TEXT)
+RETURNS TABLE (bucket TEXT, object_name TEXT)
+LANGUAGE sql
+IMMUTABLE
+AS $$
+    SELECT m[2], m[3]
+      FROM (SELECT regexp_match(COALESCE(p_url, ''),
+                   '/storage/v1/object/(public|sign|authenticated)/([a-z0-9-]+)/([^?#]+)') AS m) x
+     WHERE m IS NOT NULL
+$$;
+
+CREATE OR REPLACE FUNCTION public.juzzio_enqueue_storage_cleanup(p_bucket TEXT, p_name TEXT, p_reason TEXT, p_prefix BOOLEAN DEFAULT false)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    IF p_bucket IS NULL OR COALESCE(p_name, '') = ''
+       OR p_bucket NOT IN ('stories', 'avatars', 'voice-notes', 'chat-media', 'posts', 'reels')
+       OR p_name LIKE '%..%' OR p_name LIKE '/%' OR char_length(p_name) > 512 THEN
+        RETURN;
+    END IF;
+    INSERT INTO public.juzzio_storage_cleanup_queue (bucket, object_name, is_prefix, reason)
+    VALUES (p_bucket, p_name, COALESCE(p_prefix, false), LEFT(COALESCE(p_reason, ''), 64))
+    ON CONFLICT (bucket, object_name, is_prefix) WHERE processed_at IS NULL DO NOTHING;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.juzzio_enqueue_storage_cleanup(TEXT, TEXT, TEXT, BOOLEAN) FROM PUBLIC, anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.juzzio_enqueue_url_cleanup(p_url TEXT, p_reason TEXT)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE r RECORD;
+BEGIN
+    FOR r IN SELECT * FROM public.juzzio_storage_ref_from_url(p_url) LOOP
+        PERFORM public.juzzio_enqueue_storage_cleanup(r.bucket, r.object_name, p_reason);
+    END LOOP;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.juzzio_enqueue_url_cleanup(TEXT, TEXT) FROM PUBLIC, anon, authenticated;
+
+-- Gönderi: sert silme veya yumuşak silme (is_deleted=true) → medya + kapak
+CREATE OR REPLACE FUNCTION public.juzzio_trg_post_storage_cleanup()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE v_ref TEXT;
+BEGIN
+    IF TG_OP = 'UPDATE' AND NOT (COALESCE(NEW.is_deleted, false) AND NOT COALESCE(OLD.is_deleted, false)) THEN
+        RETURN NEW;
+    END IF;
+    FOR v_ref IN SELECT jsonb_array_elements_text(COALESCE(OLD.media_storage_paths, '[]'::jsonb)) LOOP
+        IF position(':' IN v_ref) > 0 THEN
+            PERFORM public.juzzio_enqueue_storage_cleanup(split_part(v_ref, ':', 1), substr(v_ref, position(':' IN v_ref) + 1), 'post_deleted');
+        END IF;
+    END LOOP;
+    PERFORM public.juzzio_enqueue_url_cleanup(OLD.cover_url, 'post_deleted');
+    RETURN COALESCE(NEW, OLD);
+END;
+$$;
+DROP TRIGGER IF EXISTS trg_juzzio_post_storage_cleanup ON public.posts;
+CREATE TRIGGER trg_juzzio_post_storage_cleanup AFTER DELETE OR UPDATE OF is_deleted ON public.posts
+    FOR EACH ROW EXECUTE FUNCTION public.juzzio_trg_post_storage_cleanup();
+
+-- Hikâye silindiğinde medya
+CREATE OR REPLACE FUNCTION public.juzzio_trg_story_storage_cleanup()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    PERFORM public.juzzio_enqueue_url_cleanup(OLD.media_url, 'story_deleted');
+    RETURN OLD;
+END;
+$$;
+DROP TRIGGER IF EXISTS trg_juzzio_story_storage_cleanup ON public.stories;
+CREATE TRIGGER trg_juzzio_story_storage_cleanup AFTER DELETE ON public.stories
+    FOR EACH ROW EXECUTE FUNCTION public.juzzio_trg_story_storage_cleanup();
+
+-- Mesaj: sert silme veya medya alanlarının temizlenmesi ("herkesten sil")
+CREATE OR REPLACE FUNCTION public.juzzio_trg_message_storage_cleanup()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    IF TG_OP = 'DELETE' OR NEW.image_url IS DISTINCT FROM OLD.image_url THEN
+        PERFORM public.juzzio_enqueue_url_cleanup(OLD.image_url, 'message_deleted');
+    END IF;
+    IF TG_OP = 'DELETE' OR NEW.video_url IS DISTINCT FROM OLD.video_url THEN
+        PERFORM public.juzzio_enqueue_url_cleanup(OLD.video_url, 'message_deleted');
+    END IF;
+    IF TG_OP = 'DELETE' OR NEW.document_url IS DISTINCT FROM OLD.document_url THEN
+        PERFORM public.juzzio_enqueue_url_cleanup(OLD.document_url, 'message_deleted');
+    END IF;
+    IF TG_OP = 'DELETE' OR NEW.audio_url IS DISTINCT FROM OLD.audio_url THEN
+        PERFORM public.juzzio_enqueue_url_cleanup(OLD.audio_url, 'message_deleted');
+    END IF;
+    -- Herkesten silinen sesli mesajın kaydı ve dosyası da kaldırılır
+    IF TG_OP = 'UPDATE' AND COALESCE(NEW.is_deleted, false) AND NOT COALESCE(OLD.is_deleted, false) THEN
+        DELETE FROM public.voice_notes WHERE message_id = OLD.id;
+    END IF;
+    RETURN COALESCE(NEW, OLD);
+END;
+$$;
+DROP TRIGGER IF EXISTS trg_juzzio_message_storage_cleanup ON public.messages;
+CREATE TRIGGER trg_juzzio_message_storage_cleanup
+    AFTER DELETE OR UPDATE OF image_url, video_url, document_url, audio_url, is_deleted ON public.messages
+    FOR EACH ROW EXECUTE FUNCTION public.juzzio_trg_message_storage_cleanup();
+
+-- Sesli mesaj kaydı silinince dosyası
+CREATE OR REPLACE FUNCTION public.juzzio_trg_voice_note_storage_cleanup()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    PERFORM public.juzzio_enqueue_storage_cleanup('voice-notes', OLD.storage_path, 'voice_note_deleted');
+    RETURN OLD;
+END;
+$$;
+DROP TRIGGER IF EXISTS trg_juzzio_voice_note_storage_cleanup ON public.voice_notes;
+CREATE TRIGGER trg_juzzio_voice_note_storage_cleanup AFTER DELETE ON public.voice_notes
+    FOR EACH ROW EXECUTE FUNCTION public.juzzio_trg_voice_note_storage_cleanup();
+
+-- Hesap silme: kullanıcının tüm bucket'lardaki klasörü (<uid>/) — öksüz dosyalar dahil
+CREATE OR REPLACE FUNCTION public.juzzio_trg_profile_storage_cleanup()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE b TEXT;
+BEGIN
+    FOREACH b IN ARRAY ARRAY['stories', 'avatars', 'voice-notes', 'chat-media', 'posts', 'reels'] LOOP
+        PERFORM public.juzzio_enqueue_storage_cleanup(b, OLD.id::text || '/', 'account_deleted', true);
+    END LOOP;
+    RETURN OLD;
+END;
+$$;
+DROP TRIGGER IF EXISTS trg_juzzio_profile_storage_cleanup ON public.profiles;
+CREATE TRIGGER trg_juzzio_profile_storage_cleanup AFTER DELETE ON public.profiles
+    FOR EACH ROW EXECUTE FUNCTION public.juzzio_trg_profile_storage_cleanup();
+
+-- Süresi dolan içerik: süreli mesajlar (1 saat tolerans) ve 30 günü geçen biten hikâyeler
+CREATE OR REPLACE FUNCTION public.juzzio_purge_expired_content()
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE v_msgs INTEGER; v_stories INTEGER;
+BEGIN
+    DELETE FROM public.messages WHERE expires_at IS NOT NULL AND expires_at < NOW() - INTERVAL '1 hour';
+    GET DIAGNOSTICS v_msgs = ROW_COUNT;
+    DELETE FROM public.stories WHERE expires_at < NOW() - INTERVAL '30 days';
+    GET DIAGNOSTICS v_stories = ROW_COUNT;
+    RETURN jsonb_build_object('messages', v_msgs, 'stories', v_stories);
+END;
+$$;
+REVOKE ALL ON FUNCTION public.juzzio_purge_expired_content() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.juzzio_purge_expired_content() TO service_role;
+
+-- Edge Function için: işlenecek kuyruk kalemleri (kilitli, eşzamanlı işçiler çakışmaz)
+CREATE OR REPLACE FUNCTION public.juzzio_storage_cleanup_claim(p_limit INTEGER DEFAULT 100)
+RETURNS TABLE (id BIGINT, bucket TEXT, object_name TEXT, is_prefix BOOLEAN)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    RETURN QUERY
+    UPDATE public.juzzio_storage_cleanup_queue q
+       SET attempts = q.attempts + 1
+     WHERE q.id IN (
+            SELECT x.id FROM public.juzzio_storage_cleanup_queue x
+             WHERE x.processed_at IS NULL AND x.attempts < 8
+             ORDER BY x.enqueued_at
+             FOR UPDATE SKIP LOCKED
+             LIMIT LEAST(GREATEST(p_limit, 1), 500))
+    RETURNING q.id, q.bucket, q.object_name, q.is_prefix;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.juzzio_storage_cleanup_claim(INTEGER) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.juzzio_storage_cleanup_claim(INTEGER) TO service_role;
+
+CREATE OR REPLACE FUNCTION public.juzzio_storage_cleanup_done(p_ids BIGINT[], p_error TEXT DEFAULT '')
+RETURNS VOID
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    UPDATE public.juzzio_storage_cleanup_queue
+       SET processed_at = CASE WHEN COALESCE(p_error, '') = '' THEN NOW() ELSE NULL END,
+           last_error = LEFT(COALESCE(p_error, ''), 200)
+     WHERE id = ANY (p_ids);
+$$;
+REVOKE ALL ON FUNCTION public.juzzio_storage_cleanup_done(BIGINT[], TEXT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.juzzio_storage_cleanup_done(BIGINT[], TEXT) TO service_role;
+
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
+        BEGIN
+            PERFORM cron.unschedule(jobid) FROM cron.job WHERE jobname = 'juzzio_purge_expired_content';
+            PERFORM cron.schedule('juzzio_purge_expired_content', '17 * * * *', 'SELECT public.juzzio_purge_expired_content()');
+        EXCEPTION WHEN OTHERS THEN
+            RAISE NOTICE 'pg_cron görevi (juzzio_purge_expired_content) oluşturulamadı: %', SQLERRM;
+        END;
+    END IF;
+END $$;
+
+-- 10.11 Mesaj gönderim idempotency'si (çevrimdışı kuyruk, bildirimden hızlı yanıt, ağ tekrarları)
+--  İstemci her gönderim için benzersiz client_msg_id üretir; aynı gönderen + aynı kimlik
+--  ikinci kez eklenemez (23505) → istemci bunu "zaten gönderildi" olarak kabul eder.
+ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS client_msg_id TEXT;
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'messages_client_msg_id_len') THEN
+        ALTER TABLE public.messages ADD CONSTRAINT messages_client_msg_id_len
+            CHECK (client_msg_id IS NULL OR client_msg_id ~ '^[A-Za-z0-9_-]{8,80}$') NOT VALID;
+    END IF;
+END $$;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_messages_sender_client_msg
+    ON public.messages (sender_id, client_msg_id) WHERE client_msg_id IS NOT NULL;

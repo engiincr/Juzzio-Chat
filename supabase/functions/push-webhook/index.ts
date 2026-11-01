@@ -8,6 +8,13 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { buildLocalizedPush, type Gender } from "../_shared/push_i18n.ts";
+import { constantTimeEqual } from "../_shared/auth.ts";
+
+// v0.9.0 (G09): FCM'e aynı anda en fazla bu kadar istek (çoklu cihazda gecikme yok,
+// sağlayıcı/ağ boğulmaz).
+const FCM_CONCURRENCY = 5;
+// v0.9.0 (G08): bu süreden eski "processing" kaydı askıda sayılır ve güvenle devralınır.
+const STALE_LOCK_SECONDS = 120;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -312,7 +319,7 @@ Deno.serve(async (req: Request) => {
     } else {
       // --- YOL B: DATABASE WEBHOOK ---
       const isAuthorizedBySecret =
-        expectedWebhookSecret.length > 0 && webhookSecretHeader === expectedWebhookSecret;
+        expectedWebhookSecret.length > 0 && constantTimeEqual(webhookSecretHeader, expectedWebhookSecret);
       const isAuthorizedByServiceRole =
         bearerToken.length > 0 && bearerToken === supabaseServiceRoleKey;
 
@@ -449,6 +456,17 @@ Deno.serve(async (req: Request) => {
 
     if (insertLogErr) {
       if (insertLogErr.code === "23505") {
+        // v0.9.0 (G08): ilk çalışma zaman aşımına uğradıysa kayıt "processing"te asılı kalır ve
+        // bildirim bir daha asla gönderilemezdi. Kilit yalnızca STALE_LOCK_SECONDS'tan eskiyse ve
+        // tek bir çağıran tarafından (FOR UPDATE SKIP LOCKED) atomik olarak devralınır.
+        const { data: reclaimedId, error: reclaimErr } = await adminClient.rpc("juzzio_claim_stale_push_delivery", {
+          p_idempotency_key: idempotencyKey,
+          p_stale_seconds: STALE_LOCK_SECONDS,
+        });
+        if (!reclaimErr && typeof reclaimedId === "string" && reclaimedId) {
+          console.warn(`[push-webhook] [${correlationId}] Stale processing lock reclaimed.`);
+          return await deliverWithLog(reclaimedId);
+        }
         console.warn(`[push-webhook] [${correlationId}] Duplicate concurrent request intercepted.`);
         return new Response(
           JSON.stringify({
@@ -472,7 +490,11 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const logId = insertedLog?.id;
+    return await deliverWithLog(insertedLog?.id);
+
+    // Teslim günlüğü sahipliği alındıktan (yeni kayıt veya devralınan askıda kilit) sonraki
+    // tüm gönderim akışı. Kapanış içinde tanımlıdır; yukarıdaki değişkenleri kullanır.
+    async function deliverWithLog(logId: string | undefined): Promise<Response> {
     if (!logId) {
       return new Response(
         JSON.stringify({ ok: false, correlationId, error: "delivery_log_id_missing" }),
@@ -611,84 +633,95 @@ Deno.serve(async (req: Request) => {
     const unregisteredTokenIds: string[] = [];
     const errorCodes: string[] = [];
 
-    for (const tokenRow of eligibleTokens) {
-      const registrationToken = String(tokenRow.fcm_token ?? "").trim();
-      if (!registrationToken) continue;
+    // v0.9.0 (G09): cihazlara SIRAYLA değil, sınırlı eşzamanlılıkla (FCM_CONCURRENCY) gönderilir.
+    const sendOne = async (tokenRow: Record<string, unknown>): Promise<void> => {
+      try {
+        const registrationToken = String(tokenRow.fcm_token ?? "").trim();
+        if (!registrationToken) return;
 
-      const fcmBody = {
-        message: {
-          token: registrationToken,
-          notification: { title, body },
-          data: {
-            type: eventType,
-            event_type: eventType,
-            notification_id: notificationId,
-            target_id: targetId,
-            target_secondary_id: targetSecondaryId,
-            actor_id: actorId,
-            channel_id: channelId,
-            title,
-            body,
-          },
-          android: {
-            priority: "HIGH",
-            notification: {
+        const fcmBody = {
+          message: {
+            token: registrationToken,
+            notification: { title, body },
+            data: {
+              type: eventType,
+              event_type: eventType,
+              notification_id: notificationId,
+              target_id: targetId,
+              target_secondary_id: targetSecondaryId,
+              actor_id: actorId,
               channel_id: channelId,
-              sound: sound.soundName || "default",
-              click_action: "FLUTTER_NOTIFICATION_CLICK",
+              title,
+              body,
+            },
+            android: {
+              priority: "HIGH",
+              notification: {
+                channel_id: channelId,
+                sound: sound.soundName || "default",
+                click_action: "FLUTTER_NOTIFICATION_CLICK",
+              },
             },
           },
-        },
-      };
+        };
 
-      const fcmRes = await fetch(fcmEndpoint, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${oauthToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(fcmBody),
-      });
+        const fcmRes = await fetch(fcmEndpoint, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${oauthToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(fcmBody),
+          signal: AbortSignal.timeout(10_000),
+        });
 
-      if (fcmRes.ok) {
-        fcmAcceptedCount++;
-      } else {
-        let fcmErrorCode = `HTTP_${fcmRes.status}`;
-        let isStrictUnregistered = false;
+        if (fcmRes.ok) {
+          fcmAcceptedCount++;
+        } else {
+          let fcmErrorCode = `HTTP_${fcmRes.status}`;
+          let isStrictUnregistered = false;
 
-        // 3. DÜZELTME: Katı ve Doğrulanmış UNREGISTERED Ayrıştırması
-        try {
-          const errJson = await fcmRes.json();
-          const details = errJson?.error?.details;
+          // 3. DÜZELTME: Katı ve Doğrulanmış UNREGISTERED Ayrıştırması
+          try {
+            const errJson = await fcmRes.json();
+            const details = errJson?.error?.details;
 
-          if (Array.isArray(details)) {
-            const unregisteredDetail = details.find(
-              (detail: Record<string, unknown>) =>
-                detail?.errorCode === "UNREGISTERED",
-            );
-
-            if (unregisteredDetail) {
-              fcmErrorCode = "UNREGISTERED";
-              isStrictUnregistered = true;
-            } else {
-              const firstErrorDetail = details.find(
+            if (Array.isArray(details)) {
+              const unregisteredDetail = details.find(
                 (detail: Record<string, unknown>) =>
-                  typeof detail?.errorCode === "string",
+                  detail?.errorCode === "UNREGISTERED",
               );
 
-              if (firstErrorDetail) {
-                fcmErrorCode = String(firstErrorDetail.errorCode);
+              if (unregisteredDetail) {
+                fcmErrorCode = "UNREGISTERED";
+                isStrictUnregistered = true;
+              } else {
+                const firstErrorDetail = details.find(
+                  (detail: Record<string, unknown>) =>
+                    typeof detail?.errorCode === "string",
+                );
+
+                if (firstErrorDetail) {
+                  fcmErrorCode = String(firstErrorDetail.errorCode);
+                }
               }
             }
+          } catch (_) {}
+
+          errorCodes.push(fcmErrorCode);
+
+          if (isStrictUnregistered) {
+            unregisteredTokenIds.push(String(tokenRow.id));
           }
-        } catch (_) {}
-
-        errorCodes.push(fcmErrorCode);
-
-        if (isStrictUnregistered) {
-          unregisteredTokenIds.push(String(tokenRow.id));
         }
+    
+      } catch (sendErr) {
+        // Tek cihazdaki ağ hatası diğer cihazlara gönderimi durdurmaz
+        errorCodes.push(sendErr instanceof Error && sendErr.name === "TimeoutError" ? "TIMEOUT" : "NETWORK_ERROR");
       }
+    };
+    for (let i = 0; i < eligibleTokens.length; i += FCM_CONCURRENCY) {
+      await Promise.all(eligibleTokens.slice(i, i + FCM_CONCURRENCY).map((row: Record<string, unknown>) => sendOne(row)));
     }
 
     if (unregisteredTokenIds.length > 0) {
@@ -733,6 +766,7 @@ Deno.serve(async (req: Request) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
+    }
   } catch (err) {
     console.error(`[push-webhook] [${correlationId}] Unhandled exception`);
     return new Response(

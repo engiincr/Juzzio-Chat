@@ -3,7 +3,7 @@
 # JUZZIO — Güvenli GitHub Push (Termux / Linux / macOS / Git Bash)
 #
 # Kullanım:
-#   bash scripts/push.sh "Commit mesajı"      → kontrol + commit + push
+#   bash scripts/push.sh "Commit mesajı"      → kontrol + commit + push (geçmiş korunur)
 #   bash scripts/push.sh --install            → Termux'ta 'juz' kısayolunu kurar
 #   juz "Commit mesajı"                        → (kurulumdan sonra) her yerden
 #
@@ -109,53 +109,65 @@ fi
 echo -e "${CYAN}${BOLD}[4/4] Commit ve push...${NC}"
 if command -v python3 >/dev/null 2>&1; then
   python3 scripts/check_secrets.py || fail "Hassas bilgi bulundu; gönderim durduruldu."
+  python3 scripts/ci_guards.py || fail "CI koruma kapısı başarısız; gönderim durduruldu."
 fi
 MSG="${*:-Juzzio güncellemesi $(date '+%Y-%m-%d %H:%M')}"
 
-# v0.8.0: VARSAYILAN olarak tüm geçmiş silinir → tek temiz commit (yalnızca sizin
-# adınızla); eski etiketler, Release'ler ve main dışındaki dallar silinir.
-# Geçmişi korumak için: JUZZIO_KEEP_HISTORY=1 bash scripts/push.sh "mesaj"
-if [ "${JUZZIO_KEEP_HISTORY:-0}" != "1" ]; then
-  git rebase --abort >/dev/null 2>&1 || true
-  git merge --abort >/dev/null 2>&1 || true
+# Yarım kalmış işlem / kilit dosyası varsa güvenle temizle (push'u engellemesin)
+[ -d .git/rebase-merge ] || [ -d .git/rebase-apply ] && { git rebase --abort >/dev/null 2>&1 || true; warn "Yarım kalmış rebase iptal edildi."; }
+[ -f .git/MERGE_HEAD ] && { git merge --abort >/dev/null 2>&1 || true; warn "Yarım kalmış merge iptal edildi."; }
+if [ -f .git/index.lock ] && ! pgrep -x git >/dev/null 2>&1; then rm -f .git/index.lock; warn "Eski index.lock kaldırıldı."; fi
+# Büyük dosyalarda HTTPS push zaman aşımını önle
+git config http.postBuffer 524288000 >/dev/null 2>&1 || true
+
+# Ayrık HEAD (detached) ise hedef dala geç
+CURRENT_BRANCH="$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)"
+if [ -z "$CURRENT_BRANCH" ]; then
+  git checkout -q -B "$BRANCH" || fail "Dal ($BRANCH) seçilemedi."
+  CURRENT_BRANCH="$BRANCH"
+fi
+
+# v0.9.0: Varsayılan olarak Git GEÇMİŞİ KORUNUR (normal commit + normal push).
+# Eski sürümler, etiketler, GitHub Release'leri ve diğer dallar ASLA silinmez.
+# İsteğe bağlı tek-commit kipi: JUZZIO_SQUASH_HISTORY=1 → yalnızca bu dalın geçmişi
+# tek commit'e indirilir ve --force-with-lease ile gönderilir (başka hiçbir şey silinmez).
+if [ "${JUZZIO_SQUASH_HISTORY:-0}" = "1" ]; then
+  warn "JUZZIO_SQUASH_HISTORY=1: '$CURRENT_BRANCH' dalının geçmişi tek commit'e indirilecek."
   git branch -D juzzio_clean_tmp >/dev/null 2>&1 || true
   git checkout -q --orphan juzzio_clean_tmp || fail "Geçici dal oluşturulamadı."
   git add -A
   git commit -q -m "$MSG" || fail "Commit oluşturulamadı."
-  git branch -D "$BRANCH" >/dev/null 2>&1 || true
-  git branch -m "$BRANCH"
-  git reflog expire --expire=now --all >/dev/null 2>&1 || true
-  git gc -q --prune=now >/dev/null 2>&1 || true
-  git push -f -u origin "$BRANCH" || fail "Push başarısız. 'gh auth login' yapın; main dal kuralı force push'u engelliyorsa kapatın."
-  if command -v gh >/dev/null 2>&1; then
-    for t in $(gh release list --limit 300 --json tagName -q '.[].tagName' 2>/dev/null || true); do
-      gh release delete "$t" --cleanup-tag -y >/dev/null 2>&1 || true
-    done
-  fi
-  for t in $(git ls-remote --tags origin 2>/dev/null | awk '{print $2}' | sed 's#\^{}##' | sort -u); do
-    git push -q origin ":$t" >/dev/null 2>&1 || true
-  done
-  for b in $(git ls-remote --heads origin 2>/dev/null | awk '{print $2}' | sed 's#refs/heads/##'); do
-    [ "$b" = "$BRANCH" ] || git push -q origin --delete "$b" >/dev/null 2>&1 || true
-  done
-  git tag -l | xargs -r git tag -d >/dev/null 2>&1 || true
-  ok "Geçmiş temizlendi: tek commit, eski etiket/Release/dallar silindi."
+  git branch -D "$CURRENT_BRANCH" >/dev/null 2>&1 || true
+  git branch -m "$CURRENT_BRANCH"
+  git fetch -q origin "$CURRENT_BRANCH" >/dev/null 2>&1 || true
+  git push --force-with-lease -u origin "$CURRENT_BRANCH" || fail "Push başarısız. 'gh auth login' yapın; dal kuralı force push'u engelliyorsa JUZZIO_SQUASH_HISTORY kullanmayın."
 else
   if git diff --cached --quiet; then
     warn "Commit edilecek değişiklik yok; yalnızca push denenecek."
   else
-    git commit -q -m "$MSG"
+    git commit -q -m "$MSG" || fail "Commit oluşturulamadı."
     ok "Commit: $MSG"
   fi
-  CURRENT_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
-  if ! git push -q -u origin "$CURRENT_BRANCH" 2>/dev/null; then
-    warn "Uzakta yeni commit var; birleştiriliyor..."
-    if ! git pull -q --rebase -X theirs origin "$CURRENT_BRANCH"; then
-      git rebase --abort >/dev/null 2>&1 || true
-      fail "Uzak değişikliklerle çakışma çözülemedi. 'git status' ile kontrol edin."
+  pushed=0
+  for attempt in 1 2 3; do
+    if git push -q -u origin "$CURRENT_BRANCH" 2>/tmp/juzzio_push_err.txt; then pushed=1; break; fi
+    if grep -qiE "could not read Username|Authentication failed|403|denied" /tmp/juzzio_push_err.txt; then
+      cat /tmp/juzzio_push_err.txt
+      fail "GitHub kimlik doğrulaması gerekli: 'gh auth login' çalıştırın ve tekrar deneyin."
     fi
-    git push -q -u origin "$CURRENT_BRANCH" || fail "Push başarısız. GitHub girişi için: gh auth login"
-  fi
+    # Uzakta yeni commit var (ör. CI'nin version.json güncellemesi): yerel değişiklikler
+    # korunarak üstüne alınır; aynı dosyada çakışmada YEREL sürüm kazanır.
+    warn "Uzakta yeni commit var; birleştiriliyor (deneme $attempt/3)..."
+    if ! git pull -q --rebase --autostash -X theirs origin "$CURRENT_BRANCH"; then
+      git rebase --abort >/dev/null 2>&1 || true
+      git pull -q --no-rebase --no-edit -X ours origin "$CURRENT_BRANCH" || {
+        git merge --abort >/dev/null 2>&1 || true
+        fail "Uzak değişikliklerle çakışma çözülemedi. 'git status' ile kontrol edin."
+      }
+    fi
+    sleep 2
+  done
+  [ "$pushed" = "1" ] || { cat /tmp/juzzio_push_err.txt 2>/dev/null; fail "Push 3 denemede başarısız. İnternet bağlantısını ve 'gh auth status' çıktısını kontrol edin."; }
 fi
 
 REPO_PATH="$(git remote get-url origin | sed -E 's#(https://github.com/|git@github.com:)##; s#\.git$##')"
