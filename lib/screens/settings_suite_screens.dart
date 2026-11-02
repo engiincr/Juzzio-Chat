@@ -649,23 +649,26 @@ class _JuzzioNotificationsFeedPageState
       return;
     }
 
+    // v0.9.0 N-B: gönderi/yorum etiketi → gönderi; hikâye etiketi aşağıda profile düşer
+    final isPostMention = item.eventType == 'mention' && !item.previewText.startsWith('story|');
     if ((item.eventType == 'like' ||
             item.eventType == 'comment' ||
-            item.eventType == 'reply') &&
+            item.eventType == 'reply' ||
+            isPostMention) &&
         item.targetId.isNotEmpty) {
       await Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => JuzzioPostDetailAndCommentsPage(
             postId: item.targetId,
             currentUser: fallbackUser,
-            focusCommentInput: item.eventType != 'like',
+            focusCommentInput: item.eventType != 'like' && item.eventType != 'mention',
           ),
         ),
       );
       return;
     }
 
-    if (item.eventType.contains('follow') || item.eventType.contains('friend')) {
+    if (item.eventType.contains('follow') || item.eventType.contains('friend') || item.eventType == 'mention') {
       final targetUid = item.actorId ?? item.targetId;
       if (targetUid.isNotEmpty) {
         await Navigator.of(context).push(
@@ -3029,6 +3032,49 @@ class JuzzioPrivacySettingsPage extends StatelessWidget {
                       trailing: Icon(Icons.chevron_right_rounded, color: p.textMuted),
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(builder: (_) => const JuzzioGroupsPrivacyPage()),
+                      ),
+                    ),
+                    Divider(height: 1, color: p.glassBorder),
+                    // v0.9.0 N-B: Etiketlenme tercihi (sunucuda uygulanır: öneri listesi + bildirim)
+                    ListTile(
+                      title: Text(
+                        _l3('Etiketlemeler (Beni kim @etiketleyebilir)', 'Mentions (Who can @mention me)', 'Erwähnungen (Wer mich @erwähnen kann)'),
+                        style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w700),
+                      ),
+                      subtitle: Text(
+                        appCtrl.whoCanMentionMe == 'nobody'
+                            ? _l3('Hiç kimse', 'Nobody', 'Niemand')
+                            : (appCtrl.whoCanMentionMe == 'friends' ? _l3('Arkadaşlarım', 'My friends', 'Meine Freunde') : _l3('Herkes', 'Everyone', 'Alle')),
+                        style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textSecondary, fontSize: 12),
+                      ),
+                      trailing: Icon(Icons.chevron_right_rounded, color: p.textMuted),
+                      onTap: () => showModalBottomSheet<void>(
+                        context: context,
+                        backgroundColor: p.sheetBg,
+                        builder: (ctx) => SafeArea(
+                          child: ListenableBuilder(
+                            listenable: appCtrl,
+                            builder: (ctx, _) => Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                for (final item in [
+                                  MapEntry('everyone', _l3('Herkes', 'Everyone', 'Alle')),
+                                  MapEntry('friends', _l3('Arkadaşlarım', 'My friends', 'Meine Freunde')),
+                                  MapEntry('nobody', _l3('Hiç kimse', 'Nobody', 'Niemand')),
+                                ])
+                                  RadioListTile<String>(
+                                    activeColor: p.amberGlow,
+                                    title: Text(item.value, style: TextStyle(color: p.textPrimary, fontWeight: FontWeight.w700)),
+                                    value: item.key,
+                                    groupValue: appCtrl.whoCanMentionMe,
+                                    onChanged: (v) {
+                                      if (v != null) appCtrl.setWhoCanMentionMe(v);
+                                    },
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                     Divider(height: 1, color: p.glassBorder),

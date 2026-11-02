@@ -12,6 +12,7 @@ import '../../models/social_models.dart';
 import '../../services/social_service.dart';
 import '../../services/supabase_service.dart';
 import '../../widgets/social_common_widgets.dart';
+import '../../widgets/juzzio_mentions.dart';
 import '../profile/juzzio_profile_view.dart';
 
 /// Merkezdeki "+" Oluşturma Seçim Menüsü (Gönderi / Hikâye / İptal)
@@ -175,6 +176,15 @@ class JuzzioPostDetailAndCommentsPage extends StatefulWidget {
 class _JuzzioPostDetailAndCommentsPageState
     extends State<JuzzioPostDetailAndCommentsPage> {
   final TextEditingController _commentCtrl = TextEditingController();
+
+  /// v0.9.0 N-B: etiketlenen kişinin profili (yoksa sessizce hiçbir şey yapma)
+  Future<void> _openMentionedProfile(String username) async {
+    final id = await SupabaseService.instance.fetchUserIdByUsername(username);
+    if (id == null || !mounted) return;
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => JuzzioUserProfilePage(userId: id, currentUser: widget.currentUser),
+    ));
+  }
   final FocusNode _commentFocus = FocusNode();
 
   JuzzioPost? _post;
@@ -543,12 +553,14 @@ class _JuzzioPostDetailAndCommentsPageState
                                                   return Column(
                                                     crossAxisAlignment: CrossAxisAlignment.start,
                                                     children: [
-                                                      Text(
+                                                      // v0.9.0 N-B: @etiketler tıklanabilir → profil
+                                                      JuzzioMentionText(
                                                         c.replyToUsername.isNotEmpty ? '@${c.replyToUsername} $body' : body,
                                                         style: TextStyle(
                                                           color: JuzzioSocialTokens.textPrimary(isDark),
                                                           fontSize: 13.5 * app.messageFontScale,
                                                         ),
+                                                        onTapUsername: _openMentionedProfile,
                                                       ),
                                                       if (translated)
                                                         GestureDetector(
@@ -729,6 +741,8 @@ class _JuzzioPostDetailAndCommentsPageState
                                 ],
                               ),
                             ),
+                          // v0.9.0 N-B: "@ab" yazarken etiket önerileri
+                          JuzzioMentionSuggestions(controller: _commentCtrl),
                           Row(
                             children: [
                               JuzzioUserAvatar(

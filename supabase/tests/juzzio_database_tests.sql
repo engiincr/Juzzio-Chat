@@ -1217,3 +1217,64 @@ DELETE FROM saved_posts WHERE post_id = '5a5a5a5a-0000-0000-0000-0000000000c1';
 DELETE FROM posts WHERE id = '5a5a5a5a-0000-0000-0000-0000000000c1';
 UPDATE profile_private SET notify_post_saves = false WHERE user_id = :'A';
 SELECT 'TÜM v0.9.0 KAYDETME BİLDİRİMİ TESTLERİ GEÇTİ';
+-- v0.9.0 N-B: @etiketleme (not: önceki bloklar A'nın kullanıcı adını 'ali' yapar)
+SELECT pg_temp.check('ön koşul: A = ali', (SELECT username FROM profiles WHERE id = :'A') = 'ali');
+RESET ROLE;
+SELECT pg_temp.check('ayrıştırıcı: tekil, küçük harf, e-posta/uzun ad hariç',
+  juzzio_extract_mentions('Hi @UserB ve @userb, a@b.com @ab @' || repeat('z', 31) || ' (@userc.)') = ARRAY['userb', 'userc']);
+SELECT pg_temp.check('içerik başına en fazla 10 etiket',
+  cardinality(juzzio_extract_mentions((SELECT string_agg('@user' || g, ' ') FROM generate_series(100, 130) g))) = 10);
+-- A, B ve C'yi herkese açık gönderide etiketler
+INSERT INTO posts (id, author_id, content_type, caption, visibility)
+VALUES ('6b6b6b6b-0000-0000-0000-0000000000d1', :'A', 'text', 'merhaba @userb ve @userc @ali @yokboyle', 'public');
+SELECT pg_temp.check('etiketlenen B ve C kaydı, kendini etiketleme yok',
+  (SELECT array_agg(mentioned_user_id ORDER BY mentioned_user_id) FROM content_mentions WHERE content_id = '6b6b6b6b-0000-0000-0000-0000000000d1')
+  = ARRAY[:'B'::uuid, :'C'::uuid]);
+SELECT pg_temp.check('B''ye etiket bildirimi',
+  EXISTS (SELECT 1 FROM notifications WHERE recipient_id = :'B' AND event_type = 'mention' AND target_secondary_id = '6b6b6b6b-0000-0000-0000-0000000000d1'));
+-- Düzenleme: aynı etiket yeniden bildirilmez
+UPDATE posts SET caption = caption || ' tekrar @userb' WHERE id = '6b6b6b6b-0000-0000-0000-0000000000d1';
+SELECT pg_temp.check('düzenlemede tekrar bildirim yok',
+  (SELECT count(*) FROM notifications WHERE recipient_id = :'B' AND event_type = 'mention' AND target_secondary_id = '6b6b6b6b-0000-0000-0000-0000000000d1') = 1);
+-- Tercih: C 'nobody' → yorumda etiketlenemez
+UPDATE profiles SET privacy_mentions = 'nobody' WHERE id = :'C';
+INSERT INTO post_comments (id, post_id, author_id, content)
+VALUES ('6b6b6b6b-0000-0000-0000-0000000000d2', '6b6b6b6b-0000-0000-0000-0000000000d1', :'B', 'bak @userc @ali');
+SELECT pg_temp.check('nobody tercihi etiketi engeller; A yorumda etiketlenir',
+  NOT EXISTS (SELECT 1 FROM content_mentions WHERE content_id = '6b6b6b6b-0000-0000-0000-0000000000d2' AND mentioned_user_id = :'C')
+  AND EXISTS (SELECT 1 FROM content_mentions WHERE content_id = '6b6b6b6b-0000-0000-0000-0000000000d2' AND mentioned_user_id = :'A'));
+UPDATE profiles SET privacy_mentions = 'everyone' WHERE id = :'C';
+-- Engel: B, A'yı engellerse A, B'yi etiketleyemez
+INSERT INTO blocked_users (blocker_id, blocked_id) VALUES (:'B', :'A');
+INSERT INTO posts (id, author_id, content_type, caption) VALUES ('6b6b6b6b-0000-0000-0000-0000000000d3', :'A', 'text', '@userb engelli');
+SELECT pg_temp.check('engel varken etiket yok',
+  NOT EXISTS (SELECT 1 FROM content_mentions WHERE content_id = '6b6b6b6b-0000-0000-0000-0000000000d3'));
+DELETE FROM blocked_users WHERE blocker_id = :'B' AND blocked_id = :'A';
+-- Görünürlük: özel gönderide etiketlenen içeriği göremez → bildirim yok
+INSERT INTO posts (id, author_id, content_type, caption, visibility) VALUES ('6b6b6b6b-0000-0000-0000-0000000000d4', :'A', 'text', '@userc gizli', 'private');
+SELECT pg_temp.check('göremediği içerikte etiket yok',
+  NOT EXISTS (SELECT 1 FROM content_mentions WHERE content_id = '6b6b6b6b-0000-0000-0000-0000000000d4'));
+-- RLS: üçüncü kişi etiket kaydını göremez; istemci doğrudan ekleyemez; öneri
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'C');
+SELECT pg_temp.check('C yalnız kendi etiketini görür',
+  (SELECT count(*) FROM content_mentions WHERE content_id = '6b6b6b6b-0000-0000-0000-0000000000d1') = 1);
+DO $$ BEGIN
+  INSERT INTO content_mentions (content_type, content_id, author_id, mentioned_user_id)
+  VALUES ('post', gen_random_uuid(), 'cccccccc-0000-0000-0000-000000000003', 'aaaaaaaa-0000-0000-0000-000000000001');
+  RAISE EXCEPTION 'FAIL istemci etiket kaydı ekledi';
+EXCEPTION WHEN insufficient_privilege THEN NULL; END $$;
+SELECT pg_temp.check('öneri: ad veya görünen ad öneki, kendisi yok', (SELECT array_agg(username ORDER BY username) FROM suggest_mentions('user')) = ARRAY['ali', 'userb']);
+SELECT pg_temp.check('öneri: joker karakter etkisiz', NOT EXISTS (SELECT 1 FROM suggest_mentions('%')));
+SELECT pg_temp.as_user(:'A');
+SELECT set_my_mention_privacy('nobody');
+SELECT pg_temp.as_user(:'C');
+SELECT pg_temp.check('nobody olan öneride çıkmaz', NOT EXISTS (SELECT 1 FROM suggest_mentions('ali')));
+SELECT pg_temp.as_user(:'A');
+SELECT set_my_mention_privacy('everyone');
+RESET ROLE;
+DELETE FROM notifications WHERE event_type = 'mention';
+DELETE FROM content_mentions;
+DELETE FROM post_comments WHERE id = '6b6b6b6b-0000-0000-0000-0000000000d2';
+DELETE FROM posts WHERE id::text LIKE '6b6b6b6b-%';
+SELECT 'TÜM v0.9.0 ETİKETLEME TESTLERİ GEÇTİ';

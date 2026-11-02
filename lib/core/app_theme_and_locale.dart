@@ -419,6 +419,8 @@ class JuzzioAppController extends ChangeNotifier {
   bool _readReceiptsEnabled = true;
   String _defaultMessageTimer = 'off';
   String _whoCanAddMeToGroups = 'everyone';
+  // v0.9.0 N-B: beni kim etiketleyebilir — 'everyone' | 'friends' | 'nobody'
+  String _whoCanMentionMe = 'everyone';
   bool _silenceUnknownCallers = false;
   bool _syncContactsAcrossDevices = true;
   final List<String> _blockedUsernames = [];
@@ -544,6 +546,7 @@ class JuzzioAppController extends ChangeNotifier {
   bool get readReceiptsEnabled => _readReceiptsEnabled;
   String get defaultMessageTimer => _defaultMessageTimer;
   String get whoCanAddMeToGroups => _whoCanAddMeToGroups;
+  String get whoCanMentionMe => _whoCanMentionMe;
   bool get silenceUnknownCallers => _silenceUnknownCallers;
   bool get syncContactsAcrossDevices => _syncContactsAcrossDevices;
   List<String> get blockedUsernames => List.unmodifiable(_blockedUsernames);
@@ -955,6 +958,8 @@ class JuzzioAppController extends ChangeNotifier {
       _readReceiptsEnabled = raw['readReceiptsEnabled'] is bool ? raw['readReceiptsEnabled'] as bool : _readReceiptsEnabled;
       _defaultMessageTimer = (raw['defaultMessageTimer'] ?? _defaultMessageTimer).toString();
       _whoCanAddMeToGroups = (raw['whoCanAddMeToGroups'] ?? _whoCanAddMeToGroups).toString();
+      final wm = raw['whoCanMentionMe'];
+      if (wm == 'everyone' || wm == 'friends' || wm == 'nobody') _whoCanMentionMe = wm as String;
       _silenceUnknownCallers = raw['silenceUnknownCallers'] == true;
       _syncContactsAcrossDevices = raw['syncContactsAcrossDevices'] is bool ? raw['syncContactsAcrossDevices'] as bool : _syncContactsAcrossDevices;
       _allowCameraEffects = raw['allowCameraEffects'] is bool ? raw['allowCameraEffects'] as bool : _allowCameraEffects;
@@ -1081,6 +1086,7 @@ class JuzzioAppController extends ChangeNotifier {
         'readReceiptsEnabled': _readReceiptsEnabled,
         'defaultMessageTimer': _defaultMessageTimer,
         'whoCanAddMeToGroups': _whoCanAddMeToGroups,
+        'whoCanMentionMe': _whoCanMentionMe,
         'silenceUnknownCallers': _silenceUnknownCallers,
         'syncContactsAcrossDevices': _syncContactsAcrossDevices,
         'blockedUsernames': _blockedUsernames,
@@ -1578,6 +1584,14 @@ class JuzzioAppController extends ChangeNotifier {
 
   void setWhoCanAddMeToGroups(String val) {
     _whoCanAddMeToGroups = val;
+    _persistUserPreferences();
+    notifyListeners();
+  }
+
+  /// v0.9.0 N-B: etiketlenme tercihi (sunucuda profiles.privacy_mentions olarak uygulanır).
+  void setWhoCanMentionMe(String val) {
+    if (val != 'everyone' && val != 'friends' && val != 'nobody') return;
+    _whoCanMentionMe = val;
     _persistUserPreferences();
     notifyListeners();
   }

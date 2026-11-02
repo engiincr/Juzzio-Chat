@@ -18,6 +18,7 @@ import '../../models/social_models.dart';
 import '../../services/social_service.dart';
 import '../../services/supabase_service.dart';
 import '../../widgets/social_common_widgets.dart';
+import '../../widgets/juzzio_mentions.dart';
 
 class JuzzioGlobalFeedView extends StatefulWidget {
   final JuzzioUserProfile currentUser;
@@ -729,9 +730,15 @@ class _JuzzioGlobalFeedViewState extends State<JuzzioGlobalFeedView> {
             ),
             if (body.isNotEmpty) ...[
               const SizedBox(height: 10),
-              Text(
+              // v0.9.0 N-B: @etiketler tıklanabilir → profil
+              JuzzioMentionText(
                 body,
                 style: TextStyle(color: JuzzioGlassTokens.textPrimary, fontSize: 15.5, height: 1.4),
+                mentionColor: JuzzioColors.cyan,
+                onTapUsername: (u) async {
+                  final id = await SupabaseService.instance.fetchUserIdByUsername(u);
+                  if (id != null) widget.onOpenProfile(id);
+                },
               ),
             ],
             if (_translationFailed.contains(post.id))
