@@ -445,6 +445,17 @@ class JuzzioE2ee {
     return out;
   }
 
+  /// v0.9.0 N-D: bildirim önizlemesi için çözüm. Başarısızlıkta "kilitli" metin yerine null döner
+  /// (çağıran genel "Yeni mesaj" metnine düşer). Şifresiz mesajda metnin kendisi döner.
+  Future<String?> decryptPreviewText(JuzzioMessage m) async {
+    if (m.isDeleted) return null;
+    final e = m.metadata['e2ee'];
+    if (e is! Map) return m.originalText;
+    final out = await decryptMessage(m);
+    if (out.originalText == _lockedText()) return null;
+    return out.originalText;
+  }
+
   Future<JuzzioMessage> decryptMessage(JuzzioMessage m) async {
     final e = m.metadata['e2ee'];
     if (e is! Map || m.isDeleted) return m;

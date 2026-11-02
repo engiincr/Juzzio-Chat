@@ -41,6 +41,7 @@ class MainActivity : FlutterActivity() {
         const val SOCIAL_CHANNEL_ID = "juzzio_social_priority_v2"
         const val UPDATE_CHANNEL_ID = "juzzio_ota_update_v2"
         const val PREFS_NAME = "juzzio_fcm_push_prefs"
+        const val PREF_NOTIF_PREVIEW = "notif_preview_mode"
 
         // v0.7.0: Uygulamaya özel bildirim tonları ve zil sesleri (res/raw). Android 8+
         // kanal sesi kanal oluşturulurken sabitlendiği için her ses ayrı bir kanaldır:
@@ -249,7 +250,9 @@ class MainActivity : FlutterActivity() {
             notificationId: String,
             targetId: String,
             targetSecondaryId: String,
-            actorId: String
+            actorId: String,
+            // v0.9.0 N-D: doluysa bildirim gizli (VISIBILITY_PRIVATE) olur; kilit ekranında bu metin görünür
+            lockScreenBody: String? = null
         ) {
             try {
                 ensureChannelsCreated(context)
@@ -311,7 +314,18 @@ class MainActivity : FlutterActivity() {
                 builder.setPriority(NotificationCompat.PRIORITY_MAX)
                 builder.setDefaults(NotificationCompat.DEFAULT_VIBRATE or NotificationCompat.DEFAULT_LIGHTS)
                 builder.setSound(defaultSoundUri)
-                builder.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                if (lockScreenBody != null) {
+                    builder.setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+                    builder.setPublicVersion(
+                        NotificationCompat.Builder(context, resolvedChannelId)
+                            .setSmallIcon(smallIconRes)
+                            .setContentTitle("Juzzio")
+                            .setContentText(lockScreenBody)
+                            .build()
+                    )
+                } else {
+                    builder.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                }
                 builder.setCategory(
                     when {
                         isUpdate -> NotificationCompat.CATEGORY_RECOMMENDATION
@@ -491,6 +505,14 @@ class MainActivity : FlutterActivity() {
 
         channel.setMethodCallHandler { call, result ->
             when (call.method) {
+                // v0.9.0 N-D: bildirim önizleme kipi ('full' | 'sender' | 'hidden')
+                "setNotificationPreviewMode" -> {
+                    val mode = call.argument<String>("mode") ?: "full"
+                    val safe = if (mode == "sender" || mode == "hidden") mode else "full"
+                    getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+                        .putString(PREF_NOTIF_PREVIEW, safe).apply()
+                    result.success(true)
+                }
                 "showSystemNotification" -> {
                     val title = call.argument<String>("title") ?: "Juzzio"
                     val body = call.argument<String>("body") ?: ""

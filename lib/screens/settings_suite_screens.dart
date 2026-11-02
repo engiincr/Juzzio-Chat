@@ -5343,6 +5343,49 @@ class JuzzioNotificationsSettingsPage extends StatelessWidget {
                       },
                     ),
                     Divider(height: 1, color: p.glassBorder),
+                    // v0.9.0 N-D: mesaj önizleme kipi (sunucu FCM'e hiçbir kipte mesaj metni koymaz)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
+                      child: Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: Text(
+                          appCtrl.trEn('Bildirimde mesaj önizlemesi', 'Message preview in notifications', 'Nachrichtenvorschau in Mitteilungen'),
+                          style: TextStyle(color: p.textPrimary, fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                    ),
+                    for (final opt in <(String, String, String)>[
+                      (
+                        'full',
+                        appCtrl.trEn('İçeriği göster', 'Show content', 'Inhalt anzeigen'),
+                        appCtrl.trEn('Şifreli mesajlar yalnızca bu cihazda çözülür. Kilit ekranında Android ayarınıza göre gizlenir.',
+                            'Encrypted messages are decrypted only on this device. Hidden on the lock screen per your Android setting.',
+                            'Verschlüsselte Nachrichten werden nur auf diesem Gerät entschlüsselt. Auf dem Sperrbildschirm gemäß Android-Einstellung verborgen.'),
+                      ),
+                      (
+                        'sender',
+                        appCtrl.trEn('Yalnızca gönderen', 'Sender only', 'Nur Absender'),
+                        appCtrl.trEn('"Ali: Yeni mesaj" — içerik gösterilmez.', '"Ali: New message" — no content.', '"Ali: Neue Nachricht" — kein Inhalt.'),
+                      ),
+                      (
+                        'hidden',
+                        appCtrl.trEn('Gizli', 'Hidden', 'Verborgen'),
+                        appCtrl.trEn('"Juzzio: Yeni mesaj" — gönderen adı da gösterilmez.', '"Juzzio: New message" — sender name hidden too.', '"Juzzio: Neue Nachricht" — auch der Absender ist verborgen.'),
+                      ),
+                    ])
+                      RadioListTile<String>(
+                        value: opt.$1,
+                        groupValue: appCtrl.notificationPreviewMode,
+                        activeColor: p.amberGlow,
+                        title: Text(opt.$2, style: TextStyle(color: p.textPrimary, fontWeight: FontWeight.w700)),
+                        subtitle: Text(opt.$3, style: TextStyle(color: p.textSecondary, fontSize: 12)),
+                        onChanged: (val) {
+                          if (val == null) return;
+                          appCtrl.setNotificationPreviewMode(val);
+                          JuzzioFcmPushService.instance.syncNotificationPreviewMode();
+                        },
+                      ),
+                    Divider(height: 1, color: p.glassBorder),
                     SwitchListTile(
                       activeColor: p.amberGlow,
                       title: Text(

@@ -8,6 +8,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { buildLocalizedPush, type Gender } from "../_shared/push_i18n.ts";
+import { messagePushView } from "../_shared/push_preview.ts";
 import { constantTimeEqual } from "../_shared/auth.ts";
 
 // v0.9.0 (G09): FCM'e aynı anda en fazla bu kadar istek (çoklu cihazda gecikme yok,
@@ -257,6 +258,7 @@ Deno.serve(async (req: Request) => {
     let targetSecondaryId = "";
     let idempotencyKey = "";
     let isSelfTest = false;
+    let recipientLang = "tr";
 
     // --- YOL A: SELF TEST ---
     if (bodyJson.action === "self_test") {
@@ -425,6 +427,7 @@ Deno.serve(async (req: Request) => {
       });
       title = built.title;
       body = built.body;
+      recipientLang = String(recipientProfile?.app_lang ?? "tr");
       targetId = String(verifiedNotif.target_id ?? "");
       targetSecondaryId = String(verifiedNotif.target_secondary_id ?? "");
       idempotencyKey = `notif_${notificationId}`;
@@ -639,31 +642,39 @@ Deno.serve(async (req: Request) => {
         const registrationToken = String(tokenRow.fcm_token ?? "").trim();
         if (!registrationToken) return;
 
-        const fcmBody = {
-          message: {
-            token: registrationToken,
-            notification: { title, body },
-            data: {
-              type: eventType,
-              event_type: eventType,
-              notification_id: notificationId,
-              target_id: targetId,
-              target_secondary_id: targetSecondaryId,
-              actor_id: actorId,
-              channel_id: channelId,
-              title,
-              body,
-            },
-            android: {
-              priority: "HIGH",
-              notification: {
-                channel_id: channelId,
-                sound: sound.soundName || "default",
-                click_action: "FLUTTER_NOTIFICATION_CLICK",
+        // v0.9.0 N-D: mesaj olayları cihaz başına önizleme kipine göre; FCM'de mesaj metni YOK.
+        const view = messagePushView(eventType, String(tokenRow.notify_preview ?? "full"), recipientLang, title, body);
+        const data: Record<string, string> = {
+          type: eventType,
+          event_type: eventType,
+          notification_id: notificationId,
+          target_id: targetId,
+          target_secondary_id: view.mode === "hidden" ? "" : targetSecondaryId,
+          actor_id: view.mode === "hidden" ? "" : actorId,
+          channel_id: channelId,
+          title: view.title,
+          body: view.body,
+          preview_mode: view.mode,
+        };
+        // Mesaj olayları YALNIZ veri (data-only) gider: bildirimi uygulama kendisi çizer, böylece
+        // 'full' kipte metin cihazda çözülür ve kilit ekranı gizliliği (VISIBILITY_PRIVATE) uygulanır.
+        const fcmBody = view.dataOnly
+          ? { message: { token: registrationToken, data, android: { priority: "HIGH" } } }
+          : {
+            message: {
+              token: registrationToken,
+              notification: { title: view.title, body: view.body },
+              data,
+              android: {
+                priority: "HIGH",
+                notification: {
+                  channel_id: channelId,
+                  sound: sound.soundName || "default",
+                  click_action: "FLUTTER_NOTIFICATION_CLICK",
+                },
               },
             },
-          },
-        };
+          };
 
         const fcmRes = await fetch(fcmEndpoint, {
           method: "POST",

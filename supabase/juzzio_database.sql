@@ -11006,3 +11006,70 @@ BEGIN
         )
     $p$;
 END $$;
+
+-- 10.13 Bildirim önizleme kipleri (ek paket N-D) + şifreli içerik sızıntı koruması
+--  Cihaz başına kip: 'full' (cihaz mesajı kendisi çözer ve gösterir), 'sender' (yalnız gönderen
+--  adı + "yeni mesaj"), 'hidden' (gönderen adı da yok: "Juzzio — Yeni mesaj"). Sunucu FCM'e
+--  HİÇBİR kipte mesaj metni koymaz; 'hidden' kipte gönderen adını da koymaz.
+ALTER TABLE public.user_push_tokens ADD COLUMN IF NOT EXISTS notify_preview TEXT NOT NULL DEFAULT 'full';
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'user_push_tokens_notify_preview_check') THEN
+        ALTER TABLE public.user_push_tokens ADD CONSTRAINT user_push_tokens_notify_preview_check
+            CHECK (notify_preview IN ('full', 'sender', 'hidden')) NOT VALID;
+    END IF;
+END $$;
+
+CREATE OR REPLACE FUNCTION public.set_my_push_preview(p_fcm_token TEXT, p_mode TEXT)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_uid UUID := auth.uid();
+    v_mode TEXT := LOWER(BTRIM(COALESCE(p_mode, '')));
+    v_n INT;
+BEGIN
+    IF v_uid IS NULL THEN
+        RAISE EXCEPTION 'not_authenticated';
+    END IF;
+    IF v_mode NOT IN ('full', 'sender', 'hidden') THEN
+        RAISE EXCEPTION 'invalid_preview_mode';
+    END IF;
+    -- Yalnız kendi (etkin) cihaz kaydı değişir
+    UPDATE public.user_push_tokens
+       SET notify_preview = v_mode, updated_at = NOW()
+     WHERE user_id = v_uid AND fcm_token = BTRIM(COALESCE(p_fcm_token, ''));
+    GET DIAGNOSTICS v_n = ROW_COUNT;
+    RETURN v_n > 0;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.set_my_push_preview(TEXT, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.set_my_push_preview(TEXT, TEXT) TO authenticated;
+
+--  Şifreli mesaj gövdesi (juzzio_e2ee_…) hiçbir bildirim önizlemesine girmez. Eski tepki
+--  bildirimleri şifreli metnin ilk 80 karakterini önizleme olarak kopyalıyordu (anlamsız şifre
+--  metni bildirim çanında ve push gövdesinde görünüyordu). Tüm ekleme yollarını tek noktada keser.
+CREATE OR REPLACE FUNCTION public.juzzio_sanitize_notification_preview()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+BEGIN
+    IF NEW.preview_text IS NOT NULL AND NEW.preview_text ~* 'juzzio_e2ee_' THEN
+        IF NEW.event_type = 'reaction' AND position('|' IN NEW.preview_text) > 0 THEN
+            NEW.preview_text := split_part(NEW.preview_text, '|', 1) || '|🔒';
+        ELSE
+            NEW.preview_text := '🔒';
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$;
+DROP TRIGGER IF EXISTS trg_juzzio_sanitize_notification_preview ON public.notifications;
+CREATE TRIGGER trg_juzzio_sanitize_notification_preview
+BEFORE INSERT OR UPDATE OF preview_text ON public.notifications
+FOR EACH ROW EXECUTE FUNCTION public.juzzio_sanitize_notification_preview();
+-- Var olan kayıtlar (idempotent; yalnızca şifreli metin içerenler)
+UPDATE public.notifications SET preview_text = preview_text WHERE preview_text ~* 'juzzio_e2ee_';

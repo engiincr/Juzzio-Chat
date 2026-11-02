@@ -1069,3 +1069,45 @@ DELETE FROM realtime.messages;
 DELETE FROM room_participants WHERE room_id IN ('acacacac-0000-0000-0000-0000000000a2');
 DELETE FROM rooms WHERE id IN ('acacacac-0000-0000-0000-0000000000a2');
 SELECT 'TÜM v0.9.0 ETKİNLİK DURUMU TESTLERİ GEÇTİ';
+-- v0.9.0 N-D: bildirim önizleme kipi + şifreli önizleme sızıntısı
+RESET ROLE;
+INSERT INTO user_push_tokens (user_id, device_id, fcm_token, platform)
+VALUES (:'A', 'dev-a', 'tok_A_0123456789abcdefghijkl', 'android');
+SELECT pg_temp.check('varsayılan kip full',
+  (SELECT notify_preview FROM user_push_tokens WHERE fcm_token = 'tok_A_0123456789abcdefghijkl') = 'full');
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+SELECT pg_temp.check('sahibi kipi değiştirir', set_my_push_preview('tok_A_0123456789abcdefghijkl', 'HIDDEN'));
+SELECT pg_temp.as_user(:'B');
+SELECT pg_temp.check('başkasının cihazı değişmez', NOT set_my_push_preview('tok_A_0123456789abcdefghijkl', 'full'));
+DO $$ BEGIN
+  PERFORM set_my_push_preview('tok_A_0123456789abcdefghijkl', 'everything');
+  RAISE EXCEPTION 'FAIL geçersiz kip kabul edildi';
+EXCEPTION WHEN raise_exception THEN
+  IF SQLERRM NOT LIKE '%invalid_preview_mode%' THEN RAISE; END IF;
+END $$;
+RESET ROLE;
+SET ROLE anon;
+DO $$ BEGIN
+  PERFORM set_my_push_preview('tok_A_0123456789abcdefghijkl', 'full');
+  RAISE EXCEPTION 'FAIL anon kip değiştirdi';
+EXCEPTION WHEN insufficient_privilege THEN NULL; END $$;
+RESET ROLE;
+SELECT pg_temp.check('kip hidden kaldı',
+  (SELECT notify_preview FROM user_push_tokens WHERE fcm_token = 'tok_A_0123456789abcdefghijkl') = 'hidden');
+INSERT INTO notifications (recipient_id, actor_id, event_type, target_id, preview_text, dedupe_key)
+VALUES (:'A', :'B', 'reaction', 'x', '❤️|juzzio_e2ee_pq3_v2_QUJDREVGR0g=', 'nd_t1'),
+       (:'A', :'B', 'message', 'x', 'juzzio_e2ee_x25519_v1_abc', 'nd_t2'),
+       (:'A', :'B', 'message', 'x', 'Merhaba', 'nd_t3');
+SELECT pg_temp.check('tepki önizlemesinde şifre metni yok',
+  (SELECT preview_text FROM notifications WHERE dedupe_key = 'nd_t1') = '❤️|🔒');
+SELECT pg_temp.check('mesaj önizlemesinde şifre metni yok',
+  (SELECT preview_text FROM notifications WHERE dedupe_key = 'nd_t2') = '🔒');
+SELECT pg_temp.check('düz önizleme korunur',
+  (SELECT preview_text FROM notifications WHERE dedupe_key = 'nd_t3') = 'Merhaba');
+UPDATE notifications SET preview_text = 'x juzzio_E2EE_ y' WHERE dedupe_key = 'nd_t3';
+SELECT pg_temp.check('güncellemede de temizlenir (büyük/küçük harf)',
+  (SELECT preview_text FROM notifications WHERE dedupe_key = 'nd_t3') = '🔒');
+DELETE FROM notifications WHERE dedupe_key LIKE 'nd_t%';
+DELETE FROM user_push_tokens WHERE fcm_token = 'tok_A_0123456789abcdefghijkl';
+SELECT 'TÜM v0.9.0 BİLDİRİM ÖNİZLEME TESTLERİ GEÇTİ';
