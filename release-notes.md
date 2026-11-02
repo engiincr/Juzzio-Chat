@@ -59,7 +59,7 @@ Unifies the 12 themes into one Liquid Glass design family, makes every theme sel
 
 ```bash
 sha256sum Juzzio-latest.apk
-# e163d9b3aa220232f2ecbba87dfaa21f7fe4b178d32e14e4bd5ce546c4ad716e  Juzzio-latest.apk
+# b70b647e91a37a824d3f79eea07b9c319d664c23d8d633e8d5b3a1294dd27aca  Juzzio-latest.apk
 ```
 
-Derleme zamanı: 2026-11-02 07:16 UTC — GitHub Actions
+Derleme zamanı: 2026-11-02 08:14 UTC — GitHub Actions
