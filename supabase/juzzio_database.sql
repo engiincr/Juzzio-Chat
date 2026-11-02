@@ -10653,10 +10653,12 @@ AS $$
                                 'moderation', 'moderation.config', 'content.delete', 'reports', 'reports.resolve',
                                 'groups.read', 'groups.manage', 'calls.manage', 'feedback.manage',
                                 'theme.publish', 'settings', 'broadcast', 'releases',
-                                'audit.read', 'roles.read', 'stats.read']
+                                'audit.read', 'roles.read', 'stats.read',
+                                -- v0.9.0 Business: başvuru/hesap yönetimi ve hukuki metin yayını
+                                'business.read', 'business.manage', 'legal.publish']
         WHEN 'moderator' THEN ARRAY['users.read', 'users.warn', 'moderation', 'content.delete', 'reports',
-                                    'reports.resolve', 'groups.read', 'calls.manage']
-        WHEN 'support' THEN ARRAY['users.read', 'reports', 'feedback.manage', 'groups.read']
+                                    'reports.resolve', 'groups.read', 'calls.manage', 'business.read']
+        WHEN 'support' THEN ARRAY['users.read', 'reports', 'feedback.manage', 'groups.read', 'business.read']
         WHEN 'analyst' THEN ARRAY['stats.read']
         WHEN 'content_manager' THEN ARRAY['theme.publish', 'broadcast', 'releases']
         WHEN 'auditor' THEN ARRAY['audit.read', 'roles.read', 'stats.read']
@@ -11722,3 +11724,1135 @@ BEGIN
         END;
     END IF;
 END $$;
+
+-- =============================================================================
+-- 10.20 JUZZIO BUSINESS — hesap modu, durum makinesi, hukuki onaylar, kurulum adımları
+--  (Business eki §1–§4, §9, §15–§16; son talimat §2). Tek kimlik: business hesabı kullanıcının
+--  kendi profiline bağlıdır (business_id = sahibin kullanıcı kimliği). Ayrı kullanıcı sistemi YOK.
+--  İstemci durum alanını ASLA doğrudan yazamaz: tablolar istemciye yalnız okunur, tüm geçişler
+--  SECURITY DEFINER RPC'lerde doğrulanır ve business_status_events'e (değiştirilemez) yazılır.
+--  E2EE'ye dokunulmaz: geçiş anahtarları, sohbetleri ve mesajları değiştirmez/kopyalamaz.
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS public.business_accounts (
+    id UUID PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE,
+    status TEXT NOT NULL DEFAULT 'personal' CHECK (status IN (
+        'personal', 'business_application_started', 'business_terms_pending', 'business_preparing',
+        'business_active', 'business_rejected', 'business_cancelled', 'business_suspended', 'business_reverting',
+        'business_paused')),
+    profile_type TEXT NOT NULL DEFAULT 'individual_professional' CHECK (profile_type IN (
+        'individual_professional', 'creator', 'business', 'organization', 'community_operator', 'service_provider')),
+    display_name TEXT NOT NULL DEFAULT '' CHECK (LENGTH(display_name) <= 80),
+    professional_title TEXT NOT NULL DEFAULT '' CHECK (LENGTH(professional_title) <= 80),
+    description TEXT NOT NULL DEFAULT '' CHECK (LENGTH(description) <= 1000),
+    logo_url TEXT,
+    cover_url TEXT,
+    website TEXT NOT NULL DEFAULT '' CHECK (LENGTH(website) <= 200),
+    contact_email TEXT NOT NULL DEFAULT '' CHECK (LENGTH(contact_email) <= 200),
+    contact_phone TEXT NOT NULL DEFAULT '' CHECK (LENGTH(contact_phone) <= 40),
+    working_hours JSONB NOT NULL DEFAULT '{}'::jsonb,
+    timezone TEXT NOT NULL DEFAULT 'Europe/Istanbul',
+    categories TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+    location TEXT NOT NULL DEFAULT '' CHECK (LENGTH(location) <= 120),
+    social_links JSONB NOT NULL DEFAULT '{}'::jsonb,
+    is_verified BOOLEAN NOT NULL DEFAULT false,
+    active_view TEXT NOT NULL DEFAULT 'personal' CHECK (active_view IN ('personal', 'business')),
+    status_reason TEXT NOT NULL DEFAULT '',
+    application_request_id TEXT,
+    activated_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+ALTER TABLE public.business_accounts ENABLE ROW LEVEL SECURITY;
+REVOKE INSERT, UPDATE, DELETE ON public.business_accounts FROM anon, authenticated;
+GRANT SELECT ON public.business_accounts TO authenticated;
+DROP POLICY IF EXISTS business_accounts_read ON public.business_accounts;
+-- Sahibi her şeyi; diğerleri yalnız AKTİF işletme profilini görür (herkese açık işletme sayfası)
+CREATE POLICY business_accounts_read ON public.business_accounts FOR SELECT TO authenticated
+    USING (id = auth.uid() OR (status = 'business_active' AND NOT public.is_blocked_between(auth.uid(), id)));
+
+CREATE TABLE IF NOT EXISTS public.business_status_events (
+    id BIGSERIAL PRIMARY KEY,
+    business_id UUID NOT NULL REFERENCES public.business_accounts(id) ON DELETE CASCADE,
+    from_status TEXT NOT NULL,
+    to_status TEXT NOT NULL,
+    actor_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    actor_kind TEXT NOT NULL DEFAULT 'owner' CHECK (actor_kind IN ('owner', 'system', 'staff')),
+    reason TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+ALTER TABLE public.business_status_events ENABLE ROW LEVEL SECURITY;
+REVOKE INSERT, UPDATE, DELETE ON public.business_status_events FROM anon, authenticated;
+GRANT SELECT ON public.business_status_events TO authenticated;
+DROP POLICY IF EXISTS business_status_events_owner ON public.business_status_events;
+CREATE POLICY business_status_events_owner ON public.business_status_events FOR SELECT TO authenticated
+    USING (business_id = auth.uid());
+
+-- İzin verilen geçişler (tek doğruluk kaynağı). İstemci yalnız 'owner' satırlarını tetikleyebilir.
+CREATE OR REPLACE FUNCTION public.juzzio_business_transition_allowed(p_from TEXT, p_to TEXT, p_kind TEXT)
+RETURNS BOOLEAN
+LANGUAGE sql
+IMMUTABLE
+AS $$
+    SELECT (p_kind, p_from, p_to) IN (
+        ('owner', 'personal', 'business_application_started'),
+        ('owner', 'business_cancelled', 'business_application_started'),
+        ('owner', 'business_rejected', 'business_application_started'),
+        ('owner', 'business_application_started', 'business_terms_pending'),
+        ('owner', 'business_terms_pending', 'business_preparing'),
+        ('owner', 'business_application_started', 'business_cancelled'),
+        ('owner', 'business_terms_pending', 'business_cancelled'),
+        ('system', 'business_preparing', 'business_active'),
+        ('owner', 'business_active', 'business_paused'),
+        ('owner', 'business_paused', 'business_active'),
+        ('owner', 'business_active', 'business_reverting'),
+        ('owner', 'business_paused', 'business_reverting'),
+        ('system', 'business_reverting', 'business_cancelled'),
+        ('staff', 'business_preparing', 'business_rejected'),
+        ('staff', 'business_active', 'business_suspended'),
+        ('staff', 'business_paused', 'business_suspended'),
+        ('staff', 'business_suspended', 'business_active'),
+        ('staff', 'business_application_started', 'business_rejected'),
+        ('staff', 'business_terms_pending', 'business_rejected')
+    );
+$$;
+
+CREATE OR REPLACE FUNCTION public.juzzio_business_set_status(p_business UUID, p_to TEXT, p_kind TEXT, p_reason TEXT DEFAULT '')
+RETURNS TEXT
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_from TEXT;
+BEGIN
+    SELECT status INTO v_from FROM public.business_accounts WHERE id = p_business FOR UPDATE;
+    IF v_from IS NULL THEN RAISE EXCEPTION 'business_not_found'; END IF;
+    IF v_from = p_to THEN RETURN v_from; END IF; -- idempotent
+    IF NOT public.juzzio_business_transition_allowed(v_from, p_to, p_kind) THEN
+        RAISE EXCEPTION 'invalid_transition:%->%', v_from, p_to;
+    END IF;
+    UPDATE public.business_accounts
+       SET status = p_to, status_reason = LEFT(COALESCE(p_reason, ''), 300), updated_at = NOW(),
+           activated_at = CASE WHEN p_to = 'business_active' THEN COALESCE(activated_at, NOW()) ELSE activated_at END,
+           active_view = CASE WHEN p_to IN ('business_active') THEN active_view ELSE 'personal' END
+     WHERE id = p_business;
+    INSERT INTO public.business_status_events (business_id, from_status, to_status, actor_id, actor_kind, reason)
+    VALUES (p_business, v_from, p_to, auth.uid(), p_kind, LEFT(COALESCE(p_reason, ''), 300));
+    RETURN p_to;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.juzzio_business_set_status(UUID, TEXT, TEXT, TEXT) FROM PUBLIC, anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Hukuki metinler ve onaylar (Business eki §3). Metinler TASLAKTIR: hukuk incelemesi olmadan
+-- 'published' yapılamaz (yalnız legal.publish yetkili personel, inceleme notuyla).
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.legal_documents (
+    id BIGSERIAL PRIMARY KEY,
+    doc_key TEXT NOT NULL CHECK (doc_key ~ '^[a-z0-9_]{3,60}$'),
+    version INTEGER NOT NULL CHECK (version > 0),
+    locale TEXT NOT NULL DEFAULT 'tr',
+    title TEXT NOT NULL,
+    body TEXT NOT NULL,
+    consent_type TEXT NOT NULL CHECK (consent_type IN ('contract', 'information', 'explicit_consent', 'marketing')),
+    required_for_business BOOLEAN NOT NULL DEFAULT false,
+    review_status TEXT NOT NULL DEFAULT 'DRAFT - LEGAL REVIEW REQUIRED'
+        CHECK (review_status IN ('DRAFT - LEGAL REVIEW REQUIRED', 'LEGAL REVIEWED')),
+    review_note TEXT NOT NULL DEFAULT '',
+    effective_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    policy_hash TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (doc_key, version, locale)
+);
+ALTER TABLE public.legal_documents ENABLE ROW LEVEL SECURITY;
+REVOKE INSERT, UPDATE, DELETE ON public.legal_documents FROM anon, authenticated;
+GRANT SELECT ON public.legal_documents TO anon, authenticated;
+DROP POLICY IF EXISTS legal_documents_read ON public.legal_documents;
+CREATE POLICY legal_documents_read ON public.legal_documents FOR SELECT TO anon, authenticated USING (true);
+
+CREATE OR REPLACE FUNCTION public.juzzio_legal_hash()
+RETURNS TRIGGER LANGUAGE plpgsql SET search_path = public, extensions AS $$
+BEGIN
+    NEW.policy_hash := encode(digest(convert_to(NEW.doc_key || '|' || NEW.version || '|' || NEW.locale || '|' || NEW.title || '|' || NEW.body, 'UTF8'), 'sha256'), 'hex');
+    RETURN NEW;
+END $$;
+DROP TRIGGER IF EXISTS trg_juzzio_legal_hash ON public.legal_documents;
+CREATE TRIGGER trg_juzzio_legal_hash BEFORE INSERT OR UPDATE OF title, body, version, locale ON public.legal_documents
+    FOR EACH ROW EXECUTE FUNCTION public.juzzio_legal_hash();
+
+-- Onaylar yalnız EKLENİR (değiştirilemez denetim geçmişi). Geri alma = yeni 'withdraw' satırı.
+CREATE TABLE IF NOT EXISTS public.user_consents (
+    id BIGSERIAL PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    document_id BIGINT NOT NULL REFERENCES public.legal_documents(id),
+    doc_key TEXT NOT NULL,
+    document_version INTEGER NOT NULL,
+    consent_type TEXT NOT NULL,
+    action TEXT NOT NULL CHECK (action IN ('accept', 'withdraw')),
+    locale TEXT NOT NULL DEFAULT 'tr',
+    policy_hash TEXT NOT NULL,
+    client_info TEXT NOT NULL DEFAULT '' CHECK (LENGTH(client_info) <= 120), -- yalnız uygulama sürümü (minimizasyon)
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_user_consents_user ON public.user_consents (user_id, doc_key, created_at DESC);
+ALTER TABLE public.user_consents ENABLE ROW LEVEL SECURITY;
+REVOKE INSERT, UPDATE, DELETE ON public.user_consents FROM anon, authenticated;
+GRANT SELECT ON public.user_consents TO authenticated;
+DROP POLICY IF EXISTS user_consents_own ON public.user_consents;
+CREATE POLICY user_consents_own ON public.user_consents FOR SELECT TO authenticated USING (user_id = auth.uid());
+
+-- Bir belgenin güncel sürümü (dil yoksa tr)
+CREATE OR REPLACE FUNCTION public.juzzio_current_legal_doc(p_key TEXT, p_locale TEXT DEFAULT 'tr')
+RETURNS public.legal_documents
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+    SELECT d.* FROM public.legal_documents d
+    WHERE d.doc_key = p_key AND d.locale IN (COALESCE(p_locale, 'tr'), 'tr') AND d.effective_at <= NOW()
+    ORDER BY (d.locale = COALESCE(p_locale, 'tr')) DESC, d.version DESC
+    LIMIT 1;
+$$;
+
+-- Kullanıcının bir belgenin GÜNCEL sürümünü geçerli olarak kabul etmiş olup olmadığı
+CREATE OR REPLACE FUNCTION public.juzzio_has_current_consent(p_user UUID, p_key TEXT)
+RETURNS BOOLEAN
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+    SELECT COALESCE((
+        SELECT c.action = 'accept'
+        FROM public.user_consents c
+        WHERE c.user_id = p_user AND c.doc_key = p_key
+          AND c.document_version = (SELECT max(version) FROM public.legal_documents WHERE doc_key = p_key AND effective_at <= NOW())
+        ORDER BY c.created_at DESC, c.id DESC
+        LIMIT 1), false);
+$$;
+
+CREATE OR REPLACE FUNCTION public.record_consent(p_doc_key TEXT, p_accept BOOLEAN, p_locale TEXT DEFAULT 'tr', p_client_info TEXT DEFAULT '')
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_uid UUID := auth.uid();
+    v_doc public.legal_documents;
+BEGIN
+    IF v_uid IS NULL THEN RAISE EXCEPTION 'not_authenticated'; END IF;
+    SELECT * INTO v_doc FROM public.juzzio_current_legal_doc(p_doc_key, p_locale);
+    IF v_doc.id IS NULL THEN RAISE EXCEPTION 'document_not_found'; END IF;
+    IF NOT public.juzzio_rate_check(v_uid, 'consent', 60, 3600) THEN RAISE EXCEPTION 'rate_limited'; END IF;
+    INSERT INTO public.user_consents (user_id, document_id, doc_key, document_version, consent_type, action, locale, policy_hash, client_info)
+    VALUES (v_uid, v_doc.id, v_doc.doc_key, v_doc.version, v_doc.consent_type,
+            CASE WHEN p_accept THEN 'accept' ELSE 'withdraw' END, v_doc.locale, v_doc.policy_hash,
+            LEFT(regexp_replace(COALESCE(p_client_info, ''), '[^A-Za-z0-9 ._+-]', '', 'g'), 120));
+    RETURN jsonb_build_object('doc_key', v_doc.doc_key, 'version', v_doc.version, 'accepted', p_accept, 'policy_hash', v_doc.policy_hash);
+END;
+$$;
+REVOKE ALL ON FUNCTION public.record_consent(TEXT, BOOLEAN, TEXT, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.record_consent(TEXT, BOOLEAN, TEXT, TEXT) TO authenticated;
+
+-- Kullanıcıya gösterilecek Business belgeleri + onay durumu (önceden İŞARETLİ kutu yok: durum gerçek kayıttan)
+CREATE OR REPLACE FUNCTION public.get_business_legal_documents(p_locale TEXT DEFAULT 'tr')
+RETURNS JSONB
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+    SELECT COALESCE(jsonb_agg(jsonb_build_object(
+        'doc_key', d.doc_key, 'version', d.version, 'locale', d.locale, 'title', d.title, 'body', d.body,
+        'consent_type', d.consent_type, 'required', d.required_for_business, 'review_status', d.review_status,
+        'effective_at', d.effective_at, 'policy_hash', d.policy_hash,
+        'accepted', public.juzzio_has_current_consent(auth.uid(), d.doc_key)) ORDER BY d.required_for_business DESC, d.doc_key), '[]'::jsonb)
+    FROM (SELECT DISTINCT ON (doc_key) * FROM public.legal_documents
+          WHERE effective_at <= NOW() AND locale IN (COALESCE(p_locale, 'tr'), 'tr') AND doc_key LIKE 'business_%'
+          ORDER BY doc_key, (locale = COALESCE(p_locale, 'tr')) DESC, version DESC) d;
+$$;
+REVOKE ALL ON FUNCTION public.get_business_legal_documents(TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_business_legal_documents(TEXT) TO authenticated;
+
+-- Taslak belgeler (14 madde, Business eki §3). İçerik KISA TASLAKTIR ve öyle etiketlidir.
+INSERT INTO public.legal_documents (doc_key, version, locale, title, body, consent_type, required_for_business)
+SELECT k, 1, 'tr', t, '⚠ DRAFT - LEGAL REVIEW REQUIRED — Bu metin taslaktır; hukuk incelemesi tamamlanmadan hukuki geçerlilik veya KVKK uyumluluğu garantisi vermez.' || E'\n\n' || b, c, r
+FROM (VALUES
+  ('business_terms_of_use', 'Juzzio Business Kullanım Koşulları', 'Juzzio Business özelliklerinin kullanım kuralları, hesabın amacı, yasaklı kullanımlar ve hesap kısıtlama koşulları burada yer alacaktır.', 'contract', true),
+  ('business_service_terms', 'Juzzio Business Hizmet Şartları', 'Hizmetin kapsamı, ücretsiz Business hesap türü ile ayrı yönetilen ücretli planların ayrımı, hizmet seviyesi ve sorumluluk sınırları.', 'contract', true),
+  ('business_kvkk_notice', 'KVKK Aydınlatma Metni', 'Veri sorumlusu, işlenen kişisel veri kategorileri, işleme amaçları, hukuki sebepler, aktarım alıcıları ve ilgili kişi hakları (KVKK m.10–11).', 'information', true),
+  ('business_data_processing_info', 'Kişisel Verilerin İşlenmesine İlişkin Bilgilendirme', 'Müşteri iletişim kayıtları, ekip erişimi ve saklama süreleri hakkında bilgilendirme. Uçtan uca şifreli kişisel sohbetler Business paneline aktarılmaz.', 'information', true),
+  ('business_explicit_consent_analytics', 'Açık Rıza — Gelişmiş Analitik', 'İsteğe bağlıdır; vermemeniz Business hesabını kullanmanıza engel değildir. Dilediğiniz zaman geri alabilirsiniz.', 'explicit_consent', false),
+  ('business_commercial_messages', 'Ticari Elektronik İleti Tercihleri', 'Juzzio''nun size kampanya/tanıtım iletisi göndermesi için izin. İsteğe bağlıdır; hizmet kullanımının şartı değildir.', 'marketing', false),
+  ('business_ai_voice_notice', 'Yapay Zekâ ve Yapay Ses Üretimi Bilgilendirmesi', 'AI özelliklerinin hangi veriyi işlediği, üçüncü taraf hizmetleri ve maliyet/kota sınırları.', 'information', false),
+  ('business_voice_identity_consent', 'Ses Kimliği Oluşturma ve Kullanma İzni', 'Biyometrik nitelikte veri; ayrı açık rıza gerektirir. Bu sürümde ses kimliği özelliği etkin değildir.', 'explicit_consent', false),
+  ('business_third_party_transfer', 'Üçüncü Taraf Entegrasyon ve Veri Aktarımı', 'Entegrasyonlar ayrı ayrı yetkilendirilir; yurt dışı aktarım mekanizmaları değerlendirilmeden aktarım yapılmaz.', 'information', false),
+  ('business_content_rights', 'İçerik Hakları ve Kullanıcı Sorumlulukları', 'Paylaşılan içeriklerin hakları, lisans ve ihlal bildirimi süreci.', 'contract', true),
+  ('business_customer_comm_duties', 'İşletme ve Müşteri İletişimi Sorumlulukları', 'Müşteri verisinin yalnız hizmet amacıyla kullanılması, ekip erişim yetkileri ve otomatik yanıtların işaretlenmesi.', 'contract', true),
+  ('business_moderator_duties', 'Topluluk Yöneticisi ve Moderatör Sorumlulukları', 'Moderasyon yetkilerinin kötüye kullanılmaması ve denetim kayıtları.', 'information', false),
+  ('business_abuse_policy', 'Güvenlik, Kötüye Kullanım ve Hesap Kısıtlama Politikası', 'Spam, taklit, dolandırıcılık ve yetkisiz erişim durumlarında uygulanacak kısıtlamalar.', 'contract', true),
+  ('business_closure_retention', 'İşletme Hesabının Kapatılması ve Verilerin Saklanması/Silinmesi', 'Personal görünüme geçmek, geçici devre dışı bırakmak ve hesabı kapatmak farklı işlemlerdir; kapatmada verilerin saklama ve silme süreleri.', 'information', true)
+) AS v(k, t, b, c, r)
+ON CONFLICT (doc_key, version, locale) DO NOTHING;
+
+-- Personel: yeni sürüm yayınla (önemli değişiklik → kullanıcıdan yeniden onay istenir, çünkü
+-- juzzio_has_current_consent yalnız EN YENİ sürümü sayar). 'LEGAL REVIEWED' ancak inceleme notuyla.
+CREATE OR REPLACE FUNCTION public.admin_publish_legal_document(p_token TEXT, p_doc_key TEXT, p_locale TEXT, p_title TEXT, p_body TEXT,
+                                                               p_consent_type TEXT, p_required BOOLEAN, p_reviewed BOOLEAN, p_review_note TEXT)
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_next INTEGER;
+BEGIN
+    PERFORM public._staff_require(p_token, 'legal.publish');
+    IF p_reviewed AND LENGTH(BTRIM(COALESCE(p_review_note, ''))) < 10 THEN RAISE EXCEPTION 'review_note_required'; END IF;
+    SELECT COALESCE(max(version), 0) + 1 INTO v_next FROM public.legal_documents WHERE doc_key = p_doc_key;
+    INSERT INTO public.legal_documents (doc_key, version, locale, title, body, consent_type, required_for_business, review_status, review_note)
+    VALUES (p_doc_key, v_next, COALESCE(p_locale, 'tr'), p_title, p_body, p_consent_type, COALESCE(p_required, false),
+            CASE WHEN p_reviewed THEN 'LEGAL REVIEWED' ELSE 'DRAFT - LEGAL REVIEW REQUIRED' END, COALESCE(p_review_note, ''));
+    INSERT INTO public.admin_audit_log (admin_id, action, target, details)
+    VALUES (auth.uid(), 'legal_publish', p_doc_key, jsonb_build_object('version', v_next, 'reviewed', p_reviewed));
+    RETURN v_next;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.admin_publish_legal_document(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, BOOLEAN, BOOLEAN, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_publish_legal_document(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, BOOLEAN, BOOLEAN, TEXT) TO authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Ekip (Business eki §10): Owner, Admin, Manager, Support Agent, Content Manager, Moderator, Analyst.
+-- Uygulama personeli rolleriyle (staff_roles) KARIŞMAZ: bu roller yalnız ilgili işletme içindir.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.business_members (
+    business_id UUID NOT NULL REFERENCES public.business_accounts(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    role TEXT NOT NULL CHECK (role IN ('owner', 'admin', 'manager', 'support_agent', 'content_manager', 'moderator', 'analyst')),
+    status TEXT NOT NULL DEFAULT 'invited' CHECK (status IN ('invited', 'active', 'removed', 'declined')),
+    invited_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (business_id, user_id)
+);
+ALTER TABLE public.business_members ENABLE ROW LEVEL SECURITY;
+REVOKE INSERT, UPDATE, DELETE ON public.business_members FROM anon, authenticated;
+GRANT SELECT ON public.business_members TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.juzzio_business_role(p_business UUID, p_user UUID DEFAULT auth.uid())
+RETURNS TEXT
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+    SELECT CASE
+        WHEN p_user IS NULL OR p_business IS NULL THEN NULL
+        WHEN NOT EXISTS (SELECT 1 FROM public.business_accounts b WHERE b.id = p_business AND b.status IN ('business_active', 'business_paused')) THEN
+            CASE WHEN p_business = p_user THEN 'owner_inactive' END
+        WHEN p_business = p_user THEN 'owner'
+        ELSE (SELECT m.role FROM public.business_members m WHERE m.business_id = p_business AND m.user_id = p_user AND m.status = 'active')
+    END;
+$$;
+
+-- İşletme içi yetki matrisi (backend'de uygulanır; arayüzde gizlemek yeterli değildir)
+CREATE OR REPLACE FUNCTION public.juzzio_business_role_perms(p_role TEXT)
+RETURNS TEXT[]
+LANGUAGE sql IMMUTABLE AS $$
+    SELECT CASE p_role
+        WHEN 'owner' THEN ARRAY['*']
+        WHEN 'admin' THEN ARRAY['inbox.read', 'inbox.assign', 'inbox.reply', 'customers.read', 'customers.write',
+                                'appointments.read', 'appointments.write', 'tasks.read', 'tasks.write', 'team.read',
+                                'team.manage', 'analytics.read', 'automation.manage', 'profile.manage', 'services.manage']
+        WHEN 'manager' THEN ARRAY['inbox.read', 'inbox.assign', 'inbox.reply', 'customers.read', 'customers.write',
+                                  'appointments.read', 'appointments.write', 'tasks.read', 'tasks.write', 'team.read',
+                                  'analytics.read', 'services.manage']
+        WHEN 'support_agent' THEN ARRAY['inbox.read', 'inbox.reply', 'customers.read', 'customers.write',
+                                        'appointments.read', 'appointments.write', 'tasks.read', 'tasks.write']
+        WHEN 'content_manager' THEN ARRAY['analytics.read', 'tasks.read', 'tasks.write']
+        WHEN 'moderator' THEN ARRAY['inbox.read', 'customers.read', 'tasks.read']
+        WHEN 'analyst' THEN ARRAY['analytics.read', 'customers.read']
+        ELSE ARRAY[]::TEXT[]
+    END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.juzzio_business_can(p_business UUID, p_perm TEXT, p_user UUID DEFAULT auth.uid())
+RETURNS BOOLEAN
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+    SELECT COALESCE((
+        SELECT '*' = ANY (perms) OR p_perm = ANY (perms)
+        FROM (SELECT public.juzzio_business_role_perms(public.juzzio_business_role(p_business, p_user)) AS perms) x), false);
+$$;
+GRANT EXECUTE ON FUNCTION public.juzzio_business_can(UUID, TEXT, UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.juzzio_business_role(UUID, UUID) TO authenticated;
+
+DROP POLICY IF EXISTS business_members_read ON public.business_members;
+CREATE POLICY business_members_read ON public.business_members FOR SELECT TO authenticated
+    USING (user_id = auth.uid() OR public.juzzio_business_can(business_id, 'team.read'));
+
+-- ---------------------------------------------------------------------------
+-- Başvuru ve kurulum (Business eki §2, §4): gerçek adımlar, kaldığı yerden devam, idempotent.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.business_setup_steps (
+    business_id UUID NOT NULL REFERENCES public.business_accounts(id) ON DELETE CASCADE,
+    step TEXT NOT NULL CHECK (step IN ('profile', 'workspace', 'security', 'modules', 'final')),
+    done_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    detail JSONB NOT NULL DEFAULT '{}'::jsonb,
+    PRIMARY KEY (business_id, step)
+);
+ALTER TABLE public.business_setup_steps ENABLE ROW LEVEL SECURITY;
+REVOKE INSERT, UPDATE, DELETE ON public.business_setup_steps FROM anon, authenticated;
+GRANT SELECT ON public.business_setup_steps TO authenticated;
+DROP POLICY IF EXISTS business_setup_steps_owner ON public.business_setup_steps;
+CREATE POLICY business_setup_steps_owner ON public.business_setup_steps FOR SELECT TO authenticated USING (business_id = auth.uid());
+
+CREATE TABLE IF NOT EXISTS public.business_module_prefs (
+    business_id UUID PRIMARY KEY REFERENCES public.business_accounts(id) ON DELETE CASCADE,
+    enabled_modules TEXT[] NOT NULL DEFAULT ARRAY['overview', 'inbox', 'customers', 'appointments', 'team', 'tasks', 'analytics', 'automation']::TEXT[],
+    dashboard_widgets TEXT[] NOT NULL DEFAULT ARRAY['today_messages', 'awaiting_reply', 'appointments', 'tasks', 'followups']::TEXT[],
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+ALTER TABLE public.business_module_prefs ENABLE ROW LEVEL SECURITY;
+REVOKE INSERT, UPDATE, DELETE ON public.business_module_prefs FROM anon, authenticated;
+GRANT SELECT ON public.business_module_prefs TO authenticated;
+DROP POLICY IF EXISTS business_module_prefs_read ON public.business_module_prefs;
+CREATE POLICY business_module_prefs_read ON public.business_module_prefs FOR SELECT TO authenticated
+    USING (public.juzzio_business_role(business_id) IS NOT NULL);
+
+CREATE OR REPLACE FUNCTION public.business_get_state()
+RETURNS JSONB
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+    SELECT jsonb_build_object(
+        'status', COALESCE(b.status, 'personal'),
+        'active_view', COALESCE(b.active_view, 'personal'),
+        'profile_type', b.profile_type,
+        'display_name', b.display_name,
+        'reason', b.status_reason,
+        'steps', COALESCE((SELECT jsonb_agg(s.step ORDER BY s.done_at) FROM public.business_setup_steps s WHERE s.business_id = auth.uid()), '[]'::jsonb),
+        'missing_consents', COALESCE((
+            SELECT jsonb_agg(d.doc_key ORDER BY d.doc_key)
+            FROM (SELECT DISTINCT doc_key FROM public.legal_documents WHERE required_for_business AND doc_key LIKE 'business_%') d
+            WHERE NOT public.juzzio_has_current_consent(auth.uid(), d.doc_key)), '[]'::jsonb),
+        'memberships', COALESCE((
+            SELECT jsonb_agg(jsonb_build_object('business_id', m.business_id, 'role', m.role, 'status', m.status,
+                                                'name', (SELECT display_name FROM public.business_accounts WHERE id = m.business_id)))
+            FROM public.business_members m WHERE m.user_id = auth.uid() AND m.status IN ('invited', 'active')), '[]'::jsonb))
+    FROM (SELECT 1) one
+    LEFT JOIN public.business_accounts b ON b.id = auth.uid()
+    WHERE auth.uid() IS NOT NULL;
+$$;
+REVOKE ALL ON FUNCTION public.business_get_state() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.business_get_state() TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.business_start_application(p_profile_type TEXT, p_display_name TEXT, p_request_id TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_uid UUID := auth.uid();
+    v_row public.business_accounts;
+    v_name TEXT := BTRIM(COALESCE(p_display_name, ''));
+BEGIN
+    IF v_uid IS NULL THEN RAISE EXCEPTION 'not_authenticated'; END IF;
+    IF p_profile_type NOT IN ('individual_professional', 'creator', 'business', 'organization', 'community_operator', 'service_provider') THEN
+        RAISE EXCEPTION 'invalid_profile_type';
+    END IF;
+    IF LENGTH(v_name) NOT BETWEEN 2 AND 80 THEN RAISE EXCEPTION 'invalid_display_name'; END IF;
+    IF COALESCE(p_request_id, '') !~ '^[A-Za-z0-9_-]{8,80}$' THEN RAISE EXCEPTION 'invalid_request_id'; END IF;
+    IF public.juzzio_is_banned(v_uid) THEN RAISE EXCEPTION 'account_banned'; END IF;
+    INSERT INTO public.business_accounts (id) VALUES (v_uid) ON CONFLICT (id) DO NOTHING;
+    SELECT * INTO v_row FROM public.business_accounts WHERE id = v_uid FOR UPDATE;
+    -- Aynı istek tekrarı veya süren başvuru: aynı kayıt döner (çift başvuru yok)
+    IF v_row.status IN ('business_application_started', 'business_terms_pending', 'business_preparing', 'business_active', 'business_paused') THEN
+        RETURN public.business_get_state();
+    END IF;
+    IF v_row.status = 'business_suspended' THEN RAISE EXCEPTION 'business_suspended'; END IF;
+    UPDATE public.business_accounts SET profile_type = p_profile_type, display_name = v_name, application_request_id = p_request_id
+     WHERE id = v_uid;
+    PERFORM public.juzzio_business_set_status(v_uid, 'business_application_started', 'owner', 'application');
+    PERFORM public.juzzio_business_set_status(v_uid, 'business_terms_pending', 'owner', 'awaiting_consents');
+    RETURN public.business_get_state();
+END;
+$$;
+REVOKE ALL ON FUNCTION public.business_start_application(TEXT, TEXT, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.business_start_application(TEXT, TEXT, TEXT) TO authenticated;
+
+-- Onaylar tamamsa hazırlığa geç. Zorunlu sözleşme/bilgilendirme onayı eksikse ilerlemez.
+CREATE OR REPLACE FUNCTION public.business_submit_consents()
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_uid UUID := auth.uid();
+    v_missing JSONB;
+BEGIN
+    IF v_uid IS NULL THEN RAISE EXCEPTION 'not_authenticated'; END IF;
+    v_missing := public.business_get_state() -> 'missing_consents';
+    IF jsonb_array_length(COALESCE(v_missing, '[]'::jsonb)) > 0 THEN
+        RAISE EXCEPTION 'consents_missing:%', v_missing::text;
+    END IF;
+    PERFORM public.juzzio_business_set_status(v_uid, 'business_preparing', 'owner', 'consents_complete');
+    RETURN public.business_get_state();
+END;
+$$;
+REVOKE ALL ON FUNCTION public.business_submit_consents() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.business_submit_consents() TO authenticated;
+
+-- Hazırlık adımı: GERÇEK işi yapar ve kaydeder; tekrar çağrı idempotent. Sıra zorunlu.
+CREATE OR REPLACE FUNCTION public.business_run_setup_step(p_step TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_uid UUID := auth.uid();
+    v_status TEXT;
+    v_order TEXT[] := ARRAY['profile', 'workspace', 'security', 'modules', 'final'];
+    v_idx INTEGER := array_position(ARRAY['profile', 'workspace', 'security', 'modules', 'final'], p_step);
+    v_detail JSONB := '{}'::jsonb;
+    v_prof RECORD;
+BEGIN
+    IF v_uid IS NULL THEN RAISE EXCEPTION 'not_authenticated'; END IF;
+    IF v_idx IS NULL THEN RAISE EXCEPTION 'invalid_step'; END IF;
+    SELECT status INTO v_status FROM public.business_accounts WHERE id = v_uid FOR UPDATE;
+    IF EXISTS (SELECT 1 FROM public.business_setup_steps WHERE business_id = v_uid AND step = p_step) THEN
+        RETURN public.business_get_state(); -- zaten yapıldı
+    END IF;
+    IF v_status IS DISTINCT FROM 'business_preparing' THEN RAISE EXCEPTION 'not_preparing'; END IF;
+    IF v_idx > 1 AND NOT EXISTS (SELECT 1 FROM public.business_setup_steps WHERE business_id = v_uid AND step = v_order[v_idx - 1]) THEN
+        RAISE EXCEPTION 'previous_step_missing:%', v_order[v_idx - 1];
+    END IF;
+    CASE p_step
+        WHEN 'profile' THEN
+            -- Kişisel profil KORUNUR; eksik işletme alanları kişisel profilden önerilir (üzerine yazmaz)
+            SELECT avatar_url, bio INTO v_prof FROM public.profiles WHERE id = v_uid;
+            UPDATE public.business_accounts
+               SET logo_url = COALESCE(logo_url, v_prof.avatar_url),
+                   description = CASE WHEN description = '' THEN LEFT(COALESCE(v_prof.bio, ''), 1000) ELSE description END
+             WHERE id = v_uid;
+            v_detail := jsonb_build_object('logo_from_avatar', v_prof.avatar_url IS NOT NULL);
+        WHEN 'workspace' THEN
+            INSERT INTO public.business_members (business_id, user_id, role, status, invited_by)
+            VALUES (v_uid, v_uid, 'owner', 'active', v_uid)
+            ON CONFLICT (business_id, user_id) DO UPDATE SET role = 'owner', status = 'active', updated_at = NOW();
+        WHEN 'security' THEN
+            -- Doğrulama: sahip üyeliği ve RLS'in açık olduğu (yalnız kontrol; E2EE'ye dokunulmaz)
+            IF NOT EXISTS (SELECT 1 FROM public.business_members WHERE business_id = v_uid AND user_id = v_uid AND role = 'owner' AND status = 'active') THEN
+                RAISE EXCEPTION 'owner_membership_missing';
+            END IF;
+            IF EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+                       WHERE n.nspname = 'public' AND c.relname IN ('business_accounts', 'business_members', 'business_customers', 'business_conversations')
+                         AND NOT c.relrowsecurity) THEN
+                RAISE EXCEPTION 'rls_disabled';
+            END IF;
+            v_detail := jsonb_build_object('rls', true, 'e2ee_unchanged', true);
+        WHEN 'modules' THEN
+            INSERT INTO public.business_module_prefs (business_id) VALUES (v_uid) ON CONFLICT (business_id) DO NOTHING;
+        WHEN 'final' THEN
+            PERFORM public.juzzio_business_set_status(v_uid, 'business_active', 'system', 'setup_complete');
+    END CASE;
+    INSERT INTO public.business_setup_steps (business_id, step, detail) VALUES (v_uid, p_step, v_detail)
+    ON CONFLICT (business_id, step) DO NOTHING;
+    RETURN public.business_get_state();
+END;
+$$;
+REVOKE ALL ON FUNCTION public.business_run_setup_step(TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.business_run_setup_step(TEXT) TO authenticated;
+
+-- Görünüm geçişi (Personal ↔ Business) — veri değişmez, yalnız arayüz tercihi
+CREATE OR REPLACE FUNCTION public.business_set_view(p_view TEXT)
+RETURNS TEXT
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+    IF p_view NOT IN ('personal', 'business') THEN RAISE EXCEPTION 'invalid_view'; END IF;
+    IF p_view = 'business' AND NOT EXISTS (SELECT 1 FROM public.business_accounts WHERE id = auth.uid() AND status = 'business_active') THEN
+        RAISE EXCEPTION 'business_not_active';
+    END IF;
+    UPDATE public.business_accounts SET active_view = p_view, updated_at = NOW() WHERE id = auth.uid();
+    RETURN p_view;
+END $$;
+REVOKE ALL ON FUNCTION public.business_set_view(TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.business_set_view(TEXT) TO authenticated;
+
+-- Sahip eylemleri: geçici devre dışı / devam / kapat (§15: kapatma ≠ görünüm geçişi; veri SİLİNMEZ)
+CREATE OR REPLACE FUNCTION public.business_owner_action(p_action TEXT, p_reason TEXT DEFAULT '')
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+    v_uid UUID := auth.uid();
+BEGIN
+    IF v_uid IS NULL THEN RAISE EXCEPTION 'not_authenticated'; END IF;
+    CASE p_action
+        WHEN 'pause' THEN PERFORM public.juzzio_business_set_status(v_uid, 'business_paused', 'owner', p_reason);
+        WHEN 'resume' THEN PERFORM public.juzzio_business_set_status(v_uid, 'business_active', 'owner', p_reason);
+        WHEN 'close' THEN
+            PERFORM public.juzzio_business_set_status(v_uid, 'business_reverting', 'owner', p_reason);
+            -- ekip erişimi kapanır (kayıtlar korunur), sahip personal'a döner
+            UPDATE public.business_members SET status = 'removed', updated_at = NOW()
+             WHERE business_id = v_uid AND user_id <> v_uid AND status IN ('active', 'invited');
+            PERFORM public.juzzio_business_set_status(v_uid, 'business_cancelled', 'system', 'closed_by_owner');
+        WHEN 'cancel_application' THEN PERFORM public.juzzio_business_set_status(v_uid, 'business_cancelled', 'owner', p_reason);
+        ELSE RAISE EXCEPTION 'invalid_action';
+    END CASE;
+    RETURN public.business_get_state();
+END $$;
+REVOKE ALL ON FUNCTION public.business_owner_action(TEXT, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.business_owner_action(TEXT, TEXT) TO authenticated;
+
+-- İşletme profili güncelle (doğrulama rozeti İSTEMCİDEN değişmez)
+CREATE OR REPLACE FUNCTION public.business_update_profile(p_patch JSONB)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+    v_biz UUID := COALESCE(NULLIF(p_patch->>'business_id', '')::uuid, auth.uid());
+BEGIN
+    IF NOT public.juzzio_business_can(v_biz, 'profile.manage') THEN RAISE EXCEPTION 'not_allowed'; END IF;
+    UPDATE public.business_accounts SET
+        display_name = COALESCE(LEFT(NULLIF(BTRIM(p_patch->>'display_name'), ''), 80), display_name),
+        professional_title = COALESCE(LEFT(p_patch->>'professional_title', 80), professional_title),
+        description = COALESCE(LEFT(p_patch->>'description', 1000), description),
+        website = COALESCE(LEFT(p_patch->>'website', 200), website),
+        contact_email = COALESCE(LEFT(p_patch->>'contact_email', 200), contact_email),
+        contact_phone = COALESCE(LEFT(p_patch->>'contact_phone', 40), contact_phone),
+        location = COALESCE(LEFT(p_patch->>'location', 120), location),
+        working_hours = COALESCE(CASE WHEN jsonb_typeof(p_patch->'working_hours') = 'object' THEN p_patch->'working_hours' END, working_hours),
+        categories = COALESCE((SELECT array_agg(LEFT(x, 40)) FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(p_patch->'categories') = 'array' THEN p_patch->'categories' END) x), categories),
+        logo_url = COALESCE(p_patch->>'logo_url', logo_url),
+        updated_at = NOW()
+    WHERE id = v_biz;
+    RETURN (SELECT to_jsonb(b) - 'application_request_id' FROM public.business_accounts b WHERE id = v_biz);
+END $$;
+REVOKE ALL ON FUNCTION public.business_update_profile(JSONB) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.business_update_profile(JSONB) TO authenticated;
+
+-- Ekip: davet / kabul / rol / erişim kaldır
+CREATE OR REPLACE FUNCTION public.business_invite_member(p_business UUID, p_username TEXT, p_role TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+    v_target UUID;
+BEGIN
+    IF NOT public.juzzio_business_can(p_business, 'team.manage') THEN RAISE EXCEPTION 'not_allowed'; END IF;
+    IF p_role NOT IN ('admin', 'manager', 'support_agent', 'content_manager', 'moderator', 'analyst') THEN RAISE EXCEPTION 'invalid_role'; END IF;
+    -- yalnız sahip 'admin' atayabilir
+    IF p_role = 'admin' AND public.juzzio_business_role(p_business) <> 'owner' THEN RAISE EXCEPTION 'not_allowed'; END IF;
+    SELECT id INTO v_target FROM public.profiles WHERE lower(username) = lower(BTRIM(p_username)) LIMIT 1;
+    IF v_target IS NULL THEN RAISE EXCEPTION 'user_not_found'; END IF;
+    IF v_target = p_business THEN RAISE EXCEPTION 'already_owner'; END IF;
+    IF public.is_blocked_between(v_target, auth.uid()) THEN RAISE EXCEPTION 'not_allowed'; END IF;
+    IF NOT public.juzzio_rate_check(auth.uid(), 'business_invite', 30, 3600) THEN RAISE EXCEPTION 'rate_limited'; END IF;
+    INSERT INTO public.business_members (business_id, user_id, role, status, invited_by)
+    VALUES (p_business, v_target, p_role, 'invited', auth.uid())
+    ON CONFLICT (business_id, user_id) DO UPDATE
+        SET role = EXCLUDED.role, status = CASE WHEN business_members.status = 'active' THEN 'active' ELSE 'invited' END,
+            invited_by = EXCLUDED.invited_by, updated_at = NOW();
+    INSERT INTO public.notifications (recipient_id, actor_id, actor_username, actor_display_name, event_type, target_id, preview_text, dedupe_key)
+    SELECT v_target, auth.uid(), COALESCE(p.username, ''), COALESCE((SELECT display_name FROM public.business_accounts WHERE id = p_business), 'Juzzio'),
+           'system', p_business::text, 'business_invite|' || p_role, 'biz_invite_' || p_business::text || '_' || v_target::text || '_' || p_role
+    FROM public.profiles p WHERE p.id = auth.uid()
+    ON CONFLICT (recipient_id, dedupe_key) DO NOTHING;
+    RETURN jsonb_build_object('user_id', v_target, 'role', p_role, 'status', 'invited');
+END $$;
+REVOKE ALL ON FUNCTION public.business_invite_member(UUID, TEXT, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.business_invite_member(UUID, TEXT, TEXT) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.business_respond_invite(p_business UUID, p_accept BOOLEAN)
+RETURNS TEXT
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+    v_new TEXT := CASE WHEN p_accept THEN 'active' ELSE 'declined' END;
+BEGIN
+    UPDATE public.business_members SET status = v_new, updated_at = NOW()
+     WHERE business_id = p_business AND user_id = auth.uid() AND status = 'invited';
+    IF NOT FOUND THEN RAISE EXCEPTION 'invite_not_found'; END IF;
+    RETURN v_new;
+END $$;
+REVOKE ALL ON FUNCTION public.business_respond_invite(UUID, BOOLEAN) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.business_respond_invite(UUID, BOOLEAN) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.business_set_member(p_business UUID, p_user UUID, p_role TEXT, p_remove BOOLEAN DEFAULT false)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+    v_my TEXT := public.juzzio_business_role(p_business);
+    v_their TEXT;
+BEGIN
+    IF NOT public.juzzio_business_can(p_business, 'team.manage') THEN RAISE EXCEPTION 'not_allowed'; END IF;
+    SELECT role INTO v_their FROM public.business_members WHERE business_id = p_business AND user_id = p_user;
+    IF v_their IS NULL THEN RAISE EXCEPTION 'not_a_member'; END IF;
+    -- sahip değiştirilemez; admin yalnız sahip tarafından yönetilir
+    IF v_their = 'owner' OR ((v_their = 'admin' OR p_role = 'admin') AND v_my <> 'owner') THEN RAISE EXCEPTION 'not_allowed'; END IF;
+    IF p_remove THEN
+        UPDATE public.business_members SET status = 'removed', updated_at = NOW() WHERE business_id = p_business AND user_id = p_user;
+        -- açık atamalar sahibine döner (veri silinmez)
+        UPDATE public.business_conversations SET assignee_id = NULL WHERE business_id = p_business AND assignee_id = p_user;
+    ELSE
+        IF p_role NOT IN ('admin', 'manager', 'support_agent', 'content_manager', 'moderator', 'analyst') THEN RAISE EXCEPTION 'invalid_role'; END IF;
+        UPDATE public.business_members SET role = p_role, updated_at = NOW() WHERE business_id = p_business AND user_id = p_user;
+    END IF;
+    INSERT INTO public.business_audit_log (business_id, actor_id, action, target, details)
+    VALUES (p_business, auth.uid(), CASE WHEN p_remove THEN 'member_remove' ELSE 'member_role' END, p_user::text,
+            jsonb_build_object('from', v_their, 'to', CASE WHEN p_remove THEN 'removed' ELSE p_role END));
+    RETURN jsonb_build_object('user_id', p_user, 'role', CASE WHEN p_remove THEN v_their ELSE p_role END, 'removed', p_remove);
+END $$;
+REVOKE ALL ON FUNCTION public.business_set_member(UUID, UUID, TEXT, BOOLEAN) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.business_set_member(UUID, UUID, TEXT, BOOLEAN) TO authenticated;
+
+-- İşletme denetim kaydı (yalnız ekleme; okuma: sahip/admin)
+CREATE TABLE IF NOT EXISTS public.business_audit_log (
+    id BIGSERIAL PRIMARY KEY,
+    business_id UUID NOT NULL REFERENCES public.business_accounts(id) ON DELETE CASCADE,
+    actor_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    action TEXT NOT NULL,
+    target TEXT NOT NULL DEFAULT '',
+    details JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+ALTER TABLE public.business_audit_log ENABLE ROW LEVEL SECURITY;
+REVOKE INSERT, UPDATE, DELETE ON public.business_audit_log FROM anon, authenticated;
+GRANT SELECT ON public.business_audit_log TO authenticated;
+DROP POLICY IF EXISTS business_audit_log_read ON public.business_audit_log;
+CREATE POLICY business_audit_log_read ON public.business_audit_log FOR SELECT TO authenticated
+    USING (public.juzzio_business_can(business_id, 'team.manage'));
+
+-- Personel: başvuru/hesap durumu (red, askıya alma, geri açma) — denetimli
+CREATE OR REPLACE FUNCTION public.admin_business_set_status(p_token TEXT, p_business UUID, p_status TEXT, p_reason TEXT)
+RETURNS TEXT
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+    PERFORM public._staff_require(p_token, 'business.manage');
+    IF LENGTH(BTRIM(COALESCE(p_reason, ''))) < 3 THEN RAISE EXCEPTION 'reason_required'; END IF;
+    PERFORM public.juzzio_business_set_status(p_business, p_status, 'staff', p_reason);
+    INSERT INTO public.admin_audit_log (admin_id, action, target, details)
+    VALUES (auth.uid(), 'business_status', p_business::text, jsonb_build_object('status', p_status, 'reason', p_reason));
+    RETURN p_status;
+END $$;
+REVOKE ALL ON FUNCTION public.admin_business_set_status(TEXT, UUID, TEXT, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_business_set_status(TEXT, UUID, TEXT, TEXT) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.admin_list_business_accounts(p_token TEXT, p_status TEXT DEFAULT NULL, p_limit INTEGER DEFAULT 100)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+    PERFORM public._staff_require(p_token, 'business.read');
+    RETURN COALESCE((SELECT jsonb_agg(jsonb_build_object('id', b.id, 'status', b.status, 'profile_type', b.profile_type,
+                                                         'display_name', b.display_name, 'is_verified', b.is_verified,
+                                                         'created_at', b.created_at, 'updated_at', b.updated_at) ORDER BY b.updated_at DESC)
+                     FROM (SELECT * FROM public.business_accounts WHERE status <> 'personal' AND (p_status IS NULL OR status = p_status)
+                           ORDER BY updated_at DESC LIMIT LEAST(GREATEST(COALESCE(p_limit, 100), 1), 500)) b), '[]'::jsonb);
+END $$;
+REVOKE ALL ON FUNCTION public.admin_list_business_accounts(TEXT, TEXT, INTEGER) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_list_business_accounts(TEXT, TEXT, INTEGER) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.admin_set_business_verified(p_token TEXT, p_business UUID, p_verified BOOLEAN, p_reason TEXT)
+RETURNS BOOLEAN
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+    PERFORM public._staff_require(p_token, 'business.manage');
+    UPDATE public.business_accounts SET is_verified = COALESCE(p_verified, false), updated_at = NOW() WHERE id = p_business;
+    INSERT INTO public.admin_audit_log (admin_id, action, target, details)
+    VALUES (auth.uid(), 'business_verify', p_business::text, jsonb_build_object('verified', p_verified, 'reason', p_reason));
+    RETURN COALESCE(p_verified, false);
+END $$;
+REVOKE ALL ON FUNCTION public.admin_set_business_verified(TEXT, UUID, BOOLEAN, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_set_business_verified(TEXT, UUID, BOOLEAN, TEXT) TO authenticated;
+
+-- ---------------------------------------------------------------------------
+-- 10.21 Business iş verileri: müşteriler (CRM), notlar, takipler, gelen kutusu kayıtları,
+-- randevular, hizmetler, görevler, otomatik yanıtlar, analiz (son talimat §5).
+-- Kiracı izolasyonu: her satır business_id taşır; RLS = juzzio_business_can(business_id, izin).
+-- E2EE: gelen kutusu yalnız KONUŞMA BİLGİSİ tutar (oda bağlantısı, atama, durum, öncelik,
+-- etiket). Mesaj içeriği kopyalanmaz; kişisel sohbet otomatik eklenmez (sahip açıkça işaretler).
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.business_customers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    business_id UUID NOT NULL REFERENCES public.business_accounts(id) ON DELETE CASCADE,
+    customer_user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    name TEXT NOT NULL CHECK (LENGTH(BTRIM(name)) BETWEEN 1 AND 120),
+    email TEXT NOT NULL DEFAULT '' CHECK (LENGTH(email) <= 200),
+    phone TEXT NOT NULL DEFAULT '' CHECK (LENGTH(phone) <= 40),
+    tags TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+    follow_status TEXT NOT NULL DEFAULT 'none' CHECK (follow_status IN ('none', 'pending', 'done')),
+    last_contact_at TIMESTAMPTZ,
+    created_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (business_id, customer_user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_business_customers_biz ON public.business_customers (business_id, updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS public.business_customer_notes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    business_id UUID NOT NULL REFERENCES public.business_accounts(id) ON DELETE CASCADE,
+    customer_id UUID NOT NULL REFERENCES public.business_customers(id) ON DELETE CASCADE,
+    author_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL DEFAULT auth.uid(),
+    body TEXT NOT NULL CHECK (LENGTH(BTRIM(body)) BETWEEN 1 AND 4000),
+    is_internal BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.business_followups (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    business_id UUID NOT NULL REFERENCES public.business_accounts(id) ON DELETE CASCADE,
+    customer_id UUID NOT NULL REFERENCES public.business_customers(id) ON DELETE CASCADE,
+    title TEXT NOT NULL CHECK (LENGTH(BTRIM(title)) BETWEEN 1 AND 200),
+    description TEXT NOT NULL DEFAULT '' CHECK (LENGTH(description) <= 2000),
+    due_at TIMESTAMPTZ NOT NULL,
+    assignee_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    done_at TIMESTAMPTZ,
+    reminded_at TIMESTAMPTZ,
+    created_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL DEFAULT auth.uid(),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_business_followups_due ON public.business_followups (due_at) WHERE done_at IS NULL AND reminded_at IS NULL;
+
+CREATE TABLE IF NOT EXISTS public.business_conversations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    business_id UUID NOT NULL REFERENCES public.business_accounts(id) ON DELETE CASCADE,
+    room_id UUID NOT NULL REFERENCES public.rooms(id) ON DELETE CASCADE,
+    customer_id UUID REFERENCES public.business_customers(id) ON DELETE SET NULL,
+    assignee_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'pending', 'resolved')),
+    priority TEXT NOT NULL DEFAULT 'normal' CHECK (priority IN ('low', 'normal', 'high', 'urgent')),
+    labels TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+    assign_reason TEXT NOT NULL DEFAULT '' CHECK (LENGTH(assign_reason) <= 300),
+    last_activity_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (business_id, room_id)
+);
+
+CREATE TABLE IF NOT EXISTS public.business_services (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    business_id UUID NOT NULL REFERENCES public.business_accounts(id) ON DELETE CASCADE,
+    name TEXT NOT NULL CHECK (LENGTH(BTRIM(name)) BETWEEN 1 AND 120),
+    description TEXT NOT NULL DEFAULT '' CHECK (LENGTH(description) <= 1000),
+    duration_min INTEGER NOT NULL DEFAULT 30 CHECK (duration_min BETWEEN 5 AND 1440),
+    price_text TEXT NOT NULL DEFAULT '' CHECK (LENGTH(price_text) <= 40),
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.business_appointments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    business_id UUID NOT NULL REFERENCES public.business_accounts(id) ON DELETE CASCADE,
+    customer_id UUID REFERENCES public.business_customers(id) ON DELETE SET NULL,
+    service_id UUID REFERENCES public.business_services(id) ON DELETE SET NULL,
+    starts_at TIMESTAMPTZ NOT NULL,
+    ends_at TIMESTAMPTZ NOT NULL,
+    assignee_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    description TEXT NOT NULL DEFAULT '' CHECK (LENGTH(description) <= 2000),
+    status TEXT NOT NULL DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'completed', 'cancelled', 'no_show')),
+    remind_minutes_before INTEGER NOT NULL DEFAULT 60 CHECK (remind_minutes_before BETWEEN 0 AND 10080),
+    reminded_at TIMESTAMPTZ,
+    created_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL DEFAULT auth.uid(),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT business_appointments_order CHECK (ends_at > starts_at)
+);
+CREATE INDEX IF NOT EXISTS idx_business_appointments_time ON public.business_appointments (business_id, starts_at);
+
+CREATE TABLE IF NOT EXISTS public.business_tasks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    business_id UUID NOT NULL REFERENCES public.business_accounts(id) ON DELETE CASCADE,
+    title TEXT NOT NULL CHECK (LENGTH(BTRIM(title)) BETWEEN 1 AND 200),
+    description TEXT NOT NULL DEFAULT '' CHECK (LENGTH(description) <= 2000),
+    assignee_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    customer_id UUID REFERENCES public.business_customers(id) ON DELETE SET NULL,
+    due_at TIMESTAMPTZ,
+    done_at TIMESTAMPTZ,
+    created_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL DEFAULT auth.uid(),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.business_auto_replies (
+    business_id UUID NOT NULL REFERENCES public.business_accounts(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL CHECK (kind IN ('welcome', 'away')),
+    enabled BOOLEAN NOT NULL DEFAULT false,
+    body TEXT NOT NULL DEFAULT '' CHECK (LENGTH(body) <= 1000),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (business_id, kind)
+);
+CREATE TABLE IF NOT EXISTS public.business_auto_reply_log (
+    id BIGSERIAL PRIMARY KEY,
+    business_id UUID NOT NULL REFERENCES public.business_accounts(id) ON DELETE CASCADE,
+    room_id UUID NOT NULL,
+    customer_user_id UUID NOT NULL,
+    kind TEXT NOT NULL,
+    message_id UUID,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_business_auto_reply_log ON public.business_auto_reply_log (business_id, customer_user_id, created_at DESC);
+
+-- RLS: aynı desen, izin anahtarına göre
+DO $$
+DECLARE
+    t RECORD;
+BEGIN
+    FOR t IN SELECT * FROM (VALUES
+        ('business_customers', 'customers.read', 'customers.write'),
+        ('business_customer_notes', 'customers.read', 'customers.write'),
+        ('business_followups', 'customers.read', 'customers.write'),
+        ('business_conversations', 'inbox.read', 'inbox.assign'),
+        ('business_services', 'appointments.read', 'services.manage'),
+        ('business_appointments', 'appointments.read', 'appointments.write'),
+        ('business_tasks', 'tasks.read', 'tasks.write'),
+        ('business_auto_replies', 'inbox.read', 'automation.manage'),
+        ('business_auto_reply_log', 'inbox.read', 'automation.manage')
+    ) AS v(tbl, rperm, wperm) LOOP
+        EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t.tbl);
+        EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON public.%I TO authenticated', t.tbl);
+        EXECUTE format('REVOKE ALL ON public.%I FROM anon', t.tbl);
+        EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', t.tbl || '_read', t.tbl);
+        EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', t.tbl || '_write', t.tbl);
+        EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', t.tbl || '_update', t.tbl);
+        EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', t.tbl || '_delete', t.tbl);
+        EXECUTE format('CREATE POLICY %I ON public.%I FOR SELECT TO authenticated USING (public.juzzio_business_can(business_id, %L))',
+                       t.tbl || '_read', t.tbl, t.rperm);
+        EXECUTE format('CREATE POLICY %I ON public.%I FOR INSERT TO authenticated WITH CHECK (public.juzzio_business_can(business_id, %L))',
+                       t.tbl || '_write', t.tbl, t.wperm);
+        EXECUTE format('CREATE POLICY %I ON public.%I FOR UPDATE TO authenticated USING (public.juzzio_business_can(business_id, %L)) WITH CHECK (public.juzzio_business_can(business_id, %L))',
+                       t.tbl || '_update', t.tbl, t.wperm, t.wperm);
+        EXECUTE format('CREATE POLICY %I ON public.%I FOR DELETE TO authenticated USING (public.juzzio_business_can(business_id, %L))',
+                       t.tbl || '_delete', t.tbl, t.wperm);
+    END LOOP;
+END $$;
+-- Otomatik yanıt kaydı yalnız sunucu yazar
+REVOKE INSERT, UPDATE, DELETE ON public.business_auto_reply_log FROM authenticated;
+
+-- Tutarlılık: bağlı kayıtlar aynı işletmeye ait olmalı; atanan kişi ekip üyesi olmalı; kişisel
+-- sohbet ancak sahip/üye o odanın katılımcısıysa gelen kutusuna eklenebilir.
+CREATE OR REPLACE FUNCTION public.juzzio_business_row_guard()
+RETURNS TRIGGER
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+    v_cust UUID;
+    v_assignee UUID;
+BEGIN
+    IF TG_OP = 'UPDATE' AND NEW.business_id IS DISTINCT FROM OLD.business_id THEN RAISE EXCEPTION 'not_allowed'; END IF;
+    v_cust := CASE WHEN TG_TABLE_NAME IN ('business_customer_notes', 'business_followups', 'business_conversations', 'business_appointments', 'business_tasks')
+                   THEN (to_jsonb(NEW) ->> 'customer_id')::uuid END;
+    IF v_cust IS NOT NULL AND NOT EXISTS (SELECT 1 FROM public.business_customers c WHERE c.id = v_cust AND c.business_id = NEW.business_id) THEN
+        RAISE EXCEPTION 'customer_not_in_business';
+    END IF;
+    v_assignee := CASE WHEN TG_TABLE_NAME IN ('business_followups', 'business_conversations', 'business_appointments', 'business_tasks')
+                       THEN (to_jsonb(NEW) ->> 'assignee_id')::uuid END;
+    IF v_assignee IS NOT NULL AND public.juzzio_business_role(NEW.business_id, v_assignee) IS NULL THEN
+        RAISE EXCEPTION 'assignee_not_member';
+    END IF;
+    IF TG_TABLE_NAME = 'business_appointments' AND (to_jsonb(NEW) ->> 'service_id') IS NOT NULL
+       AND NOT EXISTS (SELECT 1 FROM public.business_services s WHERE s.id = (to_jsonb(NEW) ->> 'service_id')::uuid AND s.business_id = NEW.business_id) THEN
+        RAISE EXCEPTION 'service_not_in_business';
+    END IF;
+    IF TG_TABLE_NAME = 'business_conversations' AND TG_OP = 'INSERT'
+       AND NOT public.is_room_member((to_jsonb(NEW) ->> 'room_id')::uuid, auth.uid()) THEN
+        RAISE EXCEPTION 'not_a_room_member';
+    END IF;
+    IF TG_TABLE_NAME = 'business_customers' AND TG_OP = 'UPDATE' THEN
+        NEW.updated_at := NOW();
+    END IF;
+    RETURN NEW;
+END $$;
+DO $$
+DECLARE
+    t TEXT;
+BEGIN
+    FOREACH t IN ARRAY ARRAY['business_customers', 'business_customer_notes', 'business_followups', 'business_conversations',
+                             'business_services', 'business_appointments', 'business_tasks'] LOOP
+        EXECUTE format('DROP TRIGGER IF EXISTS trg_juzzio_business_guard ON public.%I', t);
+        EXECUTE format('CREATE TRIGGER trg_juzzio_business_guard BEFORE INSERT OR UPDATE ON public.%I FOR EACH ROW EXECUTE FUNCTION public.juzzio_business_row_guard()', t);
+    END LOOP;
+END $$;
+
+-- Sorumlu atama (Gelen Kutusu > Sorumlu Ata): yetki + denetim kaydı + atanan kişiye bildirim
+CREATE OR REPLACE FUNCTION public.business_assign_conversation(p_conversation UUID, p_assignee UUID, p_reason TEXT DEFAULT '')
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+    v_biz UUID;
+BEGIN
+    SELECT business_id INTO v_biz FROM public.business_conversations WHERE id = p_conversation FOR UPDATE;
+    IF v_biz IS NULL OR NOT public.juzzio_business_can(v_biz, 'inbox.assign') THEN RAISE EXCEPTION 'not_allowed'; END IF;
+    IF p_assignee IS NOT NULL AND public.juzzio_business_role(v_biz, p_assignee) IS NULL THEN RAISE EXCEPTION 'assignee_not_member'; END IF;
+    UPDATE public.business_conversations SET assignee_id = p_assignee, assign_reason = LEFT(COALESCE(p_reason, ''), 300), last_activity_at = NOW()
+     WHERE id = p_conversation;
+    INSERT INTO public.business_audit_log (business_id, actor_id, action, target, details)
+    VALUES (v_biz, auth.uid(), 'assign', p_conversation::text, jsonb_build_object('assignee', p_assignee, 'reason', p_reason));
+    IF p_assignee IS NOT NULL AND p_assignee <> auth.uid() THEN
+        INSERT INTO public.notifications (recipient_id, actor_id, actor_username, actor_display_name, event_type, target_id, target_secondary_id, preview_text, dedupe_key)
+        SELECT p_assignee, auth.uid(), COALESCE(p.username, ''), COALESCE(NULLIF(p.display_name, ''), p.username, 'Juzzio'),
+               'system', v_biz::text, p_conversation::text, 'business_assign|', 'biz_assign_' || p_conversation::text || '_' || extract(epoch FROM NOW())::bigint
+        FROM public.profiles p WHERE p.id = auth.uid()
+        ON CONFLICT (recipient_id, dedupe_key) DO NOTHING;
+    END IF;
+    RETURN jsonb_build_object('id', p_conversation, 'assignee_id', p_assignee);
+END $$;
+REVOKE ALL ON FUNCTION public.business_assign_conversation(UUID, UUID, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.business_assign_conversation(UUID, UUID, TEXT) TO authenticated;
+
+-- Genel Bakış / Analiz: yalnız GERÇEK sayımlar (sahte veri yok; veri yoksa sıfır)
+CREATE OR REPLACE FUNCTION public.business_overview(p_business UUID DEFAULT NULL, p_days INTEGER DEFAULT 30)
+RETURNS JSONB
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+    v_biz UUID := COALESCE(p_business, auth.uid());
+    v_days INTEGER := LEAST(GREATEST(COALESCE(p_days, 30), 1), 365);
+    v_rooms UUID[];
+    v_out JSONB;
+BEGIN
+    IF NOT public.juzzio_business_can(v_biz, 'analytics.read') AND NOT public.juzzio_business_can(v_biz, 'inbox.read') THEN
+        RAISE EXCEPTION 'not_allowed';
+    END IF;
+    SELECT COALESCE(array_agg(room_id), ARRAY[]::UUID[]) INTO v_rooms FROM public.business_conversations WHERE business_id = v_biz;
+    WITH m AS (
+        SELECT room_id, sender_id, created_at FROM public.messages
+        WHERE room_id = ANY (v_rooms) AND NOT is_deleted AND message_type NOT IN ('system', 'call')
+          AND created_at > NOW() - make_interval(days => v_days * 2)
+    ),
+    staff AS (
+        SELECT user_id FROM public.business_members WHERE business_id = v_biz AND status = 'active'
+        UNION SELECT v_biz
+    ),
+    inbound AS (SELECT * FROM m WHERE sender_id NOT IN (SELECT user_id FROM staff)),
+    replies AS (
+        -- müşteri mesajından sonraki ilk ekip yanıtına kadar geçen süre (dakika)
+        SELECT EXTRACT(EPOCH FROM (
+            SELECT min(r.created_at) FROM m r WHERE r.room_id = i.room_id AND r.created_at > i.created_at
+              AND r.sender_id IN (SELECT user_id FROM staff)) - i.created_at) / 60.0 AS mins, i.created_at
+        FROM inbound i
+    )
+    SELECT jsonb_build_object(
+        'period_days', v_days,
+        'messages_today', (SELECT count(*) FROM m WHERE created_at >= date_trunc('day', NOW())),
+        'messages_period', (SELECT count(*) FROM m WHERE created_at > NOW() - make_interval(days => v_days)),
+        'messages_prev_period', (SELECT count(*) FROM m WHERE created_at <= NOW() - make_interval(days => v_days)),
+        'awaiting_reply', (SELECT count(*) FROM public.business_conversations c WHERE c.business_id = v_biz AND c.status <> 'resolved'
+                           AND (SELECT sender_id FROM m WHERE m.room_id = c.room_id ORDER BY created_at DESC LIMIT 1) NOT IN (SELECT user_id FROM staff)),
+        'open_conversations', (SELECT count(*) FROM public.business_conversations WHERE business_id = v_biz AND status <> 'resolved'),
+        'resolved_period', (SELECT count(*) FROM public.business_conversations WHERE business_id = v_biz AND status = 'resolved'
+                            AND last_activity_at > NOW() - make_interval(days => v_days)),
+        'avg_first_reply_min', (SELECT round(avg(mins)::numeric, 1) FROM replies WHERE mins IS NOT NULL AND created_at > NOW() - make_interval(days => v_days)),
+        'customers', (SELECT count(*) FROM public.business_customers WHERE business_id = v_biz),
+        'customers_new_period', (SELECT count(*) FROM public.business_customers WHERE business_id = v_biz AND created_at > NOW() - make_interval(days => v_days)),
+        'appointments_upcoming', (SELECT count(*) FROM public.business_appointments WHERE business_id = v_biz AND status = 'scheduled' AND starts_at > NOW()),
+        'appointments_period', (SELECT count(*) FROM public.business_appointments WHERE business_id = v_biz AND starts_at > NOW() - make_interval(days => v_days) AND starts_at <= NOW()),
+        'tasks_open', (SELECT count(*) FROM public.business_tasks WHERE business_id = v_biz AND done_at IS NULL),
+        'tasks_done_period', (SELECT count(*) FROM public.business_tasks WHERE business_id = v_biz AND done_at > NOW() - make_interval(days => v_days)),
+        'followups_due', (SELECT count(*) FROM public.business_followups WHERE business_id = v_biz AND done_at IS NULL AND due_at <= NOW() + INTERVAL '1 day')
+    ) INTO v_out;
+    RETURN v_out;
+END $$;
+REVOKE ALL ON FUNCTION public.business_overview(UUID, INTEGER) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.business_overview(UUID, INTEGER) TO authenticated;
+
+-- Takip ve randevu hatırlatmaları (mevcut hatırlatma işçisine bağlanır; ikinci zamanlayıcı yok)
+CREATE OR REPLACE FUNCTION public.juzzio_fire_business_reminders(p_limit INTEGER DEFAULT 500)
+RETURNS INTEGER
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+    r RECORD;
+    v_n INTEGER := 0;
+BEGIN
+    FOR r IN
+        SELECT f.id, f.business_id, COALESCE(f.assignee_id, f.created_by, f.business_id) AS who, f.title
+        FROM public.business_followups f
+        WHERE f.done_at IS NULL AND f.reminded_at IS NULL AND f.due_at <= NOW()
+        ORDER BY f.due_at LIMIT LEAST(GREATEST(COALESCE(p_limit, 500), 1), 2000)
+        FOR UPDATE SKIP LOCKED
+    LOOP
+        UPDATE public.business_followups SET reminded_at = NOW() WHERE id = r.id;
+        CONTINUE WHEN public.juzzio_business_role(r.business_id, r.who) IS NULL;
+        INSERT INTO public.notifications (recipient_id, actor_id, actor_username, actor_display_name, event_type, target_id, target_secondary_id, preview_text, dedupe_key)
+        VALUES (r.who, NULL, '', 'Juzzio Business', 'reminder', r.business_id::text, r.id::text, 'followup|' || LEFT(r.title, 120), 'biz_followup_' || r.id::text)
+        ON CONFLICT (recipient_id, dedupe_key) DO NOTHING;
+        v_n := v_n + 1;
+    END LOOP;
+    FOR r IN
+        SELECT a.id, a.business_id, COALESCE(a.assignee_id, a.created_by, a.business_id) AS who, a.starts_at
+        FROM public.business_appointments a
+        WHERE a.status = 'scheduled' AND a.reminded_at IS NULL AND a.starts_at > NOW()
+          AND a.starts_at - make_interval(mins => a.remind_minutes_before) <= NOW()
+        ORDER BY a.starts_at LIMIT LEAST(GREATEST(COALESCE(p_limit, 500), 1), 2000)
+        FOR UPDATE SKIP LOCKED
+    LOOP
+        UPDATE public.business_appointments SET reminded_at = NOW() WHERE id = r.id;
+        CONTINUE WHEN public.juzzio_business_role(r.business_id, r.who) IS NULL;
+        INSERT INTO public.notifications (recipient_id, actor_id, actor_username, actor_display_name, event_type, target_id, target_secondary_id, preview_text, dedupe_key)
+        VALUES (r.who, NULL, '', 'Juzzio Business', 'reminder', r.business_id::text, r.id::text,
+                'appointment|' || to_char(r.starts_at AT TIME ZONE 'Europe/Istanbul', 'DD.MM HH24:MI'), 'biz_appt_' || r.id::text)
+        ON CONFLICT (recipient_id, dedupe_key) DO NOTHING;
+        v_n := v_n + 1;
+    END LOOP;
+    RETURN v_n;
+END $$;
+REVOKE ALL ON FUNCTION public.juzzio_fire_business_reminders(INTEGER) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.juzzio_fire_business_reminders(INTEGER) TO service_role;
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
+        BEGIN
+            PERFORM cron.unschedule(jobid) FROM cron.job WHERE jobname = 'juzzio_fire_business_reminders';
+            PERFORM cron.schedule('juzzio_fire_business_reminders', '* * * * *', 'SELECT public.juzzio_fire_business_reminders()');
+        EXCEPTION WHEN OTHERS THEN
+            RAISE NOTICE 'pg_cron görevi (juzzio_fire_business_reminders) oluşturulamadı: %', SQLERRM;
+        END;
+    END IF;
+END $$;
+
+-- Otomatik yanıt (Gelen Kutusu > Ayarlar > Otomatik Yanıtlar): yalnız işletmenin GELEN KUTUSUNA
+-- eklenmiş konuşmalarda, müşteri mesajında; karşılama (ilk kez) veya mesai dışı; kişi başına 12 saatte
+-- en fazla 1 yanıt (döngü/spam koruması). Yanıt işletmenin kendi hazır metnidir ve açıkça
+-- işaretlenir (metadata.security = 'business_auto_reply'); E2EE sohbetlerde şifresiz olduğu
+-- kullanıcıya gösterilir. Kayıt: business_auto_reply_log.
+CREATE OR REPLACE FUNCTION public.juzzio_business_in_hours(p_hours JSONB, p_tz TEXT, p_at TIMESTAMPTZ)
+RETURNS BOOLEAN
+LANGUAGE plpgsql STABLE AS $$
+DECLARE
+    v_local TIMESTAMP := p_at AT TIME ZONE COALESCE(NULLIF(p_tz, ''), 'Europe/Istanbul');
+    v_day TEXT := lower(to_char(v_local, 'Dy'));
+    v_span JSONB := p_hours -> v_day;
+    v_open TIME;
+    v_close TIME;
+BEGIN
+    IF p_hours IS NULL OR p_hours = '{}'::jsonb THEN RETURN true; END IF; -- saat tanımlı değil → mesai içi say
+    IF v_span IS NULL OR jsonb_typeof(v_span) <> 'array' OR jsonb_array_length(v_span) <> 2 THEN RETURN false; END IF;
+    v_open := (v_span ->> 0)::time;
+    v_close := (v_span ->> 1)::time;
+    RETURN v_local::time >= v_open AND v_local::time < v_close;
+EXCEPTION WHEN OTHERS THEN
+    RETURN true;
+END $$;
+
+CREATE OR REPLACE FUNCTION public.juzzio_business_auto_reply()
+RETURNS TRIGGER
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+    c RECORD;
+    v_kind TEXT;
+    v_body TEXT;
+    v_msg UUID;
+BEGIN
+    IF NEW.message_type IN ('system', 'call') OR COALESCE(NEW.metadata ->> 'security', '') = 'business_auto_reply' THEN RETURN NEW; END IF;
+    FOR c IN
+        SELECT bc.business_id, b.working_hours, b.timezone
+        FROM public.business_conversations bc JOIN public.business_accounts b ON b.id = bc.business_id
+        WHERE bc.room_id = NEW.room_id AND b.status = 'business_active'
+          AND NEW.sender_id <> bc.business_id
+          AND public.juzzio_business_role(bc.business_id, NEW.sender_id) IS NULL
+    LOOP
+        UPDATE public.business_conversations SET last_activity_at = NOW(), status = CASE WHEN status = 'resolved' THEN 'open' ELSE status END
+         WHERE business_id = c.business_id AND room_id = NEW.room_id;
+        CONTINUE WHEN EXISTS (SELECT 1 FROM public.business_auto_reply_log l WHERE l.business_id = c.business_id
+                                AND l.customer_user_id = NEW.sender_id AND l.created_at > NOW() - INTERVAL '12 hours');
+        v_kind := CASE
+            WHEN NOT EXISTS (SELECT 1 FROM public.business_auto_reply_log l WHERE l.business_id = c.business_id AND l.customer_user_id = NEW.sender_id)
+                 AND EXISTS (SELECT 1 FROM public.business_auto_replies r WHERE r.business_id = c.business_id AND r.kind = 'welcome' AND r.enabled AND BTRIM(r.body) <> '')
+                THEN 'welcome'
+            WHEN NOT public.juzzio_business_in_hours(c.working_hours, c.timezone, NOW())
+                 AND EXISTS (SELECT 1 FROM public.business_auto_replies r WHERE r.business_id = c.business_id AND r.kind = 'away' AND r.enabled AND BTRIM(r.body) <> '')
+                THEN 'away'
+        END;
+        CONTINUE WHEN v_kind IS NULL;
+        SELECT body INTO v_body FROM public.business_auto_replies WHERE business_id = c.business_id AND kind = v_kind;
+        INSERT INTO public.messages (room_id, sender_id, message_type, original_text, metadata)
+        VALUES (NEW.room_id, c.business_id, 'text', v_body, jsonb_build_object('security', 'business_auto_reply', 'kind', v_kind))
+        RETURNING id INTO v_msg;
+        INSERT INTO public.business_auto_reply_log (business_id, room_id, customer_user_id, kind, message_id)
+        VALUES (c.business_id, NEW.room_id, NEW.sender_id, v_kind, v_msg);
+    END LOOP;
+    RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+    RETURN NEW; -- otomatik yanıt hatası müşterinin mesajını asla engellemez
+END $$;
+DROP TRIGGER IF EXISTS trg_juzzio_business_auto_reply ON public.messages;
+CREATE TRIGGER trg_juzzio_business_auto_reply AFTER INSERT ON public.messages
+    FOR EACH ROW EXECUTE FUNCTION public.juzzio_business_auto_reply();

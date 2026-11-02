@@ -1417,3 +1417,209 @@ UPDATE messages SET original_text = 'sistem' WHERE id = '8e8e8e8e-0000-0000-0000
 SELECT pg_temp.check('servis güncellemesi serbest', (SELECT original_text FROM messages WHERE id = '8e8e8e8e-0000-0000-0000-0000000000a2') = 'sistem');
 DELETE FROM messages WHERE id::text LIKE '8e8e8e8e-%';
 SELECT 'TÜM v0.9.0 MESAJ DÜZENLEME GEÇMİŞİ TESTLERİ GEÇTİ';
+-- =============================================================================
+-- v0.9.0 BUSINESS: durum makinesi, onaylar, kurulum, kiracı izolasyonu, ekip RBAC, CRM,
+-- atama, otomatik yanıt, gerçek analiz, Personal'a dönüş (veri silinmez), personel yetkisi
+-- =============================================================================
+RESET ROLE;
+DELETE FROM staff_roles WHERE user_id IN (:'A', :'B', :'C');
+SELECT pg_temp.check('14 taslak hukuki belge, hepsi DRAFT etiketli',
+  (SELECT count(*) FROM legal_documents WHERE doc_key LIKE 'business_%') = 14
+  AND NOT EXISTS (SELECT 1 FROM legal_documents WHERE doc_key LIKE 'business_%' AND review_status <> 'DRAFT - LEGAL REVIEW REQUIRED')
+  AND NOT EXISTS (SELECT 1 FROM legal_documents WHERE doc_key LIKE 'business_%' AND (policy_hash = '' OR body NOT LIKE '%DRAFT - LEGAL REVIEW REQUIRED%')));
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+-- İstemci durumu doğrudan yazamaz
+DO $$ BEGIN
+  INSERT INTO business_accounts (id, status) VALUES ('aaaaaaaa-0000-0000-0000-000000000001', 'business_active');
+  RAISE EXCEPTION 'FAIL istemci business_active yazdı';
+EXCEPTION WHEN insufficient_privilege THEN NULL; END $$;
+DO $$ BEGIN
+  PERFORM juzzio_business_set_status('aaaaaaaa-0000-0000-0000-000000000001', 'business_active', 'system', 'x');
+  RAISE EXCEPTION 'FAIL istemci iç durum fonksiyonunu çağırdı';
+EXCEPTION WHEN insufficient_privilege THEN NULL; END $$;
+SELECT pg_temp.check('başvuru → terms_pending',
+  (business_start_application('business', 'Ali Kuaför', 'biz_req_0001')->>'status') = 'business_terms_pending');
+SELECT pg_temp.check('aynı başvuru tekrarı çift kayıt üretmez',
+  (business_start_application('business', 'Başka Ad', 'biz_req_0002')->>'status') = 'business_terms_pending'
+  AND (SELECT display_name FROM business_accounts WHERE id = :'A') = 'Ali Kuaför');
+SELECT pg_temp.check('zorunlu onaylar eksik listelenir (8)', jsonb_array_length(business_get_state()->'missing_consents') = 8);
+DO $$ BEGIN
+  PERFORM business_submit_consents();
+  RAISE EXCEPTION 'FAIL onaysız başvuru ilerledi';
+EXCEPTION WHEN raise_exception THEN IF SQLERRM NOT LIKE 'consents_missing%' THEN RAISE; END IF; END $$;
+DO $$ BEGIN
+  PERFORM business_run_setup_step('profile');
+  RAISE EXCEPTION 'FAIL hazırlık onaysız başladı';
+EXCEPTION WHEN raise_exception THEN IF SQLERRM NOT LIKE '%not_preparing%' THEN RAISE; END IF; END $$;
+-- Belgeler önceden işaretli DEĞİL
+SELECT pg_temp.check('hiçbir belge önceden onaylı değil',
+  NOT EXISTS (SELECT 1 FROM jsonb_array_elements(get_business_legal_documents('tr')) e WHERE (e->>'accepted')::boolean));
+SELECT record_consent(d, true, 'tr', 'juzzio 0.9.0') FROM (VALUES ('business_terms_of_use'), ('business_service_terms'),
+  ('business_kvkk_notice'), ('business_data_processing_info'), ('business_content_rights'),
+  ('business_customer_comm_duties'), ('business_abuse_policy'), ('business_closure_retention')) v(d);
+-- Geri alma → yeniden eksik; tekrar kabul
+SELECT record_consent('business_kvkk_notice', false);
+SELECT pg_temp.check('geri alınan onay eksik sayılır', business_get_state()->'missing_consents' ? 'business_kvkk_notice');
+SELECT record_consent('business_kvkk_notice', true);
+SELECT pg_temp.check('onay kaydı değiştirilemez: geri alma ayrı satır', (SELECT count(*) FROM user_consents WHERE doc_key = 'business_kvkk_notice') = 3);
+DO $$ BEGIN
+  UPDATE user_consents SET action = 'accept';
+  IF FOUND THEN RAISE EXCEPTION 'FAIL onay kaydı değişti'; END IF;
+EXCEPTION WHEN insufficient_privilege THEN NULL; END $$;
+SELECT pg_temp.check('isteğe bağlı pazarlama izni zorunlu değil',
+  NOT (business_get_state()->'missing_consents' ? 'business_commercial_messages'));
+SELECT pg_temp.check('onaylar tamam → preparing', (business_submit_consents()->>'status') = 'business_preparing');
+-- Kurulum: sıra zorunlu, idempotent, kaldığı yerden devam
+DO $$ BEGIN
+  PERFORM business_run_setup_step('security');
+  RAISE EXCEPTION 'FAIL adım atlandı';
+EXCEPTION WHEN raise_exception THEN IF SQLERRM NOT LIKE 'previous_step_missing%' THEN RAISE; END IF; END $$;
+SELECT business_run_setup_step('profile');
+SELECT business_run_setup_step('profile');
+SELECT business_run_setup_step('workspace');
+SELECT pg_temp.check('yarıda kalan kurulum durumdan okunur', jsonb_array_length(business_get_state()->'steps') = 2
+  AND (business_get_state()->>'status') = 'business_preparing');
+SELECT business_run_setup_step('security');
+SELECT business_run_setup_step('modules');
+SELECT pg_temp.check('final → business_active', (business_run_setup_step('final')->>'status') = 'business_active');
+SELECT pg_temp.check('durum geçmişi kayıtlı', (SELECT count(*) FROM business_status_events WHERE business_id = :'A') = 4);
+SELECT pg_temp.check('görünüm business', business_set_view('business') = 'business');
+-- Kiracı izolasyonu: B, A'nın verisini göremez/yazamaz
+INSERT INTO business_customers (business_id, name, phone, tags) VALUES (:'A', 'Müşteri Bir', '555', ARRAY['vip']);
+SELECT id AS cust FROM business_customers WHERE name = 'Müşteri Bir' \gset
+INSERT INTO business_customer_notes (business_id, customer_id, body) VALUES (:'A', :'cust', 'sadece ekip görür');
+SELECT pg_temp.as_user(:'B');
+SELECT pg_temp.check('başka kullanıcı müşteri göremez', NOT EXISTS (SELECT 1 FROM business_customers));
+DO $$ BEGIN
+  INSERT INTO business_customers (business_id, name) VALUES ('aaaaaaaa-0000-0000-0000-000000000001', 'sızma');
+  RAISE EXCEPTION 'FAIL kiracı dışı yazma';
+EXCEPTION WHEN insufficient_privilege THEN NULL; END $$;
+DO $$ BEGIN
+  PERFORM business_overview('aaaaaaaa-0000-0000-0000-000000000001', 30);
+  RAISE EXCEPTION 'FAIL kiracı dışı analiz';
+EXCEPTION WHEN raise_exception THEN IF SQLERRM NOT LIKE '%not_allowed%' THEN RAISE; END IF; END $$;
+SELECT pg_temp.check('aktif işletme profili herkese görünür', (SELECT display_name FROM business_accounts WHERE id = :'A') = 'Ali Kuaför');
+-- Ekip: A, B'yi destek görevlisi olarak davet eder; B kabul eder
+SELECT pg_temp.as_user(:'A');
+SELECT business_invite_member(:'A', 'userb', 'support_agent');
+SELECT pg_temp.as_user(:'B');
+SELECT pg_temp.check('davet bekleyen üyelik görünür', (business_get_state()->'memberships'->0->>'status') = 'invited');
+SELECT pg_temp.check('davetli henüz yetkisiz', NOT EXISTS (SELECT 1 FROM business_customers));
+SELECT business_respond_invite(:'A', true);
+SELECT pg_temp.check('destek: müşteri okur', EXISTS (SELECT 1 FROM business_customers WHERE id = :'cust'));
+INSERT INTO business_customer_notes (business_id, customer_id, body) VALUES (:'A', :'cust', 'destek notu');
+DO $$ BEGIN
+  PERFORM business_invite_member('aaaaaaaa-0000-0000-0000-000000000001', 'userc', 'analyst');
+  RAISE EXCEPTION 'FAIL destek ekip yönetti';
+EXCEPTION WHEN raise_exception THEN IF SQLERRM NOT LIKE '%not_allowed%' THEN RAISE; END IF; END $$;
+DO $$ BEGIN
+  INSERT INTO business_auto_replies (business_id, kind, enabled, body) VALUES ('aaaaaaaa-0000-0000-0000-000000000001', 'welcome', true, 'x');
+  RAISE EXCEPTION 'FAIL destek otomasyon değiştirdi';
+EXCEPTION WHEN insufficient_privilege THEN NULL; END $$;
+SELECT pg_temp.check('destek denetim kaydını göremez', NOT EXISTS (SELECT 1 FROM business_audit_log));
+-- Gelen kutusu: yalnız oda katılımcısı ekleyebilir; atama yetkisi
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub', '', false);
+INSERT INTO rooms (id, room_code, livekit_room_name, is_group) VALUES ('b1b1b1b1-0000-0000-0000-0000000000c1', 'biz_dm_ac', 'biz_dm_ac', false);
+INSERT INTO room_participants (room_id, user_id) VALUES ('b1b1b1b1-0000-0000-0000-0000000000c1', :'A'), ('b1b1b1b1-0000-0000-0000-0000000000c1', :'C');
+\set broom b1b1b1b1-0000-0000-0000-0000000000c1
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+INSERT INTO business_customers (business_id, customer_user_id, name) VALUES (:'A', :'C', 'C müşteri');
+SELECT id AS ccust FROM business_customers WHERE customer_user_id = :'C' \gset
+INSERT INTO business_conversations (business_id, room_id, customer_id) VALUES (:'A', :'broom', :'ccust');
+SELECT id AS bconv FROM business_conversations WHERE room_id = :'broom' \gset
+SELECT set_config('juzzio.bconv', :'bconv', false);
+SELECT business_assign_conversation(:'bconv', :'B', 'vardiya');
+SELECT pg_temp.check('atama + denetim + bildirim',
+  (SELECT assignee_id FROM business_conversations WHERE id = :'bconv') = :'B'
+  AND EXISTS (SELECT 1 FROM business_audit_log WHERE action = 'assign'));
+DO $$ BEGIN
+  PERFORM business_assign_conversation(current_setting('juzzio.bconv')::uuid, 'cccccccc-0000-0000-0000-000000000003', '');
+  RAISE EXCEPTION 'FAIL ekip dışına atama';
+EXCEPTION WHEN raise_exception THEN IF SQLERRM NOT LIKE '%assignee_not_member%' THEN RAISE; END IF;
+     WHEN undefined_object THEN NULL; END $$;
+-- Otomatik karşılama: ilk müşteri mesajında 1 kez, işaretli; 12 saat içinde tekrar yok
+INSERT INTO business_auto_replies (business_id, kind, enabled, body) VALUES (:'A', 'welcome', true, 'Merhaba, en kısa sürede dönüş yapacağız.');
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub', '', false);
+INSERT INTO messages (room_id, sender_id, original_text) VALUES (:'broom', :'C', 'fiyat nedir?');
+INSERT INTO messages (room_id, sender_id, original_text) VALUES (:'broom', :'C', 'cevap?');
+SELECT pg_temp.check('karşılama 1 kez, işaretli',
+  (SELECT count(*) FROM messages WHERE room_id = :'broom' AND metadata->>'security' = 'business_auto_reply') = 1
+  AND (SELECT count(*) FROM business_auto_reply_log WHERE business_id = :'A') = 1);
+INSERT INTO messages (room_id, sender_id, original_text) VALUES (:'broom', :'A', 'buyurun');
+SELECT pg_temp.check('işletmenin kendi mesajı otomatik yanıt tetiklemez',
+  (SELECT count(*) FROM business_auto_reply_log WHERE business_id = :'A') = 1);
+-- Gerçek analiz
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+SELECT pg_temp.check('analiz gerçek sayımlar',
+  (business_overview(NULL, 30)->>'customers')::int = 2
+  AND (business_overview(NULL, 30)->>'messages_today')::int = 4
+  AND (business_overview(NULL, 30)->>'open_conversations')::int = 1
+  AND (business_overview(NULL, 30)->>'awaiting_reply')::int = 0);
+-- Randevu: hizmet başka işletmeden olamaz; bitiş başlangıçtan sonra
+INSERT INTO business_services (business_id, name, duration_min) VALUES (:'A', 'Saç kesimi', 45);
+INSERT INTO business_appointments (business_id, customer_id, service_id, starts_at, ends_at, assignee_id, remind_minutes_before)
+SELECT :'A', :'ccust', id, NOW() + INTERVAL '30 minutes', NOW() + INTERVAL '75 minutes', :'B', 60 FROM business_services WHERE name = 'Saç kesimi';
+INSERT INTO business_followups (business_id, customer_id, title, due_at, assignee_id) VALUES (:'A', :'cust', 'Teklif gönder', NOW() - INTERVAL '1 minute', :'B');
+INSERT INTO business_tasks (business_id, title, assignee_id) VALUES (:'A', 'Stok say', :'B');
+DO $$ BEGIN
+  INSERT INTO business_appointments (business_id, starts_at, ends_at) VALUES ('aaaaaaaa-0000-0000-0000-000000000001', NOW(), NOW() - INTERVAL '1 hour');
+  RAISE EXCEPTION 'FAIL ters randevu';
+EXCEPTION WHEN check_violation THEN NULL; END $$;
+RESET ROLE;
+SELECT juzzio_fire_business_reminders(100) AS fired \gset
+SELECT pg_temp.check('takip + randevu hatırlatması atanan kişiye', :'fired'::int = 2
+  AND (SELECT count(*) FROM notifications WHERE recipient_id = :'B' AND event_type = 'reminder' AND preview_text LIKE 'followup|%') = 1
+  AND (SELECT count(*) FROM notifications WHERE recipient_id = :'B' AND event_type = 'reminder' AND preview_text LIKE 'appointment|%') = 1);
+SELECT pg_temp.check('hatırlatma tekrarlanmaz', juzzio_fire_business_reminders(100) = 0);
+-- Personel: destek görevlisi listeyi görür ama durumu değiştiremez; yönetici askıya alır
+INSERT INTO staff_roles (user_id, role) VALUES (:'C', 'support');
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'C');
+SELECT pg_temp.check('destek personeli işletmeleri listeler', jsonb_array_length(admin_list_business_accounts('', NULL, 10)) >= 1);
+DO $$ BEGIN
+  PERFORM admin_business_set_status('', 'aaaaaaaa-0000-0000-0000-000000000001', 'business_suspended', 'test');
+  RAISE EXCEPTION 'FAIL destek askıya aldı';
+EXCEPTION WHEN raise_exception THEN IF SQLERRM NOT LIKE 'permission_denied%' THEN RAISE; END IF; END $$;
+RESET ROLE;
+UPDATE staff_roles SET role = 'admin' WHERE user_id = :'C';
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'C');
+SELECT pg_temp.check('yönetici askıya alır (gerekçeli, denetimli)', admin_business_set_status('', :'A', 'business_suspended', 'spam şikayeti') = 'business_suspended');
+SELECT pg_temp.as_user(:'B');
+SELECT pg_temp.check('askıdaki işletmede ekip yetkisi düşer', NOT EXISTS (SELECT 1 FROM business_customers));
+SELECT pg_temp.as_user(:'C');
+SELECT admin_business_set_status('', :'A', 'business_active', 'itiraz kabul');
+-- Personal'a dönüş: kapatma veri SİLMEZ, ekip erişimi kapanır
+SELECT pg_temp.as_user(:'A');
+SELECT pg_temp.check('geçici devre dışı', (business_owner_action('pause')->>'status') = 'business_paused');
+SELECT pg_temp.check('devam', (business_owner_action('resume')->>'status') = 'business_active');
+SELECT pg_temp.check('kapat → cancelled, görünüm personal', (business_owner_action('close', 'artık gerek yok')->>'status') = 'business_cancelled'
+  AND (SELECT active_view FROM business_accounts WHERE id = :'A') = 'personal');
+RESET ROLE;
+SELECT pg_temp.check('kapatmada müşteri/not/görev verisi korunur',
+  (SELECT count(*) FROM business_customers WHERE business_id = :'A') = 2
+  AND (SELECT count(*) FROM business_customer_notes WHERE business_id = :'A') = 2
+  AND (SELECT status FROM business_members WHERE business_id = :'A' AND user_id = :'B') = 'removed');
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+SELECT pg_temp.check('kapalı işletmede sahip bile iş verisine erişemez', NOT EXISTS (SELECT 1 FROM business_customers));
+DO $$ BEGIN
+  PERFORM business_set_view('business');
+  RAISE EXCEPTION 'FAIL kapalı işletmede business görünümü';
+EXCEPTION WHEN raise_exception THEN IF SQLERRM NOT LIKE '%business_not_active%' THEN RAISE; END IF; END $$;
+SELECT pg_temp.check('yeniden başvuru mümkün', (business_start_application('business', 'Ali Kuaför', 'biz_req_0003')->>'status') = 'business_terms_pending');
+RESET ROLE;
+DELETE FROM staff_roles WHERE user_id = :'C';
+DELETE FROM notifications WHERE event_type = 'reminder' OR preview_text LIKE 'business_%';
+DELETE FROM messages WHERE room_id = :'broom' AND (original_text IN ('fiyat nedir?', 'cevap?', 'buyurun') OR metadata->>'security' = 'business_auto_reply');
+DELETE FROM business_accounts WHERE id = :'A';
+DELETE FROM user_consents WHERE user_id = :'A';
+DELETE FROM messages WHERE room_id = 'b1b1b1b1-0000-0000-0000-0000000000c1';
+DELETE FROM room_participants WHERE room_id = 'b1b1b1b1-0000-0000-0000-0000000000c1';
+DELETE FROM rooms WHERE id = 'b1b1b1b1-0000-0000-0000-0000000000c1';
+SELECT 'TÜM v0.9.0 BUSINESS TESTLERİ GEÇTİ';
