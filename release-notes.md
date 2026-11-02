@@ -48,3 +48,16 @@ Opens the app on Chats again, restores message translation in one-to-one chats, 
 
 </details>
 
+## İndirme
+
+- Son sürüm: [Juzzio-latest.apk](https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk)
+- Bu sürüm: `juzzio-v0.9.1-release.apk` (100.27 MB)
+
+## APK doğrulama
+
+```bash
+sha256sum Juzzio-latest.apk
+# 4e5053e7f171f1c7fd961c45a5d0c1b572a4e3668fa814481228482ac3809664  Juzzio-latest.apk
+```
+
+Derleme zamanı: 2026-11-02 08:36 UTC — GitHub Actions
