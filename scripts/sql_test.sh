@@ -29,7 +29,7 @@ done
 echo "✔ Kanonik SQL 2 kez hatasız uygulandı"
 "${PSQL[@]}" -f supabase/tests/test_fixtures.sql >/dev/null
 echo "▶ Veritabanı testleri…"
-OUT="$("${PSQL[@]}" -f supabase/tests/juzzio_database_tests.sql 2>&1)" || { echo "$OUT" | grep -E "ERROR|FAIL" | head -30; echo "✖ Testler başarısız"; exit 1; }
+OUT="$("${PSQL[@]}" -f supabase/tests/juzzio_database_tests.sql 2>&1)" || { echo "$OUT" | grep -E "ERROR|FAIL|psql:.*(gset|error|hata)" | head -30; echo "$OUT" | tail -3; echo "✖ Testler başarısız"; exit 1; }
 # İlk blok (P0001 senaryosu) bilerek hata üretir; gerçek başarısızlık "FAIL " satırıdır
 # ve ON_ERROR_STOP=1 bölümündeki her hata psql'i sıfırdan farklı kodla durdurur.
 if echo "$OUT" | grep -qE "FAIL "; then
