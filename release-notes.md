@@ -52,3 +52,16 @@ Lets chats, photos, voice messages and profiles open without internet, like What
 
 </details>
 
+## İndirme
+
+- Son sürüm: [Juzzio-latest.apk](https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk)
+- Bu sürüm: `juzzio-v0.9.2-release.apk` (100.30 MB)
+
+## APK doğrulama
+
+```bash
+sha256sum Juzzio-latest.apk
+# 7e1be1db21b0520d7c8b0964486c5b69e39aea1777bf29772e9fd2a18be6d3d0  Juzzio-latest.apk
+```
+
+Derleme zamanı: 2026-11-02 09:28 UTC — GitHub Actions
