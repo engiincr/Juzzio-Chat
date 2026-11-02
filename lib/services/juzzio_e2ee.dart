@@ -29,6 +29,7 @@ import 'package:cryptography/cryptography.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../core/pq/juzzio_pq.dart';
+import 'juzzio_media_crypto.dart';
 import 'supabase_service.dart';
 
 class _IdentityKey {
@@ -120,6 +121,10 @@ class JuzzioE2ee {
   final Map<String, _Epoch> _sendEpochs = {}; // peerUid → oturum
   final Map<String, Uint8List> _epochKeys = {}; // epochId → anahtar
   final Map<String, (String, String)> _plainCache = {};
+  final Map<String, JuzzioMediaKey> _mediaKeys = {}; // mesaj kimliği → medya anahtarı (yalnız bellek)
+
+  /// G23: E2EE medya mesajının anahtarı (mesaj çözüldükten sonra). Yoksa null → açılmaz.
+  JuzzioMediaKey? mediaKeyFor(String messageId) => _mediaKeys[messageId];
 
   _IdentityKey? get _current => _keys[_currentId];
   String get myPublicKey => _current?.xPub ?? _v1Pub;
@@ -139,6 +144,7 @@ class JuzzioE2ee {
       _sendEpochs.clear();
       _epochKeys.clear();
       _plainCache.clear();
+      _mediaKeys.clear(); // hesap değişince medya anahtarları unutulur
     }
     return _init ??= _load(uid);
   }
@@ -286,7 +292,7 @@ class JuzzioE2ee {
   }
 
   /// v0.9.0: Açık sonuçlu şifreleme. `encryptForRoom` geriye uyumluluk için korunur.
-  Future<JuzzioE2eeOutcome> encryptForRoomStrict(String roomId, {required String text, required String translated}) async {
+  Future<JuzzioE2eeOutcome> encryptForRoomStrict(String roomId, {required String text, required String translated, Map<String, dynamic>? media}) async {
     final direct = await isDirectRoom(roomId);
     if (direct == null) return const JuzzioE2eeOutcome(JuzzioE2eeStatus.unavailable);
     if (!direct) return const JuzzioE2eeOutcome(JuzzioE2eeStatus.group);
@@ -300,7 +306,7 @@ class JuzzioE2ee {
     final bundle = await _peerBundle(peer);
     if (bundle == null) return const JuzzioE2eeOutcome(JuzzioE2eeStatus.unavailable);
     if (bundle.$1.isEmpty) return const JuzzioE2eeOutcome(JuzzioE2eeStatus.peerKeyMissing);
-    final payload = await encryptForRoom(roomId, text: text, translated: translated);
+    final payload = await encryptForRoom(roomId, text: text, translated: translated, media: media);
     if (payload == null) return const JuzzioE2eeOutcome(JuzzioE2eeStatus.unavailable);
     return JuzzioE2eeOutcome(JuzzioE2eeStatus.encrypted, payload);
   }
@@ -382,11 +388,12 @@ class JuzzioE2ee {
 
   /// Şifreli yük (metadata.e2ee). Karşı tarafın kuantum sonrası anahtarı yoksa (eski sürüm)
   /// 0.7.0 (v1) yöntemi, o da yoksa null (şifresiz) döner.
-  Future<Map<String, dynamic>?> encryptForRoom(String roomId, {required String text, required String translated}) async {
+  Future<Map<String, dynamic>?> encryptForRoom(String roomId, {required String text, required String translated, Map<String, dynamic>? media}) async {
     await ensureReady();
     final peer = await peerForRoom(roomId);
     if (peer == null) return null;
-    final clear = utf8.encode(jsonEncode({'t': text, 'x': translated}));
+    // G24: medya anahtarı zarfın içinde ('m'); eski istemciler yalnız t/x okur
+    final clear = utf8.encode(jsonEncode({'t': text, 'x': translated, if (media != null) 'm': media}));
     try {
       final ep = await _epochFor(peer);
       if (ep != null) {
@@ -470,6 +477,8 @@ class JuzzioE2ee {
       final obj = jsonDecode(utf8.decode(clear));
       final t = (obj is Map ? obj['t'] : '')?.toString() ?? '';
       final x = (obj is Map ? obj['x'] : '')?.toString() ?? '';
+      final mk = obj is Map ? JuzzioMediaKey.fromJson(obj['m']) : null;
+      if (mk != null) _mediaKeys[m.id] = mk;
       if (_plainCache.length > 4000) _plainCache.clear();
       _plainCache[cacheKey] = (t, x);
       return m.withText(t, x);

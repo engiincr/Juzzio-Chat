@@ -7,7 +7,7 @@ Hiçbir madde yalnızca arayüzü olduğu için "tamam" sayılmaz: backend + RLS
 hata durumları + test + l10n + 12 tema uyumu gerekir.
 
 ## ŞU AN
-- C-A5 Güvenlik Merkezi + Dosya Merkezi TAMAM 🟡 (SQL 10.22 testli). Sıradaki: **Gemini kalanları** (G23/G24 E2EE medya, G25–G30 değerlendirme) → **C-A6** son doğrulama + sürüm 0.9.0 + ZIP.
+- C-A5 + Gemini G23–G30 TAMAM/değerlendirildi. Sıradaki: **C-A6** — tüm kapılar, v0.8.4→v0.9.0 yükseltme testi, sürüm 0.9.0, README/PRIVACY/sürüm notları, ZIP.
 - Sayaç: SQL 20 blok PASS (yerel PG16); Edge birim 13/13 PASS; Dart 30 test dosyası (CI'da).
 
 ## Doğrulama ortamı (gerçek)
@@ -69,14 +69,14 @@ Durum işaretleri: ⏳ bekliyor · 🔧 sürüyor · ✅ kod+test tamam · 🟡 
 | G20 | Tüm admin RPC'lerinde RBAC | SQL | RPC başına izin testi | ✅ 47 admin RPC `_admin_require` → `_staff_require(p_token,'izin')`; süper yönetici hâlâ şifreli oturum ister; geçersiz belirteçte eski hata kodu korunur (istemci uyumu) |
 | G21 | 5 rol izni | SQL + admin_panel_screen | rol başına izin/ret testi | 🟡 Sunucu ✅ (35 durumluk matris PASS). İstemci: personel şifresiz girer, sekmeler izne göre, veri yüklemeleri izne göre; Ayarlar'da personele de görünür. CI'da |
 | G22 | Storage temizliği | SQL tetikleyici/cron | SQL testi | ✅ Kuyruk + tetikleyiciler (gönderi/hikâye/mesaj/sesli not/hesap) + süresi dolan içerik temizliği (pg_cron) + `storage-cleanup` Edge Function + saatlik `maintenance.yml`; 15 SQL testi PASS |
-| G23 | AES-256-GCM E2EE medya | Dart medya servisi | şifreli yükleme | ⏳ |
-| G24 | Anahtar+SHA-256 zarfı | juzzio_e2ee.dart | bütünlük başarısızsa kapalı | ⏳ |
-| G25 | Kanallar + topluluk odaları | SQL + sayfalar | RLS testleri | ⏳ |
-| G26 | Sohbet anketleri | SQL + sohbet UI | oy tekilliği, gizli oy testi | ⏳ |
-| G27 | Zamanlanmış mesaj | SQL + cron + UI | idempotent işçi testi | ⏳ |
-| G28 | Sesli mesaj hız | sohbet UI | 1x/1.5x/2x | ⏳ |
-| G29 | Waveform | kayıt + balon | örnekler meta veride | ⏳ |
-| G30 | Civciv evrimi | SQL + oyun UI | sunucu doğrulamalı, SQL testi | ⏳ |
+| G23 | AES-256-GCM E2EE medya | Dart medya servisi | şifreli yükleme | 🟡 `juzzio_media_crypto.dart`: dosya başına rastgele 256-bit anahtar + 96-bit nonce, AAD; birebir sohbette FOTOĞRAF cihazda şifrelenip `.jenc` (octet-stream) olarak yüklenir, şifrelenemezse GÖNDERİLMEZ; mesaj yazılamazsa yetim dosya silinir; `JuzzioEncryptedImage` imzalı URL → indir → doğrula → bellekte göster (hesaba bağlı önbellek, diske yazılmaz). 6 Dart testi. **Sınır:** video/ses/belge henüz şifresiz (100 MB bellek içi şifreleme ve akışlı oynatma ayrı iş); gruplar metinle aynı kuralla E2EE değil |
+| G24 | Anahtar+SHA-256 zarfı | juzzio_e2ee.dart | bütünlük başarısızsa kapalı | 🟡 {k,n,h,mime} mesajın E2EE zarfının İÇİNDE ('m'; eski istemciler yok sayar); açılışta önce SHA-256 sonra GCM etiketi; biri tutmazsa kilit simgesi (fail-closed) |
+| G25 | Kanallar + topluluk odaları | SQL + sayfalar | RLS testleri | ✅ MEVCUT (`rooms.is_channel`, `create_group_room(p_is_channel)`); yeniden yapılmadı (konsolidasyon kuralı) |
+| G26 | Sohbet anketleri | SQL + sohbet UI | oy tekilliği, gizli oy testi | 🟡 SQL 10.23 `polls`/`poll_votes` (istemci yazamaz; oylar yalnız sahibine görünür), `create_poll` (yalnız grup, 2–10 benzersiz seçenek, mesaj olarak), `vote_poll` (tekil/çoklu, kapalıya yok), `close_poll` (yalnız oluşturan), `poll_results` (gizlide seçmen yok). Sohbet ek menüsü → Anket; balonda canlı kart. SQL testleri PASS, 5 Dart testi |
+| G27 | Zamanlanmış mesaj | SQL + cron + UI | idempotent işçi testi | 🟡 SQL 10.23 `scheduled_messages`; birebirde yalnız E2EE zarf kabul (düz metin reddedilir), gönderimde yazma hakkı yeniden denetlenir (`juzzio_can_post`), işçi FOR UPDATE SKIP LOCKED + `client_msg_id`, pg_cron her dakika; ek menü → Mesajı zamanla (tarih/saat, bekleyenler, iptal). SQL testleri PASS |
+| G28 | Sesli mesaj hız | sohbet UI | 1x/1.5x/2x | 🟡 sesli balonda hız düğmesi (çalan sese anında `setSpeed`) |
+| G29 | Waveform | kayıt + balon | örnekler meta veride | ✅ MEVCUT (`waveformPeaks` kayıtta toplanır, balonda çizilir) |
+| G30 | Civciv evrimi | SQL + oyun UI | sunucu doğrulamalı, SQL testi | SKIPPED — konsolidasyon §1.1: mevcut Civciv yalnız hata düzeltmesi alır; yeni oyun/ekonomi yok |
 | G31–G33 | SQL testleri (kapsam, negatif yetki, storage temizliği) | tests/*.sql | ilgili maddelerle | ✅ 167 doğrulama (9 blok) |
 | G34–G36 | Dart testleri (E2EE medya, PQ isolate, yeni özellikler) | test/*.dart | ilgili maddelerle | ⏳ |
 
@@ -166,6 +166,7 @@ kullanılır (talimat §16 "mevcut takip dosyaları varsa onları kullan"); yaln
 - 2026-11-01: Faz 1b (1. kısım): Bölüm 10 SQL (LiveKit, etkin katılımcı, davet, altyazı, sesli not, hız sınırı, push kilidi, storage gizliliği, UI çeviri önbelleği). SQL: temiz kurulum ×2 + v0.8.4'ten yükseltme PASS; 145 doğrulama PASS (v0.9.0 bloğu dahil); mutasyon testi testlerin hatayı yakaladığını kanıtladı. Edge Functions tsc PASS. ⚠️ Storage özel hale geldiği için istemci imzalı URL geçişi (Faz 1c) yayından önce ZORUNLU.
 - 2026-11-01: Faz 1b tamam — RBAC (47 RPC), storage temizliği kuyruğu + storage-cleanup fonksiyonu + bakım iş akışı. SQL 167 doğrulama PASS. Kurulum notu: GitHub + Supabase secret `STORAGE_CLEANUP_SECRET` (≥24 karakter) eklenmeli.
 - 2026-11-01: Faz 2 + N-E + N-G (yukarıdaki satırlar). Regresyon: sözcük denetimi 86 dosya PASS, l10n PASS (1240 metin), sır taraması PASS, ci_guards PASS, release_meta PASS, SQL 5 blok PASS. Ek düzeltme: Keşfet bakım metni sabit beyazdı → tema rengi.
+- 2026-11-02: G23/G24 E2EE fotoğraf, G26 anket, G27 zamanlanmış mesaj, G28 hız (SQL 22 blok, 315 doğrulama PASS).
 - 2026-11-02: C-A5 Güvenlik/Dosya Merkezi (SQL 21 blok, 285 doğrulama PASS; Edge 13/13; Dart 118 dosya sözcük PASS).
 - 2026-11-02: C-A4 Business (SQL 20 blok PASS, mutasyon yakaladı; Dart 113 dosya sözcük PASS; l10n 1450).
 - 2026-11-02: C-A3 d/e/f/g (SQL 19 blok PASS).

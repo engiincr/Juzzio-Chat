@@ -1656,3 +1656,80 @@ SELECT pg_temp.check('E2EE anahtar değişimi olayı', (SELECT count(*) FROM sec
 DELETE FROM security_events WHERE user_id IN (:'A', :'B');
 DELETE FROM user_devices WHERE user_id IN (:'A', :'B');
 SELECT 'TÜM v0.9.0 GÜVENLİK MERKEZİ TESTLERİ GEÇTİ';
+
+-- ===== 10.23 Anket + zamanlanmış mesaj =====
+\set C 'cccccccc-0000-0000-0000-000000000003'
+RESET ROLE;
+DELETE FROM blocked_users WHERE (blocker_id = :'A' AND blocked_id = :'B') OR (blocker_id = :'B' AND blocked_id = :'A');
+UPDATE room_participants SET muted_until = NULL WHERE user_id IN (:'A', :'B');
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+SELECT create_group_room('Anket grubu', ARRAY[:'B'::uuid], 'off', false, 'general', '', '') AS pg \gset
+SELECT room_id AS dm FROM room_participants rp JOIN rooms r ON r.id = rp.room_id WHERE NOT r.is_group AND rp.user_id = :'A' AND rp.left_at IS NULL
+   AND EXISTS (SELECT 1 FROM room_participants x WHERE x.room_id = rp.room_id AND x.user_id = :'B' AND x.left_at IS NULL) LIMIT 1 \gset
+SELECT set_config('jz.pg', :'pg', false), set_config('jz.dm', :'dm', false);
+SELECT create_poll(:'pg', 'Nereye gidelim?', ARRAY['Deniz', 'Dağ', ' ', 'Şehir'], false, false) AS poll \gset
+SELECT set_config('jz.poll', :'poll', false);
+SELECT pg_temp.check('anket oluştu (boş seçenek atıldı)', (SELECT jsonb_array_length(options) FROM polls WHERE id = :'poll') = 3);
+SELECT pg_temp.check('anket mesajı oluştu', EXISTS (SELECT 1 FROM messages WHERE room_id = :'pg' AND metadata->>'poll_id' = :'poll'));
+DO $$ BEGIN PERFORM create_poll(current_setting('jz.dm')::uuid, 'x', ARRAY['a','b']); RAISE NOTICE 'FAIL birebir ankete izin verildi';
+EXCEPTION WHEN OTHERS THEN IF SQLERRM IN ('poll_group_only') THEN RAISE NOTICE 'PASS birebir sohbette anket yok'; ELSE RAISE NOTICE 'PASS birebir anket reddedildi (%)', SQLERRM; END IF; END $$;
+DO $$ BEGIN PERFORM create_poll(current_setting('jz.pg')::uuid, 'x', ARRAY['a','A']); RAISE NOTICE 'FAIL tekrar seçenek';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS tekrar eden seçenek reddedildi'; END $$;
+SELECT pg_temp.check('oy', vote_poll(:'poll', ARRAY[0]::smallint[]));
+SELECT pg_temp.check('oy değiştirme tekil kalır', vote_poll(:'poll', ARRAY[1]::smallint[]) AND (SELECT count(*) FROM poll_votes WHERE poll_id = :'poll') = 1);
+DO $$ BEGIN PERFORM vote_poll(current_setting('jz.poll')::uuid, ARRAY[0,1]::smallint[]); RAISE NOTICE 'FAIL tekil ankette çoklu oy';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS tekil ankette çoklu oy reddedildi'; END $$;
+DO $$ BEGIN PERFORM vote_poll(current_setting('jz.poll')::uuid, ARRAY[7]::smallint[]); RAISE NOTICE 'FAIL geçersiz seçenek';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS geçersiz seçenek reddedildi'; END $$;
+SELECT pg_temp.as_user(:'B');
+SELECT vote_poll(:'poll', ARRAY[1]::smallint[]);
+SELECT pg_temp.check('B yalnız kendi oyunu görür', (SELECT count(*) FROM poll_votes) = 1);
+SELECT pg_temp.check('sonuç sayımları', (poll_results(:'poll')->'counts') = '[0,2,0]'::jsonb AND (poll_results(:'poll')->>'voters')::int = 2);
+SELECT pg_temp.check('açık ankette seçmen adları var', jsonb_array_length(poll_results(:'poll')->'by_option'->'1') = 2);
+SELECT pg_temp.check('yalnız oluşturan kapatır', NOT close_poll(:'poll'));
+SELECT pg_temp.as_user(:'A');
+SELECT create_poll(:'pg', 'Gizli?', ARRAY['Evet', 'Hayır'], true, true) AS spoll \gset
+SELECT vote_poll(:'spoll', ARRAY[0,1]::smallint[]);
+SELECT pg_temp.check('çoklu seçim', (poll_results(:'spoll')->'counts') = '[1,1]'::jsonb);
+SELECT pg_temp.check('gizli ankette seçmen bilgisi dönmez', (poll_results(:'spoll')->'by_option') = 'null'::jsonb OR NOT (poll_results(:'spoll') ? 'by_option') OR poll_results(:'spoll')->'by_option' IS NULL);
+SELECT pg_temp.check('kapatma', close_poll(:'poll'));
+DO $$ BEGIN PERFORM vote_poll(current_setting('jz.poll')::uuid, ARRAY[0]::smallint[]); RAISE NOTICE 'FAIL kapalı ankete oy';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS kapalı ankete oy verilemez'; END $$;
+SELECT pg_temp.as_user(:'C');
+SELECT pg_temp.check('üye olmayan anketi görmez', (SELECT count(*) FROM polls WHERE id = :'poll') = 0);
+DO $$ BEGIN PERFORM vote_poll(current_setting('jz.poll')::uuid, ARRAY[0]::smallint[]); RAISE NOTICE 'FAIL üye olmayan oy verdi';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS üye olmayan oy veremez'; END $$;
+DO $$ BEGIN INSERT INTO poll_votes (poll_id, user_id, option_idx) VALUES (current_setting('jz.poll')::uuid, auth.uid(), 0); RAISE NOTICE 'FAIL doğrudan oy';
+EXCEPTION WHEN insufficient_privilege THEN RAISE NOTICE 'PASS doğrudan oy yazılamaz'; END $$;
+-- Zamanlanmış mesaj
+SELECT pg_temp.as_user(:'A');
+SELECT schedule_message(:'pg', NOW() + INTERVAL '2 minutes', 'Toplantı hatırlatma') AS sm1 \gset
+DO $$ BEGIN PERFORM schedule_message(current_setting('jz.dm')::uuid, NOW() + INTERVAL '2 minutes', 'düz metin'); RAISE NOTICE 'FAIL birebirde düz metin zamanlandı';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS birebirde düz metin reddedildi (%)', SQLERRM; END $$;
+SELECT schedule_message(:'dm', NOW() + INTERVAL '2 minutes', '', '{"v":2,"c":"QUJD"}'::jsonb) AS sm2 \gset
+SELECT pg_temp.check('birebir önizleme boş', (SELECT preview FROM scheduled_messages WHERE id = :'sm2') = '');
+DO $$ BEGIN PERFORM schedule_message(current_setting('jz.pg')::uuid, NOW(), 'geçmiş'); RAISE NOTICE 'FAIL geçmiş zaman';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS geçmiş zaman reddedildi'; END $$;
+SELECT schedule_message(:'pg', NOW() + INTERVAL '3 minutes', 'iptal edilecek') AS sm3 \gset
+SELECT pg_temp.check('iptal', cancel_scheduled_message(:'sm3'));
+SELECT pg_temp.as_user(:'B');
+SELECT pg_temp.check('başkasının zamanlanmışı görünmez/iptal edilemez', (SELECT count(*) FROM scheduled_messages) = 0 AND NOT cancel_scheduled_message(:'sm1'));
+RESET ROLE;
+UPDATE scheduled_messages SET send_at = NOW() - INTERVAL '1 second' WHERE id IN (:'sm1', :'sm2', :'sm3');
+SELECT pg_temp.check('işçi 2 mesaj gönderdi (iptal hariç)', juzzio_send_due_scheduled() = 2);
+SELECT pg_temp.check('işçi idempotent', juzzio_send_due_scheduled() = 0);
+SELECT pg_temp.check('grup mesajı gönderildi', EXISTS (SELECT 1 FROM messages WHERE room_id = :'pg' AND original_text = 'Toplantı hatırlatma' AND sender_id = :'A'));
+SELECT pg_temp.check('birebir mesaj şifreli gönderildi', EXISTS (SELECT 1 FROM messages WHERE room_id = :'dm' AND metadata ? 'e2ee' AND original_text = '' AND client_msg_id = 'sch_' || REPLACE(:'sm2', '-', '')));
+SELECT pg_temp.as_user(:'A');
+SELECT schedule_message(:'pg', NOW() + INTERVAL '2 minutes', 'ayrılınca');
+UPDATE room_participants SET left_at = NOW() WHERE room_id = :'pg' AND user_id = :'A';
+UPDATE scheduled_messages SET send_at = NOW() - INTERVAL '1 second' WHERE status = 'pending' AND room_id = :'pg';
+SELECT juzzio_send_due_scheduled();
+SELECT pg_temp.check('gruptan ayrılan gönderemez (failed)', EXISTS (SELECT 1 FROM scheduled_messages WHERE room_id = :'pg' AND status = 'failed' AND fail_reason = 'not_allowed'));
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+DO $$ BEGIN PERFORM juzzio_send_due_scheduled(); RAISE NOTICE 'FAIL istemci işçiyi çalıştırdı';
+EXCEPTION WHEN insufficient_privilege THEN RAISE NOTICE 'PASS işçi istemciye kapalı'; END $$;
+RESET ROLE;
+SELECT 'TÜM v0.9.0 ANKET / ZAMANLANMIŞ MESAJ TESTLERİ GEÇTİ';
