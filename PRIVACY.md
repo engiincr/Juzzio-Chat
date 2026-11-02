@@ -1,6 +1,6 @@
 # Juzzio Gizlilik Politikası ve KVKK Aydınlatma Metni
 
-Son güncelleme: 1 Kasım 2026 · Uygulama sürümü: v0.8.0 (BETA · Erken Erişim)
+Son güncelleme: 2 Kasım 2026 · Uygulama sürümü: v0.9.0 (BETA · Erken Erişim)
 
 Bu metin, Juzzio mobil uygulamasının hangi kişisel verileri hangi amaçla işlediğini, kimlerle paylaştığını ve haklarınızı **olduğu gibi** açıklar. Uygulamanın kaynak kodu GitHub'da açıktır; buradaki her ifade koddan doğrulanabilir.
 
@@ -38,9 +38,16 @@ Bu metin, Juzzio mobil uygulamasının hangi kişisel verileri hangi amaçla iş
 - Özel anahtarlar yalnızca telefonunuzdaki güvenli depoda (Android Keystore) durur, sunucuya gönderilmez.
 - Sunucuda yalnızca şifreli metin ve açık anahtarlar bulunur; bildirim önizlemesi "🔒 Şifreli mesaj" olarak gider.
 - Güncelleme dosyalarının bütünlüğü SHA-256 ile; yayın imzası için ML-DSA (FIPS 204) doğrulama altyapısı uygulamada bulunur.
-- **Sınırlar:** grup mesajları, fotoğraf/video/sesli mesajlar henüz uçtan uca şifreli değildir (aktarımda TLS ile şifrelenir, sunucuda saklanır). Otomatik çeviri açıkken mesaj metni çeviri için cihazınızdan çeviri hizmetine gönderilir. Kimlik doğrulama (giriş) Supabase'in standart oturum belirteçleriyle yapılır.
+- **Fotoğraflar (v0.9.0):** 1'e 1 sohbette gönderilen fotoğraf cihazınızda, dosyaya özel rastgele anahtarla **AES-256-GCM** ile şifrelenir; anahtar ve **SHA-256** bütünlük özeti şifreli mesajın içinde taşınır. Sunucuda yalnızca şifreli dosya bulunur. Şifreleme yapılamazsa fotoğraf gönderilmez; bütünlük doğrulaması tutmazsa fotoğraf gösterilmez.
+- **Zamanlanmış mesajlar (v0.9.0):** 1'e 1 sohbette zamanlanan mesaj cihazınızda şifrelenir ve sunucuda gönderim zamanına kadar yalnızca şifreli hâliyle bekler.
+- **Sınırlar:** grup mesajları ve anketleri, video/sesli mesajlar/belgeler henüz uçtan uca şifreli değildir (aktarımda TLS ile şifrelenir, sunucuda erişim kontrollü özel depoda saklanır). Business otomatik yanıtları şifresizdir ve öyle işaretlenir; işletme ekip üyeleri şifreli sohbet içeriğini göremez. Otomatik çeviri açıkken mesaj metni çeviri için cihazınızdan çeviri hizmetine gönderilir. Kimlik doğrulama (giriş) Supabase'in standart oturum belirteçleriyle yapılır.
 
-## 4a. Sohbet yedeği (Google Drive)
+## 4a. Güvenlik Merkezi, cihazlar ve güvenlik olayları (v0.9.0)
+
+- Hesabınıza bağlanan cihazlar, cihaz kimliğinin yalnızca son 6 hanesi ile size gösterilir; yeni cihaz girişi, cihaz kaldırma ve şifreleme anahtarı değişimi sunucu tarafından **güvenlik olayı** olarak kaydedilir. Bu kayıtları yalnızca siz görebilirsiniz; uygulama (istemci) bu kayıtları yazamaz veya değiştiremez.
+- Kayıtlar hesabınız silindiğinde silinir.
+
+## 4b. Sohbet yedeği (Google Drive)
 
 - Ayarlar → Mesajları / Sohbetleri yedekle bölümünden isteğe bağlı olarak yedek alabilirsiniz.
 - Yedek, sizin seçtiğiniz Google hesabının Drive'ındaki **gizli uygulama klasörüne** (appDataFolder) yazılır. Juzzio yalnızca bu klasöre erişim ister; Drive'daki diğer dosyalarınızı göremez.

@@ -16,13 +16,13 @@
 </div>
 
 <!-- JUZZIO_DYNAMIC_TITLE_START -->
-### 🚀 Son güncelleme: **v0.8.4 — Liquid Glass Tasarım Ailesi ve Tema Galerisi**
+### 🚀 Son güncelleme: **v0.9.0 — Ürün Konsolidasyonu, Business ve Güvenlik Merkezi**
 <!-- JUZZIO_DYNAMIC_TITLE_END -->
 
 <!-- JUZZIO_VERIFIED_APK_START -->
 | Sürüm | APK | Boyut | SHA-256 | Derleme |
 | :-- | :-- | :-- | :-- | :-- |
-| v0.8.4 (+84) | GitHub Actions derlemesi bekleniyor | – | – | – |
+| v0.9.0 (+90) | GitHub Actions derlemesi bekleniyor | – | – | – |
 <!-- JUZZIO_VERIFIED_APK_END -->
 
 ---
