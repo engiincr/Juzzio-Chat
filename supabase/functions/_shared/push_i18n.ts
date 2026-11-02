@@ -44,6 +44,7 @@ function clip(text: string, max = 40): string {
 const T: Record<PushLang, Record<string, Builder>> = {
   tr: {
     message: (c) => ({ title: c.actor, body: "Size yeni bir mesaj gönderdi." }),
+    reminder: (c) => (c.preview.startsWith("message|") ? { title: "⏰ Hatırlatma", body: "Yanıtlamak için işaretlediğin mesajın zamanı geldi." } : { title: "⏰ Hatırlatma", body: c.preview.replace(/^task\|/, "") || "Görevinin zamanı geldi." }),
     mention: (c) => ({ title: c.actor, body: c.preview.startsWith("comment|") ? "Bir yorumda sizden bahsetti." : c.preview.startsWith("story|") ? "Hikâyesinde sizden bahsetti." : "Bir gönderide sizden bahsetti." }),
     group_activity: (c) => ({ title: c.actor, body: "Grup sohbetinde yeni bir mesaj var." }),
     missed_call: (c) => {
@@ -86,6 +87,7 @@ const T: Record<PushLang, Record<string, Builder>> = {
   },
   en: {
     message: (c) => ({ title: c.actor, body: "Sent you a new message." }),
+    reminder: (c) => (c.preview.startsWith("message|") ? { title: "⏰ Reminder", body: "Time to reply to the message you marked." } : { title: "⏰ Reminder", body: c.preview.replace(/^task\|/, "") || "Your task is due." }),
     mention: (c) => ({ title: c.actor, body: c.preview.startsWith("comment|") ? "Mentioned you in a comment." : c.preview.startsWith("story|") ? "Mentioned you in their story." : "Mentioned you in a post." }),
     group_activity: (c) => ({ title: c.actor, body: "There is a new message in the group chat." }),
     missed_call: (c) => {
@@ -125,6 +127,7 @@ const T: Record<PushLang, Record<string, Builder>> = {
   },
   de: {
     message: (c) => ({ title: c.actor, body: "Hat dir eine neue Nachricht gesendet." }),
+    reminder: (c) => (c.preview.startsWith("message|") ? { title: "⏰ Erinnerung", body: "Zeit, auf die markierte Nachricht zu antworten." } : { title: "⏰ Erinnerung", body: c.preview.replace(/^task\|/, "") || "Deine Aufgabe ist fällig." }),
     mention: (c) => ({ title: c.actor, body: c.preview.startsWith("comment|") ? "Hat dich in einem Kommentar erwähnt." : c.preview.startsWith("story|") ? "Hat dich in der Story erwähnt." : "Hat dich in einem Beitrag erwähnt." }),
     group_activity: (c) => ({ title: c.actor, body: "Neue Nachricht im Gruppenchat." }),
     missed_call: (c) => {

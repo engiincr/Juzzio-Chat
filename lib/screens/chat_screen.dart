@@ -50,6 +50,8 @@ import '../core/content_filter.dart';
 import '../core/juzzio_sounds.dart';
 import '../core/juzzio_back_navigation.dart';
 import '../core/juzzio_chat_activity.dart';
+import '../services/juzzio_life_service.dart';
+import 'life_center_page.dart';
 import '../services/juzzio_chat_activity_service.dart';
 import '../services/juzzio_features_service.dart';
 import '../services/juzzio_e2ee.dart';
@@ -214,6 +216,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     JuzzioAppController.instance.ensureBackgroundNotificationReady();
+    // v0.9.0 §4.1/§4.3: Ana Sayfa görev özeti ve kayıtlı mesaj işaretleri (hata sessiz; ekranlar kendi hata durumunu gösterir)
+    JuzzioLifeService.instance.refresh().catchError((_) => const <JuzzioLifeTask>[]);
+    JuzzioLifeService.instance.loadSavedIds();
     _profileNameCtrl = TextEditingController(text: widget.myDisplayName);
     _profileBioCtrl = TextEditingController();
     _msgCtrl.addListener(_onComposerTextChanged);
@@ -2132,6 +2137,15 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       _openMentionTarget(payload.targetId, payload.actorId);
       return;
     }
+    // v0.9.0 §4.1/§4.2: hatırlatma → mesaj hatırlatıcısıysa sohbet (hedef = oda, ikincil = mesaj), görevse Yaşam Merkezi
+    if (et == 'reminder') {
+      if (payload.targetId.isNotEmpty && payload.targetSecondaryId.isNotEmpty && payload.targetId != payload.targetSecondaryId) {
+        _openRoomById(payload.targetId);
+      } else {
+        JuzzioLifeCenterPage.open(context);
+      }
+      return;
+    }
     if (et == 'missed_call') {
       setState(() {
         _isInsideConversation = false;
@@ -2161,6 +2175,14 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   /// v0.9.0: Bildirimler sekmesinde yerinde açılamayan öğe (mesaj, arama) → ilgili sohbet/sekme.
   void _openNotificationItemFromTab(JuzzioNotificationItem item) {
     final type = item.eventType;
+    if (type == 'reminder') {
+      if (item.previewText.startsWith('message|') && item.targetId.isNotEmpty) {
+        _openRoomById(item.targetId);
+      } else {
+        JuzzioLifeCenterPage.open(context);
+      }
+      return;
+    }
     if (type.contains('call')) {
       setState(() => _selectedBottomTab = 1);
       return;
@@ -2958,6 +2980,12 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     final name = (_myProfile?.displayName ?? widget.myDisplayName).trim();
     final unread = _conversations.fold<int>(0, (sum, c) => sum + (c.isMuted ? 0 : c.unreadCount));
     final shortcuts = <(IconData, String, VoidCallback)>[
+      // v0.9.0 §4.1 Yaşam Merkezi
+      (Icons.checklist_rounded, appCtrl.trEn('Görevlerim', 'My tasks', 'Meine Aufgaben'), () => JuzzioLifeCenterPage.open(context)),
+      (Icons.calendar_month_rounded, appCtrl.trEn('Takvimim', 'My calendar', 'Mein Kalender'),
+          () => JuzzioLifeCenterPage.open(context, view: JuzzioLifeView.calendar)),
+      (Icons.alarm_add_rounded, appCtrl.trEn('Hatırlatma Ekle', 'Add reminder', 'Erinnerung'),
+          () => JuzzioLifeCenterPage.open(context, newTask: true)),
       (Icons.add_circle_outline_rounded, appCtrl.trEn('Oluştur', 'Create', 'Erstellen'), _openPlusCreateMenu),
       (Icons.call_outlined, appCtrl.trEn('Aramalar', 'Calls', 'Anrufe'), () => setState(() => _selectedBottomTab = 1)),
       (Icons.edit_square, appCtrl.trEn('Yeni sohbet', 'New chat', 'Neuer Chat'), _openNewMessageScreen),
@@ -3000,6 +3028,55 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
               ),
             ),
           ),
+        // v0.9.0 §4.1: görev özeti — yalnız gerçek veri (sunucudaki görevler)
+        ListenableBuilder(
+          listenable: JuzzioLifeService.instance,
+          builder: (context, _) {
+            final life = JuzzioLifeService.instance;
+            if (!life.loaded) return const SizedBox.shrink();
+            final g = JuzzioLifeMath.group(life.tasks, DateTime.now());
+            final next = [...g.overdue, ...g.today, ...g.upcoming].take(3).toList();
+            if (next.isEmpty) return const SizedBox.shrink();
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: JuzzioGlass(
+                radius: 20,
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ListTile(
+                      leading: Icon(Icons.checklist_rounded, color: p.textPrimary),
+                      title: Text(appCtrl.trEn('Yaklaşan görevler', 'Upcoming tasks', 'Anstehende Aufgaben'), style: textStyle.copyWith(fontWeight: FontWeight.w800)),
+                      subtitle: Text(
+                        appCtrl.trEn('Bugün ${g.today.length} · Gecikmiş ${g.overdue.length}', 'Today ${g.today.length} · Overdue ${g.overdue.length}',
+                            'Heute ${g.today.length} · Überfällig ${g.overdue.length}'),
+                        style: TextStyle(color: p.textSecondary, fontSize: 12),
+                      ),
+                      trailing: TextButton(
+                        onPressed: () => JuzzioLifeCenterPage.open(context),
+                        child: Text(appCtrl.trEn('Tümünü Gör', 'See all', 'Alle')),
+                      ),
+                    ),
+                    for (final t in next)
+                      ListTile(
+                        dense: true,
+                        leading: Icon(t.isMessageReminder ? Icons.chat_bubble_outline_rounded : Icons.radio_button_unchecked_rounded,
+                            color: p.textSecondary, size: 20),
+                        title: Text(
+                          t.isMessageReminder ? appCtrl.trEn('Mesajı yanıtla', 'Reply to message', 'Auf Nachricht antworten') : t.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: textStyle,
+                        ),
+                        onTap: () => JuzzioLifeCenterPage.open(context),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
         GridView.count(
           crossAxisCount: MediaQuery.sizeOf(context).width < 360 ? 2 : 3,
           shrinkWrap: true,
@@ -4884,7 +4961,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     for (final e in effectiveReactions.values) {
       if (e.isNotEmpty) reactionCounts[e] = (reactionCounts[e] ?? 0) + 1;
     }
-    final isBookmarked = JuzzioAppController.instance.isMessageStarred(msg.id);
+    // v0.9.0 §4.3: sunucudaki kayıtlı mesajlar (+ eski sürümün yerel yıldızları)
+    final isBookmarked = JuzzioLifeService.instance.isMessageSaved(msg.id) || JuzzioAppController.instance.isMessageStarred(msg.id);
     final isSwiped = _swipedMessageId == msg.id;
     final currentRoomKey = _activeConversationRoomId ?? 'no_room';
     final isRoomMuted = _mutedConversationIds.contains(currentRoomKey);
@@ -5357,12 +5435,108 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     });
   }
 
+  /// v0.9.0 §4.3: kayıtlı mesaj aç/kapa (eski yerel yıldız varsa o da kaldırılır).
+  Future<void> _toggleSavedMessage(JuzzioMessage msg) async {
+    final app = JuzzioAppController.instance;
+    final legacy = app.isMessageStarred(msg.id);
+    try {
+      if (legacy && !JuzzioLifeService.instance.isMessageSaved(msg.id)) {
+        app.toggleStarredMessage(msg.id); // eski yerel işaret → kaldır (kayıt yok sayılır)
+        _showSnack(app.trEn('Kayıt kaldırıldı', 'Unsaved', 'Nicht mehr gespeichert'));
+      } else {
+        if (legacy) app.toggleStarredMessage(msg.id);
+        final saved = await JuzzioLifeService.instance.toggleSaved(roomId: msg.roomId, messageId: msg.id);
+        _showSnack(saved
+            ? app.trEn('Mesaj kaydedildi', 'Message saved', 'Nachricht gespeichert')
+            : app.trEn('Kayıt kaldırıldı', 'Unsaved', 'Nicht mehr gespeichert'));
+      }
+      if (mounted) setState(() {});
+    } catch (e) {
+      _showSnack(SupabaseService.instance.friendlyError(e), isError: true);
+    }
+  }
+
+  /// v0.9.0 §4.2: mesaja hatırlatıcı — hazır seçenekler veya özel tarih/saat; iptal/düzenle.
+  Future<void> _pickMessageReminder(JuzzioMessage msg, JuzzioLifeTask? existing) async {
+    final app = JuzzioAppController.instance;
+    final now = DateTime.now();
+    final tonight = DateTime(now.year, now.month, now.day, 20);
+    final tomorrow = DateTime(now.year, now.month, now.day + 1, 9);
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          ListTile(leading: const Icon(Icons.timer_outlined), title: Text(app.trEn('1 saat sonra', 'In 1 hour', 'In 1 Stunde')),
+              onTap: () => Navigator.pop(ctx, '1h')),
+          if (tonight.isAfter(now.add(const Duration(minutes: 5))))
+            ListTile(leading: const Icon(Icons.nights_stay_outlined), title: Text(app.trEn('Bu akşam 20:00', 'Tonight 20:00', 'Heute 20:00')),
+                onTap: () => Navigator.pop(ctx, 'tonight')),
+          ListTile(leading: const Icon(Icons.wb_sunny_outlined), title: Text(app.trEn('Yarın 09:00', 'Tomorrow 09:00', 'Morgen 09:00')),
+              onTap: () => Navigator.pop(ctx, 'tomorrow')),
+          ListTile(leading: const Icon(Icons.edit_calendar_rounded), title: Text(app.trEn('Tarih ve saat seç', 'Pick date & time', 'Datum & Uhrzeit')),
+              onTap: () => Navigator.pop(ctx, 'custom')),
+          if (existing != null)
+            ListTile(
+              leading: Icon(Icons.alarm_off_rounded, color: JuzzioColors.red500),
+              title: Text(app.trEn('Hatırlatmayı iptal et', 'Cancel reminder', 'Erinnerung löschen'), style: const TextStyle(color: JuzzioColors.red500)),
+              onTap: () => Navigator.pop(ctx, 'cancel'),
+            ),
+        ]),
+      ),
+    );
+    if (choice == null || !mounted) return;
+    DateTime? at;
+    switch (choice) {
+      case '1h':
+        at = now.add(const Duration(hours: 1));
+        break;
+      case 'tonight':
+        at = tonight;
+        break;
+      case 'tomorrow':
+        at = tomorrow;
+        break;
+      case 'custom':
+        final d = await showDatePicker(context: context, initialDate: now, firstDate: now, lastDate: DateTime(now.year + 5));
+        if (d == null || !mounted) return;
+        final t = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(now.add(const Duration(hours: 1))));
+        if (t == null) return;
+        at = DateTime(d.year, d.month, d.day, t.hour, t.minute);
+        if (at.isBefore(now)) {
+          _showSnack(app.trEn('Geçmiş bir zaman seçilemez', 'Pick a future time', 'Bitte eine zukünftige Zeit wählen'), isError: true);
+          return;
+        }
+        break;
+    }
+    try {
+      final life = JuzzioLifeService.instance;
+      if (choice == 'cancel' && existing != null) {
+        await life.deleteTask(existing.id);
+        _showSnack(app.trEn('Hatırlatma iptal edildi', 'Reminder cancelled', 'Erinnerung gelöscht'));
+      } else if (at != null) {
+        if (existing != null) {
+          await life.updateTask(existing.id, remindAt: at);
+        } else {
+          await life.remindMessage(roomId: msg.roomId, messageId: msg.id, at: at);
+        }
+        final hh = at.hour.toString().padLeft(2, '0');
+        final mm = at.minute.toString().padLeft(2, '0');
+        _showSnack(app.trEn('Hatırlatma: ${at.day}.${at.month} $hh:$mm', 'Reminder: ${at.day}.${at.month} $hh:$mm',
+            'Erinnerung: ${at.day}.${at.month} $hh:$mm'));
+      }
+      if (mounted) setState(() {});
+    } catch (e) {
+      _showSnack(SupabaseService.instance.friendlyError(e), isError: true);
+    }
+  }
+
   /// Uzun basma menüsü: hızlı tepkiler (❤️‍🔥🥹🌸🫣🤩 +), yanıtla, kopyala, yıldızla
   void _showMessageActionMenu(JuzzioPalette p, JuzzioStrings s, JuzzioMessage msg, bool isMe) {
     final app = JuzzioAppController.instance;
     final myUid = SupabaseService.instance.currentUserId;
     final myCurrentEmoji = myUid != null ? (_localReactions[msg.id] ?? msg.reactions)[myUid] : null;
-    final isStarred = app.isMessageStarred(msg.id);
+    final isStarred = JuzzioLifeService.instance.isMessageSaved(msg.id) || app.isMessageStarred(msg.id);
+    final hasReminder = JuzzioLifeService.instance.reminderForMessage(msg.id);
     final text = (msg.originalText).trim();
 
     showJuzzioGlassSheet<void>(
@@ -5439,17 +5613,25 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                   Clipboard.setData(ClipboardData(text: text));
                   _showSnack(app.trEn('Mesaj kopyalandı', 'Message copied', 'Nachricht kopiert'));
                 }),
-              action(
-                isStarred ? Icons.star_rounded : Icons.star_border_rounded,
-                isStarred
-                    ? app.trEn('Yıldızı Kaldır', 'Remove Star', 'Stern entfernen')
-                    : app.trEn('Mesajı Yıldızla', 'Star Message', 'Nachricht markieren'),
-                () {
-                  app.toggleStarredMessage(msg.id);
-                  setState(() {});
-                },
-                color: isStarred ? const Color(0xFFFFD60A) : null,
-              ),
+              // v0.9.0 §4.3: Kaydet (sunucuda, yalnız ben görürüm; karşı tarafa bildirilmez)
+              if (!msg.isDeleted)
+                action(
+                  isStarred ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+                  isStarred
+                      ? app.trEn('Kaydı Kaldır', 'Unsave', 'Nicht mehr speichern')
+                      : app.trEn('Kaydet', 'Save', 'Speichern'),
+                  () => _toggleSavedMessage(msg),
+                  color: isStarred ? const Color(0xFFFFD60A) : null,
+                ),
+              // v0.9.0 §4.2: Hatırlat (daha sonra yanıtla)
+              if (!msg.isDeleted)
+                action(
+                  hasReminder != null ? Icons.alarm_on_rounded : Icons.alarm_add_rounded,
+                  hasReminder != null
+                      ? app.trEn('Hatırlatmayı düzenle', 'Edit reminder', 'Erinnerung bearbeiten')
+                      : app.trEn('Hatırlat', 'Remind me', 'Erinnern'),
+                  () => _pickMessageReminder(msg, hasReminder),
+                ),
               const SizedBox(height: 6),
             ],
           );

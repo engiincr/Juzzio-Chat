@@ -11479,3 +11479,154 @@ END;
 $$;
 REVOKE ALL ON FUNCTION public.set_my_mention_privacy(TEXT) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.set_my_mention_privacy(TEXT) TO authenticated;
+
+-- 10.18 Personal: Yaşam Merkezi (görev + hatırlatma), mesaja hatırlatıcı, kayıtlı mesajlar
+--  (son talimat §4.1–§4.3). Tek tablo: life_tasks (kind = task | message_reminder) — ikinci bir
+--  hatırlatma sistemi kurulmaz. Yalnız sahibi okur/yazar (RLS). Mesaja bağlı kayıtlarda kullanıcı
+--  o odanın ETKİN üyesi olmalıdır (tetikleyici). Mesaj metni KOPYALANMAZ (E2EE içeriği sunucuya
+--  açık yazılmaz) — yalnız mesaj/oda kimliği tutulur, metin cihazda çözülerek gösterilir.
+CREATE TABLE IF NOT EXISTS public.life_tasks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL DEFAULT 'task' CHECK (kind IN ('task', 'message_reminder')),
+    title TEXT NOT NULL DEFAULT '' CHECK (LENGTH(title) <= 200),
+    description TEXT NOT NULL DEFAULT '' CHECK (LENGTH(description) <= 2000),
+    due_at TIMESTAMPTZ,
+    remind_at TIMESTAMPTZ,
+    reminded_at TIMESTAMPTZ,
+    done_at TIMESTAMPTZ,
+    room_id UUID REFERENCES public.rooms(id) ON DELETE CASCADE,
+    message_id UUID REFERENCES public.messages(id) ON DELETE CASCADE,
+    client_request_id TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT life_tasks_title_or_message CHECK (kind = 'message_reminder' OR LENGTH(BTRIM(title)) > 0),
+    CONSTRAINT life_tasks_message_needs_ids CHECK (kind = 'task' OR (message_id IS NOT NULL AND room_id IS NOT NULL AND remind_at IS NOT NULL)),
+    CONSTRAINT life_tasks_unique_req UNIQUE (user_id, client_request_id)
+);
+ALTER TABLE public.life_tasks ALTER COLUMN user_id SET DEFAULT auth.uid();
+CREATE INDEX IF NOT EXISTS idx_life_tasks_user_due ON public.life_tasks (user_id, done_at, due_at);
+CREATE INDEX IF NOT EXISTS idx_life_tasks_remind ON public.life_tasks (remind_at) WHERE reminded_at IS NULL AND done_at IS NULL;
+ALTER TABLE public.life_tasks ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS life_tasks_own ON public.life_tasks;
+CREATE POLICY life_tasks_own ON public.life_tasks FOR ALL TO authenticated
+    USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.life_tasks TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.juzzio_life_task_guard()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_room UUID;
+BEGIN
+    NEW.title := BTRIM(COALESCE(NEW.title, ''));
+    NEW.description := BTRIM(COALESCE(NEW.description, ''));
+    NEW.updated_at := NOW();
+    IF TG_OP = 'UPDATE' THEN
+        -- sahiplik ve bağlam değiştirilemez
+        NEW.user_id := OLD.user_id;
+        NEW.kind := OLD.kind;
+        NEW.message_id := OLD.message_id;
+        NEW.room_id := OLD.room_id;
+        NEW.created_at := OLD.created_at;
+        -- hatırlatma zamanı değişirse yeniden hatırlatılabilir
+        IF NEW.remind_at IS DISTINCT FROM OLD.remind_at THEN NEW.reminded_at := NULL; END IF;
+    END IF;
+    IF NEW.kind = 'message_reminder' THEN
+        SELECT room_id INTO v_room FROM public.messages WHERE id = NEW.message_id;
+        IF v_room IS NULL OR v_room IS DISTINCT FROM NEW.room_id OR NOT public.is_room_member(NEW.room_id, NEW.user_id) THEN
+            RAISE EXCEPTION 'not_allowed';
+        END IF;
+    END IF;
+    -- kullanıcı başına makul üst sınır (kötüye kullanım)
+    IF TG_OP = 'INSERT' AND (SELECT count(*) FROM public.life_tasks WHERE user_id = NEW.user_id AND done_at IS NULL) >= 2000 THEN
+        RAISE EXCEPTION 'too_many_tasks';
+    END IF;
+    RETURN NEW;
+END;
+$$;
+DROP TRIGGER IF EXISTS trg_juzzio_life_task_guard ON public.life_tasks;
+CREATE TRIGGER trg_juzzio_life_task_guard BEFORE INSERT OR UPDATE ON public.life_tasks
+    FOR EACH ROW EXECUTE FUNCTION public.juzzio_life_task_guard();
+
+CREATE TABLE IF NOT EXISTS public.saved_messages (
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    message_id UUID NOT NULL REFERENCES public.messages(id) ON DELETE CASCADE,
+    room_id UUID NOT NULL REFERENCES public.rooms(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (user_id, message_id)
+);
+ALTER TABLE public.saved_messages ALTER COLUMN user_id SET DEFAULT auth.uid();
+CREATE INDEX IF NOT EXISTS idx_saved_messages_user ON public.saved_messages (user_id, created_at DESC);
+ALTER TABLE public.saved_messages ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS saved_messages_own_select ON public.saved_messages;
+DROP POLICY IF EXISTS saved_messages_own_insert ON public.saved_messages;
+DROP POLICY IF EXISTS saved_messages_own_delete ON public.saved_messages;
+CREATE POLICY saved_messages_own_select ON public.saved_messages FOR SELECT TO authenticated USING (user_id = auth.uid());
+CREATE POLICY saved_messages_own_insert ON public.saved_messages FOR INSERT TO authenticated
+    WITH CHECK (user_id = auth.uid() AND public.is_room_member(room_id, auth.uid())
+                AND EXISTS (SELECT 1 FROM public.messages m WHERE m.id = message_id AND m.room_id = saved_messages.room_id));
+CREATE POLICY saved_messages_own_delete ON public.saved_messages FOR DELETE TO authenticated USING (user_id = auth.uid());
+GRANT SELECT, INSERT, DELETE ON public.saved_messages TO authenticated;
+-- Kaydetme karşı tarafa BİLDİRİLMEZ (tetikleyici/bildirim yok — talimat §4.3).
+
+ALTER TABLE public.notifications DROP CONSTRAINT IF EXISTS notifications_event_type_check;
+ALTER TABLE public.notifications ADD CONSTRAINT notifications_event_type_check CHECK (event_type = ANY (ARRAY[
+    'like', 'comment', 'reply', 'follow', 'follow_request', 'follow_accepted', 'friend_request',
+    'friend_accepted', 'story_like', 'story_reply', 'message', 'missed_call', 'incoming_call',
+    'group_activity', 'system', 'chick_invite', 'chick_hatched', 'chick_hungry', 'chick_dying',
+    'chick_died', 'reaction', 'save', 'mention', 'reminder'
+])) NOT VALID;
+
+-- Zamanı gelen hatırlatmalar → kendi bildirimi (push-webhook FCM'e iletir). Atomik, idempotent.
+CREATE OR REPLACE FUNCTION public.juzzio_fire_due_reminders(p_limit INTEGER DEFAULT 500)
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    r RECORD;
+    v_n INTEGER := 0;
+BEGIN
+    FOR r IN
+        SELECT t.id, t.user_id, t.kind, t.title, t.room_id, t.message_id
+        FROM public.life_tasks t
+        WHERE t.remind_at IS NOT NULL AND t.remind_at <= NOW()
+          AND t.reminded_at IS NULL AND t.done_at IS NULL
+        ORDER BY t.remind_at
+        LIMIT LEAST(GREATEST(COALESCE(p_limit, 500), 1), 2000)
+        FOR UPDATE SKIP LOCKED
+    LOOP
+        UPDATE public.life_tasks SET reminded_at = NOW() WHERE id = r.id;
+        -- mesaj hatırlatıcısında artık üye değilse sessizce atlanır
+        CONTINUE WHEN r.kind = 'message_reminder' AND NOT public.is_room_member(r.room_id, r.user_id);
+        INSERT INTO public.notifications (recipient_id, actor_id, actor_username, actor_display_name,
+                                          event_type, target_id, target_secondary_id, preview_text, dedupe_key)
+        VALUES (r.user_id, NULL, '', 'Juzzio', 'reminder',
+                COALESCE(r.room_id::text, r.id::text), COALESCE(r.message_id::text, r.id::text),
+                CASE WHEN r.kind = 'message_reminder' THEN 'message|' ELSE 'task|' || LEFT(r.title, 120) END,
+                'reminder_' || r.id::text || '_' || extract(epoch FROM NOW())::bigint::text)
+        ON CONFLICT (recipient_id, dedupe_key) DO NOTHING;
+        v_n := v_n + 1;
+    END LOOP;
+    RETURN v_n;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.juzzio_fire_due_reminders(INTEGER) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.juzzio_fire_due_reminders(INTEGER) TO service_role;
+
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
+        BEGIN
+            PERFORM cron.unschedule(jobid) FROM cron.job WHERE jobname = 'juzzio_fire_due_reminders';
+            PERFORM cron.schedule('juzzio_fire_due_reminders', '* * * * *', 'SELECT public.juzzio_fire_due_reminders()');
+        EXCEPTION WHEN OTHERS THEN
+            RAISE NOTICE 'pg_cron görevi (juzzio_fire_due_reminders) oluşturulamadı: %', SQLERRM;
+        END;
+    END IF;
+END $$;

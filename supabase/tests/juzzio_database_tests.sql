@@ -1278,3 +1278,73 @@ DELETE FROM content_mentions;
 DELETE FROM post_comments WHERE id = '6b6b6b6b-0000-0000-0000-0000000000d2';
 DELETE FROM posts WHERE id::text LIKE '6b6b6b6b-%';
 SELECT 'TÜM v0.9.0 ETİKETLEME TESTLERİ GEÇTİ';
+-- v0.9.0 C-A3: Yaşam Merkezi görevleri, mesaja hatırlatıcı, kayıtlı mesajlar
+RESET ROLE;
+SELECT r.id AS lroom FROM rooms r
+  JOIN room_participants a ON a.room_id = r.id AND a.user_id = :'A' AND a.left_at IS NULL
+  JOIN room_participants b ON b.room_id = r.id AND b.user_id = :'B' AND b.left_at IS NULL
+  WHERE NOT r.is_group LIMIT 1 \gset
+INSERT INTO messages (id, room_id, sender_id, original_text) VALUES ('7e7e7e7e-0000-0000-0000-0000000000e1', :'lroom', :'B', 'hatırlat bunu');
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+INSERT INTO life_tasks (title, description, due_at, remind_at, client_request_id)
+VALUES ('  Süt al  ', 'market', NOW() + INTERVAL '1 day', NOW() - INTERVAL '1 minute', 'lt_req_1');
+SELECT pg_temp.check('görev kırpılır ve kaydedilir', (SELECT title FROM life_tasks WHERE client_request_id = 'lt_req_1') = 'Süt al');
+DO $$ BEGIN
+  INSERT INTO life_tasks (title, client_request_id) VALUES ('x', 'lt_req_1');
+  RAISE EXCEPTION 'FAIL aynı istek iki kez eklendi';
+EXCEPTION WHEN unique_violation THEN NULL; END $$;
+DO $$ BEGIN
+  INSERT INTO life_tasks (title) VALUES ('   ');
+  RAISE EXCEPTION 'FAIL boş başlıklı görev';
+EXCEPTION WHEN check_violation THEN NULL; END $$;
+INSERT INTO life_tasks (kind, room_id, message_id, remind_at)
+VALUES ('message_reminder', :'lroom', '7e7e7e7e-0000-0000-0000-0000000000e1', NOW() - INTERVAL '1 minute');
+SELECT pg_temp.check('mesaj hatırlatıcısı kaydedildi', EXISTS (SELECT 1 FROM life_tasks WHERE kind = 'message_reminder'));
+INSERT INTO saved_messages (message_id, room_id, user_id) VALUES ('7e7e7e7e-0000-0000-0000-0000000000e1', :'lroom', :'A');
+SELECT pg_temp.check('mesaj kaydedildi', EXISTS (SELECT 1 FROM saved_messages WHERE message_id = '7e7e7e7e-0000-0000-0000-0000000000e1'));
+-- C üye değil: hatırlatıcı/kayıt yapamaz, A'nın kayıtlarını göremez
+SELECT set_config('juzzio.lroom', :'lroom', false);
+SELECT pg_temp.as_user(:'C');
+DO $$ BEGIN
+  INSERT INTO life_tasks (kind, room_id, message_id, remind_at, user_id)
+  VALUES ('message_reminder', current_setting('juzzio.lroom')::uuid, '7e7e7e7e-0000-0000-0000-0000000000e1', NOW(), 'cccccccc-0000-0000-0000-000000000003');
+  RAISE EXCEPTION 'FAIL üye olmayan mesaj hatırlatıcısı';
+EXCEPTION WHEN raise_exception THEN IF SQLERRM NOT LIKE '%not_allowed%' THEN RAISE; END IF; END $$;
+DO $$ BEGIN
+  INSERT INTO saved_messages (message_id, room_id, user_id)
+  VALUES ('7e7e7e7e-0000-0000-0000-0000000000e1', current_setting('juzzio.lroom')::uuid, 'cccccccc-0000-0000-0000-000000000003');
+  RAISE EXCEPTION 'FAIL üye olmayan mesaj kaydetti';
+EXCEPTION WHEN insufficient_privilege THEN NULL; END $$;
+SELECT pg_temp.check('başkasının görev/kayıtları görünmez',
+  NOT EXISTS (SELECT 1 FROM life_tasks) AND NOT EXISTS (SELECT 1 FROM saved_messages));
+DO $$ BEGIN
+  INSERT INTO life_tasks (title, user_id) VALUES ('sahte', 'aaaaaaaa-0000-0000-0000-000000000001');
+  RAISE EXCEPTION 'FAIL başkası adına görev';
+EXCEPTION WHEN insufficient_privilege THEN NULL; END $$;
+DO $$ BEGIN
+  PERFORM juzzio_fire_due_reminders(10);
+  RAISE EXCEPTION 'FAIL istemci hatırlatma tetikledi';
+EXCEPTION WHEN insufficient_privilege THEN NULL; END $$;
+-- Sahiplik güncellemeyle değiştirilemez
+SELECT pg_temp.as_user(:'A');
+UPDATE life_tasks SET user_id = 'cccccccc-0000-0000-0000-000000000003' WHERE client_request_id = 'lt_req_1';
+RESET ROLE;
+SELECT pg_temp.check('sahiplik değişmez', (SELECT user_id FROM life_tasks WHERE client_request_id = 'lt_req_1') = :'A');
+-- Hatırlatmalar tetiklenir; tekrar çalıştırmada çift bildirim yok
+SELECT pg_temp.check('2 hatırlatma tetiklendi', juzzio_fire_due_reminders(100) = 2);
+SELECT pg_temp.check('ikinci çalıştırma boş', juzzio_fire_due_reminders(100) = 0);
+SELECT pg_temp.check('görev hatırlatma bildirimi metinli, mesaj hatırlatıcısı METİNSİZ',
+  EXISTS (SELECT 1 FROM notifications WHERE recipient_id = :'A' AND event_type = 'reminder' AND preview_text = 'task|Süt al')
+  AND EXISTS (SELECT 1 FROM notifications WHERE recipient_id = :'A' AND event_type = 'reminder' AND preview_text = 'message|'
+              AND target_secondary_id = '7e7e7e7e-0000-0000-0000-0000000000e1'));
+-- Zaman değişince yeniden hatırlatılabilir; tamamlanan görev hatırlatılmaz
+UPDATE life_tasks SET remind_at = NOW() - INTERVAL '10 seconds' WHERE client_request_id = 'lt_req_1';
+SELECT pg_temp.check('yeni zaman → yeniden hatırlatma', juzzio_fire_due_reminders(100) = 1);
+UPDATE life_tasks SET remind_at = NOW() - INTERVAL '5 seconds', done_at = NOW() WHERE client_request_id = 'lt_req_1';
+SELECT pg_temp.check('tamamlanan görev hatırlatılmaz', juzzio_fire_due_reminders(100) = 0);
+DELETE FROM notifications WHERE event_type = 'reminder';
+DELETE FROM life_tasks;
+DELETE FROM saved_messages;
+DELETE FROM messages WHERE id = '7e7e7e7e-0000-0000-0000-0000000000e1';
+SELECT 'TÜM v0.9.0 YAŞAM MERKEZİ / HATIRLATICI / KAYITLI MESAJ TESTLERİ GEÇTİ';

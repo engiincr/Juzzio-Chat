@@ -14,6 +14,7 @@ import '../core/theme/juzzio_colors.dart';
 import '../services/juzzio_features_service.dart';
 import '../services/supabase_service.dart';
 import 'chat_notification_prefs.dart';
+import '../screens/saved_messages_page.dart';
 
 Future<void> showJuzzioGroupManagementSheet(
   BuildContext context, {
@@ -336,6 +337,13 @@ class _GroupManagementSheetState extends State<_GroupManagementSheet> {
             ),
             // v0.9.0 §6.4: Sohbet Bilgileri > Bildirimleri Özelleştir (her üye kendisi için)
             JuzzioChatNotificationPrefsTile(roomId: widget.roomId),
+            // v0.9.0 §4.3: Kayıtlı mesajlar
+            ListTile(
+              leading: const Icon(Icons.bookmark_rounded),
+              title: Text(JuzzioAppController.instance.trEn('Kayıtlı mesajlar', 'Saved messages', 'Gespeicherte Nachrichten')),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => JuzzioSavedMessagesPage.open(context, roomId: widget.roomId, title: widget.groupTitle),
+            ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Align(
