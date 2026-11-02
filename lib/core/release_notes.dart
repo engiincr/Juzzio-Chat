@@ -157,6 +157,65 @@ class JuzzioReleaseNote {
 /// Uygulamaya gömülü sürüm geçmişi (yayınlanmış sürümlerin gerçek içeriği)
 final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
   JuzzioReleaseNote(
+    versionName: '0.9.0',
+    versionCode: 90,
+    publishedAt: DateTime(2026, 11, 2),
+    sections: const {
+      'tr': JuzzioReleaseSection(
+        reason: "Uygulamayı tek bir sade ürüne toplamak (Personal 5 sekme, Business hesabı), bildirim ve aramaları sağlamlaştırmak, güvenliği sertleştirmek ve uçtan uca şifrelemeyi fotoğraflara genişletmek için getirildi.",
+        features: [
+          "Yeni ana gezinme: Ana Sayfa, Sohbetler, Keşfet, Bildirimler, Profil; geri tuşu önce paneli/sohbeti kapatır, çıkıştan önce uyarır",
+          "Business hesabı: Genel Bakış, Gelen Kutusu (atama, otomatik yanıt), Müşteriler (CRM, not, takip), İş Alanı (randevu, ekip, görev, analiz)",
+          "Yaşam Merkezi: görevler ve mesaj hatırlatıcıları; kayıtlı mesajlar; gelişmiş mesaj arama",
+          "Mesaj düzenleme (15 dk) ve düzenleme geçmişi; sohbet kilidi; @etiketleme ve 'beni kim etiketleyebilir'",
+          "Güvenlik Merkezi: cihazlar, diğer oturumları kapat, doğrulanabilir güvenlik uyarıları, şifreli yedek durumu",
+          "Dosya Merkezi: sohbetlerdeki medya, belge ve sesli mesajlar",
+          "Grup anketleri (tekli/çoklu, gizli oylama) ve zamanlanmış mesajlar",
+          "Sesli mesajda 1x / 1.5x / 2x oynatma hızı",
+          "Bildirimden yanıtla, gelen aramayı bildirimden reddet; sohbet başına bildirim ayarları; yazıyor göstergesi",
+        ],
+        fixes: [
+          "Sohbet içindeyken geri tuşu artık uygulamadan çıkmıyor",
+          "Keşfet metin rengi açık temalarda okunur",
+          "Tepki bildirimi şifreli metni önizlemeye kopyalamıyor",
+          "Gelen arama tam ekran izni eklendi",
+        ],
+        security: [
+          "Birebir sohbet fotoğrafları uçtan uca şifreli (AES-256-GCM + SHA-256 bütünlük); şifrelenemezse gönderilmez",
+          "Kilit ekranında mesaj bildirimleri gizli; önizleme modu seçilebilir",
+          "Zamanlanmış birebir mesajlar sunucuda yalnız şifreli saklanır",
+          "Tüm yeni tablolarda satır düzeyi güvenlik (RLS); güvenlik olaylarını istemci yazamaz",
+        ],
+      ),
+      'en': JuzzioReleaseSection(
+        reason: "Consolidates the app into one focused product (5 Personal tabs, Business account), hardens notifications, calls and security, and extends end-to-end encryption to photos.",
+        features: [
+          "New navigation: Home, Chats, Explore, Notifications, Profile; back button closes panels/chat first and warns before exit",
+          "Business account: Overview, Inbox (assignment, auto replies), Customers (CRM, notes, follow-ups), Workspace (appointments, team, tasks, analytics)",
+          "Life Center: tasks and message reminders; saved messages; advanced message search",
+          "Message editing (15 min) with edit history; chat lock; @mentions and 'who can mention me'",
+          "Security Center: devices, sign out other sessions, verifiable security alerts, encrypted backup status",
+          "File Center: media, documents and voice messages from your chats",
+          "Group polls (single/multiple choice, anonymous) and scheduled messages",
+          "Voice message playback speed 1x / 1.5x / 2x",
+          "Reply from notification, decline incoming calls from notification; per-chat notification settings; typing indicator",
+        ],
+        fixes: [
+          "Back button inside a chat no longer exits the app",
+          "Explore text colour readable on light themes",
+          "Reaction notifications no longer copy encrypted text into previews",
+          "Full-screen intent permission added for incoming calls",
+        ],
+        security: [
+          "Direct-chat photos are end-to-end encrypted (AES-256-GCM + SHA-256 integrity); never sent unencrypted",
+          "Message notifications are private on the lock screen; preview mode selectable",
+          "Scheduled direct messages are stored server-side only in encrypted form",
+          "Row-level security on all new tables; clients cannot write security events",
+        ],
+      ),
+    },
+  ),
+  JuzzioReleaseNote(
     versionName: '0.8.4',
     versionCode: 84,
     publishedAt: DateTime(2026, 11, 1),

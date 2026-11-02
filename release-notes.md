@@ -1,26 +1,34 @@
-# Juzzio v0.8.4 — Liquid Glass Tasarım Ailesi ve Tema Galerisi
+# Juzzio v0.9.0 — Ürün Konsolidasyonu, Business ve Güvenlik Merkezi
 
 ## Neden bu güncelleme?
 
-12 temayı tek bir Liquid Glass tasarım ailesinde birleştirmek, her temayı hem uygulama hem sohbet teması olarak seçilebilir yapmak ve CI analiz hatasını gidermek için getirildi.
+Uygulamayı tek bir sade ürüne toplamak (Personal 5 sekme, Business hesabı), bildirim ve aramaları sağlamlaştırmak, güvenliği sertleştirmek ve uçtan uca şifrelemeyi fotoğraflara genişletmek için getirildi.
 
 ## ✨ Yeni özellikler
 
-- 12 tema tek Liquid Glass ailesi: her temanın kendi cam karakteri (blur, opaklık, ışık yansıması, derinlik, kenar ışığı)
-- Ayarlar › Görünüm: tüm uygulama arayüz temaları ve sohbet temaları tek galeride
-- 12 cam teması artık sohbet teması olarak da seçilebiliyor; 16 klasik sohbet teması korunuyor
-- Tema önizlemesinde ve cam teması listesinde tema karakteri açıklaması
-- Siber Neon'da neon kenar parıltısı, Krom'da metalik yansıma, Obsidyen OLED'de derin katmanlar
+- Yeni ana gezinme: Ana Sayfa, Sohbetler, Keşfet, Bildirimler, Profil; geri tuşu önce paneli/sohbeti kapatır, çıkıştan önce uyarır
+- Business hesabı: Genel Bakış, Gelen Kutusu (atama, otomatik yanıt), Müşteriler (CRM, not, takip), İş Alanı (randevu, ekip, görev, analiz)
+- Yaşam Merkezi: görevler ve mesaj hatırlatıcıları; kayıtlı mesajlar; gelişmiş mesaj arama
+- Mesaj düzenleme (15 dk) ve düzenleme geçmişi; sohbet kilidi; @etiketleme ve 'beni kim etiketleyebilir'
+- Güvenlik Merkezi: cihazlar, diğer oturumları kapat, doğrulanabilir güvenlik uyarıları, şifreli yedek durumu
+- Dosya Merkezi: sohbetlerdeki medya, belge ve sesli mesajlar
+- Grup anketleri (tekli/çoklu, gizli oylama) ve zamanlanmış mesajlar
+- Sesli mesajda 1x / 1.5x / 2x oynatma hızı
+- Bildirimden yanıtla, gelen aramayı bildirimden reddet; sohbet başına bildirim ayarları; yazıyor göstergesi
 
 ## 🛠️ Düzeltilen hatalar
 
-- CI analiz hatası: 'num' tür adını gölgeleyen yerel fonksiyon yeniden adlandırıldı
-- Sohbet parlaklık kaydırıcısı seçili temayı sıfırlamıyor
-- Açık renkli temalarda (Cam Beyaz, Krom vb.) giden mesaj balonunda beyaz yazı okunur kalıyor (WCAG AA ≥ 4.5:1)
+- Sohbet içindeyken geri tuşu artık uygulamadan çıkmıyor
+- Keşfet metin rengi açık temalarda okunur
+- Tepki bildirimi şifreli metni önizlemeye kopyalamıyor
+- Gelen arama tam ekran izni eklendi
 
 ## 🔒 Güvenlik ve gizlilik
 
-- Veritabanı değişikliği yok; tema seçimleri yalnızca kullanıcının kendi tercihlerine kaydedilir
+- Birebir sohbet fotoğrafları uçtan uca şifreli (AES-256-GCM + SHA-256 bütünlük); şifrelenemezse gönderilmez
+- Kilit ekranında mesaj bildirimleri gizli; önizleme modu seçilebilir
+- Zamanlanmış birebir mesajlar sunucuda yalnız şifreli saklanır
+- Tüm yeni tablolarda satır düzeyi güvenlik (RLS); güvenlik olaylarını istemci yazamaz
 
 ---
 
@@ -28,25 +36,33 @@
 
 ## Why this update?
 
-Unifies the 12 themes into one Liquid Glass design family, makes every theme selectable as both app and chat theme, and fixes the CI analyze error.
+Consolidates the app into one focused product (5 Personal tabs, Business account), hardens notifications, calls and security, and extends end-to-end encryption to photos.
 
 ## ✨ New features
 
-- 12 themes, one Liquid Glass family: each theme has its own glass character (blur, opacity, sheen, depth, rim light)
-- Settings › Appearance: all app and chat themes in one gallery
-- All 12 glass themes can now be used as chat themes; 16 classic chat themes kept
-- Theme character description in preview and glass theme list
-- Neon rim glow on Cyber Neon, metallic sheen on Chrome, deep layers on Obsidian OLED
+- New navigation: Home, Chats, Explore, Notifications, Profile; back button closes panels/chat first and warns before exit
+- Business account: Overview, Inbox (assignment, auto replies), Customers (CRM, notes, follow-ups), Workspace (appointments, team, tasks, analytics)
+- Life Center: tasks and message reminders; saved messages; advanced message search
+- Message editing (15 min) with edit history; chat lock; @mentions and 'who can mention me'
+- Security Center: devices, sign out other sessions, verifiable security alerts, encrypted backup status
+- File Center: media, documents and voice messages from your chats
+- Group polls (single/multiple choice, anonymous) and scheduled messages
+- Voice message playback speed 1x / 1.5x / 2x
+- Reply from notification, decline incoming calls from notification; per-chat notification settings; typing indicator
 
 ## 🛠️ Fixed bugs
 
-- CI analyze error: local function shadowing the 'num' type renamed
-- Chat brightness slider no longer resets the selected theme
-- White text on outgoing bubbles stays readable on light themes (WCAG AA ≥ 4.5:1)
+- Back button inside a chat no longer exits the app
+- Explore text colour readable on light themes
+- Reaction notifications no longer copy encrypted text into previews
+- Full-screen intent permission added for incoming calls
 
 ## 🔒 Security and privacy
 
-- No database changes; theme choices are stored only in the user's own preferences
+- Direct-chat photos are end-to-end encrypted (AES-256-GCM + SHA-256 integrity); never sent unencrypted
+- Message notifications are private on the lock screen; preview mode selectable
+- Scheduled direct messages are stored server-side only in encrypted form
+- Row-level security on all new tables; clients cannot write security events
 
 </details>
 
