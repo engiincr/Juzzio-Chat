@@ -11262,3 +11262,220 @@ AS $$
 $$;
 REVOKE ALL ON FUNCTION public.get_my_save_notifications() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.get_my_save_notifications() TO authenticated;
+
+-- 10.17 @etiketleme (ek paket N-B; son talimat §3.1 Keşfet)
+--  Gönderi açıklaması, yorum/yanıt ve hikâye metnindeki @kullanıcıadı belirteçleri SUNUCUDA
+--  ayrıştırılır (istemciye güvenilmez). Her etiket için:
+--   • etiketlenen hesap var olmalı, taraflar arasında engel olmamalı,
+--   • etiketlenenin tercihi (privacy_mentions: everyone | friends | nobody) izin vermeli,
+--   • etiketlenen içeriği GÖREBİLMELİ (görünürlük) — göremediği içerik için bildirim yok,
+--   • içerik başına en fazla 10 etiket, yazar başına saatte 60 etiket bildirimi (spam sınırı).
+--  Bildirimler idempotent (dedupe_key); içerik düzenlenince yalnız YENİ etiketler bildirilir.
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS privacy_mentions TEXT NOT NULL DEFAULT 'everyone';
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'profiles_privacy_mentions_check') THEN
+        ALTER TABLE public.profiles ADD CONSTRAINT profiles_privacy_mentions_check
+            CHECK (privacy_mentions IN ('everyone', 'friends', 'nobody')) NOT VALID;
+    END IF;
+END $$;
+
+ALTER TABLE public.notifications DROP CONSTRAINT IF EXISTS notifications_event_type_check;
+ALTER TABLE public.notifications ADD CONSTRAINT notifications_event_type_check CHECK (event_type = ANY (ARRAY[
+    'like', 'comment', 'reply', 'follow', 'follow_request', 'follow_accepted', 'friend_request',
+    'friend_accepted', 'story_like', 'story_reply', 'message', 'missed_call', 'incoming_call',
+    'group_activity', 'system', 'chick_invite', 'chick_hatched', 'chick_hungry', 'chick_dying',
+    'chick_died', 'reaction', 'save', 'mention'
+])) NOT VALID;
+
+CREATE TABLE IF NOT EXISTS public.content_mentions (
+    id BIGSERIAL PRIMARY KEY,
+    content_type TEXT NOT NULL CHECK (content_type IN ('post', 'comment', 'story')),
+    content_id UUID NOT NULL,
+    post_id UUID,
+    author_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    mentioned_user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (content_type, content_id, mentioned_user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_content_mentions_user ON public.content_mentions (mentioned_user_id, created_at DESC);
+ALTER TABLE public.content_mentions ENABLE ROW LEVEL SECURITY;
+REVOKE INSERT, UPDATE, DELETE ON public.content_mentions FROM anon, authenticated;
+DROP POLICY IF EXISTS content_mentions_select_party ON public.content_mentions;
+CREATE POLICY content_mentions_select_party ON public.content_mentions FOR SELECT TO authenticated
+    USING (author_id = auth.uid() OR mentioned_user_id = auth.uid());
+
+-- Saf ayrıştırıcı: küçük harf, tekil, en fazla 10, e-posta içindeki @ yok sayılır
+CREATE OR REPLACE FUNCTION public.juzzio_extract_mentions(p_text TEXT)
+RETURNS TEXT[]
+LANGUAGE sql
+IMMUTABLE
+AS $$
+    SELECT COALESCE(ARRAY(
+        SELECT u FROM (
+            SELECT lower(rtrim(m[1], '.')) AS u, min(ord) AS first_pos
+            FROM regexp_matches(COALESCE(p_text, ''), '(?:^|[^A-Za-z0-9_.@])@([A-Za-z0-9_.]{3,30})(?![A-Za-z0-9_.])', 'g')
+                 WITH ORDINALITY AS t(m, ord)
+            GROUP BY 1
+        ) x
+        WHERE length(u) >= 3
+        ORDER BY first_pos
+        LIMIT 10
+    ), ARRAY[]::TEXT[]);
+$$;
+GRANT EXECUTE ON FUNCTION public.juzzio_extract_mentions(TEXT) TO authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION public.juzzio_can_mention(p_actor UUID, p_target UUID)
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT p_actor IS NOT NULL AND p_target IS NOT NULL AND p_actor <> p_target
+       AND NOT public.is_blocked_between(p_actor, p_target)
+       AND EXISTS (
+           SELECT 1 FROM public.profiles t
+           WHERE t.id = p_target
+             AND public.juzzio_can_see_presence(p_actor, p_target, t.privacy_mentions));
+$$;
+GRANT EXECUTE ON FUNCTION public.juzzio_can_mention(UUID, UUID) TO authenticated, service_role;
+
+-- Ortak işleyici: etiketleri kaydeder + bildirir. p_can_view: etiketlenen içeriği görebilir mi?
+CREATE OR REPLACE FUNCTION public.juzzio_process_mentions(
+    p_type TEXT, p_content UUID, p_post UUID, p_author UUID, p_text TEXT, p_visibility_owner UUID, p_visibility TEXT
+)
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_name TEXT;
+    v_target UUID;
+    v_actor RECORD;
+    v_n INTEGER := 0;
+    v_visible BOOLEAN;
+BEGIN
+    SELECT username, display_name, avatar_url INTO v_actor FROM public.profiles WHERE id = p_author;
+    FOREACH v_name IN ARRAY public.juzzio_extract_mentions(p_text) LOOP
+        SELECT id INTO v_target FROM public.profiles WHERE lower(username) = v_name LIMIT 1;
+        CONTINUE WHEN v_target IS NULL OR NOT public.juzzio_can_mention(p_author, v_target);
+        v_visible := CASE p_type
+            WHEN 'story' THEN public.can_view_story(v_target, p_visibility_owner, p_visibility)
+            ELSE public.can_view_user_content(v_target, p_visibility_owner, p_visibility) END;
+        CONTINUE WHEN NOT COALESCE(v_visible, false);
+        INSERT INTO public.content_mentions (content_type, content_id, post_id, author_id, mentioned_user_id)
+        VALUES (p_type, p_content, p_post, p_author, v_target)
+        ON CONFLICT (content_type, content_id, mentioned_user_id) DO NOTHING;
+        CONTINUE WHEN NOT FOUND; -- zaten etiketliydi (düzenleme) → yeniden bildirme
+        v_n := v_n + 1;
+        -- spam sınırı: yazar başına saatte 60 etiket bildirimi (kayıt yine tutulur)
+        CONTINUE WHEN NOT public.juzzio_rate_check(p_author, 'mention_notify', 60, 3600);
+        INSERT INTO public.notifications (
+            recipient_id, actor_id, actor_username, actor_display_name, actor_avatar_url,
+            event_type, target_id, target_secondary_id, preview_text, dedupe_key
+        ) VALUES (
+            v_target, p_author, COALESCE(v_actor.username, ''),
+            COALESCE(NULLIF(v_actor.display_name, ''), v_actor.username, 'Juzzio'), v_actor.avatar_url,
+            'mention', COALESCE(p_post, p_content)::text, p_content::text,
+            p_type || '|' || LEFT(REGEXP_REPLACE(COALESCE(p_text, ''), '\s+', ' ', 'g'), 120),
+            'mention_' || p_type || '_' || p_content::text || '_' || v_target::text
+        )
+        ON CONFLICT (recipient_id, dedupe_key) DO NOTHING;
+    END LOOP;
+    RETURN v_n;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.juzzio_process_mentions(TEXT, UUID, UUID, UUID, TEXT, UUID, TEXT) FROM PUBLIC, anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.juzzio_mentions_on_post()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+    IF NEW.is_deleted THEN RETURN NEW; END IF;
+    IF TG_OP = 'UPDATE' AND NEW.caption IS NOT DISTINCT FROM OLD.caption AND NEW.visibility IS NOT DISTINCT FROM OLD.visibility THEN
+        RETURN NEW;
+    END IF;
+    PERFORM public.juzzio_process_mentions('post', NEW.id, NEW.id, NEW.author_id, NEW.caption, NEW.author_id, NEW.visibility);
+    RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+    RETURN NEW; -- etiket hatası paylaşımı asla engellemez
+END $$;
+DROP TRIGGER IF EXISTS trg_juzzio_mentions_post ON public.posts;
+CREATE TRIGGER trg_juzzio_mentions_post AFTER INSERT OR UPDATE OF caption, visibility, is_deleted ON public.posts
+    FOR EACH ROW EXECUTE FUNCTION public.juzzio_mentions_on_post();
+
+CREATE OR REPLACE FUNCTION public.juzzio_mentions_on_comment()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+    v_post RECORD;
+BEGIN
+    IF TG_OP = 'UPDATE' AND NEW.content IS NOT DISTINCT FROM OLD.content THEN RETURN NEW; END IF;
+    SELECT author_id, visibility, is_deleted INTO v_post FROM public.posts WHERE id = NEW.post_id;
+    IF v_post.author_id IS NULL OR v_post.is_deleted THEN RETURN NEW; END IF;
+    PERFORM public.juzzio_process_mentions('comment', NEW.id, NEW.post_id, NEW.author_id, NEW.content, v_post.author_id, v_post.visibility);
+    RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+    RETURN NEW;
+END $$;
+DROP TRIGGER IF EXISTS trg_juzzio_mentions_comment ON public.post_comments;
+CREATE TRIGGER trg_juzzio_mentions_comment AFTER INSERT OR UPDATE OF content ON public.post_comments
+    FOR EACH ROW EXECUTE FUNCTION public.juzzio_mentions_on_comment();
+
+CREATE OR REPLACE FUNCTION public.juzzio_mentions_on_story()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+    IF TG_OP = 'UPDATE' AND NEW.caption_original IS NOT DISTINCT FROM OLD.caption_original
+       AND NEW.overlay_text_original IS NOT DISTINCT FROM OLD.overlay_text_original THEN
+        RETURN NEW;
+    END IF;
+    PERFORM public.juzzio_process_mentions('story', NEW.id, NULL, NEW.user_id,
+        COALESCE(NEW.caption_original, '') || ' ' || COALESCE(NEW.overlay_text_original, ''), NEW.user_id, NEW.visibility);
+    RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+    RETURN NEW;
+END $$;
+DROP TRIGGER IF EXISTS trg_juzzio_mentions_story ON public.stories;
+CREATE TRIGGER trg_juzzio_mentions_story AFTER INSERT OR UPDATE OF caption_original, overlay_text_original ON public.stories
+    FOR EACH ROW EXECUTE FUNCTION public.juzzio_mentions_on_story();
+
+-- Öneri: etiketlenebilir kişiler (önce arkadaşlar), engelliler ve 'nobody' hariç
+CREATE OR REPLACE FUNCTION public.suggest_mentions(p_query TEXT, p_limit INTEGER DEFAULT 8)
+RETURNS TABLE (user_id UUID, username TEXT, display_name TEXT, avatar_url TEXT, is_friend BOOLEAN)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    WITH q AS (SELECT lower(regexp_replace(BTRIM(COALESCE(p_query, '')), '[%_\\]', '', 'g')) AS v)
+    SELECT p.id, p.username, p.display_name, p.avatar_url, public.is_friends_accepted(auth.uid(), p.id) AS is_friend
+    FROM public.profiles p, q
+    WHERE auth.uid() IS NOT NULL
+      AND p.id <> auth.uid()
+      AND p.username IS NOT NULL
+      AND LENGTH(q.v) BETWEEN 1 AND 30
+      AND (lower(p.username) LIKE q.v || '%' OR lower(COALESCE(p.display_name, '')) LIKE q.v || '%')
+      AND public.juzzio_can_mention(auth.uid(), p.id)
+    ORDER BY is_friend DESC, lower(p.username)
+    LIMIT LEAST(GREATEST(COALESCE(p_limit, 8), 1), 20);
+$$;
+REVOKE ALL ON FUNCTION public.suggest_mentions(TEXT, INTEGER) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.suggest_mentions(TEXT, INTEGER) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.set_my_mention_privacy(p_mode TEXT)
+RETURNS TEXT
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_mode TEXT := LOWER(BTRIM(COALESCE(p_mode, '')));
+BEGIN
+    IF auth.uid() IS NULL THEN RAISE EXCEPTION 'not_authenticated'; END IF;
+    IF v_mode NOT IN ('everyone', 'friends', 'nobody') THEN RAISE EXCEPTION 'invalid_mention_privacy'; END IF;
+    UPDATE public.profiles SET privacy_mentions = v_mode WHERE id = auth.uid();
+    RETURN v_mode;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.set_my_mention_privacy(TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.set_my_mention_privacy(TEXT) TO authenticated;

@@ -44,6 +44,7 @@ function clip(text: string, max = 40): string {
 const T: Record<PushLang, Record<string, Builder>> = {
   tr: {
     message: (c) => ({ title: c.actor, body: "Size yeni bir mesaj gönderdi." }),
+    mention: (c) => ({ title: c.actor, body: c.preview.startsWith("comment|") ? "Bir yorumda sizden bahsetti." : c.preview.startsWith("story|") ? "Hikâyesinde sizden bahsetti." : "Bir gönderide sizden bahsetti." }),
     group_activity: (c) => ({ title: c.actor, body: "Grup sohbetinde yeni bir mesaj var." }),
     missed_call: (c) => {
       const k = callKind(c.preview);
@@ -85,6 +86,7 @@ const T: Record<PushLang, Record<string, Builder>> = {
   },
   en: {
     message: (c) => ({ title: c.actor, body: "Sent you a new message." }),
+    mention: (c) => ({ title: c.actor, body: c.preview.startsWith("comment|") ? "Mentioned you in a comment." : c.preview.startsWith("story|") ? "Mentioned you in their story." : "Mentioned you in a post." }),
     group_activity: (c) => ({ title: c.actor, body: "There is a new message in the group chat." }),
     missed_call: (c) => {
       const k = callKind(c.preview);
@@ -123,6 +125,7 @@ const T: Record<PushLang, Record<string, Builder>> = {
   },
   de: {
     message: (c) => ({ title: c.actor, body: "Hat dir eine neue Nachricht gesendet." }),
+    mention: (c) => ({ title: c.actor, body: c.preview.startsWith("comment|") ? "Hat dich in einem Kommentar erwähnt." : c.preview.startsWith("story|") ? "Hat dich in der Story erwähnt." : "Hat dich in einem Beitrag erwähnt." }),
     group_activity: (c) => ({ title: c.actor, body: "Neue Nachricht im Gruppenchat." }),
     missed_call: (c) => {
       const k = callKind(c.preview);

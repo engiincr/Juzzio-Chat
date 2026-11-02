@@ -1382,6 +1382,7 @@ class SupabaseService {
       'privacy_bio': _privacyValue(prefs['aboutPrivacy']),
       'privacy_status': _privacyValue(prefs['statusPrivacy']),
       'privacy_groups': _privacyValue(prefs['whoCanAddMeToGroups']),
+      'privacy_mentions': _privacyValue(prefs['whoCanMentionMe']),
       'privacy_posts': postsRaw == 'public'
           ? 'everyone'
           : (postsRaw == 'private' ? 'nobody' : (['followers', 'friends'].contains(postsRaw) ? postsRaw : 'everyone')),
@@ -2088,6 +2089,18 @@ class SupabaseService {
     try {
       await client.rpc('set_room_preferences', params: {'p_room': roomId, 'p_muted': muted, 'p_pinned': pinned});
     } catch (_) {}
+  }
+
+  /// v0.9.0 N-B: etikete dokununca profil — kullanıcı adından kimlik (RLS: profiller okunabilir).
+  Future<String?> fetchUserIdByUsername(String username) async {
+    final u = username.trim().toLowerCase();
+    if (!RegExp(r'^[a-z0-9_.]{3,30}$').hasMatch(u)) return null;
+    try {
+      final row = await client.from('profiles').select('id').ilike('username', u).limit(1).maybeSingle();
+      return row?['id']?.toString();
+    } catch (_) {
+      return null;
+    }
   }
 
   /// v0.9.0 N-C: "gönderimi kaydedenleri bildir" (varsayılan kapalı). null = okunamadı.

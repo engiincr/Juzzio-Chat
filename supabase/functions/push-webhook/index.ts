@@ -575,7 +575,7 @@ Deno.serve(async (req: Request) => {
       if (eventType.includes("follow") || eventType.includes("friend")) {
         return row.notify_follows !== false;
       }
-      if (eventType === "like" || eventType === "comment" || eventType === "reply" || eventType === "save") {
+      if (eventType === "like" || eventType === "comment" || eventType === "reply" || eventType === "save" || eventType === "mention") {
         return row.notify_likes_comments !== false;
       }
       if (eventType.includes("story")) return row.notify_stories !== false;

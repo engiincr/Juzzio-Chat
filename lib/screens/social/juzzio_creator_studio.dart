@@ -34,6 +34,7 @@ import '../../widgets/juzzio_video_kit.dart';
 import '../../widgets/media_viewer.dart';
 import '../../widgets/juzzio_story_stickers.dart';
 import '../../widgets/profile_extras.dart';
+import '../../widgets/juzzio_mentions.dart';
 import '../close_friends_page.dart';
 
 String _l(String tr, String en, String de) => JuzzioAppController.instance.trEn(tr, en, de);
@@ -1895,6 +1896,8 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
             padding: const EdgeInsets.only(bottom: 8),
             child: Text(_error!, style: const TextStyle(color: JuzzioColors.red500, fontWeight: FontWeight.w700)),
           ),
+        // v0.9.0 N-B: hikâye açıklamasında @etiket önerileri
+        JuzzioMentionSuggestions(controller: _captionCtrl),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14),
           decoration: BoxDecoration(
@@ -2294,7 +2297,12 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: TextField(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // v0.9.0 N-B: gönderi açıklamasında @etiket önerileri
+                        JuzzioMentionSuggestions(controller: _captionCtrl),
+                        TextField(
                       controller: _captionCtrl,
                       minLines: 4,
                       maxLines: 8,
@@ -2311,6 +2319,8 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
                         counterStyle: TextStyle(color: sub, fontSize: 11),
                       ),
                     ),
+                      ],
+                    )
                   ),
                 ],
               ),

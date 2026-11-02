@@ -2073,6 +2073,19 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     _refreshSocialFeedAndProfile();
   }
 
+  /// v0.9.0 N-B: etiket bildirimi → gönderi görünürse gönderi (RLS), değilse etiketleyenin profili.
+  Future<void> _openMentionTarget(String targetId, String actorId) async {
+    final post = targetId.isEmpty ? null : await JuzzioSocialService.instance.fetchPostById(targetId);
+    if (!mounted) return;
+    if (post != null) {
+      await _openPostDetail(post, focusComments: true);
+    } else if (actorId.isNotEmpty) {
+      await _openUserProfilePage(actorId);
+    } else {
+      _openNotificationsScreen();
+    }
+  }
+
   Future<void> _openPostDetail(JuzzioPost post, {bool focusComments = false}) async {
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -2112,6 +2125,11 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     }
     if ((et.contains('follow') || et.contains('friend')) && payload.actorId.isNotEmpty) {
       _openUserProfilePage(payload.actorId);
+      return;
+    }
+    // v0.9.0 N-B: gönderi/yorum etiketi → gönderi (hikâye etiketi → etiketleyen profil)
+    if (et == 'mention') {
+      _openMentionTarget(payload.targetId, payload.actorId);
       return;
     }
     if (et == 'missed_call') {
