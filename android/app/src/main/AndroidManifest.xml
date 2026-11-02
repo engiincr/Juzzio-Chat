@@ -36,6 +36,8 @@
     <uses-permission android:name="android.permission.VIBRATE" />
 
     <!-- Android 14+ Foreground Call Service İzinleri -->
+    <!-- v0.9.0 N-F: gelen arama bildirimi kilit ekranında tam ekran açılabilsin (Android 10+) -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
@@ -115,6 +117,14 @@
         </provider>
         <!-- v0.7.0: 6 farklı ana ekran widget'ı (tema ve dil uyumlu) -->
         <!-- v0.8.3: bildirimden hızlı yanıt -->
+        <!-- v0.9.0 N-F: gelen arama bildirimindeki Reddet -->
+        <receiver
+            android:name=".JuzzioCallActionReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.juzzio.app.CALL_DECLINE" />
+            </intent-filter>
+        </receiver>
         <receiver
             android:name=".JuzzioReplyReceiver"
             android:exported="false">

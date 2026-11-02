@@ -2090,6 +2090,44 @@ class SupabaseService {
     } catch (_) {}
   }
 
+  /// v0.9.0 N-C: "gönderimi kaydedenleri bildir" (varsayılan kapalı). null = okunamadı.
+  Future<bool?> getSaveNotifications() async {
+    try {
+      final r = await client.rpc('get_my_save_notifications');
+      return r == true;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<bool> setSaveNotifications(bool enabled) async {
+    final r = await client.rpc('set_my_save_notifications', params: {'p_enabled': enabled});
+    return r == true;
+  }
+
+  /// v0.9.0 §6.4: sohbet bazlı bildirim ayarları (yalnız kendi katılım satırı; sunucu doğrular).
+  Future<Map<String, dynamic>?> getRoomNotificationPrefs(String roomId) async {
+    try {
+      final res = await client.rpc('get_room_notification_prefs', params: {'p_room': roomId});
+      return res is Map ? Map<String, dynamic>.from(res) : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// [muteMinutes]: null değiştirme, 0 kaldır, -1 süresiz. [preview]: null, 'inherit', full|sender|hidden.
+  /// Başarısızsa istisna fırlatır (arayüz eski değere döner ve hata gösterir).
+  Future<Map<String, dynamic>> setRoomNotificationPrefs(String roomId,
+      {int? muteMinutes, String? preview, bool? vibrate}) async {
+    final res = await client.rpc('set_room_notification_prefs', params: {
+      'p_room': roomId,
+      'p_mute_minutes': muteMinutes,
+      'p_preview': preview,
+      'p_vibrate': vibrate,
+    });
+    return res is Map ? Map<String, dynamic>.from(res) : <String, dynamic>{};
+  }
+
   Stream<Map<String, dynamic>> watchRoom(String roomId) {
     return client
         .from('rooms')

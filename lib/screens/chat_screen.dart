@@ -552,6 +552,23 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     );
   }
 
+  String? _pendingAcceptCallId;
+  DateTime? _pendingAcceptAt;
+
+  /// Bildirimden "Kabul" bekleyen çağrı bu mu? (tek kullanımlık, 30 sn geçerli)
+  bool _takePendingAccept(String callId) {
+    final id = _pendingAcceptCallId;
+    final at = _pendingAcceptAt;
+    if (id == null || at == null) return false;
+    if (DateTime.now().difference(at) > const Duration(seconds: 30)) {
+      _pendingAcceptCallId = null;
+      return false;
+    }
+    if (id != callId) return false;
+    _pendingAcceptCallId = null;
+    return true;
+  }
+
   void _handleIncomingCalls(List<JuzzioCallLog> ringing) {
     if (!mounted) return;
     final current = _incomingCall;
@@ -567,6 +584,12 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     _handledIncomingCallIds.add(call.id);
 
     final app = JuzzioAppController.instance;
+    // v0.9.0 N-F: kullanıcı bildirimden "Kabul"e bastıysa sessiz kip aramayı düşürmez
+    if (_takePendingAccept(call.id)) {
+      setState(() => _incomingCall = call);
+      _acceptIncomingCall();
+      return;
+    }
     if (app.isSilentMode) {
       SupabaseService.instance.updateCallStatus(callId: call.id, status: 'busy_silent');
       return;
@@ -2099,7 +2122,15 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       return;
     }
     if (et == 'incoming_call') {
-      // Çalan arama başlığı call_logs akışından otomatik gösterilir.
+      // v0.9.0 N-F: bildirimdeki "Kabul" → bu çağrı kimliği çalıyorsa hemen cevapla; akış henüz
+      // gelmediyse (soğuk açılış) 30 sn içinde gelince cevaplanır. Sunucu yine doğrular.
+      if (payload.callAction == 'accept' && payload.targetSecondaryId.isNotEmpty) {
+        _pendingAcceptCallId = payload.targetSecondaryId;
+        _pendingAcceptAt = DateTime.now();
+        final current = _incomingCall;
+        if (current != null && _takePendingAccept(current.id)) _acceptIncomingCall();
+      }
+      // Aksi hâlde çalan arama başlığı call_logs akışından otomatik gösterilir.
       return;
     }
     if ((et == 'message' || et == 'group_activity' || et == 'story_reply' || et == 'reaction') && payload.targetId.isNotEmpty) {
