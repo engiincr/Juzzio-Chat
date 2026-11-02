@@ -17,6 +17,7 @@ import '../core/theme/juzzio_colors.dart';
 import '../core/theme/juzzio_glass.dart';
 import '../services/juzzio_features_service.dart';
 import '../services/supabase_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show Supabase;
 
 String _t(String tr, String en, String de) => JuzzioAppController.instance.trEn(tr, en, de);
 
@@ -1423,5 +1424,112 @@ class _JuzzioAdminFeedbackTabState extends State<JuzzioAdminFeedbackTab> {
         ],
       ),
     );
+  }
+}
+
+
+// =============================================================================
+// v0.9.0 — Yönetim > Business (Business eki §19): başvurular, durum, askıya alma, doğrulama.
+// Yetki sunucuda: listeleme business.read, değişiklik business.manage (gerekçe zorunlu, denetimli).
+// =============================================================================
+class JuzzioAdminBusinessTab extends StatefulWidget {
+  const JuzzioAdminBusinessTab({super.key, required this.token, required this.canManage});
+  final String token;
+  final bool canManage;
+
+  @override
+  State<JuzzioAdminBusinessTab> createState() => _JuzzioAdminBusinessTabState();
+}
+
+class _JuzzioAdminBusinessTabState extends State<JuzzioAdminBusinessTab> {
+  String? _status;
+  late Future<List<Map<String, dynamic>>> _f = _load();
+
+  Future<List<Map<String, dynamic>>> _load() async {
+    final res = await Supabase.instance.client.rpc('admin_list_business_accounts', params: {'p_token': widget.token, 'p_status': _status, 'p_limit': 200});
+    return [for (final e in (res as List? ?? const []).whereType<Map>()) Map<String, dynamic>.from(e)];
+  }
+
+  String _l(String tr, String en, String de) => JuzzioAppController.instance.trEn(tr, en, de);
+
+  Future<void> _act(Map<String, dynamic> b, String action) async {
+    final reason = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('${b['display_name']} → $action'),
+        content: TextField(controller: reason, decoration: InputDecoration(labelText: _l('Gerekçe (zorunlu)', 'Reason (required)', 'Grund (Pflicht)'))),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(_l('Vazgeç', 'Cancel', 'Abbrechen'))),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(_l('Uygula', 'Apply', 'Anwenden'))),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      final c = Supabase.instance.client;
+      if (action == 'verify' || action == 'unverify') {
+        await c.rpc('admin_set_business_verified', params: {'p_token': widget.token, 'p_business': b['id'], 'p_verified': action == 'verify', 'p_reason': reason.text});
+      } else {
+        await c.rpc('admin_business_set_status', params: {'p_token': widget.token, 'p_business': b['id'], 'p_status': action, 'p_reason': reason.text});
+      }
+      setState(() => _f = _load());
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(content: Text(SupabaseService.instance.friendlyError(e))));
+    }
+    reason.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(children: [
+      SizedBox(
+        height: 48,
+        child: ListView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.all(6), children: [
+          for (final s in <String?>[null, 'business_terms_pending', 'business_preparing', 'business_active', 'business_suspended', 'business_rejected', 'business_cancelled'])
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: ChoiceChip(
+                label: Text(s ?? _l('Tümü', 'All', 'Alle')),
+                selected: _status == s,
+                onSelected: (_) => setState(() {
+                  _status = s;
+                  _f = _load();
+                }),
+              ),
+            ),
+        ]),
+      ),
+      Expanded(
+        child: FutureBuilder<List<Map<String, dynamic>>>(
+          future: _f,
+          builder: (ctx, snap) {
+            if (snap.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
+            if (snap.hasError) return Center(child: Text(SupabaseService.instance.friendlyError(snap.error!)));
+            final list = snap.data ?? const [];
+            if (list.isEmpty) return Center(child: Text(_l('Kayıt yok', 'No records', 'Keine Einträge')));
+            return ListView(children: [
+              for (final b in list)
+                ListTile(
+                  title: Text('${b['display_name']}${b['is_verified'] == true ? ' ✔' : ''}'),
+                  subtitle: Text('${b['status']} · ${b['profile_type']} · ${b['updated_at']}'),
+                  trailing: widget.canManage
+                      ? PopupMenuButton<String>(
+                          onSelected: (v) => _act(b, v),
+                          itemBuilder: (_) => [
+                            if (b['status'] == 'business_active') const PopupMenuItem(value: 'business_suspended', child: Text('Askıya al / Suspend')),
+                            if (b['status'] == 'business_suspended') const PopupMenuItem(value: 'business_active', child: Text('Yeniden aç / Reinstate')),
+                            if (b['status'] == 'business_preparing' || b['status'] == 'business_terms_pending')
+                              const PopupMenuItem(value: 'business_rejected', child: Text('Reddet / Reject')),
+                            PopupMenuItem(value: b['is_verified'] == true ? 'unverify' : 'verify', child: Text(b['is_verified'] == true ? 'Doğrulamayı kaldır' : 'Doğrula / Verify')),
+                          ],
+                        )
+                      : null,
+                ),
+            ]);
+          },
+        ),
+      ),
+    ]);
   }
 }
