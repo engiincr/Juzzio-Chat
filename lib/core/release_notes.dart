@@ -157,15 +157,54 @@ class JuzzioReleaseNote {
 /// Uygulamaya gömülü sürüm geçmişi (yayınlanmış sürümlerin gerçek içeriği)
 final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
   JuzzioReleaseNote(
+    versionName: '0.9.1',
+    versionCode: 91,
+    publishedAt: DateTime(2026, 11, 2),
+    sections: const {
+      'tr': JuzzioReleaseSection(
+        reason: "Uygulamayı yeniden Sohbetler ekranından açmak, birebir sohbetlerde mesaj çevirisini geri getirmek, Business'ı kaldırmak ve medya yüklenirken yaşanan takılmayı gidermek için getirildi.",
+        features: [
+          "Uygulama Sohbetler ekranından açılır; alt menü: Sohbetler, Keşfet, Aramalar, Bildirimler, Profil",
+          "Görevlerim ve hatırlatıcılar Profil sekmesinin üstünden açılır",
+        ],
+        fixes: [
+          "Birebir sohbetlerde mesaj çevirisi yeniden çalışıyor (varsayılan açık; Ayarlar > Gizlilik'ten kapatılabilir)",
+          "Fotoğraf, sesli mesaj ve hikâyelerin yüklenirken takılması giderildi",
+          "Ana Sayfa kartındaki bozuk (dikey) yazı görünümü sayfayla birlikte kaldırıldı",
+          "Geri tuşu Sohbetler'e döner, Sohbetler'de iki kez basınca çıkar",
+        ],
+        security: [
+          "Business hesabı ve ilgili tüm ekranlar kaldırıldı",
+          "Çeviri açıkken mesajlar sunucuda yine şifreli saklanır",
+        ],
+      ),
+      'en': JuzzioReleaseSection(
+        reason: "Opens the app on Chats again, restores message translation in one-to-one chats, removes Business and fixes media hanging while loading.",
+        features: [
+          "The app opens on Chats; bottom bar: Chats, Explore, Calls, Notifications, Profile",
+          "My tasks & reminders open from the top of the Profile tab",
+        ],
+        fixes: [
+          "Message translation works again in one-to-one chats (on by default; can be turned off in Settings > Privacy)",
+          "Fixed photos, voice messages and stories hanging while loading",
+          "Removed the broken (vertical) text card together with the Home page",
+          "Back button returns to Chats; press twice on Chats to exit",
+        ],
+        security: [
+          "Business account and all related screens removed",
+          "Messages stay encrypted on the server while translation is on",
+        ],
+      ),
+    },
+  ),
+  JuzzioReleaseNote(
     versionName: '0.9.0',
     versionCode: 90,
     publishedAt: DateTime(2026, 11, 2),
     sections: const {
       'tr': JuzzioReleaseSection(
-        reason: "Uygulamayı tek bir sade ürüne toplamak (Personal 5 sekme, Business hesabı), bildirim ve aramaları sağlamlaştırmak, güvenliği sertleştirmek ve uçtan uca şifrelemeyi fotoğraflara genişletmek için getirildi.",
+        reason: "Mesaj çevirisini yeniden etkinleştirmek, uygulamayı Sohbetler ekranından açmak, güvenliği sertleştirmek ve uçtan uca şifrelemeyi fotoğraflara genişletmek için getirildi.",
         features: [
-          "Yeni ana gezinme: Ana Sayfa, Sohbetler, Keşfet, Bildirimler, Profil; geri tuşu önce paneli/sohbeti kapatır, çıkıştan önce uyarır",
-          "Business hesabı: Genel Bakış, Gelen Kutusu (atama, otomatik yanıt), Müşteriler (CRM, not, takip), İş Alanı (randevu, ekip, görev, analiz)",
           "Yaşam Merkezi: görevler ve mesaj hatırlatıcıları; kayıtlı mesajlar; gelişmiş mesaj arama",
           "Mesaj düzenleme (15 dk) ve düzenleme geçmişi; sohbet kilidi; @etiketleme ve 'beni kim etiketleyebilir'",
           "Güvenlik Merkezi: cihazlar, diğer oturumları kapat, doğrulanabilir güvenlik uyarıları, şifreli yedek durumu",
@@ -188,10 +227,8 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
         ],
       ),
       'en': JuzzioReleaseSection(
-        reason: "Consolidates the app into one focused product (5 Personal tabs, Business account), hardens notifications, calls and security, and extends end-to-end encryption to photos.",
+        reason: "Re-enables message translation, opens the app on Chats again, hardens security and extends end-to-end encryption to photos.",
         features: [
-          "New navigation: Home, Chats, Explore, Notifications, Profile; back button closes panels/chat first and warns before exit",
-          "Business account: Overview, Inbox (assignment, auto replies), Customers (CRM, notes, follow-ups), Workspace (appointments, team, tasks, analytics)",
           "Life Center: tasks and message reminders; saved messages; advanced message search",
           "Message editing (15 min) with edit history; chat lock; @mentions and 'who can mention me'",
           "Security Center: devices, sign out other sessions, verifiable security alerts, encrypted backup status",

@@ -1,16 +1,16 @@
 {
-  "version": "0.9.0",
-  "buildNumber": 1042,
+  "version": "0.9.1",
+  "buildNumber": 91,
   "releaseDate": "2026-11-02",
-  "releaseTitle": "Liquid Glass Tasarım Ailesi ve Tema Galerisi",
+  "releaseTitle": "Sohbetler Açılışı ve Mesaj Çevirisi",
   "mandatory": false,
   "minSupportedVersion": "0.1.0",
   "apkUrl": "https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk",
-  "versionedApkUrl": "https://github.com/engiincr/Juzzio-Chat/releases/download/v0.9.0/juzzio-v0.9.0-release.apk",
-  "apkSha256": "7f34d96f70bbda0e4b50efc38451ff9a927243fd7c9b2033c676414026f1b1e1",
-  "apkSize": "100.85 MB",
-  "verifiedBuild": true,
-  "verifiedAt": "2026-11-02 08:22 UTC",
+  "versionedApkUrl": "https://github.com/engiincr/Juzzio-Chat/releases/download/v0.9.1/juzzio-v0.9.1-release.apk",
+  "apkSha256": "",
+  "apkSize": "",
+  "verifiedBuild": false,
+  "verifiedAt": "",
   "developer": {
     "name": "Engin ÇIRPAN",
     "instagram": "https://ig.me/tugkancr",
@@ -18,54 +18,50 @@
     "email": "engiincr@pm.me"
   },
   "changelog": {
-    "tr": "v0.8.4: 12 temayı tek bir Liquid Glass tasarım ailesinde birleştirmek, her temayı hem uygulama hem sohbet teması olarak seçilebilir yapmak ve CI analiz hatasını gidermek için getirildi.",
-    "en": "v0.8.4: Unifies the 12 themes into one Liquid Glass design family, makes every theme selectable as both app and chat theme, and fixes the CI analyze error.",
-    "de": "v0.8.4: Unifies the 12 themes into one Liquid Glass design family, makes every theme selectable as both app and chat theme, and fixes the CI analyze error."
+    "tr": "v0.9.1: Uygulamayı yeniden Sohbetler ekranından açmak, birebir sohbetlerde mesaj çevirisini geri getirmek, Business'ı kaldırmak ve medya yüklenirken yaşanan takılmayı gidermek için getirildi.",
+    "en": "v0.9.1: Opens the app on Chats again, restores message translation in one-to-one chats, removes Business and fixes media hanging while loading.",
+    "de": "v0.9.1: Opens the app on Chats again, restores message translation in one-to-one chats, removes Business and fixes media hanging while loading."
   },
-  "build": 1042,
-  "versionCode": 1042,
+  "build": 91,
+  "versionCode": 91,
   "url": "https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk",
-  "changelog_tr": "v0.8.4: 12 temayı tek bir Liquid Glass tasarım ailesinde birleştirmek, her temayı hem uygulama hem sohbet teması olarak seçilebilir yapmak ve CI analiz hatasını gidermek için getirildi.",
-  "changelog_en": "v0.8.4: Unifies the 12 themes into one Liquid Glass design family, makes every theme selectable as both app and chat theme, and fixes the CI analyze error.",
-  "changelog_de": "v0.8.4: Unifies the 12 themes into one Liquid Glass design family, makes every theme selectable as both app and chat theme, and fixes the CI analyze error.",
+  "changelog_tr": "v0.9.1: Uygulamayı yeniden Sohbetler ekranından açmak, birebir sohbetlerde mesaj çevirisini geri getirmek, Business'ı kaldırmak ve medya yüklenirken yaşanan takılmayı gidermek için getirildi.",
+  "changelog_en": "v0.9.1: Opens the app on Chats again, restores message translation in one-to-one chats, removes Business and fixes media hanging while loading.",
+  "changelog_de": "v0.9.1: Opens the app on Chats again, restores message translation in one-to-one chats, removes Business and fixes media hanging while loading.",
   "details": {
     "tr": {
-      "reason": "12 temayı tek bir Liquid Glass tasarım ailesinde birleştirmek, her temayı hem uygulama hem sohbet teması olarak seçilebilir yapmak ve CI analiz hatasını gidermek için getirildi.",
+      "reason": "Uygulamayı yeniden Sohbetler ekranından açmak, birebir sohbetlerde mesaj çevirisini geri getirmek, Business'ı kaldırmak ve medya yüklenirken yaşanan takılmayı gidermek için getirildi.",
       "features": [
-        "12 tema tek Liquid Glass ailesi: her temanın kendi cam karakteri (blur, opaklık, ışık yansıması, derinlik, kenar ışığı)",
-        "Ayarlar › Görünüm: tüm uygulama arayüz temaları ve sohbet temaları tek galeride",
-        "12 cam teması artık sohbet teması olarak da seçilebiliyor; 16 klasik sohbet teması korunuyor",
-        "Tema önizlemesinde ve cam teması listesinde tema karakteri açıklaması",
-        "Siber Neon'da neon kenar parıltısı, Krom'da metalik yansıma, Obsidyen OLED'de derin katmanlar"
+        "Uygulama Sohbetler ekranından açılır; alt menü: Sohbetler, Keşfet, Aramalar, Bildirimler, Profil",
+        "Görevlerim ve hatırlatıcılar Profil sekmesinin üstünden açılır"
       ],
       "fixes": [
-        "CI analiz hatası: 'num' tür adını gölgeleyen yerel fonksiyon yeniden adlandırıldı",
-        "Sohbet parlaklık kaydırıcısı seçili temayı sıfırlamıyor",
-        "Açık renkli temalarda (Cam Beyaz, Krom vb.) giden mesaj balonunda beyaz yazı okunur kalıyor (WCAG AA ≥ 4.5:1)"
+        "Birebir sohbetlerde mesaj çevirisi yeniden çalışıyor (varsayılan açık; Ayarlar > Gizlilik'ten kapatılabilir)",
+        "Fotoğraf, sesli mesaj ve hikâyelerin yüklenirken takılması giderildi",
+        "Ana Sayfa kartındaki bozuk (dikey) yazı görünümü sayfayla birlikte kaldırıldı",
+        "Geri tuşu Sohbetler'e döner, Sohbetler'de iki kez basınca çıkar"
       ],
       "security": [
-        "Veritabanı değişikliği yok; tema seçimleri yalnızca kullanıcının kendi tercihlerine kaydedilir"
+        "Business hesabı ve ilgili tüm ekranlar kaldırıldı",
+        "Çeviri açıkken mesajlar sunucuda yine şifreli saklanır"
       ]
     },
     "en": {
-      "reason": "Unifies the 12 themes into one Liquid Glass design family, makes every theme selectable as both app and chat theme, and fixes the CI analyze error.",
+      "reason": "Opens the app on Chats again, restores message translation in one-to-one chats, removes Business and fixes media hanging while loading.",
       "features": [
-        "12 themes, one Liquid Glass family: each theme has its own glass character (blur, opacity, sheen, depth, rim light)",
-        "Settings › Appearance: all app and chat themes in one gallery",
-        "All 12 glass themes can now be used as chat themes; 16 classic chat themes kept",
-        "Theme character description in preview and glass theme list",
-        "Neon rim glow on Cyber Neon, metallic sheen on Chrome, deep layers on Obsidian OLED"
+        "The app opens on Chats; bottom bar: Chats, Explore, Calls, Notifications, Profile",
+        "My tasks & reminders open from the top of the Profile tab"
       ],
       "fixes": [
-        "CI analyze error: local function shadowing the 'num' type renamed",
-        "Chat brightness slider no longer resets the selected theme",
-        "White text on outgoing bubbles stays readable on light themes (WCAG AA ≥ 4.5:1)"
+        "Message translation works again in one-to-one chats (on by default; can be turned off in Settings > Privacy)",
+        "Fixed photos, voice messages and stories hanging while loading",
+        "Removed the broken (vertical) text card together with the Home page",
+        "Back button returns to Chats; press twice on Chats to exit"
       ],
       "security": [
-        "No database changes; theme choices are stored only in the user's own preferences"
+        "Business account and all related screens removed",
+        "Messages stay encrypted on the server while translation is on"
       ]
     }
-  },
-  "mldsa65Sig": "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",
-  "signatureAlg": "ML-DSA-65 (FIPS 204)"
+  }
 }

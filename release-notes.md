@@ -1,26 +1,25 @@
-# Juzzio v0.9.0 — Liquid Glass Tasarım Ailesi ve Tema Galerisi
+# Juzzio v0.9.1 — Sohbetler Açılışı ve Mesaj Çevirisi
 
 ## Neden bu güncelleme?
 
-12 temayı tek bir Liquid Glass tasarım ailesinde birleştirmek, her temayı hem uygulama hem sohbet teması olarak seçilebilir yapmak ve CI analiz hatasını gidermek için getirildi.
+Uygulamayı yeniden Sohbetler ekranından açmak, birebir sohbetlerde mesaj çevirisini geri getirmek, Business'ı kaldırmak ve medya yüklenirken yaşanan takılmayı gidermek için getirildi.
 
 ## ✨ Yeni özellikler
 
-- 12 tema tek Liquid Glass ailesi: her temanın kendi cam karakteri (blur, opaklık, ışık yansıması, derinlik, kenar ışığı)
-- Ayarlar › Görünüm: tüm uygulama arayüz temaları ve sohbet temaları tek galeride
-- 12 cam teması artık sohbet teması olarak da seçilebiliyor; 16 klasik sohbet teması korunuyor
-- Tema önizlemesinde ve cam teması listesinde tema karakteri açıklaması
-- Siber Neon'da neon kenar parıltısı, Krom'da metalik yansıma, Obsidyen OLED'de derin katmanlar
+- Uygulama Sohbetler ekranından açılır; alt menü: Sohbetler, Keşfet, Aramalar, Bildirimler, Profil
+- Görevlerim ve hatırlatıcılar Profil sekmesinin üstünden açılır
 
 ## 🛠️ Düzeltilen hatalar
 
-- CI analiz hatası: 'num' tür adını gölgeleyen yerel fonksiyon yeniden adlandırıldı
-- Sohbet parlaklık kaydırıcısı seçili temayı sıfırlamıyor
-- Açık renkli temalarda (Cam Beyaz, Krom vb.) giden mesaj balonunda beyaz yazı okunur kalıyor (WCAG AA ≥ 4.5:1)
+- Birebir sohbetlerde mesaj çevirisi yeniden çalışıyor (varsayılan açık; Ayarlar > Gizlilik'ten kapatılabilir)
+- Fotoğraf, sesli mesaj ve hikâyelerin yüklenirken takılması giderildi
+- Ana Sayfa kartındaki bozuk (dikey) yazı görünümü sayfayla birlikte kaldırıldı
+- Geri tuşu Sohbetler'e döner, Sohbetler'de iki kez basınca çıkar
 
 ## 🔒 Güvenlik ve gizlilik
 
-- Veritabanı değişikliği yok; tema seçimleri yalnızca kullanıcının kendi tercihlerine kaydedilir
+- Business hesabı ve ilgili tüm ekranlar kaldırıldı
+- Çeviri açıkken mesajlar sunucuda yine şifreli saklanır
 
 ---
 
@@ -28,38 +27,24 @@
 
 ## Why this update?
 
-Unifies the 12 themes into one Liquid Glass design family, makes every theme selectable as both app and chat theme, and fixes the CI analyze error.
+Opens the app on Chats again, restores message translation in one-to-one chats, removes Business and fixes media hanging while loading.
 
 ## ✨ New features
 
-- 12 themes, one Liquid Glass family: each theme has its own glass character (blur, opacity, sheen, depth, rim light)
-- Settings › Appearance: all app and chat themes in one gallery
-- All 12 glass themes can now be used as chat themes; 16 classic chat themes kept
-- Theme character description in preview and glass theme list
-- Neon rim glow on Cyber Neon, metallic sheen on Chrome, deep layers on Obsidian OLED
+- The app opens on Chats; bottom bar: Chats, Explore, Calls, Notifications, Profile
+- My tasks & reminders open from the top of the Profile tab
 
 ## 🛠️ Fixed bugs
 
-- CI analyze error: local function shadowing the 'num' type renamed
-- Chat brightness slider no longer resets the selected theme
-- White text on outgoing bubbles stays readable on light themes (WCAG AA ≥ 4.5:1)
+- Message translation works again in one-to-one chats (on by default; can be turned off in Settings > Privacy)
+- Fixed photos, voice messages and stories hanging while loading
+- Removed the broken (vertical) text card together with the Home page
+- Back button returns to Chats; press twice on Chats to exit
 
 ## 🔒 Security and privacy
 
-- No database changes; theme choices are stored only in the user's own preferences
+- Business account and all related screens removed
+- Messages stay encrypted on the server while translation is on
 
 </details>
 
-## İndirme
-
-- Son sürüm: [Juzzio-latest.apk](https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk)
-- Bu sürüm: `juzzio-v0.9.0-release.apk` (100.85 MB)
-
-## APK doğrulama
-
-```bash
-sha256sum Juzzio-latest.apk
-# 7f34d96f70bbda0e4b50efc38451ff9a927243fd7c9b2033c676414026f1b1e1  Juzzio-latest.apk
-```
-
-Derleme zamanı: 2026-11-02 08:22 UTC — GitHub Actions

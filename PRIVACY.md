@@ -1,6 +1,6 @@
 # Juzzio Gizlilik Politikası ve KVKK Aydınlatma Metni
 
-Son güncelleme: 2 Kasım 2026 · Uygulama sürümü: v0.9.0 (BETA · Erken Erişim)
+Son güncelleme: 2 Kasım 2026 · Uygulama sürümü: v0.9.1 (BETA · Erken Erişim)
 
 Bu metin, Juzzio mobil uygulamasının hangi kişisel verileri hangi amaçla işlediğini, kimlerle paylaştığını ve haklarınızı **olduğu gibi** açıklar. Uygulamanın kaynak kodu GitHub'da açıktır; buradaki her ifade koddan doğrulanabilir.
 
@@ -40,7 +40,7 @@ Bu metin, Juzzio mobil uygulamasının hangi kişisel verileri hangi amaçla iş
 - Güncelleme dosyalarının bütünlüğü SHA-256 ile; yayın imzası için ML-DSA (FIPS 204) doğrulama altyapısı uygulamada bulunur.
 - **Fotoğraflar (v0.9.0):** 1'e 1 sohbette gönderilen fotoğraf cihazınızda, dosyaya özel rastgele anahtarla **AES-256-GCM** ile şifrelenir; anahtar ve **SHA-256** bütünlük özeti şifreli mesajın içinde taşınır. Sunucuda yalnızca şifreli dosya bulunur. Şifreleme yapılamazsa fotoğraf gönderilmez; bütünlük doğrulaması tutmazsa fotoğraf gösterilmez.
 - **Zamanlanmış mesajlar (v0.9.0):** 1'e 1 sohbette zamanlanan mesaj cihazınızda şifrelenir ve sunucuda gönderim zamanına kadar yalnızca şifreli hâliyle bekler.
-- **Sınırlar:** grup mesajları ve anketleri, video/sesli mesajlar/belgeler henüz uçtan uca şifreli değildir (aktarımda TLS ile şifrelenir, sunucuda erişim kontrollü özel depoda saklanır). Business otomatik yanıtları şifresizdir ve öyle işaretlenir; işletme ekip üyeleri şifreli sohbet içeriğini göremez. Otomatik çeviri açıkken mesaj metni çeviri için cihazınızdan çeviri hizmetine gönderilir. Kimlik doğrulama (giriş) Supabase'in standart oturum belirteçleriyle yapılır.
+- **Sınırlar:** grup mesajları ve anketleri, video/sesli mesajlar/belgeler henüz uçtan uca şifreli değildir (aktarımda TLS ile şifrelenir, sunucuda erişim kontrollü özel depoda saklanır). Otomatik çeviri **varsayılan olarak açıktır**; açıkken birebir sohbetlerdeki mesaj metni de çeviri için cihazınızdan çeviri hizmetine (Google Translate) gönderilir, sunucuda ise şifreli saklanmaya devam eder. Ayarlar → Gizlilik'ten kapatabilirsiniz. Kimlik doğrulama (giriş) Supabase'in standart oturum belirteçleriyle yapılır.
 
 ## 4a. Güvenlik Merkezi, cihazlar ve güvenlik olayları (v0.9.0)
 
