@@ -489,6 +489,8 @@ const List<String> kJuzzioInlineEnglishCatalog = [
   'Type a message...',
   'Send Photo / Video',
   'Hold to record, slide up to lock.',
+  'Recording audio..',
+  'Typing',
   'Last seen hidden',
   'Last seen just now',
   'Message requests',

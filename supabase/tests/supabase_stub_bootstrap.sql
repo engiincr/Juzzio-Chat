@@ -128,3 +128,24 @@ BEGIN
     END IF;
 END $$;
 
+
+-- v0.9.0: Supabase Realtime yetkilendirme iskeleti (yayın/presence RLS'i test edilebilsin)
+--  Gerçek Supabase'de realtime.messages ve realtime.topic() hazır gelir; burada topic GUC'den okunur.
+CREATE SCHEMA IF NOT EXISTS realtime;
+GRANT USAGE ON SCHEMA realtime TO anon, authenticated, service_role;
+CREATE TABLE IF NOT EXISTS realtime.messages (
+    id BIGSERIAL PRIMARY KEY,
+    topic TEXT NOT NULL,
+    extension TEXT NOT NULL,
+    payload JSONB,
+    event TEXT,
+    private BOOLEAN DEFAULT true,
+    inserted_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE realtime.messages ENABLE ROW LEVEL SECURITY;
+GRANT SELECT, INSERT ON realtime.messages TO authenticated;
+GRANT USAGE ON SEQUENCE realtime.messages_id_seq TO authenticated;
+CREATE OR REPLACE FUNCTION realtime.topic() RETURNS TEXT LANGUAGE sql STABLE AS $$
+    SELECT NULLIF(current_setting('realtime.topic', true), '')
+$$;
+GRANT EXECUTE ON FUNCTION realtime.topic() TO anon, authenticated, service_role;

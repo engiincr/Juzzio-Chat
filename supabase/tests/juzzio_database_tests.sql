@@ -1009,3 +1009,63 @@ DO $$ BEGIN
 EXCEPTION WHEN check_violation THEN NULL; END $$;
 DELETE FROM messages WHERE client_msg_id = 'qr_0123456789abcdef';
 SELECT 'TÜM v0.9.0 MESAJ İDEMPOTENCY TESTLERİ GEÇTİ';
+-- v0.9.0 N-A: sohbet etkinlik durumu (yazıyor / kaydediliyor) Realtime yetkilendirmesi
+RESET ROLE;
+-- A–B birebir odası önceki bloklarda zaten var (ikinci DM tetikleyiciyle engellenir) → onu kullan
+SELECT r.id AS dmroom FROM rooms r
+  JOIN room_participants a ON a.room_id = r.id AND a.user_id = :'A' AND a.left_at IS NULL
+  JOIN room_participants b ON b.room_id = r.id AND b.user_id = :'B' AND b.left_at IS NULL
+  WHERE NOT r.is_group LIMIT 1 \gset
+INSERT INTO rooms (id, room_code, livekit_room_name, is_group) VALUES
+  ('acacacac-0000-0000-0000-0000000000a2', 'act_grp_abc', 'act_grp_abc', true);
+INSERT INTO room_participants (room_id, user_id) VALUES
+  ('acacacac-0000-0000-0000-0000000000a2', :'A'), ('acacacac-0000-0000-0000-0000000000a2', :'B'),
+  ('acacacac-0000-0000-0000-0000000000a2', :'C');
+CREATE OR REPLACE FUNCTION pg_temp.can_send(u uuid, topic text) RETURNS boolean LANGUAGE plpgsql AS $$
+BEGIN
+  PERFORM set_config('request.jwt.claim.sub', u::text, false);
+  PERFORM set_config('realtime.topic', topic, false);
+  BEGIN
+    SET LOCAL ROLE authenticated;
+    INSERT INTO realtime.messages (topic, extension, payload) VALUES (topic, 'broadcast', '{"state":"typing"}');
+    RESET ROLE;
+    RETURN true;
+  EXCEPTION WHEN insufficient_privilege THEN
+    RETURN false;
+  END;
+END $$;
+CREATE OR REPLACE FUNCTION pg_temp.can_read(u uuid, topic text) RETURNS boolean LANGUAGE plpgsql AS $$
+DECLARE n int;
+BEGIN
+  PERFORM set_config('request.jwt.claim.sub', u::text, false);
+  PERFORM set_config('realtime.topic', topic, false);
+  SET LOCAL ROLE authenticated;
+  SELECT count(*) INTO n FROM realtime.messages m WHERE m.topic = realtime.topic();
+  RESET ROLE;
+  RETURN n > 0;
+END $$;
+SELECT pg_temp.check('DM üyesi yazıyor yayınlar', pg_temp.can_send(:'A', 'room-activity:' || :'dmroom'));
+SELECT pg_temp.check('DM karşı tarafı okur', pg_temp.can_read(:'B', 'room-activity:' || :'dmroom'));
+SELECT pg_temp.check('üye olmayan okuyamaz', NOT pg_temp.can_read(:'C', 'room-activity:' || :'dmroom'));
+SELECT pg_temp.check('üye olmayan yayınlayamaz', NOT pg_temp.can_send(:'C', 'room-activity:' || :'dmroom'));
+SELECT pg_temp.check('grup üyesi yayınlar', pg_temp.can_send(:'C', 'room-activity:acacacac-0000-0000-0000-0000000000a2'));
+SELECT pg_temp.check('bozuk konu reddedilir', NOT pg_temp.can_send(:'A', 'room-activity:not-a-uuid'));
+SELECT pg_temp.check('başka kanal adı reddedilir', NOT pg_temp.can_send(:'A', 'other:acacacac-0000-0000-0000-0000000000a1'));
+-- Çevrimiçi gizliliği 'nobody' → yayın yok (okuma serbest)
+UPDATE profiles SET privacy_online = 'nobody' WHERE id = :'A';
+SELECT pg_temp.check('gizlilik nobody → yayın yok', NOT pg_temp.can_send(:'A', 'room-activity:acacacac-0000-0000-0000-0000000000a2'));
+SELECT pg_temp.check('gizlilik nobody → yine de okur', pg_temp.can_read(:'A', 'room-activity:acacacac-0000-0000-0000-0000000000a2'));
+UPDATE profiles SET privacy_online = 'everyone' WHERE id = :'A';
+-- Engel → DM'de iki yön kapalı
+INSERT INTO blocked_users (blocker_id, blocked_id) VALUES (:'B', :'A');
+SELECT pg_temp.check('engel: engellenen yayınlayamaz', NOT pg_temp.can_send(:'A', 'room-activity:' || :'dmroom'));
+SELECT pg_temp.check('engel: engelleyen okuyamaz', NOT pg_temp.can_read(:'B', 'room-activity:' || :'dmroom'));
+DELETE FROM blocked_users WHERE blocker_id = :'B' AND blocked_id = :'A';
+-- Odadan ayrılan
+UPDATE room_participants SET left_at = NOW() WHERE room_id = 'acacacac-0000-0000-0000-0000000000a2' AND user_id = :'C';
+SELECT pg_temp.check('ayrılan üye yayınlayamaz', NOT pg_temp.can_send(:'C', 'room-activity:acacacac-0000-0000-0000-0000000000a2'));
+RESET ROLE;
+DELETE FROM realtime.messages;
+DELETE FROM room_participants WHERE room_id IN ('acacacac-0000-0000-0000-0000000000a2');
+DELETE FROM rooms WHERE id IN ('acacacac-0000-0000-0000-0000000000a2');
+SELECT 'TÜM v0.9.0 ETKİNLİK DURUMU TESTLERİ GEÇTİ';
