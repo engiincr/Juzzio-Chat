@@ -7,7 +7,7 @@ Hiçbir madde yalnızca arayüzü olduğu için "tamam" sayılmaz: backend + RLS
 hata durumları + test + l10n + 12 tema uyumu gerekir.
 
 ## ŞU AN
-- Sürüm 0.9.1 (+91): Sohbetler açılışı, çeviri varsayılan açık, Business/Ana Sayfa kaldırıldı, medya kilitlenmesi düzeltildi. Sonraki: CI + yayın adımı doğrulaması.
+- Sürüm 0.9.2 (+92): çevrimdışı sohbet (son 300 mesaj/oda), medya ve sesli mesaj disk önbelleği (300 MB, hesaba özel), profil önbelleği, E2EE çevrimdışı çözme. Sonraki: cihazda uçak modu testi.
 - Sayaç: SQL 20 blok PASS (yerel PG16); Edge birim 13/13 PASS; Dart 30 test dosyası (CI'da).
 
 ## Doğrulama ortamı (gerçek)
@@ -166,6 +166,7 @@ kullanılır (talimat §16 "mevcut takip dosyaları varsa onları kullan"); yaln
 - 2026-11-01: Faz 1b (1. kısım): Bölüm 10 SQL (LiveKit, etkin katılımcı, davet, altyazı, sesli not, hız sınırı, push kilidi, storage gizliliği, UI çeviri önbelleği). SQL: temiz kurulum ×2 + v0.8.4'ten yükseltme PASS; 145 doğrulama PASS (v0.9.0 bloğu dahil); mutasyon testi testlerin hatayı yakaladığını kanıtladı. Edge Functions tsc PASS. ⚠️ Storage özel hale geldiği için istemci imzalı URL geçişi (Faz 1c) yayından önce ZORUNLU.
 - 2026-11-01: Faz 1b tamam — RBAC (47 RPC), storage temizliği kuyruğu + storage-cleanup fonksiyonu + bakım iş akışı. SQL 167 doğrulama PASS. Kurulum notu: GitHub + Supabase secret `STORAGE_CLEANUP_SECRET` (≥24 karakter) eklenmeli.
 - 2026-11-01: Faz 2 + N-E + N-G (yukarıdaki satırlar). Regresyon: sözcük denetimi 86 dosya PASS, l10n PASS (1240 metin), sır taraması PASS, ci_guards PASS, release_meta PASS, SQL 5 blok PASS. Ek düzeltme: Keşfet bakım metni sabit beyazdı → tema rengi.
+- 2026-11-02: v0.9.2 çevrimdışı mod (mesaj/medya/profil önbelleği; hesap silmede önbellek temizliği).
 - 2026-11-02: Ana Sayfa + Business istemcisi kaldırıldı (−3000 satır), çeviri varsayılan açık, whenComplete kilitlenmesi düzeltildi.
 - 2026-11-02: C-A6 — v0.8.4→v0.9.0 yükseltme testi PASS (22/22), tüm kapılar PASS, sürüm 0.9.0, README/PRIVACY/sürüm notları, docs/CLOSURE_MATRIX_v0.9.0.md, ZIP.
 - 2026-11-02: G23/G24 E2EE fotoğraf, G26 anket, G27 zamanlanmış mesaj, G28 hız (SQL 22 blok, 315 doğrulama PASS).

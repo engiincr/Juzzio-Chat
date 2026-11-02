@@ -1,3 +1,4 @@
+import '../services/juzzio_media_cache.dart';
 import 'dart:async';
 // =============================================================================
 // JUZZIO v0.1.0 - Eksiksiz Ayarlar Paketi (Görseldeki "Ayarlar", "Bildirimler"
@@ -179,7 +180,7 @@ class _JuzzioSettingsMainPageState extends State<JuzzioSettingsMainPage> {
                                   backgroundColor: p.amberPrimary,
                                   backgroundImage: _profile?.avatarUrl != null &&
                                           _profile!.avatarUrl!.isNotEmpty
-                                      ? NetworkImage(_profile!.avatarUrl!)
+                                      ? JuzzioCachedImageProvider(_profile!.avatarUrl!)
                                       : null,
                                   child: _profile?.avatarUrl == null ||
                                           _profile!.avatarUrl!.isEmpty
@@ -1391,7 +1392,7 @@ class _JuzzioEditProfilePageState extends State<JuzzioEditProfilePage> {
                                       backgroundImage: _pickedAvatarFile != null
                                           ? FileImage(_pickedAvatarFile!) as ImageProvider
                                           : (currentAvatar != null && currentAvatar.isNotEmpty
-                                              ? NetworkImage(currentAvatar)
+                                              ? JuzzioCachedImageProvider(currentAvatar) as ImageProvider
                                               : null),
                                       child: (_pickedAvatarFile == null &&
                                               (currentAvatar == null || currentAvatar.isEmpty))

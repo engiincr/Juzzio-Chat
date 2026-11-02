@@ -1,25 +1,27 @@
-# Juzzio v0.9.1 — Sohbetler Açılışı ve Mesaj Çevirisi
+# Juzzio v0.9.2 — Çevrimdışı Sohbetler ve Medya
 
 ## Neden bu güncelleme?
 
-Uygulamayı yeniden Sohbetler ekranından açmak, birebir sohbetlerde mesaj çevirisini geri getirmek, Business'ı kaldırmak ve medya yüklenirken yaşanan takılmayı gidermek için getirildi.
+İnternet yokken de sohbetlerin, fotoğrafların, sesli mesajların ve profillerin WhatsApp'taki gibi açılabilmesi için getirildi.
 
 ## ✨ Yeni özellikler
 
-- Uygulama Sohbetler ekranından açılır; alt menü: Sohbetler, Keşfet, Aramalar, Bildirimler, Profil
-- Görevlerim ve hatırlatıcılar Profil sekmesinin üstünden açılır
+- Çevrimdışı sohbet: her sohbetin son 300 mesajı cihazda saklanır, internet yokken okunabilir
+- Görüntülenen fotoğraflar ve profil resimleri cihazda saklanır, internetsiz görünür
+- Dinlenen sesli mesajlar internetsiz tekrar çalınabilir
+- Kişi profilleri internet yokken son görülen hâliyle açılır
+- Bağlantı gelince sohbet kendiliğinden yenilenir (5 sn arayla yeniden bağlanır)
 
 ## 🛠️ Düzeltilen hatalar
 
-- Birebir sohbetlerde mesaj çevirisi yeniden çalışıyor (varsayılan açık; Ayarlar > Gizlilik'ten kapatılabilir)
-- Fotoğraf, sesli mesaj ve hikâyelerin yüklenirken takılması giderildi
-- Ana Sayfa kartındaki bozuk (dikey) yazı görünümü sayfayla birlikte kaldırıldı
-- Geri tuşu Sohbetler'e döner, Sohbetler'de iki kez basınca çıkar
+- İnternet yokken şifreli mesajlar 'kilitli' görünmüyor; anahtarlar cihazdan okunur
+- Hesap silindiğinde cihazdaki önbellek de siliniyor
 
 ## 🔒 Güvenlik ve gizlilik
 
-- Business hesabı ve ilgili tüm ekranlar kaldırıldı
-- Çeviri açıkken mesajlar sunucuda yine şifreli saklanır
+- Şifreli mesajlar ve şifreli fotoğraflar cihazda da şifreli hâliyle saklanır; çözme yalnız bellekte
+- Önbellek hesaba özeldir; çıkışta ve hesap silmede silinir
+- Medya önbelleği en fazla 300 MB; Ayarlar > Depolama > Önbelleği Temizle ile silinebilir (mesajlar silinmez)
 
 ---
 
@@ -27,37 +29,26 @@ Uygulamayı yeniden Sohbetler ekranından açmak, birebir sohbetlerde mesaj çev
 
 ## Why this update?
 
-Opens the app on Chats again, restores message translation in one-to-one chats, removes Business and fixes media hanging while loading.
+Lets chats, photos, voice messages and profiles open without internet, like WhatsApp.
 
 ## ✨ New features
 
-- The app opens on Chats; bottom bar: Chats, Explore, Calls, Notifications, Profile
-- My tasks & reminders open from the top of the Profile tab
+- Offline chats: the last 300 messages of each chat are kept on the device and readable without internet
+- Viewed photos and profile pictures are stored on the device and shown offline
+- Played voice messages can be replayed offline
+- Contact profiles open offline with their last seen data
+- Chats refresh automatically when the connection returns (reconnects every 5 s)
 
 ## 🛠️ Fixed bugs
 
-- Message translation works again in one-to-one chats (on by default; can be turned off in Settings > Privacy)
-- Fixed photos, voice messages and stories hanging while loading
-- Removed the broken (vertical) text card together with the Home page
-- Back button returns to Chats; press twice on Chats to exit
+- Encrypted messages no longer show as locked while offline; keys are read from the device
+- Deleting the account also deletes the on-device cache
 
 ## 🔒 Security and privacy
 
-- Business account and all related screens removed
-- Messages stay encrypted on the server while translation is on
+- Encrypted messages and photos are stored encrypted on the device too; decryption happens only in memory
+- The cache is per account and is deleted on sign-out and account deletion
+- Media cache is capped at 300 MB and can be cleared in Settings > Storage > Clear cache (messages are kept)
 
 </details>
 
-## İndirme
-
-- Son sürüm: [Juzzio-latest.apk](https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk)
-- Bu sürüm: `juzzio-v0.9.1-release.apk` (100.27 MB)
-
-## APK doğrulama
-
-```bash
-sha256sum Juzzio-latest.apk
-# 4e5053e7f171f1c7fd961c45a5d0c1b572a4e3668fa814481228482ac3809664  Juzzio-latest.apk
-```
-
-Derleme zamanı: 2026-11-02 08:36 UTC — GitHub Actions

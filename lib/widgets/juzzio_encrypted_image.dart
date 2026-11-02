@@ -2,18 +2,17 @@
 // JUZZIO v0.9.0 — G23/G24 şifreli fotoğraf görüntüleyici
 //  Şifreli bayt imzalı URL ile indirilir, cihazda SHA-256 + AES-GCM doğrulanarak açılır.
 //  Anahtar yoksa / doğrulama tutmazsa kilit simgesi gösterilir (ham veri asla gösterilmez).
-//  Açılmış görseller yalnız bellekte tutulur (en fazla 40), diske yazılmaz.
+//  Diskte yalnız ŞİFRELİ bayt saklanır (çevrimdışı); açılmış görsel yalnız bellekte (en fazla 40).
 // =============================================================================
 
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 
 import '../core/app_theme_and_locale.dart';
 import '../services/juzzio_e2ee.dart';
 import '../services/juzzio_media_crypto.dart';
-import '../services/juzzio_media_url.dart';
+import '../services/juzzio_media_cache.dart';
 import '../services/supabase_service.dart';
 
 class JuzzioEncryptedMedia {
@@ -37,10 +36,10 @@ class JuzzioEncryptedMedia {
     final key = JuzzioE2ee.instance.mediaKeyFor(messageId);
     if (key == null) return null;
     try {
-      final signed = await JuzzioMediaUrl.resolve(url);
-      final res = await http.get(Uri.parse(signed));
-      if (res.statusCode != 200) return null;
-      final out = await JuzzioMediaCrypto.open(res.bodyBytes, key);
+      // v0.9.2: şifreli bayt diskte saklanır (çevrimdışı görüntüleme); çözme yalnız bellekte
+      final cipher = await JuzzioMediaDiskCache.instance.loadBytes(url);
+      if (cipher == null) return null;
+      final out = await JuzzioMediaCrypto.open(cipher, key);
       if (out == null) return null;
       if (_cache.length >= 40) _cache.remove(_cache.keys.first);
       _cache[ck] = out;

@@ -211,7 +211,7 @@ class JuzzioUserAvatar extends StatelessWidget {
               errorBuilder: (_, __, ___) => _buildFallbackText(isDark),
             )
           : (url.startsWith('http')
-              ? Image.network(
+              ? JuzzioStorageImage(
                   url,
                   fit: BoxFit.cover,
                   loadingBuilder: (ctx, child, progress) {

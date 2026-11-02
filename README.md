@@ -16,13 +16,13 @@
 </div>
 
 <!-- JUZZIO_DYNAMIC_TITLE_START -->
-### 🚀 Son güncelleme: **v0.9.1 — Sohbetler Açılışı ve Mesaj Çevirisi**
+### 🚀 Son güncelleme: **v0.9.2 — Çevrimdışı Sohbetler ve Medya**
 <!-- JUZZIO_DYNAMIC_TITLE_END -->
 
 <!-- JUZZIO_VERIFIED_APK_START -->
 | Sürüm | APK | Boyut | SHA-256 | Derleme |
 | :-- | :-- | :-- | :-- | :-- |
-| v0.9.1 (+1044) | [Juzzio-latest.apk](https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk) | 100.27 MB | `4e5053e7f171f1c7fd961c45a5d0c1b572a4e3668fa814481228482ac3809664` | 2026-11-02 08:36 UTC |
+| v0.9.2 (+92) | GitHub Actions derlemesi bekleniyor | – | – | – |
 <!-- JUZZIO_VERIFIED_APK_END -->
 
 ---

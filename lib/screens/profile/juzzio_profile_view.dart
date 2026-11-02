@@ -122,9 +122,11 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
         if (mounted) setState(() => _relation = rel);
       }
     } catch (_) {
+      // v0.9.2: çevrimdışı → cihazda kayıtlı son profil (gönderiler/sayılar bağlantı gelince yüklenir)
+      final cached = _profile == null ? await SupabaseService.instance.cachedUserProfile(widget.userId) : null;
       if (!mounted) return;
       setState(() {
-        _profile ??= _isOwn ? widget.currentUser : null;
+        _profile ??= cached ?? (_isOwn ? widget.currentUser : null);
         _loading = false;
       });
     }
@@ -444,7 +446,7 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
   Widget _avatarImage(JuzzioUserProfile prof, double radius) {
     final url = prof.avatarUrl ?? '';
     if (url.startsWith('http')) {
-      return Image.network(url, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _initialsAvatar(prof, radius));
+      return JuzzioStorageImage(url, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _initialsAvatar(prof, radius));
     }
     return _initialsAvatar(prof, radius);
   }

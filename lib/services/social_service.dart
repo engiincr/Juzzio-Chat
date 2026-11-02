@@ -5,6 +5,7 @@
 // Sahte kullanıcı veya sabit demo verisi içermez!
 // =============================================================================
 
+import 'juzzio_media_cache.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -1381,6 +1382,14 @@ class JuzzioSocialService {
       supportBytes = await folderBytes(supDir);
     } catch (_) {}
 
+    // v0.9.2: çevrimdışı medya önbelleği "geçici" sayılır (silinince yeniden indirilir)
+    var mediaBytes = 0;
+    try {
+      mediaBytes = await JuzzioMediaDiskCache.instance.sizeBytes();
+    } catch (_) {}
+    tempBytes += mediaBytes;
+    supportBytes -= mediaBytes;
+    if (supportBytes < 0) supportBytes = 0;
     return {
       'cacheBytes': tempBytes,
       'appDataBytes': supportBytes,
@@ -1390,6 +1399,9 @@ class JuzzioSocialService {
 
   Future<int> clearSafeTemporaryCache() async {
     int freed = 0;
+    try {
+      freed += await JuzzioMediaDiskCache.instance.clear();
+    } catch (_) {}
     try {
       final tempDir = await getTemporaryDirectory();
       if (tempDir.existsSync()) {

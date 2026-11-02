@@ -145,8 +145,10 @@ class JuzzioE2ee {
       _epochKeys.clear();
       _plainCache.clear();
       _mediaKeys.clear(); // hesap değişince medya anahtarları unutulur
+      _publishPending = false;
     }
-    return _init ??= _load(uid);
+    final init = _init ??= _load(uid);
+    return init.then((_) => _retryPublishIfNeeded(uid));
   }
 
   Future<_IdentityKey> _materialize(_IdentityKey k) async {
@@ -180,10 +182,29 @@ class JuzzioE2ee {
         await _rotateIdentity(uid, firstFromV1: cur == null ? v1 : null);
       }
       await _materialize(_current!);
-      await _publish(uid);
     } catch (_) {
       _init = null;
+      return;
     }
+    // v0.9.2: anahtarlar cihazda hazır; açık anahtar yayını ağ ister. Çevrimdışıyken
+    // başarısız olursa yerel çözme ÇALIŞMAYA DEVAM EDER, yayın sonra yeniden denenir.
+    try {
+      await _publish(uid);
+      _publishPending = false;
+    } catch (_) {
+      _publishPending = true;
+    }
+  }
+
+  bool _publishPending = false;
+  DateTime? _lastPublishTry;
+
+  void _retryPublishIfNeeded(String uid) {
+    if (!_publishPending) return;
+    final now = DateTime.now();
+    if (_lastPublishTry != null && now.difference(_lastPublishTry!) < const Duration(seconds: 30)) return;
+    _lastPublishTry = now;
+    _publish(uid).then((_) => _publishPending = false, onError: (_) {});
   }
 
   /// Yeni kimlik anahtarı (yeniden anahtarlama). Eski anahtarlar geçmiş mesajlar için saklanır.

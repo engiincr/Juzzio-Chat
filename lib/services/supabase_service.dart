@@ -21,6 +21,7 @@ import '../core/app_theme_and_locale.dart';
 import '../core/config.dart';
 import 'juzzio_features_service.dart';
 import 'juzzio_media_crypto.dart';
+import 'juzzio_media_cache.dart';
 import 'juzzio_media_url.dart';
 
 // -----------------------------------------------------------------------------
@@ -1239,6 +1240,7 @@ class SupabaseService {
     } catch (_) {}
     await clearLocalCacheForCurrentUser();
     JuzzioMediaUrl.clearCache();
+    await JuzzioMediaDiskCache.instance.init(null);
     await client.auth.signOut();
   }
 
@@ -1305,7 +1307,10 @@ class SupabaseService {
       throw AuthException(_app.t('err_password_wrong'));
     }
     await client.rpc('delete_my_juzzio_account');
+    // Hesap silinince bu cihazdaki önbellek (sohbetler, mesajlar, medya) de silinir
+    await clearLocalCacheForCurrentUser();
     JuzzioMediaUrl.clearCache();
+    await JuzzioMediaDiskCache.instance.init(null);
     await client.auth.signOut();
   }
 
@@ -1485,8 +1490,25 @@ class SupabaseService {
     try {
       final row = await client.from('profiles').select().eq('id', userId).maybeSingle();
       if (row != null) {
-        if (userId == currentUserId) unawaited(_writeCache('my_profile', row));
+        unawaited(_writeCache(userId == currentUserId ? 'my_profile' : profileCacheName(userId), row));
         return JuzzioUserProfile.fromMap(row);
+      }
+      return null; // sunucu "yok" dedi: önbellek kullanılmaz (silinmiş/engelli hesap)
+    } catch (_) {
+      // v0.9.2: çevrimdışı → en son görülen profil
+      return cachedUserProfile(userId);
+    }
+  }
+
+  static String profileCacheName(String userId) => 'profile_${userId.replaceAll(RegExp(r'[^A-Za-z0-9-]'), '')}';
+
+  /// Cihazda kayıtlı son profil (ağ kullanmaz). Yoksa toplu profil önbelleğine bakar.
+  Future<JuzzioUserProfile?> cachedUserProfile(String userId) async {
+    try {
+      final raw = await _readCache(userId == currentUserId ? 'my_profile' : profileCacheName(userId));
+      if (raw is Map) return JuzzioUserProfile.fromMap(Map<String, dynamic>.from(raw));
+      for (final p in await loadCachedProfiles()) {
+        if (p.id == userId) return p;
       }
     } catch (_) {}
     return null;
@@ -2153,22 +2175,81 @@ class SupabaseService {
   // ---------------------------------------------------------------------------
   // MESAJLAR
   // ---------------------------------------------------------------------------
+  /// v0.9.2: çevrimdışı okuma için oda başına saklanan son mesaj sayısı.
+  static const int offlineMessageLimit = 300;
+
+  /// Önbellek dosya adı (oda kimliği dışındaki karakterler atılır).
+  static String messageCacheName(String roomId) => 'msgs_${roomId.replaceAll(RegExp(r'[^A-Za-z0-9-]'), '')}';
+
+  /// Sunucu satırlarından ekrana uygun liste (süresi dolan mesajlar atılır).
+  static List<JuzzioMessage> visibleMessagesFromRows(Iterable<Map<String, dynamic>> rows, {DateTime? now}) {
+    final t = (now ?? DateTime.now()).toUtc();
+    return rows
+        .where((r) {
+          final exp = DateTime.tryParse(r['expires_at']?.toString() ?? '');
+          return exp == null || exp.toUtc().isAfter(t);
+        })
+        .map(JuzzioMessage.fromMap)
+        .toList();
+  }
+
+  /// v0.9.2 (WhatsApp benzeri çevrimdışı okuma): önce cihazdaki son mesajlar ANINDA gösterilir,
+  /// sonra canlı akış bağlanır ve her güncellemede önbellek yenilenir. Bağlantı koparsa hata
+  /// ekrana yansımaz; son liste kalır ve 5 sn arayla yeniden bağlanılır.
+  /// Şifreli mesajlar diske SUNUCUDAKİ şifreli hâliyle yazılır; çözme her açılışta cihazda yapılır.
   Stream<List<JuzzioMessage>> watchRoomMessages(String roomId) {
-    return client
-        .from('messages')
-        .stream(primaryKey: ['id'])
-        .eq('room_id', roomId)
-        .order('created_at', ascending: true)
-        .map((rows) {
-      final now = DateTime.now().toUtc();
-      return rows
-          .where((r) {
-            final exp = DateTime.tryParse(r['expires_at']?.toString() ?? '');
-            return exp == null || exp.toUtc().isAfter(now);
-          })
-          .map(JuzzioMessage.fromMap)
-          .toList();
-    }).asyncMap(JuzzioE2ee.instance.decryptAll);
+    final cacheName = messageCacheName(roomId);
+    return Stream<List<JuzzioMessage>>.multi((out) {
+      StreamSubscription<List<Map<String, dynamic>>>? sub;
+      Timer? retry;
+      var closed = false;
+      var gotNetwork = false;
+      Future<void> chain = Future<void>.value();
+
+      void emitRows(List<Map<String, dynamic>> rows) {
+        chain = chain.then((_) async {
+          final list = await JuzzioE2ee.instance.decryptAll(visibleMessagesFromRows(rows));
+          if (!closed) out.add(list);
+        }).catchError((_) {});
+      }
+
+      void connect() {
+        if (closed) return;
+        sub = client
+            .from('messages')
+            .stream(primaryKey: ['id'])
+            .eq('room_id', roomId)
+            .order('created_at', ascending: true)
+            .listen((rows) {
+          gotNetwork = true;
+          final tail = rows.length > offlineMessageLimit ? rows.sublist(rows.length - offlineMessageLimit) : rows;
+          unawaited(_writeCache(cacheName, tail));
+          emitRows(rows);
+        }, onError: (Object _) {
+          sub?.cancel();
+          sub = null;
+          if (closed) return;
+          retry?.cancel();
+          retry = Timer(const Duration(seconds: 5), connect);
+        }, cancelOnError: true);
+      }
+
+      chain = chain.then((_) async {
+        final cached = await _readCache(cacheName);
+        if (closed || gotNetwork || cached is! List) return;
+        final rows = cached.whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList();
+        if (rows.isEmpty) return;
+        final list = await JuzzioE2ee.instance.decryptAll(visibleMessagesFromRows(rows));
+        if (!closed && !gotNetwork) out.add(list);
+      }).catchError((_) {});
+      connect();
+
+      out.onCancel = () {
+        closed = true;
+        retry?.cancel();
+        sub?.cancel();
+      };
+    });
   }
 
   /// v0.9.0: Benzersiz istemci mesaj kimliği (idempotency anahtarı).

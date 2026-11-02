@@ -17,6 +17,7 @@
 // 7. Modern Fotoğraf & Video Durum Paylaşımı ve Duruma Yanıt Verme Stüdyosu
 // =============================================================================
 
+import '../services/juzzio_media_cache.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -370,6 +371,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     try {
       await JuzzioAppController.instance.loadUserPreferences(uid);
     } catch (_) {}
+    // v0.9.2: çevrimdışı medya önbelleği (hesaba özel klasör)
+    await JuzzioMediaDiskCache.instance.init(uid);
     // v0.5.0: önce yerel önbellekten anında çiz, ağdan gelen veri arka planda günceller
     final cached = await Future.wait<Object?>([
       svc.loadCachedConversations(),
@@ -1305,7 +1308,13 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     try {
       setState(() => _playingMessageId = msg.id);
       // v0.9.0: sesli mesajlar özel bucket'ta — kısa ömürlü imzalı adresle oynatılır
-      await _audioPlayer.setUrl(await JuzzioMediaUrl.resolve(msg.audioUrl!));
+      // v0.9.2: dinlenen sesli mesaj diske alınır → internet yokken de çalar
+      final local = await JuzzioMediaDiskCache.instance.loadFile(msg.audioUrl!);
+      if (local != null) {
+        await _audioPlayer.setFilePath(local.path);
+      } else {
+        await _audioPlayer.setUrl(await JuzzioMediaUrl.resolve(msg.audioUrl!));
+      }
       await _audioPlayer.setSpeed(_voiceSpeed);
       _audioPlayer.play();
       await _audioPlayer.playerStateStream.firstWhere(
@@ -7629,7 +7638,7 @@ class _JuzzioNewMessagePageState extends State<JuzzioNewMessagePage> {
                                         backgroundColor: p.amberPrimary,
                                         backgroundImage: user.avatarUrl != null &&
                                                 user.avatarUrl!.isNotEmpty
-                                            ? NetworkImage(user.avatarUrl!)
+                                            ? JuzzioCachedImageProvider(user.avatarUrl!)
                                             : null,
                                         child: user.avatarUrl == null || user.avatarUrl!.isEmpty
                                             ? Text(

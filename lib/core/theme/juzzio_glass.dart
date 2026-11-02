@@ -16,6 +16,7 @@
 //  üst katman yüzeylerde ve tek bir BackdropFilter ile uygulanır.
 // =============================================================================
 
+import '../../services/juzzio_media_url.dart';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -657,7 +658,7 @@ class JuzzioGlassAvatar extends StatelessWidget {
         width: radius * 2,
         height: radius * 2,
         child: url.startsWith('http')
-            ? Image.network(
+            ? JuzzioStorageImage(
                 url,
                 fit: BoxFit.cover,
                 cacheWidth: (radius * 2 * 3).round(),

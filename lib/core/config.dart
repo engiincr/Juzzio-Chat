@@ -15,11 +15,11 @@ class JuzzioConfig {
   JuzzioConfig._();
 
   // Uygulama Sürüm ve OTA Güncelleme Sabitleri
-  static const String appVersion = '0.9.1';
+  static const String appVersion = '0.9.2';
   /// CI her derlemede artan sürüm kodunu APP_BUILD olarak verir
   /// (`scripts/release_meta.py build-number`). Yerel derlemede pubspec.yaml'daki
   /// +N değeri kullanılır; `release_meta.py check` ikisinin aynı olmasını zorunlu kılar.
-  static const int appVersionCode = int.fromEnvironment('APP_BUILD', defaultValue: 91);
+  static const int appVersionCode = int.fromEnvironment('APP_BUILD', defaultValue: 92);
   /// v0.8.0: yayın imzası doğrulama anahtarı (ML-DSA-65, FIPS 204). Boşsa imza
   /// kontrolü yapılmaz; CI'da GitHub değişkeni ML_DSA_PUBLIC_KEY ile verilir.
   static const String mlDsaPublicKey = String.fromEnvironment('ML_DSA_PUBLIC_KEY');

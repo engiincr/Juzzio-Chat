@@ -12,9 +12,12 @@
 // =============================================================================
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'juzzio_media_cache.dart';
 
 /// Depolama URL'sinin ayrıştırılmış hâli.
 class JuzzioStorageRef {
@@ -159,6 +162,7 @@ class JuzzioStorageImage extends StatefulWidget {
 
 class _JuzzioStorageImageState extends State<JuzzioStorageImage> {
   String? _resolved;
+  File? _cachedFile; // v0.9.2: çevrimdışı — diskteki kopya (ağ gerekmez)
   Object? _error;
   int _generation = 0;
 
@@ -177,6 +181,12 @@ class _JuzzioStorageImageState extends State<JuzzioStorageImage> {
   void _start() {
     final gen = ++_generation;
     _error = null;
+    _cachedFile = null;
+    // v0.9.2: daha önce görüntülendiyse internet olmadan diskteki kopyadan gösterilir
+    if (JuzzioMediaUrl.parse(widget.src) != null) {
+      _cachedFile = JuzzioMediaDiskCache.instance.cachedFile(widget.src);
+      if (_cachedFile != null) return;
+    }
     if (!JuzzioMediaUrl.needsSigning(widget.src)) {
       _resolved = widget.src;
       return;
@@ -194,6 +204,22 @@ class _JuzzioStorageImageState extends State<JuzzioStorageImage> {
 
   @override
   Widget build(BuildContext context) {
+    final file = _cachedFile;
+    if (file != null) {
+      return Image.file(
+        file,
+        width: widget.width,
+        height: widget.height,
+        fit: widget.fit,
+        alignment: widget.alignment,
+        errorBuilder: widget.errorBuilder,
+        cacheWidth: widget.cacheWidth,
+        cacheHeight: widget.cacheHeight,
+        gaplessPlayback: widget.gaplessPlayback,
+        filterQuality: widget.filterQuality,
+        semanticLabel: widget.semanticLabel,
+      );
+    }
     final resolved = _resolved;
     if (_error != null) {
       final eb = widget.errorBuilder;
@@ -207,6 +233,21 @@ class _JuzzioStorageImageState extends State<JuzzioStorageImage> {
         return lb(context, placeholder, const ImageChunkEvent(cumulativeBytesLoaded: 0, expectedTotalBytes: null));
       }
       return placeholder;
+    }
+    // Juzzio depolama nesneleri indirilirken diske de yazılır (çevrimdışı görüntüleme)
+    if (JuzzioMediaUrl.parse(widget.src) != null) {
+      return Image(
+        image: ResizeImage.resizeIfNeeded(widget.cacheWidth, widget.cacheHeight, JuzzioCachedImageProvider(widget.src, resolvedUrl: resolved)),
+        width: widget.width,
+        height: widget.height,
+        fit: widget.fit,
+        alignment: widget.alignment,
+        loadingBuilder: widget.loadingBuilder,
+        errorBuilder: widget.errorBuilder,
+        gaplessPlayback: widget.gaplessPlayback,
+        filterQuality: widget.filterQuality,
+        semanticLabel: widget.semanticLabel,
+      );
     }
     return Image.network(
       resolved,

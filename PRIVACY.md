@@ -1,6 +1,6 @@
 # Juzzio Gizlilik Politikası ve KVKK Aydınlatma Metni
 
-Son güncelleme: 2 Kasım 2026 · Uygulama sürümü: v0.9.1 (BETA · Erken Erişim)
+Son güncelleme: 2 Kasım 2026 · Uygulama sürümü: v0.9.2 (BETA · Erken Erişim)
 
 Bu metin, Juzzio mobil uygulamasının hangi kişisel verileri hangi amaçla işlediğini, kimlerle paylaştığını ve haklarınızı **olduğu gibi** açıklar. Uygulamanın kaynak kodu GitHub'da açıktır; buradaki her ifade koddan doğrulanabilir.
 
@@ -46,6 +46,12 @@ Bu metin, Juzzio mobil uygulamasının hangi kişisel verileri hangi amaçla iş
 
 - Hesabınıza bağlanan cihazlar, cihaz kimliğinin yalnızca son 6 hanesi ile size gösterilir; yeni cihaz girişi, cihaz kaldırma ve şifreleme anahtarı değişimi sunucu tarafından **güvenlik olayı** olarak kaydedilir. Bu kayıtları yalnızca siz görebilirsiniz; uygulama (istemci) bu kayıtları yazamaz veya değiştiremez.
 - Kayıtlar hesabınız silindiğinde silinir.
+
+## 4c. Cihazdaki çevrimdışı önbellek (v0.9.2)
+
+- İnternet yokken okuyabilmeniz için her sohbetin son 300 mesajı, görüntülediğiniz fotoğraflar, profil resimleri ve dinlediğiniz sesli mesajlar **yalnızca bu cihazda**, hesabınıza ayrılmış uygulama klasöründe saklanır.
+- Uçtan uca şifreli mesajlar ve fotoğraflar cihazda da **şifreli** saklanır; yalnızca ekranda gösterilirken bellekte çözülür.
+- Önbellek oturumu kapattığınızda ve hesabınızı sildiğinizde silinir. Medya önbelleği en fazla 300 MB'tır; Ayarlar → Depolama → Önbelleği Temizle ile silebilirsiniz (mesajlarınız ve hesabınız silinmez).
 
 ## 4b. Sohbet yedeği (Google Drive)
 
