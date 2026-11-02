@@ -1348,3 +1348,72 @@ DELETE FROM life_tasks;
 DELETE FROM saved_messages;
 DELETE FROM messages WHERE id = '7e7e7e7e-0000-0000-0000-0000000000e1';
 SELECT 'TÜM v0.9.0 YAŞAM MERKEZİ / HATIRLATICI / KAYITLI MESAJ TESTLERİ GEÇTİ';
+-- v0.9.0 §4.5: mesaj düzenleme + geçmiş
+RESET ROLE;
+SELECT r.id AS eroom FROM rooms r
+  JOIN room_participants a ON a.room_id = r.id AND a.user_id = :'A' AND a.left_at IS NULL
+  JOIN room_participants b ON b.room_id = r.id AND b.user_id = :'B' AND b.left_at IS NULL
+  WHERE NOT r.is_group LIMIT 1 \gset
+INSERT INTO messages (id, room_id, sender_id, original_text, message_type, translated_text)
+VALUES ('8e8e8e8e-0000-0000-0000-0000000000a1', :'eroom', :'A', 'ilk hali', 'text', 'first'),
+       ('8e8e8e8e-0000-0000-0000-0000000000a2', :'eroom', :'A', 'eski', 'text', ''),
+       ('8e8e8e8e-0000-0000-0000-0000000000a3', :'eroom', :'A', '', 'text', '');
+SELECT set_config('request.jwt.claim.sub', '', false); -- kurulum güncellemeleri servis olarak (düzenleme sayılmaz)
+UPDATE messages SET created_at = NOW() - INTERVAL '20 minutes' WHERE id = '8e8e8e8e-0000-0000-0000-0000000000a2';
+UPDATE messages SET metadata = '{"e2ee": {"v": 2, "c": "AAA"}}'::jsonb WHERE id = '8e8e8e8e-0000-0000-0000-0000000000a3';
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+UPDATE messages SET original_text = 'düzeltilmiş' WHERE id = '8e8e8e8e-0000-0000-0000-0000000000a1';
+SELECT pg_temp.check('düzenleme kaydedildi, eski çeviri temizlendi, edited_at dolu',
+  (SELECT original_text = 'düzeltilmiş' AND translated_text = '' AND edited_at IS NOT NULL FROM messages WHERE id = '8e8e8e8e-0000-0000-0000-0000000000a1'));
+UPDATE messages SET metadata = '{"e2ee": {"v": 2, "c": "BBB"}}'::jsonb WHERE id = '8e8e8e8e-0000-0000-0000-0000000000a3';
+SELECT pg_temp.check('E2EE düzenlemede eski ZARF saklanır (sunucu açmaz)',
+  (SELECT prev_metadata = '{"e2ee": {"v": 2, "c": "AAA"}}'::jsonb AND prev_text = '' FROM message_edits WHERE message_id = '8e8e8e8e-0000-0000-0000-0000000000a3'));
+DO $$ BEGIN
+  UPDATE messages SET original_text = 'geç' WHERE id = '8e8e8e8e-0000-0000-0000-0000000000a2';
+  RAISE EXCEPTION 'FAIL 15 dk sonra düzenlendi';
+EXCEPTION WHEN raise_exception THEN IF SQLERRM NOT LIKE '%edit_window_expired%' THEN RAISE; END IF; END $$;
+DO $$ BEGIN
+  UPDATE messages SET original_text = '   ' WHERE id = '8e8e8e8e-0000-0000-0000-0000000000a1';
+  RAISE EXCEPTION 'FAIL boş düzenleme';
+EXCEPTION WHEN raise_exception THEN IF SQLERRM NOT LIKE '%edit_empty%' THEN RAISE; END IF; END $$;
+SELECT pg_temp.as_user(:'B');
+SELECT pg_temp.check('oda üyesi geçmişi görür', (SELECT prev_text FROM message_edits WHERE message_id = '8e8e8e8e-0000-0000-0000-0000000000a1') = 'ilk hali');
+UPDATE messages SET original_text = 'hack' WHERE id = '8e8e8e8e-0000-0000-0000-0000000000a1';
+SELECT pg_temp.as_user(:'C');
+SELECT pg_temp.check('üye olmayan geçmişi göremez', NOT EXISTS (SELECT 1 FROM message_edits));
+DO $$ BEGIN
+  INSERT INTO message_edits (message_id, room_id, editor_id) VALUES ('8e8e8e8e-0000-0000-0000-0000000000a1', current_setting('juzzio.lroom')::uuid, 'cccccccc-0000-0000-0000-000000000003');
+  RAISE EXCEPTION 'FAIL istemci geçmiş yazdı';
+EXCEPTION WHEN insufficient_privilege THEN NULL; END $$;
+-- 10 düzenleme sınırı
+SELECT pg_temp.as_user(:'A');
+DO $$ BEGIN
+  FOR i IN 2..10 LOOP
+    UPDATE messages SET original_text = 'sürüm ' || i WHERE id = '8e8e8e8e-0000-0000-0000-0000000000a1';
+  END LOOP;
+  UPDATE messages SET original_text = 'sürüm 11' WHERE id = '8e8e8e8e-0000-0000-0000-0000000000a1';
+  RAISE EXCEPTION 'FAIL 10 düzenleme sınırı aşıldı';
+EXCEPTION WHEN raise_exception THEN IF SQLERRM NOT LIKE '%edit_limit_reached%' THEN RAISE; END IF; END $$;
+RESET ROLE;
+SELECT pg_temp.check('B''nin denemesi mesajı değiştirmedi; 10 geçmiş kaydı',
+  (SELECT original_text FROM messages WHERE id = '8e8e8e8e-0000-0000-0000-0000000000a1') = 'düzeltilmiş'
+  AND (SELECT count(*) FROM message_edits WHERE message_id = '8e8e8e8e-0000-0000-0000-0000000000a1') = 1);
+-- Not: yukarıdaki DO bloğu hata ile geri alındığından yalnız ilk düzenleme kalıcıdır; sınırı ayrıca doğrula
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+DO $$ BEGIN
+  FOR i IN 2..10 LOOP
+    UPDATE messages SET original_text = 'sürüm ' || i WHERE id = '8e8e8e8e-0000-0000-0000-0000000000a1';
+  END LOOP;
+END $$;
+RESET ROLE;
+SELECT pg_temp.check('10 geçmiş kaydı', (SELECT count(*) FROM message_edits WHERE message_id = '8e8e8e8e-0000-0000-0000-0000000000a1') = 10);
+-- Silinince geçmiş de silinir; sistem (auth yok) güncellemesi kurala takılmaz
+UPDATE messages SET is_deleted = true, original_text = '' WHERE id = '8e8e8e8e-0000-0000-0000-0000000000a1';
+SELECT pg_temp.check('silinen mesajın geçmişi silindi', NOT EXISTS (SELECT 1 FROM message_edits WHERE message_id = '8e8e8e8e-0000-0000-0000-0000000000a1'));
+SELECT set_config('request.jwt.claim.sub', '', false);
+UPDATE messages SET original_text = 'sistem' WHERE id = '8e8e8e8e-0000-0000-0000-0000000000a2';
+SELECT pg_temp.check('servis güncellemesi serbest', (SELECT original_text FROM messages WHERE id = '8e8e8e8e-0000-0000-0000-0000000000a2') = 'sistem');
+DELETE FROM messages WHERE id::text LIKE '8e8e8e8e-%';
+SELECT 'TÜM v0.9.0 MESAJ DÜZENLEME GEÇMİŞİ TESTLERİ GEÇTİ';

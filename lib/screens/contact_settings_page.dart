@@ -13,6 +13,7 @@ import '../core/theme/juzzio_glass.dart';
 import '../services/supabase_service.dart';
 import '../widgets/chat_notification_prefs.dart';
 import 'saved_messages_page.dart';
+import '../widgets/chat_lock_ui.dart';
 import 'sound_settings_page.dart';
 
 class JuzzioContactSettingsPage extends StatefulWidget {
@@ -292,6 +293,8 @@ class _JuzzioContactSettingsPageState extends State<JuzzioContactSettingsPage> {
                     ),
                     // v0.9.0 §6.4: süreli sessiz, önizleme, titreşim
                     JuzzioChatNotificationPrefsTile(roomId: widget.roomId),
+                    // v0.9.0 §4.6: Gizlilik > Sohbeti Kilitle
+                    JuzzioChatLockTile(roomId: widget.roomId),
                     // v0.9.0 §4.3: Kayıtlı mesajlar (yalnız benim kaydettiklerim)
                     row(Icons.bookmark_rounded, _app.trEn('Kayıtlı mesajlar', 'Saved messages', 'Gespeicherte Nachrichten'), '',
                         () => JuzzioSavedMessagesPage.open(context, roomId: widget.roomId, title: widget.partnerName)),

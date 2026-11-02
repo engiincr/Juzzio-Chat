@@ -2274,6 +2274,73 @@ class SupabaseService {
     }
   }
 
+  /// v0.9.0 §4.5: kendi metin mesajını düzenler (sunucu kuralı: 15 dk, ≤10 kez, yalnız gönderen).
+  /// Birebir sohbette yeni metin YENİDEN uçtan uca şifrelenir; şifrelenemezse düzenleme yapılmaz
+  /// (fail-closed, düz metne düşüş yok). Eski sürüm sunucuda geçmişe olduğu gibi (şifreli) taşınır.
+  Future<void> editTextMessage({required JuzzioMessage message, required String newText}) async {
+    final uid = currentUserId;
+    final clean = newText.trim();
+    if (uid == null || message.senderId != uid) throw JuzzioServiceException(JuzzioAppController.instance.trEn('Bu mesajı düzenleyemezsin.', 'You can\'t edit this message.', 'Du kannst diese Nachricht nicht bearbeiten.'));
+    if (clean.isEmpty) throw JuzzioServiceException(JuzzioAppController.instance.trEn('Mesaj boş olamaz.', 'Message can\'t be empty.', 'Nachricht darf nicht leer sein.'));
+    final wasEncrypted = message.metadata['e2ee'] is Map;
+    final Map<String, dynamic> patch;
+    if (wasEncrypted) {
+      final outcome = await JuzzioE2ee.instance.encryptForRoomStrict(message.roomId, text: clean, translated: '');
+      if (outcome.status != JuzzioE2eeStatus.encrypted || outcome.payload == null) {
+        throw JuzzioE2eeRequiredException(outcome.status);
+      }
+      patch = {
+        'original_text': '',
+        'translated_text': '',
+        'metadata': {...message.metadata, 'e2ee': outcome.payload},
+      };
+    } else {
+      patch = {'original_text': clean};
+    }
+    try {
+      final rows = await client.from('messages').update(patch).eq('id', message.id).eq('sender_id', uid).select('id');
+      if ((rows as List).isEmpty) throw JuzzioServiceException(JuzzioAppController.instance.trEn('Mesaj düzenlenemedi.', 'Message could not be edited.', 'Nachricht konnte nicht bearbeitet werden.'));
+    } on PostgrestException catch (e) {
+      final m = e.message;
+      if (m.contains('edit_window_expired')) throw JuzzioServiceException(JuzzioAppController.instance.trEn('Mesajlar yalnızca gönderimden sonraki 15 dakika içinde düzenlenebilir.', 'Messages can only be edited within 15 minutes of sending.', 'Nachrichten können nur innerhalb von 15 Minuten bearbeitet werden.'));
+      if (m.contains('edit_limit_reached')) throw JuzzioServiceException(JuzzioAppController.instance.trEn('Bu mesaj en fazla 10 kez düzenlenebilir.', 'A message can be edited at most 10 times.', 'Eine Nachricht kann höchstens 10-mal bearbeitet werden.'));
+      throw JuzzioServiceException(_friendlyError(e));
+    }
+  }
+
+  /// v0.9.0 §4.5: düzenleme geçmişi (yeniden eskiye). Şifreli sürümler CİHAZDA çözülür.
+  Future<List<({String text, DateTime editedAt})>> fetchEditHistory(JuzzioMessage message) async {
+    final rows = await client
+        .from('message_edits')
+        .select('id, prev_text, prev_metadata, edited_at')
+        .eq('message_id', message.id)
+        .order('edited_at', ascending: false);
+    final out = <({String text, DateTime editedAt})>[];
+    for (final r in (rows as List).whereType<Map>()) {
+      final meta = r['prev_metadata'] is Map ? Map<String, dynamic>.from(r['prev_metadata'] as Map) : <String, dynamic>{};
+      final at = DateTime.tryParse(r['edited_at']?.toString() ?? '')?.toLocal() ?? DateTime.now();
+      var text = (r['prev_text'] ?? '').toString();
+      if (meta['e2ee'] is Map) {
+        final prev = JuzzioMessage(
+          id: 'edit_${r['id']}',
+          roomId: message.roomId,
+          senderId: message.senderId,
+          messageType: 'text',
+          sourceLang: message.sourceLang,
+          targetLang: message.targetLang,
+          originalText: '',
+          translatedText: '',
+          metadata: meta,
+          createdAt: message.createdAt,
+        );
+        text = await JuzzioE2ee.instance.decryptPreviewText(prev) ??
+            '🔒 ${JuzzioAppController.instance.trEn('Bu sürüm bu cihazda çözülemedi', 'This version could not be decrypted on this device', 'Diese Version konnte auf diesem Gerät nicht entschlüsselt werden')}';
+      }
+      out.add((text: text, editedAt: at));
+    }
+    return out;
+  }
+
   Future<void> sendGroupTextMessage({required String roomId, required String text, required String senderName}) {
     return sendTextMessage(text: text, senderName: senderName, targetRoomId: roomId);
   }

@@ -11630,3 +11630,95 @@ BEGIN
         END;
     END IF;
 END $$;
+
+-- 10.19 Mesaj düzenleme + düzenleme geçmişi (son talimat §4.5)
+--  Politika: yalnız gönderen, yalnız 'text' mesajı, gönderimden sonra 15 dk içinde, en fazla 10 kez.
+--  Geçmiş: önceki sürüm (düz metin YA DA E2EE zarfı — sunucu şifreli içeriği AÇMAZ, olduğu gibi
+--  saklar) yalnız oda üyelerine görünür; 30 gün saklanır; mesaj silinince geçmişi de silinir.
+CREATE TABLE IF NOT EXISTS public.message_edits (
+    id BIGSERIAL PRIMARY KEY,
+    message_id UUID NOT NULL REFERENCES public.messages(id) ON DELETE CASCADE,
+    room_id UUID NOT NULL REFERENCES public.rooms(id) ON DELETE CASCADE,
+    editor_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    prev_text TEXT NOT NULL DEFAULT '',
+    prev_metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+    prev_edited_at TIMESTAMPTZ,
+    edited_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_message_edits_msg ON public.message_edits (message_id, edited_at DESC);
+ALTER TABLE public.message_edits ENABLE ROW LEVEL SECURITY;
+REVOKE INSERT, UPDATE, DELETE ON public.message_edits FROM anon, authenticated;
+GRANT SELECT ON public.message_edits TO authenticated;
+DROP POLICY IF EXISTS message_edits_member_read ON public.message_edits;
+CREATE POLICY message_edits_member_read ON public.message_edits FOR SELECT TO authenticated
+    USING (public.is_room_member(room_id, auth.uid()) AND edited_at > NOW() - INTERVAL '30 days');
+
+CREATE OR REPLACE FUNCTION public.juzzio_message_edit_guard()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    -- Silme (yumuşak) düzenleme sayılmaz; geçmiş temizlenir
+    IF NEW.is_deleted AND NOT OLD.is_deleted THEN
+        DELETE FROM public.message_edits WHERE message_id = OLD.id;
+        RETURN NEW;
+    END IF;
+    IF NEW.original_text IS NOT DISTINCT FROM OLD.original_text
+       AND (NEW.metadata -> 'e2ee') IS NOT DISTINCT FROM (OLD.metadata -> 'e2ee') THEN
+        RETURN NEW; -- içerik değişmedi (tepki, sabitleme, çeviri vb.)
+    END IF;
+    -- Sistem/servis güncellemeleri (ör. sesli not dökümü) bu kurala tabi değildir
+    IF auth.uid() IS NULL THEN RETURN NEW; END IF;
+    IF OLD.is_deleted OR OLD.message_type <> 'text' OR OLD.sender_id IS DISTINCT FROM auth.uid() THEN
+        RAISE EXCEPTION 'edit_not_allowed';
+    END IF;
+    IF OLD.created_at < NOW() - INTERVAL '15 minutes' THEN
+        RAISE EXCEPTION 'edit_window_expired';
+    END IF;
+    IF (SELECT count(*) FROM public.message_edits WHERE message_id = OLD.id) >= 10 THEN
+        RAISE EXCEPTION 'edit_limit_reached';
+    END IF;
+    IF LENGTH(BTRIM(COALESCE(NEW.original_text, ''))) = 0 AND NOT (COALESCE(NEW.metadata, '{}'::jsonb) ? 'e2ee') THEN
+        RAISE EXCEPTION 'edit_empty';
+    END IF;
+    INSERT INTO public.message_edits (message_id, room_id, editor_id, prev_text, prev_metadata, prev_edited_at)
+    VALUES (OLD.id, OLD.room_id, auth.uid(), COALESCE(OLD.original_text, ''),
+            CASE WHEN COALESCE(OLD.metadata, '{}'::jsonb) ? 'e2ee'
+                 THEN jsonb_build_object('e2ee', OLD.metadata -> 'e2ee') ELSE '{}'::jsonb END,
+            OLD.edited_at);
+    NEW.edited_at := NOW();
+    -- eski çeviri yeni metne ait değildir
+    IF NOT (COALESCE(NEW.metadata, '{}'::jsonb) ? 'e2ee') AND NEW.translated_text IS NOT DISTINCT FROM OLD.translated_text THEN
+        NEW.translated_text := '';
+    END IF;
+    RETURN NEW;
+END;
+$$;
+DROP TRIGGER IF EXISTS trg_juzzio_message_edit_guard ON public.messages;
+CREATE TRIGGER trg_juzzio_message_edit_guard BEFORE UPDATE OF original_text, metadata, is_deleted ON public.messages
+    FOR EACH ROW EXECUTE FUNCTION public.juzzio_message_edit_guard();
+
+CREATE OR REPLACE FUNCTION public.juzzio_purge_old_message_edits()
+RETURNS INTEGER
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    WITH d AS (DELETE FROM public.message_edits WHERE edited_at < NOW() - INTERVAL '30 days' RETURNING 1)
+    SELECT count(*)::int FROM d;
+$$;
+REVOKE ALL ON FUNCTION public.juzzio_purge_old_message_edits() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.juzzio_purge_old_message_edits() TO service_role;
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
+        BEGIN
+            PERFORM cron.unschedule(jobid) FROM cron.job WHERE jobname = 'juzzio_purge_old_message_edits';
+            PERFORM cron.schedule('juzzio_purge_old_message_edits', '41 3 * * *', 'SELECT public.juzzio_purge_old_message_edits()');
+        EXCEPTION WHEN OTHERS THEN
+            RAISE NOTICE 'pg_cron görevi (juzzio_purge_old_message_edits) oluşturulamadı: %', SQLERRM;
+        END;
+    END IF;
+END $$;

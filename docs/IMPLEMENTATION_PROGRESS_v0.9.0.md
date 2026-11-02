@@ -7,8 +7,8 @@ Hiçbir madde yalnızca arayüzü olduğu için "tamam" sayılmaz: backend + RLS
 hata durumları + test + l10n + 12 tema uyumu gerekir.
 
 ## ŞU AN
-- C-A3 sürüyor: a) Yaşam Merkezi ✅🟡 b) mesaja hatırlatıcı ✅🟡 c) kayıtlı mesajlar ✅🟡. Sıradaki: **d) gelişmiş sohbet araması** → e) düzenleme geçmişi → f) sohbet kilidi → g) Profil > Paylaş QR.
-- Sayaç: SQL 18 blok PASS (yerel PG16); Edge birim 13/13 PASS; Dart 26 test dosyası (CI'da).
+- C-A3 Personal kod olarak TAMAM (a–g) 🟡. Sıradaki: **C-A4 Business** — B1 hesap modu durum makinesi + feature registry → B2 hukuk/onay → B3 geçiş akışı → Business 5 sekme (Genel Bakış, Gelen Kutusu, Müşteriler, İş Alanı, Profil) → CRM/atama/takip/randevu/ekip/görev/otomatik yanıt/analiz.
+- Sayaç: SQL 19 blok PASS (yerel PG16); Edge birim 13/13 PASS; Dart 29 test dosyası (CI'da).
 
 ## Doğrulama ortamı (gerçek)
 | Kontrol | Araç | Durum |
@@ -136,10 +136,10 @@ kullanılır (talimat §16 "mevcut takip dosyaları varsa onları kullan"); yaln
 | C-A3a | Yaşam Merkezi: görev + hatırlatma + takvim (Ana Sayfa > Görevlerim/Takvimim) | tek tablo + RLS | 🟡 SQL 10.18 `life_tasks` (RLS yalnız sahibi; sahiplik/bağlam güncellemede değişmez; idempotent istek kimliği; 2000 açık görev sınırı) + `juzzio_fire_due_reminders` (pg_cron her dakika, FOR UPDATE SKIP LOCKED, tekrar yok; zaman değişince yeniden) + 'reminder' bildirimi/push metinleri. `lib/screens/life_center_page.dart`: liste (gecikmiş/bugün/yaklaşan/tarihsiz), takvim, tamamlananlar, ekle/düzenle/sil(onaylı), hatırlatma seçenekleri; Ana Sayfa: Görevlerim/Takvimim/Hatırlatma Ekle + gerçek görev özeti. **Not:** hatırlatmalar Supabase'de pg_cron eklentisi açıksa çalışır (yoksa SQL bildirim verir; kurulum notu) |
 | C-A3b | Mesaja hatırlatıcı (uzun bas > Hatırlat) | aynı hatırlatma altyapısı | 🟡 Aynı tablo (kind=message_reminder); üyelik tetikleyicide; mesaj METNİ sunucuya kopyalanmaz, bildirim metinsiz; 1 saat / bu akşam / yarın / özel; düzenle/iptal; bildirime dokununca sohbet |
 | C-A3c | Kayıtlı mesajlar (uzun bas > Kaydet; karşı tarafa bildirilmez) | mevcut koleksiyon/kayıt altyapısı kontrol edilir | 🟡 Mevcut 'yıldız' yalnız cihazdaydı ve listesi yoktu → `saved_messages` (RLS; ekleme üyelik + mesaj/oda eşleşmesi şartlı; bildirim yok); uzun bas > Kaydet/Kaydı kaldır; Sohbet Bilgileri ve Grup sayfasında 'Kayıtlı mesajlar' (cihazda çözülür). Eski yerel yıldızlar okunur, kaldırılabilir. 15 SQL testi (a+b+c) PASS, 4 Dart testi |
-| C-A3d | Gelişmiş sohbet araması (kişi/tarih/tür/kayıtlı) | mevcut arama ekranı | ⏳ |
-| C-A3e | Düzenleme geçmişi (E2EE içerik sunucuda açık tutulmaz) | mesaj altyapısı | ⏳ |
-| C-A3f | Sohbet kilidi (biyometrik/PIN) | Sohbet Bilgileri > Gizlilik | ⏳ |
-| C-A3g | Profil > Paylaş içinde QR | mevcut profil paylaşımı | ⏳ |
+| C-A3d | Gelişmiş sohbet araması (kişi/tarih/tür/kayıtlı) | mevcut arama ekranı | 🟡 Sohbetler arama alanının yanında 'Mesajlarda ara': metin, sohbet/kişi, tarih aralığı, fotoğraf/video/belge/ses, bağlantı, kayıtlı. Sunucu yalnız tür/tarih/sohbet + RLS ile daraltır; **E2EE metin cihazda çözülüp aranır** (son 400 mesaj — ekranda yazılı). Türkçe İ/ı duyarsız. 3 Dart testi |
+| C-A3e | Düzenleme geçmişi (E2EE içerik sunucuda açık tutulmaz) | mesaj altyapısı | 🟡 Uygulamada mesaj DÜZENLEME hiç yoktu → eklendi: yalnız gönderen, metin, 15 dk, ≤10 kez (sunucu tetikleyicisi); birebirde yeni metin yeniden şifrelenir (fail-closed). `message_edits`: önceki sürüm düz metin ya da **şifreli zarf olduğu gibi** (sunucu açmaz), yalnız oda üyeleri, 30 gün (pg_cron temizlik), silinince geçmiş de silinir; istemci yazamaz. Balonda 'düzenlendi'; uzun bas > Düzenle / Düzenleme Geçmişi (cihazda çözülür). E2EE önbellek anahtarı düzenleme zamanını içerir. 11 SQL testi PASS |
+| C-A3f | Sohbet kilidi (biyometrik/PIN) | Sohbet Bilgileri > Gizlilik | 🟡 PIN: PBKDF2-HMAC-SHA256 (60k tur, rastgele tuz) güvenli depoda, PIN düz yazılmaz; kilitli sohbetler listede gizli + 'Kilitli sohbetler' girişi; her açılış yolunda PIN; arka plana geçince yeniden kilit; 5 hatadan sonra artan bekleme; kilitlenince bildirim önizlemesi sunucuda 'gizli'. 5 Dart testi. **Biyometrik: YAPILMADI** — `local_auth` MainActivity'nin `FlutterFragmentActivity` + AppCompat temaya taşınmasını gerektiriyor; derleyip cihazda doğrulamadan uygulama açılışını riske atmamak için ertelendi |
+| C-A3g | Profil > Paylaş içinde QR | mevcut profil paylaşımı | ✅ ZATEN VAR: `juzzio_profile_card_page.dart` (qr_flutter) 'Profili paylaş' içinde; yeni sayfa açılmadı |
 | C-A4 | Business: geçiş (B1–B3) + Genel Bakış, Gelen Kutusu (sahiplik/atama, otomatik yanıt), Müşteriler (CRM, not, takip), İş Alanı (randevu, ekip, görev, analiz) | SQL+RLS+UI | ⏳ |
 | C-A5 | Güvenlik Merkezi (cihazlar, oturumlar, gizlilik, şifreli yedek, uyarılar), Dosya Merkezi, erişilebilirlik, lokalizasyon | mevcut merkezler genişletilir | ⏳ |
 | C-A6 | Regresyon, RLS, tema, responsive, buton eylem denetimi, build/CI | — | ⏳ |
@@ -166,6 +166,7 @@ kullanılır (talimat §16 "mevcut takip dosyaları varsa onları kullan"); yaln
 - 2026-11-01: Faz 1b (1. kısım): Bölüm 10 SQL (LiveKit, etkin katılımcı, davet, altyazı, sesli not, hız sınırı, push kilidi, storage gizliliği, UI çeviri önbelleği). SQL: temiz kurulum ×2 + v0.8.4'ten yükseltme PASS; 145 doğrulama PASS (v0.9.0 bloğu dahil); mutasyon testi testlerin hatayı yakaladığını kanıtladı. Edge Functions tsc PASS. ⚠️ Storage özel hale geldiği için istemci imzalı URL geçişi (Faz 1c) yayından önce ZORUNLU.
 - 2026-11-01: Faz 1b tamam — RBAC (47 RPC), storage temizliği kuyruğu + storage-cleanup fonksiyonu + bakım iş akışı. SQL 167 doğrulama PASS. Kurulum notu: GitHub + Supabase secret `STORAGE_CLEANUP_SECRET` (≥24 karakter) eklenmeli.
 - 2026-11-01: Faz 2 + N-E + N-G (yukarıdaki satırlar). Regresyon: sözcük denetimi 86 dosya PASS, l10n PASS (1240 metin), sır taraması PASS, ci_guards PASS, release_meta PASS, SQL 5 blok PASS. Ek düzeltme: Keşfet bakım metni sabit beyazdı → tema rengi.
+- 2026-11-02: C-A3 d/e/f/g (SQL 19 blok PASS).
 - 2026-11-02: C-A3 a/b/c (SQL 18 blok PASS).
 - 2026-11-02: N-B @etiketleme (SQL 17 blok PASS).
 - 2026-11-02: N-F, §6.4, N-C kaydetme opt-in; CI edge-check'e `scripts/edge_unit_test.sh` eklendi (tsc+node). Ek bulgu: tüm mesaj kanalları kilit ekranında PUBLIC'ti → mesaj bildirimleri için PRIVATE kanal varyantı.
