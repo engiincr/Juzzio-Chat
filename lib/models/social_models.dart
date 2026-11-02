@@ -515,6 +515,8 @@ const Set<String> kJuzzioSocialEventTypes = {
   'comment_like',
   'mention',
   'save',
+  // v0.9.0 §4.1: görev / mesaj hatırlatmaları da bildirim merkezinde görünür
+  'reminder',
   'story_like',
   'system',
 };
