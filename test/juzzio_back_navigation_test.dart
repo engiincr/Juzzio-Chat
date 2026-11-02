@@ -11,7 +11,7 @@ void main() {
     nav = JuzzioBackNavigator(clock: () => now);
   });
 
-  JuzzioBackAction press({bool inside = false, bool emoji = false, int tab = 0, int filter = 0}) =>
+  JuzzioBackAction press({bool inside = false, bool emoji = false, int tab = JuzzioBackNavigator.homeTab, int filter = 0}) =>
       nav.decide(insideConversation: inside, emojiPanelOpen: emoji, selectedTab: tab, chatFilter: filter);
 
   test('sohbet içinde önce emoji paneli, sonra sohbetten çıkış — uygulama KAPANMAZ', () {
@@ -20,10 +20,12 @@ void main() {
     expect(press(inside: true), JuzzioBackAction.leaveConversation);
   });
 
-  test('başka sekmeden Sohbetler sekmesine, filtreden Tümü\'ne dönülür', () {
-    expect(press(tab: 4), JuzzioBackAction.goToChatsTab);
-    expect(press(tab: 1), JuzzioBackAction.goToChatsTab);
-    expect(press(filter: 2), JuzzioBackAction.resetChatFilter);
+  test('sohbet filtresi önce Tümü\'ne, diğer sekmeler Ana Sayfa\'ya döner', () {
+    expect(press(tab: 0, filter: 2), JuzzioBackAction.resetChatFilter);
+    expect(press(tab: 0), JuzzioBackAction.goToHomeTab);
+    expect(press(tab: 4), JuzzioBackAction.goToHomeTab);
+    expect(press(tab: 6), JuzzioBackAction.goToHomeTab);
+    expect(press(tab: 3, filter: 2), JuzzioBackAction.goToHomeTab);
   });
 
   test('kökte ilk basış ipucu, 2 sn içinde ikinci basış çıkış', () {
@@ -45,7 +47,7 @@ void main() {
 
   test('araya başka gezinme girerse sayaç sıfırlanır (yanlışlıkla çıkış yok)', () {
     expect(press(), JuzzioBackAction.showExitHint);
-    expect(press(tab: 3), JuzzioBackAction.goToChatsTab);
+    expect(press(tab: 3), JuzzioBackAction.goToHomeTab);
     expect(press(), JuzzioBackAction.showExitHint);
     nav.reset();
     expect(press(), JuzzioBackAction.showExitHint);

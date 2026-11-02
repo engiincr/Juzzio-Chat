@@ -103,7 +103,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   final Map<String, JuzzioMessage> _messageCache = {};
   // 0 = Sohbetler (Hey Joseph), 1 = Aramalar, 2 = Durum (Foto/Video), 3 = Arkadaşlar, 4 = Ayarlar
   // 0 = Message (Home & Mesajlar), 1 = Calls (Arama), 2 = Add / Arkadaşlar, 3 = Küresel akış, 4 = Profile (Profil & Ayarlar)
-  int _selectedBottomTab = 0;
+  // v0.9.0 son talimat §3.1: 5=Ana Sayfa (kök), 0=Sohbetler, 3=Keşfet, 6=Bildirimler, 4=Profil;
+  // 1=Aramalar ve 2=Arkadaşlar ana sayfa kısayollarından açılır.
+  int _selectedBottomTab = JuzzioBackNavigator.homeTab;
   bool _isInsideConversation = false;
   bool _isMesajlarFilterMode = false;
   int _selectedFilterIndex = 0; // 0 = Tümü, 1 = Kişiler, 2 = Gruplar, 3 = Arkadaşlar
@@ -1775,8 +1777,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       case JuzzioBackAction.leaveConversation:
         _leaveConversation();
         break;
-      case JuzzioBackAction.goToChatsTab:
-        setState(() => _selectedBottomTab = JuzzioBackNavigator.chatsTab);
+      case JuzzioBackAction.goToHomeTab:
+        setState(() => _selectedBottomTab = JuzzioBackNavigator.homeTab);
         break;
       case JuzzioBackAction.resetChatFilter:
         setState(() => _selectedFilterIndex = JuzzioBackNavigator.defaultFilter);
@@ -1869,6 +1871,15 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                 duration: Duration(milliseconds: appCtrl.reduceMotion ? 0 : 220),
                 child: _isInsideConversation
                     ? _buildActiveConversationView(p, s, appCtrl)
+                    : _selectedBottomTab == JuzzioBackNavigator.homeTab
+                        ? _buildPersonalHomeTab(p, s, appCtrl)
+                    : _selectedBottomTab == 6
+                        ? JuzzioNotificationsFeedPage(
+                            key: const ValueKey('juzzio_notifications_tab'),
+                            currentUser: _effectiveCurrentUserProfile,
+                            embedded: true,
+                            onOpenItem: _openNotificationItemFromTab,
+                          )
                     : _selectedBottomTab == 0
                         ? (_selectedFilterIndex == 3
                             ? _buildFriendsAndGroupsTab(p, s, appCtrl)
@@ -2081,6 +2092,20 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       return;
     }
     _openNotificationsScreen();
+  }
+
+  /// v0.9.0: Bildirimler sekmesinde yerinde açılamayan öğe (mesaj, arama) → ilgili sohbet/sekme.
+  void _openNotificationItemFromTab(JuzzioNotificationItem item) {
+    final type = item.eventType;
+    if (type.contains('call')) {
+      setState(() => _selectedBottomTab = 1);
+      return;
+    }
+    if (type.contains('message') && item.targetId.isNotEmpty) {
+      _openRoomById(item.targetId);
+      return;
+    }
+    setState(() => _selectedBottomTab = 0);
   }
 
   void _openNotificationsScreen() {
@@ -2862,6 +2887,99 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   }
 
   /// v0.5.0: Keşfet yerine otomatik çevirili Küresel akış (X / Reddit tarzı)
+  /// v0.9.0 son talimat §3.1 Personal > Ana Sayfa. Yalnızca GERÇEK veriler: okunmamış sohbet
+  /// sayısı, çalan arama, bekleyen arkadaşlık istekleri. Görev/takvim (Yaşam Merkezi) Aşama 3'te
+  /// bu sayfaya bağlanır; o zamana kadar sahte görev/etkinlik gösterilmez.
+  Widget _buildPersonalHomeTab(JuzzioPalette p, JuzzioStrings s, JuzzioAppController appCtrl) {
+    final name = (_myProfile?.displayName ?? widget.myDisplayName).trim();
+    final unread = _conversations.fold<int>(0, (sum, c) => sum + (c.isMuted ? 0 : c.unreadCount));
+    final shortcuts = <(IconData, String, VoidCallback)>[
+      (Icons.add_circle_outline_rounded, appCtrl.trEn('Oluştur', 'Create', 'Erstellen'), _openPlusCreateMenu),
+      (Icons.call_outlined, appCtrl.trEn('Aramalar', 'Calls', 'Anrufe'), () => setState(() => _selectedBottomTab = 1)),
+      (Icons.edit_square, appCtrl.trEn('Yeni sohbet', 'New chat', 'Neuer Chat'), _openNewMessageScreen),
+      (Icons.people_outline_rounded, appCtrl.trEn('Arkadaşlar', 'Friends', 'Freunde'), () => setState(() => _selectedBottomTab = 2)),
+      (Icons.search_rounded, appCtrl.trEn('Ara', 'Search', 'Suchen'), () => _openUnifiedSearch()),
+      (Icons.egg_outlined, appCtrl.trEn('Civciv', 'Chick', 'Küken'), () {
+        Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => JuzzioChickGameScreen(
+            friends: _acceptedFriendProfiles,
+            myDisplayName: _myProfile?.displayName ?? widget.myDisplayName,
+          ),
+        ));
+      }),
+    ];
+    final textStyle = TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary);
+    return ListView(
+      key: const ValueKey('juzzio_personal_home'),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      children: [
+        Semantics(
+          header: true,
+          child: Text(
+            name.isEmpty ? appCtrl.trEn('Merhaba', 'Hello', 'Hallo') : '${appCtrl.trEn('Merhaba', 'Hello', 'Hallo')}, $name',
+            style: textStyle.copyWith(fontSize: 24, fontWeight: FontWeight.w800),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        const SizedBox(height: 14),
+        if (unread > 0)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: JuzzioGlass(
+              radius: 20,
+              child: ListTile(
+                leading: Icon(Icons.mark_chat_unread_outlined, color: p.textPrimary),
+                title: Text(appCtrl.trEn('Okunmamış mesajlar', 'Unread messages', 'Ungelesene Nachrichten'), style: textStyle),
+                trailing: JuzzioGlassBadge(count: unread),
+                onTap: () => setState(() => _selectedBottomTab = 0),
+              ),
+            ),
+          ),
+        GridView.count(
+          crossAxisCount: MediaQuery.sizeOf(context).width < 360 ? 2 : 3,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: 10,
+          crossAxisSpacing: 10,
+          childAspectRatio: 1.1,
+          children: [
+            for (final sc in shortcuts)
+              Semantics(
+                button: true,
+                label: sc.$2,
+                child: ExcludeSemantics(
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(20),
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      sc.$3();
+                    },
+                    child: JuzzioGlass(
+                      radius: 20,
+                      padding: const EdgeInsets.all(10),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(sc.$1, color: p.textPrimary, size: 26),
+                          const SizedBox(height: 6),
+                          Text(sc.$2,
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: textStyle.copyWith(fontSize: 12, fontWeight: FontWeight.w700)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
   Widget _buildExploreTab(JuzzioPalette p, JuzzioStrings s, JuzzioAppController appCtrl) {
     if (!JuzzioFeaturesService.instance.lastAppConfig.globalFeedEnabled) {
       return Center(
@@ -6803,13 +6921,14 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
   Widget _buildFloatingGlassBottomDock(JuzzioPalette p, JuzzioStrings s) {
     final app = JuzzioAppController.instance;
-    // v0.9.0 Faz 2: 5 sekmeli kabuk — Sohbetler · Keşfet · Oluştur · Aramalar · Profil.
-    // (ikon, aktif ikon, etiket, sekme indeksi) — indeksler geriye uyum için korunur.
+    // v0.9.0 son talimat §3.1: Personal 5 sekme — Ana Sayfa · Sohbetler · Keşfet · Bildirimler · Profil.
+    // (ikon, aktif ikon, etiket, sekme indeksi) — eski indeksler geriye uyum için korunur.
+    // Oluştur ve Aramalar Ana Sayfa kısayollarında; Keşfet akışında da oluştur düğmesi var.
     final items = [
+      (Icons.home_outlined, Icons.home_rounded, app.trEn('Ana Sayfa', 'Home', 'Start'), JuzzioBackNavigator.homeTab),
       (Icons.chat_bubble_outline_rounded, Icons.chat_bubble_rounded, app.trEn('Sohbetler', 'Chats', 'Chats'), 0),
       (Icons.explore_outlined, Icons.explore_rounded, app.trEn('Keşfet', 'Explore', 'Entdecken'), 3),
-      (Icons.add_rounded, Icons.add_rounded, app.trEn('Oluştur', 'Create', 'Erstellen'), 2),
-      (Icons.call_outlined, Icons.call_rounded, app.trEn('Aramalar', 'Calls', 'Anrufe'), 1),
+      (Icons.notifications_none_rounded, Icons.notifications_rounded, app.trEn('Bildirimler', 'Notifications', 'Mitteilungen'), 6),
       (Icons.person_outline_rounded, Icons.person_rounded, app.trEn('Profil', 'Profile', 'Profil'), 4),
     ];
     // Seçili: cyan (açık modda okunur electric blue), seçili değil: ikincil metin

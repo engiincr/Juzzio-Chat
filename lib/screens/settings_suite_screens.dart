@@ -548,9 +548,18 @@ class _JuzzioSettingsMainPageState extends State<JuzzioSettingsMainPage> {
 class JuzzioNotificationsFeedPage extends StatefulWidget {
   final JuzzioUserProfile? currentUser;
 
+  /// v0.9.0: ana kabukta "Bildirimler" sekmesi olarak gömülüyse true — geri düğmesi gizlenir ve
+  /// sayfa kendini kapatmaz (kök rotayı kapatıp boş ekran bırakmamak için).
+  final bool embedded;
+
+  /// Gömülü kipte, yerinde açılamayan bildirim (ör. mesaj/arama) kabuğa iletilir.
+  final ValueChanged<JuzzioNotificationItem>? onOpenItem;
+
   const JuzzioNotificationsFeedPage({
     super.key,
     this.currentUser,
+    this.embedded = false,
+    this.onOpenItem,
   });
 
   @override
@@ -671,6 +680,10 @@ class _JuzzioNotificationsFeedPageState
       return;
     }
 
+    if (widget.embedded) {
+      widget.onOpenItem?.call(item);
+      return;
+    }
     Navigator.of(context).pop(item);
   }
 
@@ -742,7 +755,7 @@ class _JuzzioNotificationsFeedPageState
                 subtitle: unreadCount > 0
                     ? '$unreadCount ${appCtrl.trEn("okunmamış bildirim", "unread notifications", "ungelesene Benachrichtigungen")}'
                     : appCtrl.trEn('Tüm bildirimler okundu', 'All caught up', 'Alles erledigt'),
-                onBack: () => Navigator.of(context).pop(),
+                onBack: widget.embedded ? null : () => Navigator.of(context).pop(),
                 actions: [
                   if (unreadCount > 0)
                     TextButton.icon(

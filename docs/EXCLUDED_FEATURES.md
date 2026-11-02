@@ -1,0 +1,99 @@
+# Juzzio — Kapsam dışı bırakılan özellikler
+
+Kaynak: "FINAL PRODUCT CONSOLIDATION" son talimatı, Bölüm 1 (2026-11-02). Bu özellikler için kod, tablo,
+sayfa veya tasarım üretilmez. Önceki eklerde (ör. Business eki §7 katalog, oyun/ekonomi maddeleri) geçseler de
+bu liste önceliklidir. Mevcut **Civciv** özelliği korunur; yalnızca hata düzeltmesi yapılabilir.
+
+## 1.1 Tamamen yasaklananlar
+
+- YENİ OYUNLAR  
+  `STATUS: SKIPPED — EXPLICITLY EXCLUDED`
+- YENİ TURNUVALAR  
+  `STATUS: SKIPPED — EXPLICITLY EXCLUDED`
+- SANAL PARA, JETON, COIN VEYA BENZERİ EKONOMİ SİSTEMLERİ  
+  `STATUS: SKIPPED — EXPLICITLY EXCLUDED`
+- MEVCUT CİVCİV DIŞINDA YENİ EVCİL HAYVANLAR  
+  `STATUS: SKIPPED — EXPLICITLY EXCLUDED`
+- YENİ OYUN İÇİ MAĞAZALAR  
+  `STATUS: SKIPPED — EXPLICITLY EXCLUDED`
+- OYUN ODAKLI ÖDÜL VE PUAN EKONOMİSİ  
+  `STATUS: SKIPPED — EXPLICITLY EXCLUDED`
+- AYRI BİR PERSONAL AI ASSISTANT HUB  
+  `STATUS: SKIPPED — EXPLICITLY EXCLUDED`
+- AYRI BİR KNOWLEDGE WORKSPACE  
+  `STATUS: SKIPPED — EXPLICITLY EXCLUDED`
+- AYRI BİR COLLABORATIVE WHITEBOARD  
+  `STATUS: SKIPPED — EXPLICITLY EXCLUDED`
+- AYRI BİR SECURE IDENTITY WALLET  
+  `STATUS: SKIPPED — EXPLICITLY EXCLUDED`
+- AYRI BİR CUSTOMER JOURNEY BUILDER  
+  `STATUS: SKIPPED — EXPLICITLY EXCLUDED`
+- AYRI BİR TEAM CAPACITY PLANNER  
+  `STATUS: SKIPPED — EXPLICITLY EXCLUDED`
+- AYRI BİR DOCUMENT LIFECYCLE MANAGER  
+  `STATUS: SKIPPED — EXPLICITLY EXCLUDED`
+- AYRI BİR PUBLIC KNOWLEDGE PAGES MODÜLÜ  
+  `STATUS: SKIPPED — EXPLICITLY EXCLUDED`
+- AYRI BİR LOCATION SHARING SESSIONS MODÜLÜ  
+  `STATUS: SKIPPED — EXPLICITLY EXCLUDED`
+- AYRI BİR BUSINESS RESOURCE BOOKING MODÜLÜ  
+  `STATUS: SKIPPED — EXPLICITLY EXCLUDED`
+- AYRI BİR TRANSLATION MEMORY MODÜLÜ  
+  `STATUS: SKIPPED — EXPLICITLY EXCLUDED`
+- AYRI BİR DIGITAL RECEIPTS MODÜLÜ  
+  `STATUS: SKIPPED — EXPLICITLY EXCLUDED`
+- AYRI BİR SECURE SHARING ROOMS MODÜLÜ  
+  `STATUS: SKIPPED — EXPLICITLY EXCLUDED`
+- AYRI BİR PERSONAL ASSISTANT HUB  
+  `STATUS: SKIPPED — EXPLICITLY EXCLUDED`
+- AYRI BİR SMART CHECK-IN MODÜLÜ  
+  `STATUS: SKIPPED — EXPLICITLY EXCLUDED`
+- AYRI BİR ADAPTIVE INTERFACE SİSTEMİ  
+  `STATUS: SKIPPED — EXPLICITLY EXCLUDED`
+- AYRI BİR CUSTOM NAVIGATION SİSTEMİ  
+  `STATUS: SKIPPED — EXPLICITLY EXCLUDED`
+- AYRI BİR RELEASE & FEATURE CENTER  
+  `STATUS: SKIPPED — EXPLICITLY EXCLUDED`
+- AYRI BİR SERVICE HEALTH MONITOR KULLANICI SAYFASI  
+  `STATUS: SKIPPED — EXPLICITLY EXCLUDED`
+- AYRI BİR DATA QUALITY CENTER KULLANICI SAYFASI  
+  `STATUS: SKIPPED — EXPLICITLY EXCLUDED`
+- AYRI BİR DIGITAL FORMS & APPROVALS ANA MODÜLÜ  
+  `STATUS: SKIPPED — EXPLICITLY EXCLUDED`
+- AYRI BİR COMPLIANCE CHECKLIST ANA MODÜLÜ  
+  `STATUS: SKIPPED — EXPLICITLY EXCLUDED`
+- AYRI BİR EVENT EXPERIENCE ANA MODÜLÜ  
+  `STATUS: SKIPPED — EXPLICITLY EXCLUDED`
+- AYRI BİR QR MANAGEMENT ANA SAYFASI  
+  `STATUS: SKIPPED — EXPLICITLY EXCLUDED`
+- AYRI BİR STORAGE ANALYTICS ANA SAYFASI  
+  `STATUS: SKIPPED — EXPLICITLY EXCLUDED`
+- AYRI BİR TRANSLATION HISTORY ANA SAYFASI  
+  `STATUS: SKIPPED — EXPLICITLY EXCLUDED`
+- AYRI BİR SMART CONTENT ACCESSIBILITY SAYFASI  
+  `STATUS: SKIPPED — EXPLICITLY EXCLUDED`
+- AYRI BİR CUSTOMER JOURNEY SAYFASI  
+  `STATUS: SKIPPED — EXPLICITLY EXCLUDED`
+
+## 1.2 Ayrı sayfa açılmaz — mevcut ekranın alt özelliği olur
+
+| Özellik | Mevcut alan |
+| :-- | :-- |
+| QR kod | Profil > Paylaş |
+| Depolama analizi | Dosya Merkezi |
+| Veri kalitesi | CRM ve profil düzenleme |
+| Çeviri geçmişi | İlgili sohbet |
+| Erişilebilirlik | Görünüm ve Erişilebilirlik |
+| Etkinlik işlemleri | Takvim ve Topluluklar |
+| Dijital formlar | Business iş akışları (gerekirse) |
+| Onay işlemleri | Business görevleri (gerekirse) |
+| Sürüm bilgileri | Ayarlar > Uygulama Hakkında |
+| Servis sağlığı | Yalnız yetkili yönetici/teknik izleme |
+| Müşteri notları | CRM > Müşteri Detayı |
+| Müşteri takipleri | CRM > Müşteri Detayı |
+| Dosya paylaşımı | Sohbet ve Dosya Merkezi |
+| Görevler | Personal Yaşam Merkezi veya Business Ekip |
+
+## Repo denetimi
+- 2026-11-02: `lib/` ve `supabase/` içinde yasaklı modüllere ait sayfa/tablo aranır; bulunanlar bu dosyada raporlanır, silinmez (kullanıcı verisi korunur).
+- 2026-11-02 tarama: yasaklı modüllere ait kod/tablo YOK (tek eşleşme 'FCM jetonu' = push token, ilgisiz).
