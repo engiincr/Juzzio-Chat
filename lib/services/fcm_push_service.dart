@@ -17,6 +17,7 @@ import '../core/app_theme_and_locale.dart';
 import '../core/config.dart';
 import '../core/native_bridge.dart';
 import 'juzzio_quick_reply.dart';
+import 'juzzio_notification_preview.dart';
 
 class JuzzioPushEventPayload {
   final String notificationId;
@@ -168,6 +169,11 @@ class JuzzioFcmPushService {
             return JuzzioQuickReply.handleChannelArgs(args);
           }
           return {'ok': false, 'status': JuzzioQuickReplyStatus.invalid.name};
+        // v0.9.0 N-D: arka plandaki çalışan motor bildirim metnini cihazda çözer
+        case 'resolveNotificationPreview':
+          final args = call.arguments;
+          if (args is Map) return JuzzioNotificationPreview.handleChannelArgs(args);
+          return {'text': null};
         case 'onForegroundFcmMessage':
           final args = call.arguments;
           if (args is Map) {
@@ -288,6 +294,20 @@ class JuzzioFcmPushService {
   /// 14 parametreli `upsert_my_push_token` RPC'sini (`p_notify_system` dahil) çağırır,
   /// dönen satır UUID'sini doğrular ve RPC'yi bypass eden doğrudan tablo `.upsert(...)`
   /// fallback'ini kullanmaz.
+  /// v0.9.0 N-D: önizleme kipini Android'e (bildirimi çizen taraf) ve sunucudaki bu cihazın
+  /// kaydına (FCM yükünü kısan taraf) iletir. Sunucu başarısız olsa bile yerel kip uygulanır.
+  Future<void> syncNotificationPreviewMode() async {
+    final mode = JuzzioAppController.instance.notificationPreviewMode;
+    try {
+      await _channel.invokeMethod('setNotificationPreviewMode', {'mode': mode});
+    } catch (_) {}
+    final token = _devicePushToken;
+    if (token.isEmpty || _client.auth.currentUser == null) return;
+    try {
+      await _client.rpc('set_my_push_preview', params: {'p_fcm_token': token, 'p_mode': mode});
+    } catch (_) {}
+  }
+
   Future<bool> syncTokenAndPreferencesWithSupabase() async {
     final uid = _currentUserId;
     if (uid == null || uid.isEmpty) {
@@ -344,6 +364,7 @@ class JuzzioFcmPushService {
       }
       _isTokenSyncedToSupabase = true;
       _lastSyncedAt = DateTime.now();
+      await syncNotificationPreviewMode();
       return true;
     } catch (_) {
       _isTokenSyncedToSupabase = false;

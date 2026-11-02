@@ -19,6 +19,7 @@ import 'core/native_bridge.dart';
 import 'screens/chat_screen.dart';
 import 'services/fcm_push_service.dart';
 import 'services/juzzio_quick_reply.dart';
+import 'services/juzzio_notification_preview.dart';
 import 'services/supabase_service.dart';
 import 'services/juzzio_features_service.dart';
 import 'screens/banned_screen.dart';
@@ -99,6 +100,34 @@ Future<void> juzzioQuickReplyMain() async {
     }
   } catch (_) {
     outcome = {'ok': false, 'status': JuzzioQuickReplyStatus.failed.name};
+  }
+  try {
+    await channel.invokeMethod('result', outcome);
+  } catch (_) {}
+}
+
+/// v0.9.0 N-D: uygulama kapalıyken mesaj bildirimini cihazda çözmek için ekransız giriş noktası.
+/// Android JuzzioNotificationDecryptor bunu ayrı motorda çalıştırır, {room_id, message_id}
+/// alır, mesajı kullanıcının kendi oturumuyla okuyup (RLS) cihazda çözer, metni 'result' ile
+/// döndürür. Hata/zaman aşımında null → genel "yeni mesaj" metni. Ekran çizilmez.
+@pragma('vm:entry-point')
+Future<void> juzzioNotificationPreviewMain() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  const channel = MethodChannel('juzzio/notif_preview');
+  Map<String, Object?> outcome = {'text': null};
+  try {
+    await Supabase.initialize(url: JuzzioConfig.supabaseUrl, anonKey: JuzzioConfig.supabaseAnonKey);
+    final req = await channel.invokeMapMethod<String, dynamic>('take');
+    if (req != null) {
+      try {
+        await JuzzioAppController.instance
+            .loadUserPreferences(Supabase.instance.client.auth.currentUser?.id)
+            .timeout(const Duration(seconds: 2));
+      } catch (_) {}
+      outcome = await JuzzioNotificationPreview.handleChannelArgs(req);
+    }
+  } catch (_) {
+    outcome = {'text': null};
   }
   try {
     await channel.invokeMethod('result', outcome);

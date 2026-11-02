@@ -453,6 +453,8 @@ class JuzzioAppController extends ChangeNotifier {
   bool _notifyLikesComments = true;
   bool _notifyStories = true;
   bool _notifySystem = true;
+  // v0.9.0 N-D: bildirim önizleme kipi — 'full' | 'sender' | 'hidden'
+  String _notificationPreviewMode = 'full';
 
   // Aktif Kullanıcı Kimliği Bazlı Kalıcı Tercih Yönetimi (Bölüm 6.17 & 29)
   String _activePrefsUserId = 'guest';
@@ -575,6 +577,7 @@ class JuzzioAppController extends ChangeNotifier {
   bool get notifyLikesComments => _notifyLikesComments;
   bool get notifyStories => _notifyStories;
   bool get notifySystem => _notifySystem;
+  String get notificationPreviewMode => _notificationPreviewMode;
 
   bool get canViewOthersLastSeenAndOnline => _lastSeenPrivacy != 'nobody';
 
@@ -979,6 +982,8 @@ class JuzzioAppController extends ChangeNotifier {
       _notifyLikesComments = raw['notifyLikesComments'] is bool ? raw['notifyLikesComments'] as bool : _notifyLikesComments;
       _notifyStories = raw['notifyStories'] is bool ? raw['notifyStories'] as bool : _notifyStories;
       _notifySystem = raw['notifySystem'] is bool ? raw['notifySystem'] as bool : _notifySystem;
+      final npm = raw['notificationPreviewMode'];
+      if (npm == 'full' || npm == 'sender' || npm == 'hidden') _notificationPreviewMode = npm as String;
       if (raw['blockedUsernames'] is List) {
         _blockedUsernames
           ..clear()
@@ -1098,6 +1103,7 @@ class JuzzioAppController extends ChangeNotifier {
         'notifyLikesComments': _notifyLikesComments,
         'notifyStories': _notifyStories,
         'notifySystem': _notifySystem,
+        'notificationPreviewMode': _notificationPreviewMode,
     };
   }
 
@@ -1739,6 +1745,16 @@ class JuzzioAppController extends ChangeNotifier {
 
   void setNotifySystem(bool val) {
     _notifySystem = val;
+    _persistUserPreferences();
+    notifyListeners();
+  }
+
+  /// v0.9.0 N-D: önizleme kipi. Yerel kayıt + Android'e + sunucudaki cihaz kaydına iletilir
+  /// (bkz. JuzzioFcmPushService.syncNotificationPreviewMode — çağıran ekran tetikler).
+  void setNotificationPreviewMode(String mode) {
+    if (mode != 'full' && mode != 'sender' && mode != 'hidden') return;
+    if (_notificationPreviewMode == mode) return;
+    _notificationPreviewMode = mode;
     _persistUserPreferences();
     notifyListeners();
   }

@@ -14,6 +14,16 @@ import com.google.firebase.messaging.RemoteMessage
  */
 class JuzzioFirebaseMessagingService : FirebaseMessagingService() {
 
+    companion object {
+        private val MESSAGE_EVENTS = setOf("message", "group_activity", "story_reply", "reaction")
+    }
+
+    private fun genericNewMessage(): String = when (java.util.Locale.getDefault().language) {
+        "tr" -> "Yeni mesaj"
+        "de" -> "Neue Nachricht"
+        else -> "New message"
+    }
+
     override fun onNewToken(token: String) {
         super.onNewToken(token)
         if (token.isBlank()) return
@@ -36,8 +46,8 @@ class JuzzioFirebaseMessagingService : FirebaseMessagingService() {
             val targetSecondaryId = data["target_secondary_id"] ?: ""
             val actorId = data["actor_id"] ?: ""
             val channelId = data["channel_id"] ?: MainActivity.NOTIF_CHANNEL_ID
-            val title = data["title"] ?: notif?.title ?: "Juzzio"
-            val body = data["body"] ?: notif?.body ?: ""
+            var title = data["title"] ?: notif?.title ?: "Juzzio"
+            var body = data["body"] ?: notif?.body ?: ""
 
             if (body.isBlank() && title.isBlank()) return
 
@@ -62,6 +72,31 @@ class JuzzioFirebaseMessagingService : FirebaseMessagingService() {
                 return
             }
 
+            // v0.9.0 N-D: mesaj bildirimleri — önizleme kipi bu cihazda uygulanır.
+            //  full   → metin cihazda çözülür (sunucu FCM'e hiçbir zaman metin koymaz)
+            //  sender → sunucunun genel metni ("X: yeni mesaj")
+            //  hidden → gönderen adı da gösterilmez
+            var lockScreenBody: String? = null
+            if (eventType in MESSAGE_EVENTS) {
+                val mode = getSharedPreferences(MainActivity.PREFS_NAME, Context.MODE_PRIVATE)
+                    .getString(MainActivity.PREF_NOTIF_PREVIEW, "full") ?: "full"
+                val generic = body
+                lockScreenBody = genericNewMessage()
+                when (mode) {
+                    "hidden" -> {
+                        title = "Juzzio"
+                        body = genericNewMessage()
+                    }
+                    "sender" -> Unit
+                    else -> {
+                        if (eventType != "reaction" && targetId.isNotBlank() && targetSecondaryId.isNotBlank()) {
+                            val clear = JuzzioNotificationDecryptor.resolve(applicationContext, targetId, targetSecondaryId)
+                            body = clear ?: generic
+                        }
+                    }
+                }
+            }
+
             val notifIntId = if (notificationId.isNotBlank()) {
                 notificationId.hashCode() and 0x7FFFFFFF
             } else {
@@ -80,7 +115,8 @@ class JuzzioFirebaseMessagingService : FirebaseMessagingService() {
                 notificationId = notificationId,
                 targetId = targetId,
                 targetSecondaryId = targetSecondaryId,
-                actorId = actorId
+                actorId = actorId,
+                lockScreenBody = lockScreenBody
             )
         } catch (_: Exception) {}
     }
