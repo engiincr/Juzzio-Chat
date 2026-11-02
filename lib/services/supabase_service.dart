@@ -20,6 +20,7 @@ import 'juzzio_e2ee.dart';
 import '../core/app_theme_and_locale.dart';
 import '../core/config.dart';
 import 'juzzio_features_service.dart';
+import 'juzzio_media_crypto.dart';
 import 'juzzio_media_url.dart';
 
 // -----------------------------------------------------------------------------
@@ -2392,6 +2393,12 @@ class SupabaseService {
       ));
     }
     final ext = _storageExt(file.path, isVideo: isVideo);
+    // G23/G24: birebir sohbette fotoğraf uçtan uca şifrelenir (fail-closed). Grup sohbetleri metinle
+    // aynı kuralı izler (E2EE yok). Video şimdilik bellek sınırı nedeniyle şifresiz kalır (belgelendi).
+    if (!isVideo && await JuzzioE2ee.instance.isDirectRoom(roomId) == true) {
+      await _sendEncryptedImage(uid: uid, roomId: roomId, file: file, ext: ext, caption: caption.trim());
+      return;
+    }
     final path = '$uid/$roomId/${DateTime.now().millisecondsSinceEpoch}.$ext';
     try {
       await client.storage.from(JuzzioConfig.chatMediaBucket).upload(
@@ -2417,6 +2424,48 @@ class SupabaseService {
       'translated_text': translated,
       if (isVideo) 'video_url': url else 'image_url': url,
     });
+  }
+
+  Future<void> _sendEncryptedImage({
+    required String uid,
+    required String roomId,
+    required File file,
+    required String ext,
+    required String caption,
+  }) async {
+    final sealed = await JuzzioMediaCrypto.seal(await file.readAsBytes(), mime: _mimeFor(ext, isVideo: false));
+    final outcome = await JuzzioE2ee.instance.encryptForRoomStrict(roomId, text: caption, translated: '', media: sealed.key.toJson());
+    if (outcome.status != JuzzioE2eeStatus.encrypted || outcome.payload == null) {
+      // Anahtar yoksa / şifreleme yapılamıyorsa fotoğraf GÖNDERİLMEZ (şifresiz yedek yok)
+      throw JuzzioE2eeRequiredException(
+          outcome.status == JuzzioE2eeStatus.peerKeyMissing ? JuzzioE2eeStatus.peerKeyMissing : JuzzioE2eeStatus.unavailable);
+    }
+    final path = '$uid/$roomId/${DateTime.now().millisecondsSinceEpoch}.jenc';
+    final bucket = client.storage.from(JuzzioConfig.chatMediaBucket);
+    try {
+      await bucket.uploadBinary(path, sealed.cipher,
+          fileOptions: const FileOptions(contentType: 'application/octet-stream', upsert: false));
+    } catch (e) {
+      throw JuzzioServiceException(_app.trEn('Medya yüklenemedi: ${_friendlyError(e)}', 'Upload failed: ${_friendlyError(e)}', 'Hochladen fehlgeschlagen: ${_friendlyError(e)}'));
+    }
+    try {
+      await client.from('messages').insert({
+        'room_id': roomId,
+        'sender_id': uid,
+        'message_type': 'image',
+        'source_lang': _app.subtitleLang,
+        'target_lang': _defaultTargetLang,
+        'original_text': '',
+        'translated_text': '',
+        'image_url': bucket.getPublicUrl(path),
+        'metadata': <String, dynamic>{'e2ee': outcome.payload, 'media_e2ee': 1},
+      });
+    } catch (e) {
+      try {
+        await bucket.remove([path]); // mesaj yazılamadıysa yetim şifreli dosya bırakılmaz
+      } catch (_) {}
+      rethrow;
+    }
   }
 
   Future<void> sendVoiceNote({

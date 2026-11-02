@@ -36,6 +36,8 @@ import '../models/social_models.dart';
 import '../services/fcm_push_service.dart';
 import '../services/social_service.dart';
 import '../services/supabase_service.dart';
+import '../widgets/juzzio_poll_widgets.dart';
+import '../widgets/juzzio_encrypted_image.dart';
 import '../widgets/social_common_widgets.dart';
 import '../widgets/media_viewer.dart';
 import 'social/social_screens.dart';
@@ -1085,11 +1087,35 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
               title: Text(app.trEn('Video Çek', 'Record Video', 'Video aufnehmen')),
               onTap: () => Navigator.pop(ctx, 'camera_video'),
             ),
+            if (_groupRooms.any((g) => g.id == roomId))
+              ListTile(
+                leading: const Icon(Icons.poll_outlined),
+                title: Text(app.trEn('Anket', 'Poll', 'Umfrage')),
+                onTap: () => Navigator.pop(ctx, 'poll'),
+              ),
+            ListTile(
+              leading: const Icon(Icons.schedule_send_outlined),
+              title: Text(app.trEn('Mesajı zamanla', 'Schedule message', 'Nachricht planen')),
+              onTap: () => Navigator.pop(ctx, 'schedule'),
+            ),
           ],
         ),
       ),
     );
     if (choice == null) return;
+    if (!mounted) return;
+    if (choice == 'poll') {
+      await showJuzzioCreatePollSheet(context, roomId: roomId);
+      return;
+    }
+    if (choice == 'schedule') {
+      final done = await showJuzzioScheduleSheet(context, roomId: roomId, text: _msgCtrl.text);
+      if (done) {
+        _msgCtrl.clear();
+        _showSnack(app.trEn('Mesaj zamanlandı', 'Message scheduled', 'Nachricht geplant'));
+      }
+      return;
+    }
     try {
       XFile? picked;
       final isVideo = choice.endsWith('video');
@@ -1262,6 +1288,17 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     }
   }
 
+  static const List<double> _voiceSpeeds = [1.0, 1.5, 2.0];
+  double _voiceSpeed = 1.0;
+
+  Future<void> _cycleVoiceSpeed() async {
+    final i = _voiceSpeeds.indexOf(_voiceSpeed);
+    setState(() => _voiceSpeed = _voiceSpeeds[(i + 1) % _voiceSpeeds.length]);
+    try {
+      await _audioPlayer.setSpeed(_voiceSpeed);
+    } catch (_) {}
+  }
+
   Future<void> _togglePlayVoiceNote(JuzzioMessage msg) async {
     if (msg.audioUrl == null || msg.audioUrl!.isEmpty) return;
 
@@ -1275,6 +1312,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       setState(() => _playingMessageId = msg.id);
       // v0.9.0: sesli mesajlar özel bucket'ta — kısa ömürlü imzalı adresle oynatılır
       await _audioPlayer.setUrl(await JuzzioMediaUrl.resolve(msg.audioUrl!));
+      await _audioPlayer.setSpeed(_voiceSpeed);
       _audioPlayer.play();
       await _audioPlayer.playerStateStream.firstWhere(
         (state) => state.processingState == ProcessingState.completed,
@@ -5186,7 +5224,16 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                           if (!msg.isDeleted && msg.storyReplyMeta != null)
                             _buildEmbeddedStoryReplyCard(p, msg, isMe),
 
-                          if (!msg.isDeleted && msg.imageUrl != null && msg.imageUrl!.isNotEmpty) ...[
+                          if (!msg.isDeleted && msg.imageUrl != null && msg.imageUrl!.isNotEmpty && JuzzioEncryptedMedia.isEncrypted(msg.metadata)) ...[
+                            GestureDetector(
+                              onTap: () => JuzzioEncryptedImage.openFullScreen(context, messageId: msg.id, url: msg.imageUrl!),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(14),
+                                child: JuzzioEncryptedImage(messageId: msg.id, url: msg.imageUrl!, height: 190),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                          ] else if (!msg.isDeleted && msg.imageUrl != null && msg.imageUrl!.isNotEmpty) ...[
                             GestureDetector(
                               onTap: () => JuzzioMediaViewerPage.open(context, url: msg.imageUrl!, isVideo: false),
                               child: ClipRRect(
@@ -5272,11 +5319,33 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                                     ),
                                   ),
                                 ),
+                                // G28: oynatma hızı 1x → 1.5x → 2x (çalan sese de anında uygulanır)
+                                Semantics(
+                                  button: true,
+                                  label: JuzzioAppController.instance.trEn('Oynatma hızı', 'Playback speed', 'Wiedergabegeschwindigkeit'),
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(10),
+                                    onTap: _cycleVoiceSpeed,
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                      child: Text(
+                                        '${_voiceSpeed == _voiceSpeed.roundToDouble() ? _voiceSpeed.toInt() : _voiceSpeed}x',
+                                        style: TextStyle(
+                                          color: isMe ? Colors.white : p.amberPrimary,
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               ],
                             ),
                             const SizedBox(height: 8),
                           ],
-                          if (!msg.isDeleted && msg.originalText.trim().isNotEmpty)
+                          if (!msg.isDeleted && msg.metadata['poll_id'] != null)
+                            JuzzioPollCard(pollId: msg.metadata['poll_id'].toString(), isMe: isMe),
+                          if (!msg.isDeleted && msg.originalText.trim().isNotEmpty && msg.metadata['poll_id'] == null)
                           FutureBuilder<String>(
                             future: isMe
                                 ? Future.value(msg.originalText)

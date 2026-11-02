@@ -12955,3 +12955,231 @@ RETURNS JSONB LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $
         'e2ee_ready', (SELECT COALESCE(e2ee_public_key, '') <> '' FROM public.profiles WHERE id = auth.uid()));
 $$;
 GRANT EXECUTE ON FUNCTION public.get_my_security_overview() TO authenticated;
+
+-- =============================================================================
+-- 10.23 G26 SOHBET ANKETLERİ + G27 ZAMANLANMIŞ MESAJ
+--  Anket: yalnız GRUP sohbetlerinde (gruplar E2EE değildir; birebir sohbette şifresiz anket
+--  içeriği oluşturulmaz). Oylar tekil (çoklu seçim izinliyse seçenek başına tekil), kapalı
+--  ankete oy verilmez. Gizli ankette kim-neye-oy bilgisi KİMSEYE dönmez (oylar tablosu yalnız
+--  sahibine görünür; sonuç yalnız sayım).
+--  Zamanlanmış mesaj: birebir sohbette içerik istemcide E2EE ile ŞİFRELENMİŞ olarak saklanır
+--  (düz metin REDDEDİLİR); gönderim anında gönderenin yazma hakkı mesaj RLS'iyle aynı kuralla
+--  yeniden denetlenir. İşçi idempotenttir (FOR UPDATE SKIP LOCKED + durum).
+-- =============================================================================
+CREATE OR REPLACE FUNCTION public.juzzio_can_post(p_room UUID, p_user UUID)
+RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+    SELECT public.is_room_member(p_room, p_user)
+       AND NOT public.juzzio_is_banned(p_user)
+       AND NOT EXISTS (SELECT 1 FROM public.room_participants me
+                        WHERE me.room_id = p_room AND me.user_id = p_user AND me.muted_until > NOW())
+       AND NOT EXISTS (SELECT 1 FROM public.room_participants o JOIN public.rooms r ON r.id = o.room_id
+                        WHERE o.room_id = p_room AND NOT r.is_group AND o.user_id <> p_user
+                          AND public.is_blocked_between(p_user, o.user_id));
+$$;
+REVOKE ALL ON FUNCTION public.juzzio_can_post(UUID, UUID) FROM PUBLIC, anon, authenticated;
+
+CREATE TABLE IF NOT EXISTS public.polls (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    room_id UUID NOT NULL REFERENCES public.rooms(id) ON DELETE CASCADE,
+    created_by UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    message_id UUID,
+    question TEXT NOT NULL CHECK (LENGTH(BTRIM(question)) BETWEEN 1 AND 300),
+    options JSONB NOT NULL CHECK (jsonb_typeof(options) = 'array' AND jsonb_array_length(options) BETWEEN 2 AND 10),
+    multi BOOLEAN NOT NULL DEFAULT false,
+    anonymous BOOLEAN NOT NULL DEFAULT false,
+    closed BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_polls_room ON public.polls (room_id, created_at DESC);
+CREATE TABLE IF NOT EXISTS public.poll_votes (
+    poll_id UUID NOT NULL REFERENCES public.polls(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    option_idx SMALLINT NOT NULL CHECK (option_idx BETWEEN 0 AND 9),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (poll_id, user_id, option_idx)
+);
+ALTER TABLE public.polls ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.poll_votes ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS polls_member_select ON public.polls;
+CREATE POLICY polls_member_select ON public.polls FOR SELECT TO authenticated USING (public.is_room_member(room_id));
+DROP POLICY IF EXISTS poll_votes_own_select ON public.poll_votes;
+CREATE POLICY poll_votes_own_select ON public.poll_votes FOR SELECT TO authenticated USING (user_id = auth.uid());
+REVOKE INSERT, UPDATE, DELETE ON public.polls, public.poll_votes FROM anon, authenticated;
+GRANT SELECT ON public.polls, public.poll_votes TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.create_poll(p_room UUID, p_question TEXT, p_options TEXT[], p_multi BOOLEAN DEFAULT false, p_anonymous BOOLEAN DEFAULT false)
+RETURNS UUID LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+    v_uid UUID := auth.uid();
+    v_opts JSONB;
+    v_id UUID;
+    v_msg UUID;
+BEGIN
+    IF v_uid IS NULL THEN RAISE EXCEPTION 'not_authenticated'; END IF;
+    IF NOT EXISTS (SELECT 1 FROM public.rooms WHERE id = p_room AND is_group) THEN RAISE EXCEPTION 'poll_group_only'; END IF;
+    IF NOT public.juzzio_can_post(p_room, v_uid) THEN RAISE EXCEPTION 'not_allowed'; END IF;
+    SELECT jsonb_agg(LEFT(BTRIM(o), 100) ORDER BY ord) INTO v_opts
+      FROM unnest(p_options) WITH ORDINALITY AS t(o, ord) WHERE LENGTH(BTRIM(COALESCE(o, ''))) > 0;
+    IF v_opts IS NULL OR jsonb_array_length(v_opts) < 2 OR jsonb_array_length(v_opts) > 10 THEN RAISE EXCEPTION 'poll_options_invalid'; END IF;
+    IF (SELECT COUNT(DISTINCT LOWER(x)) FROM jsonb_array_elements_text(v_opts) x) <> jsonb_array_length(v_opts) THEN
+        RAISE EXCEPTION 'poll_options_duplicate';
+    END IF;
+    INSERT INTO public.polls (room_id, created_by, question, options, multi, anonymous)
+    VALUES (p_room, v_uid, LEFT(BTRIM(p_question), 300), v_opts, COALESCE(p_multi, false), COALESCE(p_anonymous, false))
+    RETURNING id INTO v_id;
+    INSERT INTO public.messages (room_id, sender_id, message_type, original_text, metadata)
+    VALUES (p_room, v_uid, 'text', '📊 ' || LEFT(BTRIM(p_question), 300), jsonb_build_object('poll_id', v_id))
+    RETURNING id INTO v_msg;
+    UPDATE public.polls SET message_id = v_msg WHERE id = v_id;
+    RETURN v_id;
+END $$;
+GRANT EXECUTE ON FUNCTION public.create_poll(UUID, TEXT, TEXT[], BOOLEAN, BOOLEAN) TO authenticated;
+
+-- Oyumu ayarla (boş dizi = oyu geri çek). Tekil seçimde en fazla 1 seçenek.
+CREATE OR REPLACE FUNCTION public.vote_poll(p_poll UUID, p_options SMALLINT[])
+RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_uid UUID := auth.uid(); p public.polls; v_n INT;
+BEGIN
+    SELECT * INTO p FROM public.polls WHERE id = p_poll;
+    IF p.id IS NULL OR v_uid IS NULL OR NOT public.is_room_member(p.room_id, v_uid) THEN RAISE EXCEPTION 'not_allowed'; END IF;
+    IF p.closed THEN RAISE EXCEPTION 'poll_closed'; END IF;
+    v_n := COALESCE(array_length(p_options, 1), 0);
+    IF NOT p.multi AND v_n > 1 THEN RAISE EXCEPTION 'poll_single_choice'; END IF;
+    IF EXISTS (SELECT 1 FROM unnest(COALESCE(p_options, '{}')) o WHERE o < 0 OR o >= jsonb_array_length(p.options)) THEN
+        RAISE EXCEPTION 'poll_option_invalid';
+    END IF;
+    DELETE FROM public.poll_votes WHERE poll_id = p_poll AND user_id = v_uid;
+    INSERT INTO public.poll_votes (poll_id, user_id, option_idx)
+    SELECT p_poll, v_uid, o FROM (SELECT DISTINCT o FROM unnest(COALESCE(p_options, '{}')) o) d;
+    RETURN true;
+END $$;
+GRANT EXECUTE ON FUNCTION public.vote_poll(UUID, SMALLINT[]) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.close_poll(p_poll UUID)
+RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_n INT;
+BEGIN
+    UPDATE public.polls SET closed = true WHERE id = p_poll AND created_by = auth.uid() AND NOT closed;
+    GET DIAGNOSTICS v_n = ROW_COUNT; RETURN v_n > 0;
+END $$;
+GRANT EXECUTE ON FUNCTION public.close_poll(UUID) TO authenticated;
+
+-- Sonuçlar: sayımlar + benim oylarım; seçmen adları yalnız gizli OLMAYAN ankette
+CREATE OR REPLACE FUNCTION public.poll_results(p_poll UUID)
+RETURNS JSONB LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
+DECLARE p public.polls;
+BEGIN
+    SELECT * INTO p FROM public.polls WHERE id = p_poll;
+    IF p.id IS NULL OR NOT public.is_room_member(p.room_id) THEN RAISE EXCEPTION 'not_allowed'; END IF;
+    RETURN jsonb_build_object(
+        'question', p.question, 'options', p.options, 'multi', p.multi, 'anonymous', p.anonymous,
+        'closed', p.closed, 'mine_creator', p.created_by = auth.uid(),
+        'counts', (SELECT jsonb_agg((SELECT COUNT(*) FROM public.poll_votes v WHERE v.poll_id = p.id AND v.option_idx = i) ORDER BY i)
+                     FROM generate_series(0, jsonb_array_length(p.options) - 1) i),
+        'voters', (SELECT COUNT(DISTINCT user_id) FROM public.poll_votes WHERE poll_id = p.id),
+        'my_votes', COALESCE((SELECT jsonb_agg(option_idx ORDER BY option_idx) FROM public.poll_votes WHERE poll_id = p.id AND user_id = auth.uid()), '[]'::jsonb),
+        'by_option', CASE WHEN p.anonymous THEN NULL ELSE
+            (SELECT jsonb_object_agg(i::text, COALESCE((SELECT jsonb_agg(COALESCE(NULLIF(pr.display_name, ''), pr.username) ORDER BY v.created_at)
+                                                         FROM public.poll_votes v JOIN public.profiles pr ON pr.id = v.user_id
+                                                        WHERE v.poll_id = p.id AND v.option_idx = i), '[]'::jsonb))
+               FROM generate_series(0, jsonb_array_length(p.options) - 1) i) END);
+END $$;
+GRANT EXECUTE ON FUNCTION public.poll_results(UUID) TO authenticated;
+
+CREATE TABLE IF NOT EXISTS public.scheduled_messages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    room_id UUID NOT NULL REFERENCES public.rooms(id) ON DELETE CASCADE,
+    sender_id UUID NOT NULL DEFAULT auth.uid() REFERENCES public.profiles(id) ON DELETE CASCADE,
+    send_at TIMESTAMPTZ NOT NULL,
+    body TEXT NOT NULL DEFAULT '',
+    e2ee JSONB,
+    preview TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'sent', 'cancelled', 'failed')),
+    fail_reason TEXT NOT NULL DEFAULT '',
+    message_id UUID,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    sent_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_scheduled_due ON public.scheduled_messages (send_at) WHERE status = 'pending';
+ALTER TABLE public.scheduled_messages ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS scheduled_own_select ON public.scheduled_messages;
+CREATE POLICY scheduled_own_select ON public.scheduled_messages FOR SELECT TO authenticated USING (sender_id = auth.uid());
+REVOKE INSERT, UPDATE, DELETE ON public.scheduled_messages FROM anon, authenticated;
+GRANT SELECT ON public.scheduled_messages TO authenticated;
+
+-- p_preview: yalnız GÖNDERENİN kendi listesinde görünen kısa not (birebir sohbette istemci
+-- boş bırakır; sunucu birebir sohbette önizlemeyi her durumda boşaltır).
+CREATE OR REPLACE FUNCTION public.schedule_message(p_room UUID, p_send_at TIMESTAMPTZ, p_body TEXT DEFAULT '', p_e2ee JSONB DEFAULT NULL, p_preview TEXT DEFAULT '')
+RETURNS UUID LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_uid UUID := auth.uid(); v_group BOOLEAN; v_id UUID;
+BEGIN
+    IF v_uid IS NULL THEN RAISE EXCEPTION 'not_authenticated'; END IF;
+    SELECT is_group INTO v_group FROM public.rooms WHERE id = p_room;
+    IF v_group IS NULL OR NOT public.juzzio_can_post(p_room, v_uid) THEN RAISE EXCEPTION 'not_allowed'; END IF;
+    IF p_send_at < NOW() + INTERVAL '1 minute' OR p_send_at > NOW() + INTERVAL '365 days' THEN RAISE EXCEPTION 'schedule_time_invalid'; END IF;
+    IF (SELECT COUNT(*) FROM public.scheduled_messages WHERE sender_id = v_uid AND status = 'pending') >= 100 THEN
+        RAISE EXCEPTION 'schedule_limit';
+    END IF;
+    IF NOT v_group THEN
+        -- Birebir: yalnız şifreli içerik (fail-closed)
+        IF p_e2ee IS NULL OR jsonb_typeof(p_e2ee) <> 'object' OR NOT (p_e2ee ? 'c') OR LENGTH(BTRIM(COALESCE(p_body, ''))) > 0 THEN
+            RAISE EXCEPTION 'schedule_e2ee_required';
+        END IF;
+        INSERT INTO public.scheduled_messages (room_id, sender_id, send_at, e2ee) VALUES (p_room, v_uid, p_send_at, p_e2ee) RETURNING id INTO v_id;
+    ELSE
+        IF p_e2ee IS NOT NULL OR LENGTH(BTRIM(COALESCE(p_body, ''))) NOT BETWEEN 1 AND 4000 THEN RAISE EXCEPTION 'schedule_body_invalid'; END IF;
+        INSERT INTO public.scheduled_messages (room_id, sender_id, send_at, body, preview)
+        VALUES (p_room, v_uid, p_send_at, BTRIM(p_body), LEFT(BTRIM(p_body), 80)) RETURNING id INTO v_id;
+    END IF;
+    RETURN v_id;
+END $$;
+GRANT EXECUTE ON FUNCTION public.schedule_message(UUID, TIMESTAMPTZ, TEXT, JSONB, TEXT) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.cancel_scheduled_message(p_id UUID)
+RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_n INT;
+BEGIN
+    UPDATE public.scheduled_messages SET status = 'cancelled' WHERE id = p_id AND sender_id = auth.uid() AND status = 'pending';
+    GET DIAGNOSTICS v_n = ROW_COUNT; RETURN v_n > 0;
+END $$;
+GRANT EXECUTE ON FUNCTION public.cancel_scheduled_message(UUID) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.juzzio_send_due_scheduled(p_limit INTEGER DEFAULT 200)
+RETURNS INTEGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE s public.scheduled_messages; v_msg UUID; v_n INT := 0;
+BEGIN
+    FOR s IN SELECT * FROM public.scheduled_messages WHERE status = 'pending' AND send_at <= NOW()
+             ORDER BY send_at LIMIT p_limit FOR UPDATE SKIP LOCKED
+    LOOP
+        IF NOT public.juzzio_can_post(s.room_id, s.sender_id) THEN
+            UPDATE public.scheduled_messages SET status = 'failed', fail_reason = 'not_allowed' WHERE id = s.id;
+            CONTINUE;
+        END IF;
+        BEGIN
+            INSERT INTO public.messages (room_id, sender_id, message_type, original_text, translated_text, client_msg_id, metadata)
+            VALUES (s.room_id, s.sender_id, 'text', CASE WHEN s.e2ee IS NULL THEN s.body ELSE '' END, '',
+                    'sch_' || REPLACE(s.id::text, '-', ''),
+                    CASE WHEN s.e2ee IS NULL THEN jsonb_build_object('scheduled', true)
+                         ELSE jsonb_build_object('e2ee', s.e2ee, 'scheduled', true) END)
+            RETURNING id INTO v_msg;
+            UPDATE public.scheduled_messages SET status = 'sent', sent_at = NOW(), message_id = v_msg WHERE id = s.id;
+            v_n := v_n + 1;
+        EXCEPTION WHEN OTHERS THEN
+            UPDATE public.scheduled_messages SET status = 'failed', fail_reason = LEFT(SQLERRM, 120) WHERE id = s.id;
+        END;
+    END LOOP;
+    RETURN v_n;
+END $$;
+REVOKE ALL ON FUNCTION public.juzzio_send_due_scheduled(INTEGER) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.juzzio_send_due_scheduled(INTEGER) TO service_role;
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
+        BEGIN
+            PERFORM cron.unschedule(jobid) FROM cron.job WHERE jobname = 'juzzio_send_due_scheduled';
+            PERFORM cron.schedule('juzzio_send_due_scheduled', '* * * * *', 'SELECT public.juzzio_send_due_scheduled()');
+        EXCEPTION WHEN OTHERS THEN
+            RAISE NOTICE 'pg_cron görevi (juzzio_send_due_scheduled) oluşturulamadı: %', SQLERRM;
+        END;
+    END IF;
+END $$;
