@@ -13,6 +13,7 @@ import '../core/content_filter.dart';
 import '../core/theme/juzzio_colors.dart';
 import '../services/juzzio_features_service.dart';
 import '../services/supabase_service.dart';
+import 'chat_notification_prefs.dart';
 
 Future<void> showJuzzioGroupManagementSheet(
   BuildContext context, {
@@ -333,6 +334,8 @@ class _GroupManagementSheetState extends State<_GroupManagementSheet> {
                   ? IconButton(tooltip: app.t('group_edit_info'), icon: const Icon(Icons.edit_rounded), onPressed: _editInfo)
                   : null,
             ),
+            // v0.9.0 §6.4: Sohbet Bilgileri > Bildirimleri Özelleştir (her üye kendisi için)
+            JuzzioChatNotificationPrefsTile(roomId: widget.roomId),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Align(

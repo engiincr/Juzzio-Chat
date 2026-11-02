@@ -18,6 +18,7 @@ import '../core/config.dart';
 import '../core/native_bridge.dart';
 import 'juzzio_quick_reply.dart';
 import 'juzzio_notification_preview.dart';
+import 'juzzio_call_actions.dart';
 
 class JuzzioPushEventPayload {
   final String notificationId;
@@ -29,6 +30,9 @@ class JuzzioPushEventPayload {
   final String actorId;
   final String channelId;
 
+  /// v0.9.0 N-F: bildirim düğmesi ('accept' veya boş)
+  final String callAction;
+
   const JuzzioPushEventPayload({
     this.notificationId = '',
     required this.eventType,
@@ -38,6 +42,7 @@ class JuzzioPushEventPayload {
     this.targetSecondaryId = '',
     this.actorId = '',
     this.channelId = 'juzzio_high_priority_v2',
+    this.callAction = '',
   });
 
   factory JuzzioPushEventPayload.fromMap(Map<String, dynamic> map) {
@@ -57,6 +62,7 @@ class JuzzioPushEventPayload {
           (map['target_secondary_id'] ?? data['target_secondary_id'] ?? '')
               .toString(),
       actorId: (map['actor_id'] ?? data['actor_id'] ?? '').toString(),
+      callAction: (map['call_action'] ?? '').toString(),
       channelId: (map['channel_id'] ??
               data['channel_id'] ??
               'juzzio_high_priority_v2')
@@ -169,6 +175,11 @@ class JuzzioFcmPushService {
             return JuzzioQuickReply.handleChannelArgs(args);
           }
           return {'ok': false, 'status': JuzzioQuickReplyStatus.invalid.name};
+        // v0.9.0 N-F: gelen arama bildirimindeki Reddet (çalışan motor)
+        case 'onCallAction':
+          final args = call.arguments;
+          if (args is Map) return JuzzioCallActions.handleChannelArgs(args);
+          return {'status': 'error'};
         // v0.9.0 N-D: arka plandaki çalışan motor bildirim metnini cihazda çözer
         case 'resolveNotificationPreview':
           final args = call.arguments;

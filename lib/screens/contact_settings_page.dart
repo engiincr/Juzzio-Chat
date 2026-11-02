@@ -11,6 +11,7 @@ import '../core/config.dart';
 import '../core/juzzio_sounds.dart';
 import '../core/theme/juzzio_glass.dart';
 import '../services/supabase_service.dart';
+import '../widgets/chat_notification_prefs.dart';
 import 'sound_settings_page.dart';
 
 class JuzzioContactSettingsPage extends StatefulWidget {
@@ -288,6 +289,8 @@ class _JuzzioContactSettingsPageState extends State<JuzzioContactSettingsPage> {
                         widget.onMutedChanged?.call(v);
                       },
                     ),
+                    // v0.9.0 §6.4: süreli sessiz, önizleme, titreşim
+                    JuzzioChatNotificationPrefsTile(roomId: widget.roomId),
                     row(Icons.music_note_rounded, _app.trEn('Özel bildirim tonu', 'Custom notification tone', 'Eigener Ton'),
                         tone == null ? general : JuzzioSounds.labelFor(tone, ring: false), () => _pickSound(ring: false)),
                     row(Icons.ring_volume_rounded, _app.trEn('Özel zil sesi', 'Custom ringtone', 'Eigener Klingelton'),

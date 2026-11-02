@@ -2971,10 +2971,12 @@ BEGIN
     SELECT username, display_name, avatar_url INTO v_sender FROM public.profiles WHERE id = NEW.sender_id;
 
     FOR rp IN
-        SELECT user_id, is_muted FROM public.room_participants
+        -- v0.9.0: süreli sohbet sessize alma (notif_muted_until, Bölüm 10.15) de uygulanır
+        SELECT user_id, is_muted, notif_muted_until FROM public.room_participants
         WHERE room_id = NEW.room_id AND user_id <> NEW.sender_id AND left_at IS NULL
     LOOP
-        IF rp.is_muted OR public.is_blocked_between(NEW.sender_id, rp.user_id) THEN
+        IF rp.is_muted OR COALESCE(rp.notif_muted_until > NOW(), false)
+           OR public.is_blocked_between(NEW.sender_id, rp.user_id) THEN
             CONTINUE;
         END IF;
         BEGIN
@@ -11073,3 +11075,190 @@ BEFORE INSERT OR UPDATE OF preview_text ON public.notifications
 FOR EACH ROW EXECUTE FUNCTION public.juzzio_sanitize_notification_preview();
 -- Var olan kayıtlar (idempotent; yalnızca şifreli metin içerenler)
 UPDATE public.notifications SET preview_text = preview_text WHERE preview_text ~* 'juzzio_e2ee_';
+
+-- 10.14 Gelen arama bildiriminden Reddet (ek paket N-F)
+--  update_call_status genel amaçlıdır (arayan/aranan, birçok durum). Bildirimdeki Reddet düğmesi
+--  için dar ve denetimli bir RPC: yalnız ARANAN kişi, yalnız hâlâ ÇALAN arama reddedilebilir;
+--  tekrar basma idempotenttir (zaten reddedildiyse 'rejected' döner, başka durum değişmez).
+CREATE OR REPLACE FUNCTION public.juzzio_decline_call(p_call UUID)
+RETURNS TEXT
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_uid UUID := auth.uid();
+    v_row RECORD;
+BEGIN
+    IF v_uid IS NULL THEN
+        RAISE EXCEPTION 'not_authenticated';
+    END IF;
+    SELECT id, receiver_id, status INTO v_row FROM public.call_logs WHERE id = p_call FOR UPDATE;
+    IF v_row.id IS NULL OR v_row.receiver_id IS DISTINCT FROM v_uid THEN
+        RAISE EXCEPTION 'not_allowed';
+    END IF;
+    IF v_row.status = 'rejected' THEN
+        RETURN 'rejected';
+    END IF;
+    IF v_row.status <> 'ringing' THEN
+        RETURN v_row.status; -- bitmiş/cevaplanmış arama değiştirilmez
+    END IF;
+    UPDATE public.call_logs SET status = 'rejected', ended_at = NOW() WHERE id = p_call;
+    RETURN 'rejected';
+END;
+$$;
+REVOKE ALL ON FUNCTION public.juzzio_decline_call(UUID) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.juzzio_decline_call(UUID) TO authenticated;
+
+-- 10.15 Sohbet bazlı bildirim ayarları (son talimat §6.4: Sohbet Bilgileri > Bildirimleri Özelleştir)
+--  Kişiye özel, yalnız kendi katılım satırı: süreli sessize alma, önizleme (cihaz kipinden daha
+--  sıkı olabilir, daha gevşek olamaz), titreşim. Ses: mevcut kişiye özel ton (contact_prefs) kullanılır.
+--  (Not: room_participants.muted_until grup moderasyonudur — yazma kısıtı; bununla karıştırılmaz.)
+ALTER TABLE public.room_participants ADD COLUMN IF NOT EXISTS notif_muted_until TIMESTAMPTZ;
+ALTER TABLE public.room_participants ADD COLUMN IF NOT EXISTS notif_preview TEXT;
+ALTER TABLE public.room_participants ADD COLUMN IF NOT EXISTS notif_vibrate BOOLEAN NOT NULL DEFAULT true;
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'room_participants_notif_preview_check') THEN
+        ALTER TABLE public.room_participants ADD CONSTRAINT room_participants_notif_preview_check
+            CHECK (notif_preview IS NULL OR notif_preview IN ('full', 'sender', 'hidden')) NOT VALID;
+    END IF;
+END $$;
+
+-- p_mute_minutes: NULL = değiştirme, 0 = sessizi kaldır, -1 = süresiz (100 yıl), >0 dakika (≤ 1 yıl)
+-- p_preview: NULL = değiştirme, 'inherit' = cihaz ayarı, full|sender|hidden
+CREATE OR REPLACE FUNCTION public.set_room_notification_prefs(
+    p_room UUID,
+    p_mute_minutes INTEGER DEFAULT NULL,
+    p_preview TEXT DEFAULT NULL,
+    p_vibrate BOOLEAN DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_uid UUID := auth.uid();
+    v_preview TEXT := LOWER(BTRIM(COALESCE(p_preview, '')));
+    v_row RECORD;
+BEGIN
+    IF v_uid IS NULL THEN RAISE EXCEPTION 'not_authenticated'; END IF;
+    IF NOT public.is_room_member(p_room, v_uid) THEN RAISE EXCEPTION 'not_allowed'; END IF;
+    IF p_preview IS NOT NULL AND v_preview NOT IN ('inherit', 'full', 'sender', 'hidden') THEN
+        RAISE EXCEPTION 'invalid_preview_mode';
+    END IF;
+    IF p_mute_minutes IS NOT NULL AND (p_mute_minutes < -1 OR p_mute_minutes > 525600) THEN
+        RAISE EXCEPTION 'invalid_mute_duration';
+    END IF;
+    UPDATE public.room_participants SET
+        notif_muted_until = CASE
+            WHEN p_mute_minutes IS NULL THEN notif_muted_until
+            WHEN p_mute_minutes = 0 THEN NULL
+            WHEN p_mute_minutes = -1 THEN NOW() + INTERVAL '100 years'
+            ELSE NOW() + make_interval(mins => p_mute_minutes) END,
+        notif_preview = CASE
+            WHEN p_preview IS NULL THEN notif_preview
+            WHEN v_preview = 'inherit' THEN NULL
+            ELSE v_preview END,
+        notif_vibrate = COALESCE(p_vibrate, notif_vibrate)
+    WHERE room_id = p_room AND user_id = v_uid AND left_at IS NULL
+    RETURNING notif_muted_until, notif_preview, notif_vibrate INTO v_row;
+    RETURN jsonb_build_object(
+        'muted_until', v_row.notif_muted_until,
+        'preview', COALESCE(v_row.notif_preview, 'inherit'),
+        'vibrate', v_row.notif_vibrate);
+END;
+$$;
+REVOKE ALL ON FUNCTION public.set_room_notification_prefs(UUID, INTEGER, TEXT, BOOLEAN) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.set_room_notification_prefs(UUID, INTEGER, TEXT, BOOLEAN) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.get_room_notification_prefs(p_room UUID)
+RETURNS JSONB
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT jsonb_build_object(
+        'muted_until', CASE WHEN rp.notif_muted_until > NOW() THEN rp.notif_muted_until END,
+        'preview', COALESCE(rp.notif_preview, 'inherit'),
+        'vibrate', rp.notif_vibrate)
+    FROM public.room_participants rp
+    WHERE rp.room_id = p_room AND rp.user_id = auth.uid() AND rp.left_at IS NULL;
+$$;
+REVOKE ALL ON FUNCTION public.get_room_notification_prefs(UUID) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_room_notification_prefs(UUID) TO authenticated;
+
+-- 10.16 Kaydetme bildirimi isteğe bağlı (ek paket N-C: "kaydetme bildirimi varsayılan KAPALI")
+--  Gönderi sahibi açıkça açmadıkça kimin kaydettiği bildirilmez (kaydetme özel bir eylemdir).
+--  Tercih profile_private'ta (yalnız sahibi okur/yazar); sayaç (saves_count) etkilenmez.
+ALTER TABLE public.profile_private ADD COLUMN IF NOT EXISTS notify_post_saves BOOLEAN NOT NULL DEFAULT false;
+
+CREATE OR REPLACE FUNCTION public.notify_on_post_save()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_author UUID;
+    v_actor RECORD;
+BEGIN
+    SELECT author_id INTO v_author FROM public.posts WHERE id = NEW.post_id;
+    IF v_author IS NULL OR v_author = NEW.user_id OR public.is_blocked_between(NEW.user_id, v_author) THEN
+        RETURN NEW;
+    END IF;
+    IF NOT COALESCE((SELECT pp.notify_post_saves FROM public.profile_private pp WHERE pp.user_id = v_author), false) THEN
+        RETURN NEW;
+    END IF;
+    SELECT username, display_name, avatar_url INTO v_actor FROM public.profiles WHERE id = NEW.user_id;
+    INSERT INTO public.notifications (
+        recipient_id, actor_id, actor_username, actor_display_name, actor_avatar_url,
+        event_type, target_id, preview_text, dedupe_key
+    ) VALUES (
+        v_author, NEW.user_id, COALESCE(v_actor.username, ''),
+        COALESCE(NULLIF(v_actor.display_name, ''), v_actor.username, 'Juzzio'), v_actor.avatar_url,
+        'save', NEW.post_id::text, '', 'save_' || NEW.post_id::text || '_' || NEW.user_id::text
+    )
+    ON CONFLICT (recipient_id, dedupe_key) DO NOTHING;
+    RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+    RETURN NEW; -- bildirim hatası kaydetmeyi asla engellemez
+END;
+$$;
+DROP TRIGGER IF EXISTS trg_notify_on_post_save ON public.saved_posts;
+CREATE TRIGGER trg_notify_on_post_save
+    AFTER INSERT ON public.saved_posts
+    FOR EACH ROW EXECUTE FUNCTION public.notify_on_post_save();
+
+CREATE OR REPLACE FUNCTION public.set_my_save_notifications(p_enabled BOOLEAN)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_uid UUID := auth.uid();
+BEGIN
+    IF v_uid IS NULL THEN RAISE EXCEPTION 'not_authenticated'; END IF;
+    INSERT INTO public.profile_private (user_id, notify_post_saves, updated_at)
+    VALUES (v_uid, COALESCE(p_enabled, false), NOW())
+    ON CONFLICT (user_id) DO UPDATE SET notify_post_saves = EXCLUDED.notify_post_saves, updated_at = NOW();
+    RETURN COALESCE(p_enabled, false);
+END;
+$$;
+REVOKE ALL ON FUNCTION public.set_my_save_notifications(BOOLEAN) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.set_my_save_notifications(BOOLEAN) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.get_my_save_notifications()
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT COALESCE((SELECT notify_post_saves FROM public.profile_private WHERE user_id = auth.uid()), false);
+$$;
+REVOKE ALL ON FUNCTION public.get_my_save_notifications() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_my_save_notifications() TO authenticated;

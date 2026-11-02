@@ -8,7 +8,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { buildLocalizedPush, type Gender } from "../_shared/push_i18n.ts";
-import { messagePushView } from "../_shared/push_preview.ts";
+import { MESSAGE_EVENTS, messagePushView, strictestPreview } from "../_shared/push_preview.ts";
 import { constantTimeEqual } from "../_shared/auth.ts";
 
 // v0.9.0 (G09): FCM'e aynı anda en fazla bu kadar istek (çoklu cihazda gecikme yok,
@@ -433,6 +433,20 @@ Deno.serve(async (req: Request) => {
       idempotencyKey = `notif_${notificationId}`;
     }
 
+    // v0.9.0 §6.4: sohbet bazlı önizleme / titreşim (yalnız mesaj olayları; alıcının kendi satırı)
+    let roomPreview: string | null = null;
+    let roomVibrate = true;
+    if (MESSAGE_EVENTS.has(eventType) && targetId) {
+      const { data: rp } = await adminClient
+        .from("room_participants")
+        .select("notif_preview, notif_vibrate")
+        .eq("room_id", targetId)
+        .eq("user_id", recipientId)
+        .maybeSingle();
+      roomPreview = (rp?.notif_preview as string | null) ?? null;
+      roomVibrate = rp?.notif_vibrate !== false;
+    }
+
     // v0.7.0: alıcının ses tercihi (varsayılan + kişiye özel) → sese özel Android kanalı
     const sound = await resolveRecipientSound(adminClient, recipientId, actorId, eventType);
     const channelId = sound.channelId || resolveAndroidChannelId(eventType);
@@ -643,7 +657,13 @@ Deno.serve(async (req: Request) => {
         if (!registrationToken) return;
 
         // v0.9.0 N-D: mesaj olayları cihaz başına önizleme kipine göre; FCM'de mesaj metni YOK.
-        const view = messagePushView(eventType, String(tokenRow.notify_preview ?? "full"), recipientLang, title, body);
+        const view = messagePushView(
+          eventType,
+          strictestPreview(String(tokenRow.notify_preview ?? "full"), roomPreview),
+          recipientLang,
+          title,
+          body,
+        );
         const data: Record<string, string> = {
           type: eventType,
           event_type: eventType,
@@ -655,6 +675,7 @@ Deno.serve(async (req: Request) => {
           title: view.title,
           body: view.body,
           preview_mode: view.mode,
+          vibrate: roomVibrate ? "1" : "0",
         };
         // Mesaj olayları YALNIZ veri (data-only) gider: bildirimi uygulama kendisi çizer, böylece
         // 'full' kipte metin cihazda çözülür ve kilit ekranı gizliliği (VISIBILITY_PRIVATE) uygulanır.

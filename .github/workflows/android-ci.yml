@@ -164,6 +164,11 @@ jobs:
             echo "▶ $f"
             deno check "$f"
           done
+      - name: Edge yardımcı birim testleri (tsc + node)
+        run: |
+          set -euo pipefail
+          npm install --global --no-fund --no-audit typescript@5.6.3
+          bash scripts/edge_unit_test.sh
 
   # ---------------------------------------------------------------------------
   # 5) İmzalı APK

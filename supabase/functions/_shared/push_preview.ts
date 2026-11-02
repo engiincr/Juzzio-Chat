@@ -20,6 +20,16 @@ export function normalizePreviewMode(v: string): PreviewMode {
   return m === "sender" || m === "hidden" ? m : "full";
 }
 
+const RANK: Record<PreviewMode, number> = { full: 0, sender: 1, hidden: 2 };
+
+/** Cihaz kipi ile sohbet kipinden daha gizli olanı (sohbet ayarı cihazı gevşetemez). */
+export function strictestPreview(device: string, room: string | null | undefined): PreviewMode {
+  const d = normalizePreviewMode(device);
+  if (!room || room === "inherit") return d;
+  const r = normalizePreviewMode(room);
+  return RANK[r] > RANK[d] ? r : d;
+}
+
 export function messagePushView(
   eventType: string,
   rawMode: string,

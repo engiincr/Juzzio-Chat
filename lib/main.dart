@@ -20,6 +20,7 @@ import 'screens/chat_screen.dart';
 import 'services/fcm_push_service.dart';
 import 'services/juzzio_quick_reply.dart';
 import 'services/juzzio_notification_preview.dart';
+import 'services/juzzio_call_actions.dart';
 import 'services/supabase_service.dart';
 import 'services/juzzio_features_service.dart';
 import 'screens/banned_screen.dart';
@@ -128,6 +129,24 @@ Future<void> juzzioNotificationPreviewMain() async {
     }
   } catch (_) {
     outcome = {'text': null};
+  }
+  try {
+    await channel.invokeMethod('result', outcome);
+  } catch (_) {}
+}
+
+/// v0.9.0 N-F: uygulama kapalıyken gelen arama bildirimindeki "Reddet" için ekransız giriş noktası.
+@pragma('vm:entry-point')
+Future<void> juzzioCallActionMain() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  const channel = MethodChannel('juzzio/call_action');
+  Map<String, Object?> outcome = {'status': 'error'};
+  try {
+    await Supabase.initialize(url: JuzzioConfig.supabaseUrl, anonKey: JuzzioConfig.supabaseAnonKey);
+    final req = await channel.invokeMapMethod<String, dynamic>('take');
+    if (req != null) outcome = await JuzzioCallActions.handleChannelArgs(req);
+  } catch (_) {
+    outcome = {'status': 'error'};
   }
   try {
     await channel.invokeMethod('result', outcome);

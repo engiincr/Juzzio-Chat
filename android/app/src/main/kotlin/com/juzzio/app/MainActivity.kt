@@ -238,6 +238,34 @@ class MainActivity : FlutterActivity() {
             }
         }
 
+        /**
+         * v0.9.0 N-D/§6.4: mesaj bildirimleri için kilit ekranında GİZLİ (VISIBILITY_PRIVATE) ve
+         * isteğe bağlı titreşimsiz kanal varyantı. Android 8+ kanalın kilit ekranı/titreşim ayarını
+         * bildirimin kendi ayarına tercih ettiği ve kanal oluşturulduktan sonra değiştirilemediği
+         * için, mevcut kanalın (özel ton dahil) sesini koruyan ayrı bir kanal oluşturulur.
+         */
+        fun privateMessageChannel(context: Context, baseId: String, vibrate: Boolean): String {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return baseId
+            return try {
+                val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                val base = nm.getNotificationChannel(baseId) ?: nm.getNotificationChannel(NOTIF_CHANNEL_ID) ?: return baseId
+                val id = baseId + if (vibrate) "_p3" else "_p3nv"
+                if (nm.getNotificationChannel(id) == null) {
+                    nm.createNotificationChannel(NotificationChannel(id, "${base.name} 🔒", base.importance).apply {
+                        description = base.description
+                        enableVibration(vibrate)
+                        if (!vibrate) vibrationPattern = longArrayOf(0L)
+                        enableLights(true)
+                        lockscreenVisibility = android.app.Notification.VISIBILITY_PRIVATE
+                        setSound(base.sound, base.audioAttributes)
+                    })
+                }
+                id
+            } catch (_: Exception) {
+                baseId
+            }
+        }
+
         fun displaySystemNotification(
             context: Context,
             id: Int,
@@ -252,11 +280,12 @@ class MainActivity : FlutterActivity() {
             targetSecondaryId: String,
             actorId: String,
             // v0.9.0 N-D: doluysa bildirim gizli (VISIBILITY_PRIVATE) olur; kilit ekranında bu metin görünür
-            lockScreenBody: String? = null
+            lockScreenBody: String? = null,
+            vibrate: Boolean = true
         ) {
             try {
                 ensureChannelsCreated(context)
-                val resolvedChannelId = channelOverride ?: when {
+                val baseChannelId = channelOverride ?: when {
                     isUpdate -> UPDATE_CHANNEL_ID
                     isCall -> CALL_CHANNEL_ID
                     eventType in listOf(
@@ -266,6 +295,9 @@ class MainActivity : FlutterActivity() {
                     ) -> SOCIAL_CHANNEL_ID
                     else -> NOTIF_CHANNEL_ID
                 }
+                val resolvedChannelId = if (lockScreenBody != null) {
+                    privateMessageChannel(context, baseChannelId, vibrate)
+                } else baseChannelId
 
                 val intentEventId = if (notificationId.isNotBlank()) {
                     notificationId
@@ -296,7 +328,7 @@ class MainActivity : FlutterActivity() {
                 }
                 val pendingIntent = PendingIntent.getActivity(context, id, intent, pendingIntentFlags)
 
-                val defaultSoundUri = soundForChannel(context, resolvedChannelId, isCall) ?: RingtoneManager.getDefaultUri(
+                val defaultSoundUri = soundForChannel(context, baseChannelId, isCall) ?: RingtoneManager.getDefaultUri(
                     if (isCall) RingtoneManager.TYPE_RINGTONE else RingtoneManager.TYPE_NOTIFICATION
                 )
 
@@ -312,7 +344,10 @@ class MainActivity : FlutterActivity() {
                 builder.setContentText(body)
                 builder.setStyle(NotificationCompat.BigTextStyle().bigText(body))
                 builder.setPriority(NotificationCompat.PRIORITY_MAX)
-                builder.setDefaults(NotificationCompat.DEFAULT_VIBRATE or NotificationCompat.DEFAULT_LIGHTS)
+                builder.setDefaults(
+                    if (vibrate) NotificationCompat.DEFAULT_VIBRATE or NotificationCompat.DEFAULT_LIGHTS
+                    else NotificationCompat.DEFAULT_LIGHTS
+                )
                 builder.setSound(defaultSoundUri)
                 if (lockScreenBody != null) {
                     builder.setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
@@ -366,6 +401,37 @@ class MainActivity : FlutterActivity() {
                             .setShowsUserInterface(false)
                             .build()
                         builder.addAction(action)
+                    } catch (_: Exception) {}
+                }
+
+                // v0.9.0 N-F: gelen aramada Kabul / Reddet (CallStyle). Kabul uygulamayı açar ve
+                // aramayı o çağrı kimliğiyle cevaplar; Reddet uygulamayı açmadan sunucuda reddeder.
+                if (eventType == "incoming_call" && targetSecondaryId.isNotBlank()) {
+                    try {
+                        val acceptIntent = Intent(context, MainActivity::class.java).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                            putExtra("juzzio_intent_event_id", "accept_" + targetSecondaryId)
+                            putExtra("juzzio_notification_id", notificationId)
+                            putExtra("juzzio_event_type", eventType)
+                            putExtra("juzzio_title", title)
+                            putExtra("juzzio_target_id", targetId)
+                            putExtra("juzzio_target_secondary_id", targetSecondaryId)
+                            putExtra("juzzio_actor_id", actorId)
+                            putExtra("juzzio_call_action", "accept")
+                            putExtra("juzzio_call_notif_id", id)
+                        }
+                        val acceptPending = PendingIntent.getActivity(context, id + 1, acceptIntent, pendingIntentFlags)
+                        val declineIntent = Intent(context, JuzzioCallActionReceiver::class.java).apply {
+                            action = JuzzioCallActionReceiver.ACTION_DECLINE
+                            putExtra(JuzzioCallActionReceiver.EXTRA_CALL_ID, targetSecondaryId)
+                            putExtra(JuzzioCallActionReceiver.EXTRA_NOTIF_ID, id)
+                        }
+                        val declinePending = PendingIntent.getBroadcast(context, id + 2, declineIntent, pendingIntentFlags)
+                        val caller = androidx.core.app.Person.Builder().setName(title).setImportant(true).build()
+                        builder.setStyle(NotificationCompat.CallStyle.forIncomingCall(caller, declinePending, acceptPending))
+                        builder.setOngoing(true)
+                        builder.setAutoCancel(false)
+                        builder.setTimeoutAfter(60_000L)
                     } catch (_: Exception) {}
                 }
 
@@ -465,8 +531,16 @@ class MainActivity : FlutterActivity() {
             "target_id" to targetId,
             "target_secondary_id" to (intent.getStringExtra("juzzio_target_secondary_id") ?: intent.getStringExtra("target_secondary_id") ?: ""),
             "actor_id" to (intent.getStringExtra("juzzio_actor_id") ?: intent.getStringExtra("actor_id") ?: ""),
-            "channel_id" to (intent.getStringExtra("juzzio_channel_id") ?: intent.getStringExtra("channel_id") ?: NOTIF_CHANNEL_ID)
+            "channel_id" to (intent.getStringExtra("juzzio_channel_id") ?: intent.getStringExtra("channel_id") ?: NOTIF_CHANNEL_ID),
+            // v0.9.0 N-F: bildirimdeki "Kabul" düğmesi
+            "call_action" to (intent.getStringExtra("juzzio_call_action") ?: "")
         )
+        if (intent.getStringExtra("juzzio_call_action") == "accept") {
+            try {
+                val nid = intent.getIntExtra("juzzio_call_notif_id", 0)
+                (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(nid)
+            } catch (_: Exception) {}
+        }
 
         if (dispatchImmediatelyIfReady && activeMethodChannel != null) {
             Handler(Looper.getMainLooper()).post {

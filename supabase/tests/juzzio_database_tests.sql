@@ -1111,3 +1111,109 @@ SELECT pg_temp.check('güncellemede de temizlenir (büyük/küçük harf)',
 DELETE FROM notifications WHERE dedupe_key LIKE 'nd_t%';
 DELETE FROM user_push_tokens WHERE fcm_token = 'tok_A_0123456789abcdefghijkl';
 SELECT 'TÜM v0.9.0 BİLDİRİM ÖNİZLEME TESTLERİ GEÇTİ';
+-- v0.9.0 N-F: bildirimden aramayı reddetme
+RESET ROLE;
+INSERT INTO call_logs (id, caller_id, receiver_id, is_video, status, livekit_room_name)
+VALUES ('cdcdcdcd-0000-0000-0000-0000000000f1', :'B', :'A', false, 'ringing', 'nf_room_1'),
+       ('cdcdcdcd-0000-0000-0000-0000000000f2', :'B', :'A', false, 'answered', 'nf_room_2');
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'B');
+DO $$ BEGIN
+  PERFORM juzzio_decline_call('cdcdcdcd-0000-0000-0000-0000000000f1');
+  RAISE EXCEPTION 'FAIL arayan kendi aramasını "reddetti"';
+EXCEPTION WHEN raise_exception THEN
+  IF SQLERRM NOT LIKE '%not_allowed%' THEN RAISE; END IF;
+END $$;
+SELECT pg_temp.as_user(:'C');
+DO $$ BEGIN
+  PERFORM juzzio_decline_call('cdcdcdcd-0000-0000-0000-0000000000f1');
+  RAISE EXCEPTION 'FAIL üçüncü kişi aramayı reddetti';
+EXCEPTION WHEN raise_exception THEN
+  IF SQLERRM NOT LIKE '%not_allowed%' THEN RAISE; END IF;
+END $$;
+SELECT pg_temp.as_user(:'A');
+SELECT pg_temp.check('aranan çalan aramayı reddeder', juzzio_decline_call('cdcdcdcd-0000-0000-0000-0000000000f1') = 'rejected');
+SELECT pg_temp.check('tekrar basma idempotent', juzzio_decline_call('cdcdcdcd-0000-0000-0000-0000000000f1') = 'rejected');
+SELECT pg_temp.check('cevaplanmış arama değişmez', juzzio_decline_call('cdcdcdcd-0000-0000-0000-0000000000f2') = 'answered');
+RESET ROLE;
+SELECT pg_temp.check('durumlar doğru',
+  (SELECT status FROM call_logs WHERE id = 'cdcdcdcd-0000-0000-0000-0000000000f1') = 'rejected'
+  AND (SELECT status FROM call_logs WHERE id = 'cdcdcdcd-0000-0000-0000-0000000000f2') = 'answered');
+SET ROLE anon;
+DO $$ BEGIN
+  PERFORM juzzio_decline_call('cdcdcdcd-0000-0000-0000-0000000000f2');
+  RAISE EXCEPTION 'FAIL anon reddetti';
+EXCEPTION WHEN insufficient_privilege THEN NULL; END $$;
+RESET ROLE;
+DELETE FROM call_logs WHERE id IN ('cdcdcdcd-0000-0000-0000-0000000000f1', 'cdcdcdcd-0000-0000-0000-0000000000f2');
+SELECT 'TÜM v0.9.0 ARAMA REDDETME TESTLERİ GEÇTİ';
+-- v0.9.0 §6.4: sohbet bazlı bildirim ayarları
+RESET ROLE;
+INSERT INTO rooms (id, room_code, livekit_room_name, is_group) VALUES ('abababab-0000-0000-0000-0000000000b1', 'np_grp', 'np_grp', true);
+INSERT INTO room_participants (room_id, user_id) VALUES
+  ('abababab-0000-0000-0000-0000000000b1', :'A'), ('abababab-0000-0000-0000-0000000000b1', :'B');
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+SELECT pg_temp.check('varsayılan: miras + titreşim',
+  get_room_notification_prefs('abababab-0000-0000-0000-0000000000b1') = '{"muted_until": null, "preview": "inherit", "vibrate": true}'::jsonb);
+SELECT set_room_notification_prefs('abababab-0000-0000-0000-0000000000b1', 60, 'HIDDEN', false);
+SELECT pg_temp.check('ayarlar kaydedildi',
+  (get_room_notification_prefs('abababab-0000-0000-0000-0000000000b1')->>'preview') = 'hidden'
+  AND (get_room_notification_prefs('abababab-0000-0000-0000-0000000000b1')->>'vibrate') = 'false'
+  AND (get_room_notification_prefs('abababab-0000-0000-0000-0000000000b1')->>'muted_until') IS NOT NULL);
+SELECT pg_temp.as_user(:'C');
+DO $$ BEGIN
+  PERFORM set_room_notification_prefs('abababab-0000-0000-0000-0000000000b1', 0, NULL, NULL);
+  RAISE EXCEPTION 'FAIL üye olmayan ayar değiştirdi';
+EXCEPTION WHEN raise_exception THEN IF SQLERRM NOT LIKE '%not_allowed%' THEN RAISE; END IF; END $$;
+SELECT pg_temp.check('üye olmayan okuyamaz', get_room_notification_prefs('abababab-0000-0000-0000-0000000000b1') IS NULL);
+SELECT pg_temp.as_user(:'A');
+DO $$ BEGIN
+  PERFORM set_room_notification_prefs('abababab-0000-0000-0000-0000000000b1', NULL, 'loud', NULL);
+  RAISE EXCEPTION 'FAIL geçersiz kip';
+EXCEPTION WHEN raise_exception THEN IF SQLERRM NOT LIKE '%invalid_preview_mode%' THEN RAISE; END IF; END $$;
+DO $$ BEGIN
+  PERFORM set_room_notification_prefs('abababab-0000-0000-0000-0000000000b1', -5, NULL, NULL);
+  RAISE EXCEPTION 'FAIL geçersiz süre';
+EXCEPTION WHEN raise_exception THEN IF SQLERRM NOT LIKE '%invalid_mute_duration%' THEN RAISE; END IF; END $$;
+-- Sessizdeyken mesaj bildirimi üretilmez; B'nin ayarı A'yı etkilemez
+SELECT pg_temp.as_user(:'B');
+RESET ROLE;
+INSERT INTO messages (room_id, sender_id, original_text) VALUES ('abababab-0000-0000-0000-0000000000b1', :'B', 'np-sessiz');
+SELECT pg_temp.check('sessizdeki sohbet bildirim üretmez',
+  NOT EXISTS (SELECT 1 FROM notifications n JOIN messages m ON n.target_secondary_id = m.id::text
+              WHERE m.original_text = 'np-sessiz' AND n.recipient_id = :'A'));
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+SELECT set_room_notification_prefs('abababab-0000-0000-0000-0000000000b1', 0, 'inherit', true);
+RESET ROLE;
+INSERT INTO messages (room_id, sender_id, original_text) VALUES ('abababab-0000-0000-0000-0000000000b1', :'B', 'np-acik');
+SELECT pg_temp.check('sessiz kalkınca bildirim gelir',
+  EXISTS (SELECT 1 FROM notifications n JOIN messages m ON n.target_secondary_id = m.id::text
+          WHERE m.original_text = 'np-acik' AND n.recipient_id = :'A'));
+DELETE FROM notifications WHERE target_id = 'abababab-0000-0000-0000-0000000000b1';
+DELETE FROM messages WHERE room_id = 'abababab-0000-0000-0000-0000000000b1';
+DELETE FROM room_participants WHERE room_id = 'abababab-0000-0000-0000-0000000000b1';
+DELETE FROM rooms WHERE id = 'abababab-0000-0000-0000-0000000000b1';
+SELECT 'TÜM v0.9.0 SOHBET BİLDİRİM AYARI TESTLERİ GEÇTİ';
+-- v0.9.0 N-C: kaydetme bildirimi isteğe bağlı (varsayılan kapalı)
+RESET ROLE;
+INSERT INTO posts (id, author_id, content_type, caption) VALUES ('5a5a5a5a-0000-0000-0000-0000000000c1', :'A', 'text', 'nc-save');
+INSERT INTO saved_posts (user_id, post_id) VALUES (:'B', '5a5a5a5a-0000-0000-0000-0000000000c1');
+SELECT pg_temp.check('varsayılan: kaydetme bildirilmez',
+  NOT EXISTS (SELECT 1 FROM notifications WHERE event_type = 'save' AND target_id = '5a5a5a5a-0000-0000-0000-0000000000c1'));
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+SELECT pg_temp.check('varsayılan tercih kapalı', NOT get_my_save_notifications());
+SELECT pg_temp.check('sahibi açar', set_my_save_notifications(true));
+SELECT pg_temp.as_user(:'C');
+SELECT pg_temp.check('başkası A''nın tercihini görmez (kendi tercihi kapalı)', NOT get_my_save_notifications());
+RESET ROLE;
+INSERT INTO saved_posts (user_id, post_id) VALUES (:'C', '5a5a5a5a-0000-0000-0000-0000000000c1');
+SELECT pg_temp.check('açıkken kaydetme bildirilir',
+  EXISTS (SELECT 1 FROM notifications WHERE event_type = 'save' AND target_id = '5a5a5a5a-0000-0000-0000-0000000000c1' AND actor_id = :'C'));
+DELETE FROM notifications WHERE target_id = '5a5a5a5a-0000-0000-0000-0000000000c1';
+DELETE FROM saved_posts WHERE post_id = '5a5a5a5a-0000-0000-0000-0000000000c1';
+DELETE FROM posts WHERE id = '5a5a5a5a-0000-0000-0000-0000000000c1';
+UPDATE profile_private SET notify_post_saves = false WHERE user_id = :'A';
+SELECT 'TÜM v0.9.0 KAYDETME BİLDİRİMİ TESTLERİ GEÇTİ';

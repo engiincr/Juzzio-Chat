@@ -5343,6 +5343,9 @@ class JuzzioNotificationsSettingsPage extends StatelessWidget {
                       },
                     ),
                     Divider(height: 1, color: p.glassBorder),
+                    // v0.9.0 N-C: kaydetme bildirimi isteğe bağlı (sunucuda, varsayılan kapalı)
+                    const _JuzzioSaveNotifSwitch(),
+                    Divider(height: 1, color: p.glassBorder),
                     // v0.9.0 N-D: mesaj önizleme kipi (sunucu FCM'e hiçbir kipte mesaj metni koymaz)
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
@@ -6983,6 +6986,67 @@ class JuzzioThemeModeSelector extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+
+/// v0.9.0 N-C: "Gönderini kaydedenleri bildir" — sunucudaki tercih (varsayılan KAPALI).
+/// Kayıt başarısızsa anahtar eski konumuna döner ve hata gösterilir.
+class _JuzzioSaveNotifSwitch extends StatefulWidget {
+  const _JuzzioSaveNotifSwitch();
+
+  @override
+  State<_JuzzioSaveNotifSwitch> createState() => _JuzzioSaveNotifSwitchState();
+}
+
+class _JuzzioSaveNotifSwitchState extends State<_JuzzioSaveNotifSwitch> {
+  bool? _value;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    SupabaseService.instance.getSaveNotifications().then((v) {
+      if (mounted) setState(() => _value = v);
+    });
+  }
+
+  Future<void> _set(bool v) async {
+    final before = _value;
+    setState(() {
+      _value = v;
+      _busy = true;
+    });
+    try {
+      await SupabaseService.instance.setSaveNotifications(v);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _value = before);
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(content: Text(SupabaseService.instance.friendlyError(e))));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final app = JuzzioAppController.instance;
+    final p = JuzzioPalette(app.isDark);
+    return SwitchListTile(
+      activeColor: p.amberGlow,
+      title: Text(
+        app.trEn('Gönderimi kaydedenleri bildir', 'Notify when someone saves my post', 'Benachrichtigen, wenn jemand meinen Beitrag speichert'),
+        style: TextStyle(color: p.textPrimary, fontWeight: FontWeight.w700),
+      ),
+      subtitle: Text(
+        _value == null
+            ? app.trEn('Yüklenemedi', 'Could not load', 'Konnte nicht geladen werden')
+            : app.trEn('Varsayılan kapalı — kaydetmek özel bir eylemdir.', 'Off by default — saving is private.', 'Standardmäßig aus — Speichern ist privat.'),
+        style: TextStyle(color: p.textSecondary, fontSize: 12),
+      ),
+      value: _value ?? false,
+      onChanged: (_value == null || _busy) ? null : _set,
     );
   }
 }

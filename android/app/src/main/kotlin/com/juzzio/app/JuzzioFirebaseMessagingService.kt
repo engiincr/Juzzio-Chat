@@ -116,7 +116,8 @@ class JuzzioFirebaseMessagingService : FirebaseMessagingService() {
                 targetId = targetId,
                 targetSecondaryId = targetSecondaryId,
                 actorId = actorId,
-                lockScreenBody = lockScreenBody
+                lockScreenBody = lockScreenBody,
+                vibrate = data["vibrate"] != "0"
             )
         } catch (_: Exception) {}
     }
