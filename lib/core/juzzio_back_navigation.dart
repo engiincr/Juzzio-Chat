@@ -6,7 +6,7 @@
 //   1. Sohbet içinde emoji paneli açıksa → paneli kapat.
 //   2. Sohbet içindeyse → sohbet listesine dön.
 //   3. Sohbetler sekmesinde filtre seçiliyse → "Tümü" filtresine dön.
-//   4. Ana Sayfa dışındaki bir sekmedeyse → Ana Sayfa'ya dön (son talimat §3.1: kök = Ana Sayfa).
+//   4. Sohbetler dışındaki bir sekmedeyse → Sohbetler'e dön (kök = Sohbetler; Ana Sayfa kaldırıldı).
 //   5. Kök durumda ilk basış → engellemeyen ipucu ("çıkmak için tekrar basın").
 //   6. [exitWindow] içinde ikinci basış → uygulamadan çık (SystemNavigator.pop).
 // Saf Dart; saat enjekte edilir → birim testlenir (test/juzzio_back_navigation_test.dart).
@@ -23,8 +23,8 @@ class JuzzioBackNavigator {
   /// Sohbetler sekmesinin indeksi (kabuktaki `_selectedBottomTab` değeri).
   static const int chatsTab = 0;
 
-  /// Ana Sayfa sekmesinin indeksi (kök).
-  static const int homeTab = 5;
+  /// Kök sekme: Sohbetler (Ana Sayfa kullanıcı isteğiyle kaldırıldı; uygulama Sohbetler'den açılır).
+  static const int homeTab = chatsTab;
 
   /// Sohbet listesindeki varsayılan ("Tümü") filtre indeksi.
   static const int defaultFilter = 0;

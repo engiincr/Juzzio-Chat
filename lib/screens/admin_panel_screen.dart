@@ -281,7 +281,6 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> with Si
   static const List<String> _tabPermissions = [
     'stats.read', 'users.read', 'reports', 'users.read', 'moderation', 'moderation',
     'groups.read', 'calls.manage', 'broadcast', 'releases', 'settings', 'feedback.manage', 'audit.read',
-    'business.read', // v0.9.0 Business başvuruları/hesapları
   ];
   bool _can(String perm) => widget.permissions.contains('*') || widget.permissions.contains(perm);
   late final List<int> _visibleTabs = [
@@ -1067,7 +1066,6 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> with Si
             Tab(icon: const Icon(Icons.tune_rounded, size: 20), text: _al('Ayarlar', 'Settings', 'Einstellungen')),
             Tab(icon: const Icon(Icons.bug_report_rounded, size: 20), text: _al('Hata bildirimleri', 'Bug reports', 'Fehlermeldungen')),
             Tab(icon: const Icon(Icons.history_rounded, size: 20), text: _al('Kayıtlar', 'Audit', 'Protokoll')),
-            Tab(icon: const Icon(Icons.storefront_rounded, size: 20), text: _al('Business', 'Business', 'Business')),
       ];
 
   Widget _tabView(int i, JuzzioAppController app, bool isDark) {
@@ -1098,8 +1096,6 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> with Si
         return JuzzioAdminFeedbackTab(token: widget.token);
       case 12:
         return _buildAudit(isDark);
-      case 13:
-        return JuzzioAdminBusinessTab(token: widget.token, canManage: _can('business.manage'));
       default:
         return const SizedBox.shrink();
     }

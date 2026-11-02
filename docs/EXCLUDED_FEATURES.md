@@ -97,3 +97,10 @@ bu liste önceliklidir. Mevcut **Civciv** özelliği korunur; yalnızca hata dü
 ## Repo denetimi
 - 2026-11-02: `lib/` ve `supabase/` içinde yasaklı modüllere ait sayfa/tablo aranır; bulunanlar bu dosyada raporlanır, silinmez (kullanıcı verisi korunur).
 - 2026-11-02 tarama: yasaklı modüllere ait kod/tablo YOK (tek eşleşme 'FCM jetonu' = push token, ilgisiz).
+
+## 1.3 Sonradan kaldırılanlar (kullanıcı isteği, 2026-11-02)
+
+- BUSINESS HESABI (geçiş, onboarding, işletme kabuğu, Yönetim > Business)  
+  `STATUS: REMOVED — USER REQUEST`
+- PERSONAL ANA SAYFA SEKMESİ (uygulama Sohbetler'den açılır)  
+  `STATUS: REMOVED — USER REQUEST`

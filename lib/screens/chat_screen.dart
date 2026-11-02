@@ -57,9 +57,6 @@ import 'life_center_page.dart';
 import 'message_search_page.dart';
 import '../services/juzzio_chat_lock.dart';
 import '../widgets/chat_lock_ui.dart';
-import '../services/juzzio_business_service.dart';
-import 'business/business_onboarding_page.dart';
-import 'business/business_shell.dart';
 import '../services/juzzio_chat_activity_service.dart';
 import '../services/juzzio_features_service.dart';
 import '../services/juzzio_e2ee.dart';
@@ -229,8 +226,6 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     JuzzioLifeService.instance.loadSavedIds();
     JuzzioChatLock.instance.load();
     JuzzioChatLock.instance.addListener(_onChatLockChanged);
-    JuzzioBusinessService.instance.refresh().catchError((_) => const JuzzioBusinessState());
-    JuzzioBusinessService.instance.addListener(_onChatLockChanged);
     _profileNameCtrl = TextEditingController(text: widget.myDisplayName);
     _profileBioCtrl = TextEditingController();
     _msgCtrl.addListener(_onComposerTextChanged);
@@ -676,7 +671,6 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     JuzzioStorySeen.instance.removeListener(_onStorySeenChanged);
     _exitHintTimer?.cancel();
     JuzzioChatLock.instance.removeListener(_onChatLockChanged);
-    JuzzioBusinessService.instance.removeListener(_onChatLockChanged);
     super.dispose();
   }
 
@@ -1969,7 +1963,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       },
       child: Scaffold(
       backgroundColor: p.headerDarkForest,
-      bottomNavigationBar: (_isInsideConversation || JuzzioBusinessService.instance.state.isBusinessView)
+      bottomNavigationBar: _isInsideConversation
           ? null
           : _buildFloatingGlassBottomDock(p, s),
       body: Stack(
@@ -1988,19 +1982,6 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                 duration: Duration(milliseconds: appCtrl.reduceMotion ? 0 : 220),
                 child: _isInsideConversation
                     ? _buildActiveConversationView(p, s, appCtrl)
-                    // v0.9.0 §5: Business görünümü — 5 sekmeli işletme kabuğu (aynı kimlik, aynı veri altyapısı)
-                    : JuzzioBusinessService.instance.state.isBusinessView
-                        ? JuzzioBusinessShell(
-                            key: const ValueKey('juzzio_business_shell'),
-                            onOpenRoom: _openRoomById,
-                            onSwitchToPersonal: _switchToPersonalView,
-                            chatRooms: () => [
-                              for (final c in _conversations)
-                                (c.roomId, c.isGroup ? c.title : (c.partnerDisplayName ?? c.partnerUsername ?? c.title), c.isGroup ? null : c.partnerId),
-                            ],
-                          )
-                    : _selectedBottomTab == JuzzioBackNavigator.homeTab
-                        ? _buildPersonalHomeTab(p, s, appCtrl)
                     : _selectedBottomTab == 6
                         ? JuzzioNotificationsFeedPage(
                             key: const ValueKey('juzzio_notifications_tab'),
@@ -3102,154 +3083,6 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   }
 
   /// v0.5.0: Keşfet yerine otomatik çevirili Küresel akış (X / Reddit tarzı)
-  /// v0.9.0 son talimat §3.1 Personal > Ana Sayfa. Yalnızca GERÇEK veriler: okunmamış sohbet
-  /// sayısı, çalan arama, bekleyen arkadaşlık istekleri. Görev/takvim (Yaşam Merkezi) Aşama 3'te
-  /// bu sayfaya bağlanır; o zamana kadar sahte görev/etkinlik gösterilmez.
-  Widget _buildPersonalHomeTab(JuzzioPalette p, JuzzioStrings s, JuzzioAppController appCtrl) {
-    final name = (_myProfile?.displayName ?? widget.myDisplayName).trim();
-    final unread = _conversations.fold<int>(0, (sum, c) => sum + (c.isMuted ? 0 : c.unreadCount));
-    final shortcuts = <(IconData, String, VoidCallback)>[
-      // v0.9.0 §4.1 Yaşam Merkezi
-      (Icons.checklist_rounded, appCtrl.trEn('Görevlerim', 'My tasks', 'Meine Aufgaben'), () => JuzzioLifeCenterPage.open(context)),
-      (Icons.calendar_month_rounded, appCtrl.trEn('Takvimim', 'My calendar', 'Mein Kalender'),
-          () => JuzzioLifeCenterPage.open(context, view: JuzzioLifeView.calendar)),
-      (Icons.alarm_add_rounded, appCtrl.trEn('Hatırlatma Ekle', 'Add reminder', 'Erinnerung'),
-          () => JuzzioLifeCenterPage.open(context, newTask: true)),
-      (Icons.add_circle_outline_rounded, appCtrl.trEn('Oluştur', 'Create', 'Erstellen'), _openPlusCreateMenu),
-      (Icons.call_outlined, appCtrl.trEn('Aramalar', 'Calls', 'Anrufe'), () => setState(() => _selectedBottomTab = 1)),
-      (Icons.edit_square, appCtrl.trEn('Yeni sohbet', 'New chat', 'Neuer Chat'), _openNewMessageScreen),
-      (Icons.people_outline_rounded, appCtrl.trEn('Arkadaşlar', 'Friends', 'Freunde'), () => setState(() => _selectedBottomTab = 2)),
-      (Icons.search_rounded, appCtrl.trEn('Ara', 'Search', 'Suchen'), () => _openUnifiedSearch()),
-      (Icons.egg_outlined, appCtrl.trEn('Civciv', 'Chick', 'Küken'), () {
-        Navigator.of(context).push(MaterialPageRoute(
-          builder: (_) => JuzzioChickGameScreen(
-            friends: _acceptedFriendProfiles,
-            myDisplayName: _myProfile?.displayName ?? widget.myDisplayName,
-          ),
-        ));
-      }),
-    ];
-    final textStyle = TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary);
-    return ListView(
-      key: const ValueKey('juzzio_personal_home'),
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-      children: [
-        Semantics(
-          header: true,
-          child: Text(
-            name.isEmpty ? appCtrl.trEn('Merhaba', 'Hello', 'Hallo') : '${appCtrl.trEn('Merhaba', 'Hello', 'Hallo')}, $name',
-            style: textStyle.copyWith(fontSize: 24, fontWeight: FontWeight.w800),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-        const SizedBox(height: 14),
-        if (unread > 0)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: JuzzioGlass(
-              radius: 20,
-              child: ListTile(
-                leading: Icon(Icons.mark_chat_unread_outlined, color: p.textPrimary),
-                title: Text(appCtrl.trEn('Okunmamış mesajlar', 'Unread messages', 'Ungelesene Nachrichten'), style: textStyle),
-                trailing: JuzzioGlassBadge(count: unread),
-                onTap: () => setState(() => _selectedBottomTab = 0),
-              ),
-            ),
-          ),
-        // v0.9.0 §4.1: görev özeti — yalnız gerçek veri (sunucudaki görevler)
-        ListenableBuilder(
-          listenable: JuzzioLifeService.instance,
-          builder: (context, _) {
-            final life = JuzzioLifeService.instance;
-            if (!life.loaded) return const SizedBox.shrink();
-            final g = JuzzioLifeMath.group(life.tasks, DateTime.now());
-            final next = [...g.overdue, ...g.today, ...g.upcoming].take(3).toList();
-            if (next.isEmpty) return const SizedBox.shrink();
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: JuzzioGlass(
-                radius: 20,
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ListTile(
-                      leading: Icon(Icons.checklist_rounded, color: p.textPrimary),
-                      title: Text(appCtrl.trEn('Yaklaşan görevler', 'Upcoming tasks', 'Anstehende Aufgaben'), style: textStyle.copyWith(fontWeight: FontWeight.w800)),
-                      subtitle: Text(
-                        appCtrl.trEn('Bugün ${g.today.length} · Gecikmiş ${g.overdue.length}', 'Today ${g.today.length} · Overdue ${g.overdue.length}',
-                            'Heute ${g.today.length} · Überfällig ${g.overdue.length}'),
-                        style: TextStyle(color: p.textSecondary, fontSize: 12),
-                      ),
-                      trailing: TextButton(
-                        onPressed: () => JuzzioLifeCenterPage.open(context),
-                        child: Text(appCtrl.trEn('Tümünü Gör', 'See all', 'Alle')),
-                      ),
-                    ),
-                    for (final t in next)
-                      ListTile(
-                        dense: true,
-                        leading: Icon(t.isMessageReminder ? Icons.chat_bubble_outline_rounded : Icons.radio_button_unchecked_rounded,
-                            color: p.textSecondary, size: 20),
-                        title: Text(
-                          t.isMessageReminder ? appCtrl.trEn('Mesajı yanıtla', 'Reply to message', 'Auf Nachricht antworten') : t.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: textStyle,
-                        ),
-                        onTap: () => JuzzioLifeCenterPage.open(context),
-                      ),
-                  ],
-                ),
-              ),
-            );
-          },
-        ),
-        GridView.count(
-          crossAxisCount: MediaQuery.sizeOf(context).width < 360 ? 2 : 3,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          mainAxisSpacing: 10,
-          crossAxisSpacing: 10,
-          childAspectRatio: 1.1,
-          children: [
-            for (final sc in shortcuts)
-              Semantics(
-                button: true,
-                label: sc.$2,
-                child: ExcludeSemantics(
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(20),
-                    onTap: () {
-                      HapticFeedback.selectionClick();
-                      sc.$3();
-                    },
-                    child: JuzzioGlass(
-                      radius: 20,
-                      padding: const EdgeInsets.all(10),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(sc.$1, color: p.textPrimary, size: 26),
-                          const SizedBox(height: 6),
-                          Text(sc.$2,
-                              textAlign: TextAlign.center,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: textStyle.copyWith(fontSize: 12, fontWeight: FontWeight.w700)),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ],
-    );
-  }
-
   Widget _buildExploreTab(JuzzioPalette p, JuzzioStrings s, JuzzioAppController appCtrl) {
     if (!JuzzioFeaturesService.instance.lastAppConfig.globalFeedEnabled) {
       return Center(
@@ -7002,9 +6835,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     JuzzioAppController appCtrl,
   ) {
     final me = _effectiveCurrentUserProfile;
-    // v0.9.0 §2.2 / Business eki §18: hesap türü ve Business geçişi profil sekmesinin başında
     return Column(children: [
-      _buildBusinessEntryBar(p, appCtrl),
+      _buildLifeCenterEntryBar(p, appCtrl),
       Expanded(child: JuzzioProfileView(
       key: const ValueKey('juzzio_my_profile_tab'),
       userId: me.id,
@@ -7031,108 +6863,24 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     ]);
   }
 
-  /// Business giriş şeridi: durum sunucudan; her eylem sunucuda doğrulanır.
-  Widget _buildBusinessEntryBar(JuzzioPalette p, JuzzioAppController appCtrl) {
-    return ListenableBuilder(
-      listenable: JuzzioBusinessService.instance,
-      builder: (context, _) {
-        final st = JuzzioBusinessService.instance.state;
-        final invites = st.memberships.where((m) => m['status'] == 'invited').toList();
-        final activeTeams = st.memberships.where((m) => m['status'] == 'active' && m['business_id'] != SupabaseService.instance.currentUserId).toList();
-        String title;
-        String sub;
-        IconData icon = Icons.storefront_rounded;
-        VoidCallback onTap;
-        switch (st.status) {
-          case 'business_active':
-            title = appCtrl.trEn('Kişisel Hesap · Business\'a geç', 'Personal account · Switch to Business', 'Persönlich · Zu Business');
-            sub = st.displayName;
-            onTap = _switchToBusinessView;
-          case 'business_paused':
-            title = appCtrl.trEn('Business geçici olarak kapalı · Devam ettir', 'Business paused · Resume', 'Business pausiert · Fortsetzen');
-            sub = st.displayName;
-            onTap = () async {
-              try {
-                await JuzzioBusinessService.instance.ownerAction('resume');
-                _switchToBusinessView();
-              } catch (e) {
-                _showSnack(SupabaseService.instance.friendlyError(e), isError: true);
-              }
-            };
-          case 'business_application_started':
-          case 'business_terms_pending':
-          case 'business_preparing':
-            title = appCtrl.trEn('Business başvurusuna devam et', 'Continue Business application', 'Business-Antrag fortsetzen');
-            sub = appCtrl.trEn('Kaldığın yerden devam edilir', 'Resumes where you left off', 'Wird fortgesetzt');
-            onTap = () => JuzzioBusinessOnboardingPage.open(context, onEnterBusiness: _switchToBusinessView);
-          case 'business_suspended':
-            title = appCtrl.trEn('Business hesabı askıda', 'Business account suspended', 'Business gesperrt');
-            sub = st.reason;
-            icon = Icons.block_rounded;
-            onTap = () => JuzzioBusinessOnboardingPage.open(context);
-          default:
-            title = appCtrl.trEn('Business\'a Geç', 'Switch to Business', 'Zu Business wechseln');
-            sub = appCtrl.trEn('İşletmeler, içerik üreticileri ve profesyoneller için ücretsiz araçlar', 'Free tools for businesses, creators and professionals',
-                'Kostenlose Tools für Unternehmen');
-            onTap = () => JuzzioBusinessOnboardingPage.open(context, onEnterBusiness: _switchToBusinessView);
-        }
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-          child: JuzzioGlass(
-            radius: 18,
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              ListTile(
-                dense: true,
-                leading: Icon(icon, color: p.amberGlow),
-                title: Text(title, style: TextStyle(color: p.textPrimary, fontWeight: FontWeight.w800)),
-                subtitle: sub.isEmpty ? null : Text(sub, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.textSecondary, fontSize: 12)),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: onTap,
-              ),
-              for (final inv in invites)
-                ListTile(
-                  dense: true,
-                  leading: const Icon(Icons.group_add_rounded),
-                  title: Text(appCtrl.trEn('${inv['name']} ekibine davet edildin', 'You were invited to ${inv['name']}', 'Einladung von ${inv['name']}')),
-                  trailing: Wrap(children: [
-                    TextButton(
-                      onPressed: () => JuzzioBusinessService.instance.respondInvite(inv['business_id'].toString(), false),
-                      child: Text(appCtrl.trEn('Reddet', 'Decline', 'Ablehnen')),
-                    ),
-                    FilledButton(
-                      onPressed: () => JuzzioBusinessService.instance.respondInvite(inv['business_id'].toString(), true),
-                      child: Text(appCtrl.trEn('Katıl', 'Join', 'Beitreten')),
-                    ),
-                  ]),
-                ),
-              if (activeTeams.isNotEmpty)
-                ListTile(
-                  dense: true,
-                  leading: const Icon(Icons.badge_rounded),
-                  title: Text(appCtrl.trEn('Ekip üyeliklerin: ${activeTeams.map((m) => m['name']).join(', ')}',
-                      'Your teams: ${activeTeams.map((m) => m['name']).join(', ')}', 'Teams: ${activeTeams.map((m) => m['name']).join(', ')}')),
-                  subtitle: Text(appCtrl.trEn('Atandığın konuşmalar bildirimlerde görünür', 'Conversations assigned to you appear in notifications', ''),
-                      style: const TextStyle(fontSize: 11.5)),
-                ),
-            ]),
+  /// Ana Sayfa kaldırıldığı için Yaşam Merkezi (görevler, takvim, hatırlatıcılar) profilden açılır.
+  Widget _buildLifeCenterEntryBar(JuzzioPalette p, JuzzioAppController appCtrl) {
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+        child: JuzzioGlass(
+          radius: 18,
+          child: ListTile(
+            leading: Icon(Icons.checklist_rounded, color: p.amberGlow),
+            title: Text(appCtrl.trEn('Görevlerim ve hatırlatıcılar', 'My tasks & reminders', 'Aufgaben & Erinnerungen'),
+                style: TextStyle(color: p.textPrimary, fontWeight: FontWeight.w700)),
+            trailing: Icon(Icons.chevron_right_rounded, color: p.textMuted),
+            onTap: () => JuzzioLifeCenterPage.open(context),
           ),
-        );
-      },
+        ),
+      ),
     );
-  }
-
-  Future<void> _switchToBusinessView() async {
-    try {
-      await JuzzioBusinessService.instance.setView('business');
-      if (mounted) setState(() {});
-    } catch (e) {
-      _showSnack(SupabaseService.instance.friendlyError(e), isError: true);
-    }
-  }
-
-  void _switchToPersonalView() {
-    JuzzioBusinessService.instance.setView('personal').catchError((_) {});
-    if (mounted) setState(() => _selectedBottomTab = JuzzioBackNavigator.homeTab);
   }
 
   void _openFullSettingsSuite() {
@@ -7573,9 +7321,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     // (ikon, aktif ikon, etiket, sekme indeksi) — eski indeksler geriye uyum için korunur.
     // Oluştur ve Aramalar Ana Sayfa kısayollarında; Keşfet akışında da oluştur düğmesi var.
     final items = [
-      (Icons.home_outlined, Icons.home_rounded, app.trEn('Ana Sayfa', 'Home', 'Start'), JuzzioBackNavigator.homeTab),
       (Icons.chat_bubble_outline_rounded, Icons.chat_bubble_rounded, app.trEn('Sohbetler', 'Chats', 'Chats'), 0),
       (Icons.explore_outlined, Icons.explore_rounded, app.trEn('Keşfet', 'Explore', 'Entdecken'), 3),
+      (Icons.call_outlined, Icons.call_rounded, app.trEn('Aramalar', 'Calls', 'Anrufe'), 1),
       (Icons.notifications_none_rounded, Icons.notifications_rounded, app.trEn('Bildirimler', 'Notifications', 'Mitteilungen'), 6),
       (Icons.person_outline_rounded, Icons.person_rounded, app.trEn('Profil', 'Profile', 'Profil'), 4),
     ];

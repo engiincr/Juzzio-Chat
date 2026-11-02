@@ -435,9 +435,11 @@ class JuzzioAppController extends ChangeNotifier {
   bool _blockUnknownVolumeMessages = true;
   bool _protectIpInCalls = false;
   bool _disableLinkPreviews = false;
-  /// v0.9.0 (denetim D): Uçtan uca şifreli (E2EE) mesaj metni üçüncü taraf çeviri
-  /// servisine YALNIZCA kullanıcı bunu açıkça açtıysa gönderilir. Varsayılan: kapalı.
-  bool _e2eeTranslationOptIn = false;
+  /// Birebir (E2EE) sohbetlerde otomatik çeviri. Ürün kararı (2026-11-02): VARSAYILAN AÇIK —
+  /// uygulamanın temel özelliği çeviri. Açıkken çözülmüş metin çeviri servisine gider (Gizlilik
+  /// metninde yazılı); kullanıcı Ayarlar > Gizlilik'ten kapatabilir. Eski 'e2eeTranslationOptIn'
+  /// kaydı (varsayılan false yazılmış) bilerek okunmaz; yeni anahtar 'chatTranslationEnabled'.
+  bool _e2eeTranslationOptIn = true;
   bool _strictAccountSettings = false;
 
   // Erişilebilirlik & Sosyal Akış Tercihleri
@@ -977,7 +979,7 @@ class JuzzioAppController extends ChangeNotifier {
       _blockUnknownVolumeMessages = raw['blockUnknownVolumeMessages'] is bool ? raw['blockUnknownVolumeMessages'] as bool : _blockUnknownVolumeMessages;
       _protectIpInCalls = raw['protectIpInCalls'] == true;
       _disableLinkPreviews = raw['disableLinkPreviews'] == true;
-      _e2eeTranslationOptIn = raw['e2eeTranslationOptIn'] == true;
+      _e2eeTranslationOptIn = raw['chatTranslationEnabled'] != false;
       _strictAccountSettings = raw['strictAccountSettings'] == true;
       _highContrastMode = raw['highContrastMode'] == true;
       _reduceMotion = raw['reduceMotion'] == true;
@@ -1099,7 +1101,7 @@ class JuzzioAppController extends ChangeNotifier {
         'blockUnknownVolumeMessages': _blockUnknownVolumeMessages,
         'protectIpInCalls': _protectIpInCalls,
         'disableLinkPreviews': _disableLinkPreviews,
-        'e2eeTranslationOptIn': _e2eeTranslationOptIn,
+        'chatTranslationEnabled': _e2eeTranslationOptIn,
         'strictAccountSettings': _strictAccountSettings,
         'highContrastMode': _highContrastMode,
         'reduceMotion': _reduceMotion,
