@@ -10924,3 +10924,85 @@ BEGIN
 END $$;
 CREATE UNIQUE INDEX IF NOT EXISTS uq_messages_sender_client_msg
     ON public.messages (sender_id, client_msg_id) WHERE client_msg_id IS NOT NULL;
+
+-- 10.12 Sohbet etkinlik durumu: "Yazıyor..." / "Ses kaydediliyor.." (ek paket N-A)
+--  Taşıma: Supabase Realtime ÖZEL yayın kanalı 'room-activity:<oda_uuid>'. İçerik yalnızca
+--  {state: typing|recording|idle, ts} — mesaj metni ASLA gönderilmez, veritabanına yazılmaz.
+--  Yetki (realtime.messages RLS):
+--   • Yalnızca odanın etkin üyesi dinleyebilir/gönderebilir.
+--   • Birebir odada taraflar arasında engel varsa iki yön de kapalı.
+--   • Gönderen çevrimiçi gizliliğini 'nobody' yaptıysa yayın yapamaz; birebir odada karşı
+--     taraf gönderenin çevrimiçi durumunu göremiyorsa (yalnız arkadaşlar vb.) yayın yapamaz.
+CREATE OR REPLACE FUNCTION public.juzzio_can_room_activity(p_room UUID, p_user UUID, p_sending BOOLEAN)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_is_group BOOLEAN;
+    v_other UUID;
+    v_privacy TEXT;
+BEGIN
+    IF p_room IS NULL OR p_user IS NULL OR NOT public.is_room_member(p_room, p_user) THEN
+        RETURN false;
+    END IF;
+    SELECT r.is_group INTO v_is_group FROM public.rooms r WHERE r.id = p_room;
+    IF v_is_group IS NULL THEN
+        RETURN false;
+    END IF;
+    IF NOT v_is_group THEN
+        SELECT rp.user_id INTO v_other
+        FROM public.room_participants rp
+        WHERE rp.room_id = p_room AND rp.user_id <> p_user
+        LIMIT 1;
+        IF v_other IS NOT NULL AND public.is_blocked_between(p_user, v_other) THEN
+            RETURN false;
+        END IF;
+    END IF;
+    IF p_sending THEN
+        SELECT p.privacy_online INTO v_privacy FROM public.profiles p WHERE p.id = p_user;
+        IF COALESCE(v_privacy, 'everyone') = 'nobody' THEN
+            RETURN false;
+        END IF;
+        IF NOT v_is_group AND v_other IS NOT NULL
+           AND NOT public.juzzio_can_see_presence(v_other, p_user, COALESCE(v_privacy, 'everyone')) THEN
+            RETURN false;
+        END IF;
+    END IF;
+    RETURN true;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.juzzio_can_room_activity(UUID, UUID, BOOLEAN) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.juzzio_can_room_activity(UUID, UUID, BOOLEAN) TO authenticated, service_role;
+
+DO $$
+BEGIN
+    IF to_regclass('realtime.messages') IS NULL THEN
+        RAISE NOTICE 'realtime.messages yok — oda etkinlik politikaları atlandı';
+        RETURN;
+    END IF;
+    EXECUTE 'DROP POLICY IF EXISTS juzzio_room_activity_read ON realtime.messages';
+    EXECUTE 'DROP POLICY IF EXISTS juzzio_room_activity_send ON realtime.messages';
+    EXECUTE $p$
+        CREATE POLICY juzzio_room_activity_read ON realtime.messages
+        FOR SELECT TO authenticated
+        USING (
+            realtime.messages.extension = 'broadcast'
+            AND realtime.topic() LIKE 'room-activity:%'
+            AND public.juzzio_can_room_activity(
+                    public.juzzio_try_uuid(split_part(realtime.topic(), ':', 2)), auth.uid(), false)
+        )
+    $p$;
+    EXECUTE $p$
+        CREATE POLICY juzzio_room_activity_send ON realtime.messages
+        FOR INSERT TO authenticated
+        WITH CHECK (
+            realtime.messages.extension = 'broadcast'
+            AND realtime.topic() LIKE 'room-activity:%'
+            AND public.juzzio_can_room_activity(
+                    public.juzzio_try_uuid(split_part(realtime.topic(), ':', 2)), auth.uid(), true)
+        )
+    $p$;
+END $$;

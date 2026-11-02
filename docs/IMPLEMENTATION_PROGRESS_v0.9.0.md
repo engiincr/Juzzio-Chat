@@ -7,7 +7,7 @@ Hiçbir madde yalnızca arayüzü olduğu için "tamam" sayılmaz: backend + RLS
 hata durumları + test + l10n + 12 tema uyumu gerekir.
 
 ## ŞU AN
-- Son talimat (2026-11-02 "FINAL PRODUCT CONSOLIDATION") işlendi: Personal 5 sekme (Ana Sayfa·Sohbetler·Keşfet·Bildirimler·Profil) + kök = Ana Sayfa geri tuşu + `docs/EXCLUDED_FEATURES.md`. Sıradaki: **C-A2 Temel sistemler** — N-A canlı durum (yazıyor/kaydediliyor), N-D bildirim önizleme kipleri, N-F gelen arama Kabul/Reddet, N-H + sohbet bazlı bildirim ayarları; ardından C-A3 Personal.
+- C-A2 sürüyor: N-A canlı durum TAMAM (SQL testli). Sıradaki: N-D bildirim önizleme kipleri (mesaj içeriği cihazda çözülür, FCM'de düz metin yok) → N-F gelen arama Kabul/Reddet → sohbet bazlı bildirim ayarları + N-H.
 
 ## Doğrulama ortamı (gerçek)
 | Kontrol | Araç | Durum |
@@ -82,7 +82,7 @@ Durum işaretleri: ⏳ bekliyor · 🔧 sürüyor · ✅ kod+test tamam · 🟡 
 ## Ek paket (2026-11-01 23:27): Canlı durum, etiketleme, gelişmiş Android bildirimleri
 | # | Madde | Tamamlanma kriteri | Faz | Durum |
 | :-- | :-- | :-- | :-- | :-- |
-| N-A | Yazıyor... (animasyonlu) / Ses kaydediliyor.. (statik) / Çevrimiçi / Son görülme — tek merkezi öncelik çözümleyici | Realtime yayını + 3 sn TTL + gizlilik/engel; birim testleri | 3 (sohbet) | ⏳ |
+| N-A | Yazıyor... (animasyonlu) / Ses kaydediliyor.. (statik) / Çevrimiçi / Son görülme — tek merkezi öncelik çözümleyici | Realtime yayını + 3 sn TTL + gizlilik/engel; birim testleri | C-A2 | 🟡 SQL 10.12 `juzzio_can_room_activity` + realtime.messages RLS (yalnız etkin üye; DM'de engel iki yönü kapatır; çevrimiçi gizliliği 'nobody' veya karşı taraf göremiyorsa yayın yok) — 13 SQL testi PASS + mutasyon testi yakaladı. Dart: `lib/core/juzzio_chat_activity.dart` (öncelik kaydediliyor>yazıyor>çevrimiçi>son görülme, 3 sn TTL, 2 sn canlı tutma, 4 sn sonra yazma biter, sahte kimlik/kendi kimliği yok sayılır) + `lib/services/juzzio_chat_activity_service.dart` (özel kanal `room-activity:<oda>`, yükte metin yok) + başlıkta animasyonlu nokta (azaltılmış harekette sabit), grupta isim, ekran okuyucu canlı bölge. 9 birim testi `test/juzzio_chat_activity_test.dart`. Flutter/CI'da; gerçek Realtime üzerinde cihaz testi NOT RUN |
 | N-B | @etiketleme (gönderi, yorum, yanıt, hikâye, paylaşım) | content_mentions + RLS + izin tercihleri + öneri RPC + tıklanabilir token + idempotent bildirim + SQL testleri | 3 (sosyal) | ⏳ |
 | N-C | Sosyal bildirimler (beğeni, yorum, yanıt, kaydetme [varsayılan gizli], takip, arkadaşlık, paylaşım, hikâye yanıtı, davet, moderasyon) | Mevcut olanlar doğrulanır, eksikler eklenir; tekrar yok; kategori tercihi | 3 (bildirim) | ⏳ |
 | N-D | Bildirimde mesaj içeriği — E2EE: FCM yükünde düz metin YOK; cihazda çözülür; çözülemezse genel metin | Önizleme kipleri + kilit ekranı | 3 (bildirim) | ⏳ |
@@ -165,6 +165,7 @@ kullanılır (talimat §16 "mevcut takip dosyaları varsa onları kullan"); yaln
 - 2026-11-01: Faz 1b (1. kısım): Bölüm 10 SQL (LiveKit, etkin katılımcı, davet, altyazı, sesli not, hız sınırı, push kilidi, storage gizliliği, UI çeviri önbelleği). SQL: temiz kurulum ×2 + v0.8.4'ten yükseltme PASS; 145 doğrulama PASS (v0.9.0 bloğu dahil); mutasyon testi testlerin hatayı yakaladığını kanıtladı. Edge Functions tsc PASS. ⚠️ Storage özel hale geldiği için istemci imzalı URL geçişi (Faz 1c) yayından önce ZORUNLU.
 - 2026-11-01: Faz 1b tamam — RBAC (47 RPC), storage temizliği kuyruğu + storage-cleanup fonksiyonu + bakım iş akışı. SQL 167 doğrulama PASS. Kurulum notu: GitHub + Supabase secret `STORAGE_CLEANUP_SECRET` (≥24 karakter) eklenmeli.
 - 2026-11-01: Faz 2 + N-E + N-G (yukarıdaki satırlar). Regresyon: sözcük denetimi 86 dosya PASS, l10n PASS (1240 metin), sır taraması PASS, ci_guards PASS, release_meta PASS, SQL 5 blok PASS. Ek düzeltme: Keşfet bakım metni sabit beyazdı → tema rengi.
+- 2026-11-02: N-A canlı durum (SQL 12 blok PASS, Dart sözcük 89 dosya PASS, l10n 1247 PASS). Test iskeletine realtime şeması eklendi.
 - 2026-11-02: Son konsolidasyon talimatı eklendi (yukarıda C-*). Personal 5 sekme uygulandı; Bildirimler sayfasına gömülü kip (geri düğmesi gizli, kök rotayı kapatmaz).
 - 2026-11-01 23:44: Personal/Business ikili deneyim eki tamamen okundu → B0–B11 olarak bu dosyaya eklendi.
 - 2026-11-01: Faz 1c — (1) Özel medya: `lib/services/juzzio_media_url.dart` (imzalı URL + önbellek + `JuzzioStorageImage`), 10 görüntüleme noktası, video denetleyicisi imzadan sonra oluşturulur, sesli mesaj imzalı adresle çalınır; geri bildirim görüntüleri artık özel bucket'ta (personel yalnız `feedback.manage`, moderatör yalnız hikâye/gönderi medyası; özel sohbet medyası personele kapalı — SQL testli). (2) E2EE fail-closed: `encryptForRoomStrict` + `JuzzioE2eeRequiredException`; ağ hatasında oda grup sayılmaz; anahtarsız karşı tarafa düz metin yalnız açık onayla ve `metadata.security=plaintext_consented`; E2EE metni onaysız çeviriye gitmez (gönderen VE alıcı tarafı); Ayarlar'a izin anahtarı. (3) `client_msg_id` idempotency (SQL testli). (4) G13–G19, G21 istemci. Yeni: `scripts/dart_lexcheck.py` (CI'a eklendi), `test/juzzio_v090_test.dart`.

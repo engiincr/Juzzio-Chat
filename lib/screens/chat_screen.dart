@@ -49,6 +49,8 @@ import '../core/theme/juzzio_glass.dart';
 import '../core/content_filter.dart';
 import '../core/juzzio_sounds.dart';
 import '../core/juzzio_back_navigation.dart';
+import '../core/juzzio_chat_activity.dart';
+import '../services/juzzio_chat_activity_service.dart';
 import '../services/juzzio_features_service.dart';
 import '../services/juzzio_e2ee.dart';
 import '../widgets/group_management_sheet.dart';
@@ -311,6 +313,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   bool _composerHasText = false;
   void _onComposerTextChanged() {
     final has = _msgCtrl.text.trim().isNotEmpty;
+    // v0.9.0 N-A: yazıyor / boş durumu (yayın sıklığını JuzzioActivitySender sınırlar)
+    if (_isInsideConversation) {
+      JuzzioChatActivityService.instance.setLocal(has ? JuzzioActivityState.typing : JuzzioActivityState.idle);
+    }
     if (has != _composerHasText && mounted) setState(() => _composerHasText = has);
   }
 
@@ -318,6 +324,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _appLifecycleState = state;
     if (state != AppLifecycleState.resumed) {
+      JuzzioChatActivityService.instance.setLocal(JuzzioActivityState.idle);
       // Ana ekrana dönerken widget'lar güncel tema/dil/verilerle yenilenir
       _syncHomeWidget();
       JuzzioAppController.instance.ensureBackgroundNotificationReady();
@@ -779,6 +786,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       _selectedBottomTab = 0;
       _isInsideConversation = true;
     });
+    JuzzioChatActivityService.instance.watchRoom(
+      roomId,
+      memberIds: group != null ? group.groupMemberIds.toSet() : (partner != null ? {partner.id} : null),
+    );
     SupabaseService.instance.markRoomRead(roomId);
     SupabaseService.instance.setActiveRoom(roomId);
   }
@@ -787,6 +798,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     final roomId = _activeConversationRoomId;
     if (_isRecordingVoice) _cancelVoiceRecording();
     _ensurePresenceWatch(null);
+    JuzzioChatActivityService.instance.watchRoom(null);
     setState(() {
       _isInsideConversation = false;
       _showEmojiPanel = false;
@@ -1081,6 +1093,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       });
 
       if (mounted) setState(() => _isRecordingVoice = true);
+      JuzzioChatActivityService.instance.setLocal(JuzzioActivityState.recording);
     } catch (_) {}
   }
 
@@ -1114,6 +1127,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     _voiceUiTimer?.cancel();
     if (!_isRecordingVoice) return;
     HapticFeedback.lightImpact();
+    JuzzioChatActivityService.instance.setLocal(JuzzioActivityState.idle);
     setState(() {
       _isRecordingVoice = false;
       _voiceLocked = false;
@@ -1153,6 +1167,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     if (!_isRecordingVoice) return;
 
     final elapsed = _voiceElapsed;
+    JuzzioChatActivityService.instance.setLocal(JuzzioActivityState.idle);
     setState(() {
       _isRecordingVoice = false;
       _voiceLocked = false;
@@ -3651,7 +3666,16 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                         ],
                       ),
                       const SizedBox(height: 2),
-                      Text(
+                      ListenableBuilder(
+                        listenable: JuzzioChatActivityService.instance,
+                        builder: (context, fallback) {
+                          final st = JuzzioChatActivityService.instance.resolver.resolve();
+                          if (st.kind == JuzzioHeaderStatusKind.recording || st.kind == JuzzioHeaderStatusKind.typing) {
+                            return _buildActivityStatusLine(appCtrl, st, activeGroup);
+                          }
+                          return fallback!;
+                        },
+                        child: Text(
                         activeGroup != null
                             ? appCtrl.trEn(
                                 '${activeGroup.groupMembers.length} Üye${activeGroup.isCallActive ? " • 📞 Arama sürüyor" : ""}',
@@ -3670,6 +3694,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                           height: 1.25,
                           fontWeight: FontWeight.w600,
                         ),
+                      ),
                       ),
                     ],
                   ),
@@ -4156,6 +4181,38 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       ),
     ),
       ],
+    );
+  }
+
+  /// v0.9.0 N-A: "Yazıyor..." (animasyonlu nokta) / "Ses kaydediliyor.." (statik).
+  /// Grupta kimin yazdığı isimle gösterilir. Azaltılmış harekette animasyon yok.
+  Widget _buildActivityStatusLine(JuzzioAppController app, JuzzioHeaderStatus st, JuzzioGroupRoom? group) {
+    String? who;
+    if (group != null && st.userIds.isNotEmpty) {
+      final idx = group.groupMemberIds.indexOf(st.userIds.first);
+      final name = idx >= 0 && idx < group.groupMembers.length ? group.groupMembers[idx] : _resolveSenderName(st.userIds.first);
+      who = st.userIds.length > 1 ? '$name +${st.userIds.length - 1}' : name;
+    }
+    final recording = st.kind == JuzzioHeaderStatusKind.recording;
+    final base = recording
+        ? app.trEn('Ses kaydediliyor..', 'Recording audio..', 'Nimmt Audio auf..')
+        : app.trEn('Yazıyor', 'Typing', 'Schreibt');
+    final label = who == null ? base : '$who: $base';
+    const style = TextStyle(color: JuzzioColors.emerald400, fontSize: 12, height: 1.25, fontWeight: FontWeight.w700);
+    return Semantics(
+      liveRegion: true,
+      label: recording ? label : '$label...',
+      child: ExcludeSemantics(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(recording ? Icons.mic_rounded : Icons.edit_rounded, size: 13, color: JuzzioColors.emerald400),
+            const SizedBox(width: 4),
+            Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: style)),
+            if (!recording) _JuzzioTypingDots(style: style, animate: !app.reduceMotion),
+          ],
+        ),
+      ),
     );
   }
 
@@ -8054,6 +8111,56 @@ class _JuzzioStoryViewerModalState extends State<JuzzioStoryViewerModal> {
           ),
         ),
       ),
+    );
+  }
+}
+
+
+/// "Yazıyor" sonrası animasyonlu üç nokta. Azaltılmış harekette sabit "...".
+class _JuzzioTypingDots extends StatefulWidget {
+  const _JuzzioTypingDots({required this.style, required this.animate});
+  final TextStyle style;
+  final bool animate;
+
+  @override
+  State<_JuzzioTypingDots> createState() => _JuzzioTypingDotsState();
+}
+
+class _JuzzioTypingDotsState extends State<_JuzzioTypingDots> with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.animate) _c.repeat();
+  }
+
+  @override
+  void didUpdateWidget(covariant _JuzzioTypingDots oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.animate && !_c.isAnimating) _c.repeat();
+    if (!widget.animate && _c.isAnimating) _c.stop();
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.animate) return Text('...', style: widget.style);
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (_, __) {
+        final n = (_c.value * 4).floor().clamp(0, 3);
+        // Genişlik sabit kalsın diye görünmeyen noktalar şeffaf çizilir (başlık titremez)
+        return Text.rich(TextSpan(children: [
+          TextSpan(text: '.' * n, style: widget.style),
+          TextSpan(text: '.' * (3 - n), style: widget.style.copyWith(color: Colors.transparent)),
+        ]));
+      },
     );
   }
 }
