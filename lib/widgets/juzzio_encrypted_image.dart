@@ -28,7 +28,9 @@ class JuzzioEncryptedMedia {
     final ck = '${SupabaseService.instance.currentUserId ?? ''}|$messageId';
     final hit = _cache[ck];
     if (hit != null) return Future.value(hit);
-    return _inFlight[ck] ??= _load(ck, messageId, url).whenComplete(() => _inFlight.remove(ck));
+    return _inFlight[ck] ??= _load(ck, messageId, url).whenComplete(() {
+      _inFlight.remove(ck);
+    });
   }
 
   static Future<Uint8List?> _load(String ck, String messageId, String url) async {

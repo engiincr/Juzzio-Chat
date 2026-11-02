@@ -86,7 +86,9 @@ class JuzzioMediaUrl {
       _cache[url] = _SignedEntry(signed, DateTime.now().add(signedTtl));
       if (_cache.length > 600) _cache.remove(_cache.keys.first);
       return signed;
-    }).whenComplete(() => _inFlight.remove(url));
+    }).whenComplete(() {
+      _inFlight.remove(url); // blok gövde: remove() bu future'un kendisini döndürür; ok fonksiyonla beklenirse kilitlenir
+    });
     _inFlight[url] = future;
     return future;
   }

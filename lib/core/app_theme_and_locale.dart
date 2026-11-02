@@ -687,7 +687,9 @@ class JuzzioAppController extends ChangeNotifier {
     final lang = code.trim().toLowerCase();
     if (lang.isEmpty || kBuiltInUiLangs.contains(lang)) return Future.value(true);
     // Aynı dil için eşzamanlı ikinci istek, devam eden indirmeyi bekler.
-    return _packJobs[lang] ??= _preparePackImpl(lang).whenComplete(() => _packJobs.remove(lang));
+    return _packJobs[lang] ??= _preparePackImpl(lang).whenComplete(() {
+      _packJobs.remove(lang);
+    });
   }
 
   Future<bool> _preparePackImpl(String lang) async {
