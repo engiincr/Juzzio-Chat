@@ -39,6 +39,8 @@ import 'theme_preview_page.dart';
 import 'theme_studio_page.dart';
 import '../widgets/glass/juzzio_theme_gallery.dart';
 import 'legal_page.dart';
+import 'security_center_page.dart';
+import 'file_center_page.dart';
 import '../core/release_notes.dart';
 import '../widgets/social_common_widgets.dart';
 import '../widgets/profile_extras.dart';
@@ -1864,6 +1866,20 @@ class _JuzzioAccountSettingsPageState extends State<JuzzioAccountSettingsPage> {
                   ),
                   trailing: Icon(Icons.verified_rounded, color: p.onlineGreen, size: 20),
                   onTap: () => _showEmailEditDialog(context, p, isTr),
+                ),
+                Divider(height: 1, color: p.glassBorder),
+                ListTile(
+                  leading: Icon(Icons.shield_rounded, color: p.amberGlow),
+                  title: Text(
+                    _l3('Güvenlik Merkezi', 'Security Center', 'Sicherheitscenter'),
+                    style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w700),
+                  ),
+                  subtitle: Text(
+                    _l3('Cihazlar, oturumlar, güvenlik uyarıları, şifreli yedek', 'Devices, sessions, security alerts, encrypted backup', 'Geräte, Sitzungen, Warnungen, Backup'),
+                    style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textSecondary, fontSize: 12),
+                  ),
+                  trailing: Icon(Icons.chevron_right_rounded, color: p.textMuted),
+                  onTap: () => JuzzioSecurityCenterPage.open(context),
                 ),
                 Divider(height: 1, color: p.glassBorder),
                 ListTile(
@@ -5247,6 +5263,15 @@ class _JuzzioStorageSettingsPageState extends State<JuzzioStorageSettingsPage> {
                         ),
                       ),
                       Divider(height: 1, color: p.glassBorder),
+                      ListTile(
+                        leading: Icon(Icons.perm_media_rounded, color: p.amberGlow),
+                        title: Text(app.trEn('Dosya Merkezi', 'File Center', 'Dateizentrale'),
+                            style: TextStyle(color: p.textPrimary, fontWeight: FontWeight.w700)),
+                        subtitle: Text(app.trEn('Medya, belgeler ve sesli mesajlar', 'Media, documents and voice messages', 'Medien, Dokumente, Sprachnachrichten'),
+                            style: TextStyle(color: p.textSecondary, fontSize: 13)),
+                        trailing: Icon(Icons.chevron_right_rounded, color: p.textMuted),
+                        onTap: () => JuzzioFileCenterPage.open(context),
+                      ),
                       ListTile(
                         leading: Icon(Icons.storage_rounded, color: p.amberGlow),
                         title: Text(

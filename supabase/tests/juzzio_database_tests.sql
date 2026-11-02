@@ -1623,3 +1623,36 @@ DELETE FROM messages WHERE room_id = 'b1b1b1b1-0000-0000-0000-0000000000c1';
 DELETE FROM room_participants WHERE room_id = 'b1b1b1b1-0000-0000-0000-0000000000c1';
 DELETE FROM rooms WHERE id = 'b1b1b1b1-0000-0000-0000-0000000000c1';
 SELECT 'TÜM v0.9.0 BUSINESS TESTLERİ GEÇTİ';
+
+-- ===== 10.22 Güvenlik Merkezi =====
+RESET ROLE;
+DELETE FROM user_devices WHERE user_id IN (:'A', :'B');
+DELETE FROM security_events WHERE user_id IN (:'A', :'B');
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+SELECT register_my_device('devA_first_000001', 'android');
+SELECT pg_temp.check('ilk cihaz uyarı üretmez', (SELECT count(*) FROM security_events) = 0);
+SELECT register_my_device('devA_second_000002', 'android');
+SELECT pg_temp.check('yeni cihaz uyarısı', (SELECT count(*) FROM security_events WHERE kind = 'new_device') = 1);
+SELECT register_my_device('devA_second_000002', 'android');
+SELECT pg_temp.check('aynı cihaz tekrar uyarı üretmez', (SELECT count(*) FROM security_events) = 1);
+SELECT pg_temp.check('cihaz listesi 2, mevcut işaretli', jsonb_array_length(list_my_devices('devA_first_000001')) = 2
+    AND (SELECT count(*) FROM jsonb_array_elements(list_my_devices('devA_first_000001')) e WHERE (e->>'current')::bool) = 1);
+SELECT pg_temp.check('mevcut cihaz çıkarılamaz', NOT forget_my_device('000001', 'devA_first_000001'));
+SELECT pg_temp.check('diğer cihaz çıkarılır', forget_my_device('000002', 'devA_first_000001'));
+SELECT pg_temp.check('çıkarma olayı', (SELECT count(*) FROM security_events WHERE kind = 'device_removed') = 1);
+DO $$ BEGIN INSERT INTO security_events (user_id, kind) VALUES (auth.uid(), 'new_device'); RAISE NOTICE 'FAIL istemci sahte olay yazdı';
+EXCEPTION WHEN insufficient_privilege THEN RAISE NOTICE 'PASS istemci sahte olay yazamaz'; END $$;
+SELECT pg_temp.check('özet gerçek veriden', (get_my_security_overview()->>'devices')::int = 1 AND (get_my_security_overview()->>'unseen_alerts')::int = 2);
+SELECT pg_temp.check('görüldü işaretleme', mark_my_security_events_seen() = 2);
+SELECT pg_temp.check('görüldü sonrası okunmamış 0', (get_my_security_overview()->>'unseen_alerts')::int = 0);
+SELECT pg_temp.as_user(:'B');
+SELECT pg_temp.check('başkasının olayları görünmez', (SELECT count(*) FROM security_events) = 0 AND jsonb_array_length(list_my_devices('')) = 0);
+SELECT pg_temp.check('başkasının cihazı çıkarılamaz', NOT forget_my_device('000001', ''));
+RESET ROLE;
+UPDATE profiles SET e2ee_key_id = '0123456789abcdef' WHERE id = :'B';
+UPDATE profiles SET e2ee_key_id = 'fedcba9876543210' WHERE id = :'B';
+SELECT pg_temp.check('E2EE anahtar değişimi olayı', (SELECT count(*) FROM security_events WHERE user_id = :'B' AND kind = 'e2ee_key_changed') >= 1);
+DELETE FROM security_events WHERE user_id IN (:'A', :'B');
+DELETE FROM user_devices WHERE user_id IN (:'A', :'B');
+SELECT 'TÜM v0.9.0 GÜVENLİK MERKEZİ TESTLERİ GEÇTİ';
