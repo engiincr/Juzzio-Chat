@@ -7,7 +7,7 @@ Hiçbir madde yalnızca arayüzü olduğu için "tamam" sayılmaz: backend + RLS
 hata durumları + test + l10n + 12 tema uyumu gerekir.
 
 ## ŞU AN
-- Faz 2 + N-E + N-G kod olarak TAMAM (Dart sözcük denetimi PASS; Kotlin/Dart derleme ve testler CI'da). Sıradaki: Faz 3 — önce N-A canlı durum (yazıyor/kaydediliyor) + G28/G29 sesli mesaj hız/dalga formu, ardından F3 listesi sırayla
+- Son talimat (2026-11-02 "FINAL PRODUCT CONSOLIDATION") işlendi: Personal 5 sekme (Ana Sayfa·Sohbetler·Keşfet·Bildirimler·Profil) + kök = Ana Sayfa geri tuşu + `docs/EXCLUDED_FEATURES.md`. Sıradaki: **C-A2 Temel sistemler** — N-A canlı durum (yazıyor/kaydediliyor), N-D bildirim önizleme kipleri, N-F gelen arama Kabul/Reddet, N-H + sohbet bazlı bildirim ayarları; ardından C-A3 Personal.
 
 ## Doğrulama ortamı (gerçek)
 | Kontrol | Araç | Durum |
@@ -116,6 +116,33 @@ oyun/turnuva/sanal para/yeni evcil hayvan GELİŞTİRİLMEZ (envanterde "kapsam 
 | B10 | Kalan katalog (envanterdeki Personal/Both maddeleri öncelik sırasıyla) | Envanterde her madde: durum + gerekçe | ⏳ |
 | B11 | Business→Personal dönüş (görünüm geçişi ≠ geçici devre dışı ≠ kapatma; veri silinmez), admin başvuru yönetimi, son entegrasyon | Dönüşte veri silinmez SQL testi; admin işlemleri audit'li | ⏳ |
 
+## Son talimat (2026-11-02): Konsolidasyon — ÖNCELİKLİ, önceki eklerle çakışırsa bu geçerli
+Kural: önce mevcut kodu incele; yoksa ekle, eksikse tamamla, hatalıysa düzelt; ikinci ekran/servis/tablo yok.
+Yasaklılar: `docs/EXCLUDED_FEATURES.md` (34 madde SKIPPED; oyun/ekonomi dahil). Takip dosyası olarak BU dosya
+kullanılır (talimat §16 "mevcut takip dosyaları varsa onları kullan"); yalnız EXCLUDED_FEATURES.md yeni.
+
+Çakışma kararları:
+- Faz 2 dock'u (Sohbetler·Keşfet·Oluştur·Aramalar·Profil) → **Ana Sayfa·Sohbetler·Keşfet·Bildirimler·Profil** olarak değiştirildi. Oluştur, Aramalar, Yeni sohbet, Arkadaşlar, Ara, Civciv Ana Sayfa kısayollarında; Bildirimler mevcut `JuzzioNotificationsFeedPage` gömülü kipte (ikinci bildirim ekranı yok).
+- Business eki B4/B5/B6/B9: Business 5 sekme = Genel Bakış·Gelen Kutusu·Müşteriler·İş Alanı(Randevular, Hizmetler, Ekip, Görevler, Analizler, Otomasyonlar)·Profil.
+- B7 ayrı "Business AI Center" ve B8 Mini Apps/Integration Hub: ayrı ana modül olarak **ertelendi** (§5'te yeri yok, "şişirme" yasağı); otomasyon yalnız İş Alanı > Otomasyonlar + Gelen Kutusu > Otomatik Yanıtlar. B10 katalog: yalnız bu talimatta adı geçenler.
+- F3 listesi: F3-01 Shorts, F3-10 Canlı Odalar, F3-12 Civciv Merkezi (yeni oyun içeriği) yeni geliştirme olarak SKIP değil ama yeni sekme açılmaz; Civciv yalnız hata düzeltme. F3-11 bildirim merkezi = mevcut sayfa (✔ sekme olarak bağlandı).
+
+| # | Aşama / madde | Konum | Durum |
+| :-- | :-- | :-- | :-- |
+| C-A1 | Mevcut durum analizi + yasaklı SKIP | docs | ✅ EXCLUDED_FEATURES.md, repo taraması temiz |
+| C-NAV | Personal 5 sekme + Ana Sayfa (yalnız gerçek veri) + geri tuşu kökü Ana Sayfa | chat_screen, juzzio_back_navigation | 🟡 kod + 5 durum makinesi testi; CI'da |
+| C-A2 | Mesaj bildirim önizleme/gizleme, RemoteInput (✔ N-E), gelen arama Kabul/Reddet, sosyal bildirimler, sohbet bazlı bildirim ayarları (ses/titreşim/önizleme/sessize alma süresi) | FCM + Kotlin + Sohbet Bilgileri | ⏳ |
+| C-A3a | Yaşam Merkezi: görev + hatırlatma + takvim (Ana Sayfa > Görevlerim/Takvimim) | tek tablo + RLS | ⏳ |
+| C-A3b | Mesaja hatırlatıcı (uzun bas > Hatırlat) | aynı hatırlatma altyapısı | ⏳ |
+| C-A3c | Kayıtlı mesajlar (uzun bas > Kaydet; karşı tarafa bildirilmez) | mevcut koleksiyon/kayıt altyapısı kontrol edilir | ⏳ |
+| C-A3d | Gelişmiş sohbet araması (kişi/tarih/tür/kayıtlı) | mevcut arama ekranı | ⏳ |
+| C-A3e | Düzenleme geçmişi (E2EE içerik sunucuda açık tutulmaz) | mesaj altyapısı | ⏳ |
+| C-A3f | Sohbet kilidi (biyometrik/PIN) | Sohbet Bilgileri > Gizlilik | ⏳ |
+| C-A3g | Profil > Paylaş içinde QR | mevcut profil paylaşımı | ⏳ |
+| C-A4 | Business: geçiş (B1–B3) + Genel Bakış, Gelen Kutusu (sahiplik/atama, otomatik yanıt), Müşteriler (CRM, not, takip), İş Alanı (randevu, ekip, görev, analiz) | SQL+RLS+UI | ⏳ |
+| C-A5 | Güvenlik Merkezi (cihazlar, oturumlar, gizlilik, şifreli yedek, uyarılar), Dosya Merkezi, erişilebilirlik, lokalizasyon | mevcut merkezler genişletilir | ⏳ |
+| C-A6 | Regresyon, RLS, tema, responsive, buton eylem denetimi, build/CI | — | ⏳ |
+
 ## Mimari kararlar (otonom)
 - Veritabanı değişiklikleri depo kuralına uygun olarak **tek kanonik dosyaya**
   (`supabase/juzzio_database.sql`) yeni bölüm olarak eklenir; idempotent, veri silmez.
@@ -138,5 +165,6 @@ oyun/turnuva/sanal para/yeni evcil hayvan GELİŞTİRİLMEZ (envanterde "kapsam 
 - 2026-11-01: Faz 1b (1. kısım): Bölüm 10 SQL (LiveKit, etkin katılımcı, davet, altyazı, sesli not, hız sınırı, push kilidi, storage gizliliği, UI çeviri önbelleği). SQL: temiz kurulum ×2 + v0.8.4'ten yükseltme PASS; 145 doğrulama PASS (v0.9.0 bloğu dahil); mutasyon testi testlerin hatayı yakaladığını kanıtladı. Edge Functions tsc PASS. ⚠️ Storage özel hale geldiği için istemci imzalı URL geçişi (Faz 1c) yayından önce ZORUNLU.
 - 2026-11-01: Faz 1b tamam — RBAC (47 RPC), storage temizliği kuyruğu + storage-cleanup fonksiyonu + bakım iş akışı. SQL 167 doğrulama PASS. Kurulum notu: GitHub + Supabase secret `STORAGE_CLEANUP_SECRET` (≥24 karakter) eklenmeli.
 - 2026-11-01: Faz 2 + N-E + N-G (yukarıdaki satırlar). Regresyon: sözcük denetimi 86 dosya PASS, l10n PASS (1240 metin), sır taraması PASS, ci_guards PASS, release_meta PASS, SQL 5 blok PASS. Ek düzeltme: Keşfet bakım metni sabit beyazdı → tema rengi.
+- 2026-11-02: Son konsolidasyon talimatı eklendi (yukarıda C-*). Personal 5 sekme uygulandı; Bildirimler sayfasına gömülü kip (geri düğmesi gizli, kök rotayı kapatmaz).
 - 2026-11-01 23:44: Personal/Business ikili deneyim eki tamamen okundu → B0–B11 olarak bu dosyaya eklendi.
 - 2026-11-01: Faz 1c — (1) Özel medya: `lib/services/juzzio_media_url.dart` (imzalı URL + önbellek + `JuzzioStorageImage`), 10 görüntüleme noktası, video denetleyicisi imzadan sonra oluşturulur, sesli mesaj imzalı adresle çalınır; geri bildirim görüntüleri artık özel bucket'ta (personel yalnız `feedback.manage`, moderatör yalnız hikâye/gönderi medyası; özel sohbet medyası personele kapalı — SQL testli). (2) E2EE fail-closed: `encryptForRoomStrict` + `JuzzioE2eeRequiredException`; ağ hatasında oda grup sayılmaz; anahtarsız karşı tarafa düz metin yalnız açık onayla ve `metadata.security=plaintext_consented`; E2EE metni onaysız çeviriye gitmez (gönderen VE alıcı tarafı); Ayarlar'a izin anahtarı. (3) `client_msg_id` idempotency (SQL testli). (4) G13–G19, G21 istemci. Yeni: `scripts/dart_lexcheck.py` (CI'a eklendi), `test/juzzio_v090_test.dart`.
