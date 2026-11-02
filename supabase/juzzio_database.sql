@@ -12856,3 +12856,102 @@ END $$;
 DROP TRIGGER IF EXISTS trg_juzzio_business_auto_reply ON public.messages;
 CREATE TRIGGER trg_juzzio_business_auto_reply AFTER INSERT ON public.messages
     FOR EACH ROW EXECUTE FUNCTION public.juzzio_business_auto_reply();
+
+-- =============================================================================
+-- 10.22 GÜVENLİK MERKEZİ — doğrulanabilir güvenlik olayları, cihaz listesi
+--  * security_events yalnızca sunucu tetikleyicileri/RPC'leri tarafından yazılır
+--    (istemci INSERT yetkisi YOK) → kullanıcıya gösterilen her uyarı gerçek bir
+--    veritabanı olayına dayanır.
+--  * Olaylar: new_device (ilk cihaz hariç), device_removed, e2ee_key_changed.
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS public.security_events (
+    id BIGSERIAL PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL CHECK (kind IN ('new_device', 'device_removed', 'e2ee_key_changed')),
+    detail JSONB NOT NULL DEFAULT '{}'::jsonb,
+    seen BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_security_events_user ON public.security_events (user_id, created_at DESC);
+ALTER TABLE public.security_events ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS security_events_own_select ON public.security_events;
+CREATE POLICY security_events_own_select ON public.security_events FOR SELECT TO authenticated USING (user_id = auth.uid());
+REVOKE INSERT, UPDATE, DELETE ON public.security_events FROM anon, authenticated;
+GRANT SELECT ON public.security_events TO authenticated;
+
+ALTER TABLE public.user_devices ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS user_devices_own_select ON public.user_devices;
+CREATE POLICY user_devices_own_select ON public.user_devices FOR SELECT TO authenticated USING (user_id = auth.uid());
+
+CREATE OR REPLACE FUNCTION public.juzzio_security_on_device() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM public.user_devices d WHERE d.user_id = NEW.user_id AND d.device_id <> NEW.device_id) THEN
+        INSERT INTO public.security_events (user_id, kind, detail)
+        VALUES (NEW.user_id, 'new_device', jsonb_build_object('device', RIGHT(NEW.device_id, 6), 'platform', NEW.platform));
+    END IF;
+    RETURN NEW;
+END $$;
+DROP TRIGGER IF EXISTS trg_juzzio_security_on_device ON public.user_devices;
+CREATE TRIGGER trg_juzzio_security_on_device AFTER INSERT ON public.user_devices
+    FOR EACH ROW EXECUTE FUNCTION public.juzzio_security_on_device();
+
+CREATE OR REPLACE FUNCTION public.juzzio_security_on_key() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+    IF COALESCE(OLD.e2ee_key_id, '') <> '' AND NEW.e2ee_key_id IS DISTINCT FROM OLD.e2ee_key_id THEN
+        INSERT INTO public.security_events (user_id, kind, detail)
+        VALUES (NEW.id, 'e2ee_key_changed', jsonb_build_object('key', RIGHT(COALESCE(NEW.e2ee_key_id, ''), 8)));
+    END IF;
+    RETURN NEW;
+END $$;
+DROP TRIGGER IF EXISTS trg_juzzio_security_on_key ON public.profiles;
+CREATE TRIGGER trg_juzzio_security_on_key AFTER UPDATE OF e2ee_key_id ON public.profiles
+    FOR EACH ROW EXECUTE FUNCTION public.juzzio_security_on_key();
+
+-- Kendi cihazlarım (kimlik son 6 hane; tam kimlik dönmez)
+CREATE OR REPLACE FUNCTION public.list_my_devices(p_current_device TEXT DEFAULT '')
+RETURNS JSONB LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+    SELECT COALESCE(jsonb_agg(jsonb_build_object(
+        'device', RIGHT(d.device_id, 6), 'platform', d.platform, 'first_seen', d.first_seen,
+        'last_seen', d.last_seen, 'current', d.device_id = COALESCE(p_current_device, ''))
+        ORDER BY d.last_seen DESC), '[]'::jsonb)
+      FROM public.user_devices d WHERE d.user_id = auth.uid();
+$$;
+GRANT EXECUTE ON FUNCTION public.list_my_devices(TEXT) TO authenticated;
+
+-- Cihazı listeden çıkar (mevcut cihaz çıkarılamaz). Oturum kapatma istemcide
+-- auth.signOut(scope: others) ile yapılır; bu kayıt yalnızca listeyi temizler.
+CREATE OR REPLACE FUNCTION public.forget_my_device(p_device_suffix TEXT, p_current_device TEXT)
+RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_uid UUID := auth.uid(); v_n INT;
+BEGIN
+    IF v_uid IS NULL OR LENGTH(COALESCE(p_device_suffix, '')) <> 6 THEN RETURN false; END IF;
+    DELETE FROM public.user_devices
+     WHERE user_id = v_uid AND RIGHT(device_id, 6) = p_device_suffix AND device_id <> COALESCE(p_current_device, '');
+    GET DIAGNOSTICS v_n = ROW_COUNT;
+    IF v_n > 0 THEN
+        INSERT INTO public.security_events (user_id, kind, detail) VALUES (v_uid, 'device_removed', jsonb_build_object('device', p_device_suffix));
+    END IF;
+    RETURN v_n > 0;
+END $$;
+GRANT EXECUTE ON FUNCTION public.forget_my_device(TEXT, TEXT) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.mark_my_security_events_seen()
+RETURNS INT LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_n INT;
+BEGIN
+    UPDATE public.security_events SET seen = true WHERE user_id = auth.uid() AND NOT seen;
+    GET DIAGNOSTICS v_n = ROW_COUNT; RETURN v_n;
+END $$;
+GRANT EXECUTE ON FUNCTION public.mark_my_security_events_seen() TO authenticated;
+
+-- Özet: yalnızca gerçek veriden hesaplanır
+CREATE OR REPLACE FUNCTION public.get_my_security_overview()
+RETURNS JSONB LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+    SELECT jsonb_build_object(
+        'devices', (SELECT COUNT(*) FROM public.user_devices WHERE user_id = auth.uid()),
+        'unseen_alerts', (SELECT COUNT(*) FROM public.security_events WHERE user_id = auth.uid() AND NOT seen),
+        'e2ee_ready', (SELECT COALESCE(e2ee_public_key, '') <> '' FROM public.profiles WHERE id = auth.uid()));
+$$;
+GRANT EXECUTE ON FUNCTION public.get_my_security_overview() TO authenticated;
