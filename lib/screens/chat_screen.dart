@@ -52,6 +52,9 @@ import '../core/juzzio_back_navigation.dart';
 import '../core/juzzio_chat_activity.dart';
 import '../services/juzzio_life_service.dart';
 import 'life_center_page.dart';
+import 'message_search_page.dart';
+import '../services/juzzio_chat_lock.dart';
+import '../widgets/chat_lock_ui.dart';
 import '../services/juzzio_chat_activity_service.dart';
 import '../services/juzzio_features_service.dart';
 import '../services/juzzio_e2ee.dart';
@@ -219,6 +222,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     // v0.9.0 §4.1/§4.3: Ana Sayfa görev özeti ve kayıtlı mesaj işaretleri (hata sessiz; ekranlar kendi hata durumunu gösterir)
     JuzzioLifeService.instance.refresh().catchError((_) => const <JuzzioLifeTask>[]);
     JuzzioLifeService.instance.loadSavedIds();
+    JuzzioChatLock.instance.load();
+    JuzzioChatLock.instance.addListener(_onChatLockChanged);
     _profileNameCtrl = TextEditingController(text: widget.myDisplayName);
     _profileBioCtrl = TextEditingController();
     _msgCtrl.addListener(_onComposerTextChanged);
@@ -330,6 +335,14 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     _appLifecycleState = state;
     if (state != AppLifecycleState.resumed) {
       JuzzioChatActivityService.instance.setLocal(JuzzioActivityState.idle);
+      // v0.9.0 §4.6: arka plana geçince kilitli sohbetler yeniden kilitlenir
+      if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
+        final lock = JuzzioChatLock.instance;
+        final room = _activeConversationRoomId;
+        if (_isInsideConversation && room != null && lock.isLocked(room)) _leaveConversation();
+        lock.relock();
+        if (_showLockedChats) setState(() => _showLockedChats = false);
+      }
       // Ana ekrana dönerken widget'lar güncel tema/dil/verilerle yenilenir
       _syncHomeWidget();
       JuzzioAppController.instance.ensureBackgroundNotificationReady();
@@ -617,6 +630,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
   bool appCtrlIsDark() => JuzzioAppController.instance.isDark;
 
+  void _onChatLockChanged() {
+    if (mounted) setState(() {});
+  }
+
   void _onStorySeenChanged() {
     if (mounted) setState(() {});
   }
@@ -651,6 +668,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     _audioPlayer.dispose();
     JuzzioStorySeen.instance.removeListener(_onStorySeenChanged);
     _exitHintTimer?.cancel();
+    JuzzioChatLock.instance.removeListener(_onChatLockChanged);
     super.dispose();
   }
 
@@ -803,7 +821,17 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     );
   }
 
+  bool _showLockedChats = false;
+
   void _enterConversation({required String roomId, JuzzioUserProfile? partner, JuzzioGroupRoom? group}) {
+    // v0.9.0 §4.6: kilitli sohbet (bildirim, arama, kısayol dahil her yoldan) PIN ister
+    final lock = JuzzioChatLock.instance;
+    if (lock.isLocked(roomId) && !lock.isUnlocked) {
+      juzzioRequireChatPin(context, allowCreate: false).then((ok) {
+        if (ok && mounted) _enterConversation(roomId: roomId, partner: partner, group: group);
+      });
+      return;
+    }
     _lastRenderedMessageCount = 0;
     _activeMessagesStream = null;
     _activeMessagesStreamRoomId = null;
@@ -2078,6 +2106,15 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     _refreshSocialFeedAndProfile();
   }
 
+  void _openMessageSearch() {
+    final rooms = <(String, String)>[
+      for (final c in _conversations) (c.roomId, c.isGroup ? c.title : (c.partnerDisplayName ?? c.partnerUsername ?? c.title)),
+    ];
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => JuzzioMessageSearchPage(rooms: rooms, onOpenRoom: _openRoomById),
+    ));
+  }
+
   /// v0.9.0 N-B: etiket bildirimi → gönderi görünürse gönderi (RLS), değilse etiketleyenin profili.
   Future<void> _openMentionTarget(String targetId, String actorId) async {
     final post = targetId.isEmpty ? null : await JuzzioSocialService.instance.fetchPostById(targetId);
@@ -2689,10 +2726,22 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: JuzzioGlassTextField(
-              hint: s.t('search_placeholder'),
-              icon: Icons.search_rounded,
-              onChanged: (v) => setState(() => _searchQuery = v),
+            child: Row(
+              children: [
+                Expanded(
+                  child: JuzzioGlassTextField(
+                    hint: s.t('search_placeholder'),
+                    icon: Icons.search_rounded,
+                    onChanged: (v) => setState(() => _searchQuery = v),
+                  ),
+                ),
+                // v0.9.0 §4.4: mesaj içeriği + filtreli arama (şifreli içerik cihazda aranır)
+                IconButton(
+                  tooltip: appCtrl.trEn('Mesajlarda ara (filtreler)', 'Search messages (filters)', 'Nachrichten durchsuchen (Filter)'),
+                  icon: Icon(Icons.manage_search_rounded, color: p.textPrimary),
+                  onPressed: _openMessageSearch,
+                ),
+              ],
             ),
           ),
 
@@ -2805,9 +2854,13 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                             builder: (context) {
                               final showPeople = _selectedFilterIndex == 0 || _selectedFilterIndex == 1;
                               final showGroups = _selectedFilterIndex == 0 || _selectedFilterIndex == 2;
+                              // v0.9.0 §4.6: kilitli sohbetler listede gizli; "Kilitli sohbetler" görünümünde yalnız onlar
+                              final lockSvc = JuzzioChatLock.instance;
+                              final lockedCount = _conversations.where((c) => lockSvc.isLocked(c.roomId)).length;
                               final convs = _conversations
                                   .where((c) => c.isGroup ? showGroups : showPeople)
                                   .where((c) => !_deletedConversationIds.contains(c.roomId))
+                                  .where((c) => _showLockedChats ? lockSvc.isLocked(c.roomId) : !lockSvc.isLocked(c.roomId))
                                   .toList();
                               final dmPartnerIds = _conversations
                                   .where((c) => !c.isGroup && c.lastMessageAt != null)
@@ -2824,7 +2877,26 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                               return ListView(
                                 padding: const EdgeInsets.fromLTRB(0, 4, 0, 24),
                                 children: [
-                                  if (requestConvs.isNotEmpty) _buildMessageRequestsTile(p, appCtrl, requestConvs),
+                                  if (lockedCount > 0 || _showLockedChats)
+                                    ListTile(
+                                      leading: Icon(_showLockedChats ? Icons.lock_open_rounded : Icons.lock_rounded, color: p.textPrimary),
+                                      title: Text(
+                                        _showLockedChats
+                                            ? appCtrl.trEn('Kilitli sohbetler — kapat', 'Locked chats — close', 'Gesperrte Chats — schließen')
+                                            : appCtrl.trEn('Kilitli sohbetler ($lockedCount)', 'Locked chats ($lockedCount)', 'Gesperrte Chats ($lockedCount)'),
+                                        style: TextStyle(color: p.textPrimary, fontWeight: FontWeight.w800),
+                                      ),
+                                      onTap: () async {
+                                        if (_showLockedChats) {
+                                          setState(() => _showLockedChats = false);
+                                          return;
+                                        }
+                                        if (await juzzioRequireChatPin(context, allowCreate: false) && mounted) {
+                                          setState(() => _showLockedChats = true);
+                                        }
+                                      },
+                                    ),
+                                  if (requestConvs.isNotEmpty && !_showLockedChats) _buildMessageRequestsTile(p, appCtrl, requestConvs),
                                   ...visibleConvs.map(
                                     (c) => _buildConversationListCard(
                                       convKey: c.roomId,
@@ -5248,7 +5320,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                                   child: Icon(Icons.lock_rounded, size: 11, color: isMe ? Colors.white70 : p.textMuted),
                                 ),
                               Text(
-                                _formatTime(msg.createdAt),
+                                // v0.9.0 §4.5: düzenlenen mesaj işaretlenir
+                                msg.editedAt != null && !msg.isDeleted
+                                    ? '${JuzzioAppController.instance.trEn('düzenlendi', 'edited', 'bearbeitet')} · ${_formatTime(msg.createdAt)}'
+                                    : _formatTime(msg.createdAt),
                                 style: TextStyle(
                                   color: isMe ? Colors.white70 : p.textMuted,
                                   fontSize: 10.5,
@@ -5435,6 +5510,88 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     });
   }
 
+  /// v0.9.0 §4.5: mesajı düzenle (yeni metin yeniden şifrelenir; şifrelenemezse değişmez).
+  Future<void> _editMessage(JuzzioMessage msg) async {
+    final app = JuzzioAppController.instance;
+    final ctrl = TextEditingController(text: msg.originalText);
+    final next = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(app.trEn('Mesajı düzenle', 'Edit message', 'Nachricht bearbeiten')),
+        content: TextField(controller: ctrl, autofocus: true, minLines: 1, maxLines: 6, maxLength: 4000),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(app.trEn('Vazgeç', 'Cancel', 'Abbrechen'))),
+          FilledButton(onPressed: () => Navigator.pop(ctx, ctrl.text), child: Text(app.trEn('Kaydet', 'Save', 'Speichern'))),
+        ],
+      ),
+    );
+    ctrl.dispose();
+    if (next == null || next.trim().isEmpty || next.trim() == msg.originalText.trim()) return;
+    try {
+      await SupabaseService.instance.editTextMessage(message: msg, newText: next);
+      _showSnack(app.trEn('Mesaj düzenlendi', 'Message edited', 'Nachricht bearbeitet'));
+    } catch (e) {
+      _showSnack(SupabaseService.instance.friendlyError(e), isError: true);
+    }
+  }
+
+  Future<void> _showEditHistory(JuzzioMessage msg) async {
+    final app = JuzzioAppController.instance;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => SafeArea(
+        child: FutureBuilder<List<({String text, DateTime editedAt})>>(
+          future: SupabaseService.instance.fetchEditHistory(msg),
+          builder: (ctx, snap) {
+            if (snap.connectionState != ConnectionState.done) {
+              return const Padding(padding: EdgeInsets.all(32), child: Center(child: CircularProgressIndicator()));
+            }
+            if (snap.hasError) {
+              return Padding(padding: const EdgeInsets.all(24), child: Text(SupabaseService.instance.friendlyError(snap.error!)));
+            }
+            final items = snap.data ?? const [];
+            return ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(ctx).height * 0.7),
+              child: ListView(
+                shrinkWrap: true,
+                padding: const EdgeInsets.all(16),
+                children: [
+                  Text(app.trEn('Düzenleme Geçmişi', 'Edit history', 'Bearbeitungsverlauf'),
+                      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 4),
+                  Text(app.trEn('Önceki sürümler 30 gün saklanır ve yalnızca bu sohbetin üyelerine görünür.',
+                      'Previous versions are kept for 30 days and are visible only to members of this chat.',
+                      'Frühere Versionen werden 30 Tage gespeichert und sind nur für Mitglieder dieses Chats sichtbar.'),
+                      style: const TextStyle(fontSize: 12)),
+                  const Divider(),
+                  ListTile(
+                    dense: true,
+                    title: Text(msg.originalText),
+                    subtitle: Text(app.trEn('Güncel', 'Current', 'Aktuell')),
+                  ),
+                  if (items.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Text(app.trEn('Önceki sürüm bulunamadı (30 günden eski olabilir).', 'No previous versions (may be older than 30 days).',
+                          'Keine früheren Versionen (evtl. älter als 30 Tage).')),
+                    ),
+                  for (final e in items)
+                    ListTile(
+                      dense: true,
+                      title: Text(e.text),
+                      subtitle: Text(
+                          '${e.editedAt.day}.${e.editedAt.month}.${e.editedAt.year} ${_formatTime(e.editedAt)} ${app.trEn('öncesi', 'before', 'vorher')}'),
+                    ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   /// v0.9.0 §4.3: kayıtlı mesaj aç/kapa (eski yerel yıldız varsa o da kaldırılır).
   Future<void> _toggleSavedMessage(JuzzioMessage msg) async {
     final app = JuzzioAppController.instance;
@@ -5613,6 +5770,13 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                   Clipboard.setData(ClipboardData(text: text));
                   _showSnack(app.trEn('Mesaj kopyalandı', 'Message copied', 'Nachricht kopiert'));
                 }),
+              // v0.9.0 §4.5: Düzenle (kendi metin mesajım, 15 dk) ve Düzenleme Geçmişi
+              if (isMe && !msg.isDeleted && msg.messageType == 'text' &&
+                  DateTime.now().difference(msg.createdAt.toLocal()) < const Duration(minutes: 15))
+                action(Icons.edit_rounded, app.trEn('Düzenle', 'Edit', 'Bearbeiten'), () => _editMessage(msg)),
+              if (msg.editedAt != null && !msg.isDeleted)
+                action(Icons.history_rounded, app.trEn('Düzenleme Geçmişi', 'Edit history', 'Bearbeitungsverlauf'),
+                    () => _showEditHistory(msg)),
               // v0.9.0 §4.3: Kaydet (sunucuda, yalnız ben görürüm; karşı tarafa bildirilmez)
               if (!msg.isDeleted)
                 action(

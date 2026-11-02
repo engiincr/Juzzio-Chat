@@ -459,7 +459,9 @@ class JuzzioE2ee {
   Future<JuzzioMessage> decryptMessage(JuzzioMessage m) async {
     final e = m.metadata['e2ee'];
     if (e is! Map || m.isDeleted) return m;
-    final hit = _plainCache[m.id];
+    // v0.9.0 §4.5: düzenlenen mesajın eski çözümü kullanılmaz (anahtar = kimlik + düzenleme zamanı)
+    final cacheKey = '${m.id}@${m.editedAt?.toIso8601String() ?? ''}';
+    final hit = _plainCache[cacheKey];
     if (hit != null) return m.withText(hit.$1, hit.$2);
     await ensureReady();
     try {
@@ -469,7 +471,7 @@ class JuzzioE2ee {
       final t = (obj is Map ? obj['t'] : '')?.toString() ?? '';
       final x = (obj is Map ? obj['x'] : '')?.toString() ?? '';
       if (_plainCache.length > 4000) _plainCache.clear();
-      _plainCache[m.id] = (t, x);
+      _plainCache[cacheKey] = (t, x);
       return m.withText(t, x);
     } catch (_) {
       return m.withText(_lockedText(), '');
