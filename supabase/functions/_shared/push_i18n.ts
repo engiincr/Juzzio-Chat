@@ -37,6 +37,15 @@ function reactionParts(preview: string): { emoji: string; text: string } {
   return { emoji: preview.slice(0, i) || "❤️", text: preview.slice(i + 1).trim() };
 }
 
+// v0.9.3: yanıt önizlemesi "reply|<yorum>|<yanıt>"
+export function replyParts(preview: string): { comment: string; reply: string } | null {
+  if (!preview.startsWith("reply|")) return null;
+  const rest = preview.slice(6);
+  const i = rest.indexOf("|");
+  if (i < 0) return null;
+  return { comment: rest.slice(0, i).trim(), reply: rest.slice(i + 1).trim() };
+}
+
 function clip(text: string, max = 40): string {
   return text.length > max ? text.slice(0, max - 1) + "…" : text;
 }
@@ -72,7 +81,8 @@ const T: Record<PushLang, Record<string, Builder>> = {
       const r = reactionParts(c.preview);
       return { title: c.actor, body: r.text ? `"${clip(r.text)}" mesajınıza ${r.emoji} tepkisi verdi.` : `Mesajınıza ${r.emoji} tepkisi verdi.` };
     },
-    reply: (c) => ({ title: c.actor, body: "Yorumunuza yanıt verdi." }),
+    reply: (c) => { const r = replyParts(c.preview); return { title: c.actor, body: !r ? "Yorumunuza yanıt verdi." : r.comment ? `"${clip(r.comment)}" yorumunuza "${clip(r.reply)}" yanıtını verdi.` : `Yorumunuza "${clip(r.reply)}" yanıtını verdi.` }; },
+    comment_like: (c) => ({ title: c.actor, body: c.preview ? `"${clip(c.preview)}" yorumunuzu beğendi.` : "Yorumunuzu beğendi." }),
     story_reply: (c) => ({ title: c.actor, body: "Hikâyenize yanıt verdi." }),
     chick_invite: (c) => ({ title: "🐣 Civciv daveti", body: `${c.actor} seninle "${c.preview}" adlı civcivi büyütmek istiyor.` }),
     chick_hatched: (c) => ({ title: "🐣 Civcivin yumurtadan çıktı!", body: `${c.actor} daveti kabul etti. "${c.preview}" artık sizin!` }),
@@ -112,7 +122,8 @@ const T: Record<PushLang, Record<string, Builder>> = {
       const r = reactionParts(c.preview);
       return { title: c.actor, body: r.text ? `Reacted ${r.emoji} to your message: "${clip(r.text)}"` : `Reacted ${r.emoji} to your message.` };
     },
-    reply: (c) => ({ title: c.actor, body: "Replied to your comment." }),
+    reply: (c) => { const r = replyParts(c.preview); return { title: c.actor, body: !r ? "Replied to your comment." : r.comment ? `Replied "${clip(r.reply)}" to your comment "${clip(r.comment)}".` : `Replied "${clip(r.reply)}" to your comment.` }; },
+    comment_like: (c) => ({ title: c.actor, body: c.preview ? `Liked your comment "${clip(c.preview)}".` : "Liked your comment." }),
     story_reply: (c) => ({ title: c.actor, body: "Replied to your story." }),
     chick_invite: (c) => ({ title: "🐣 Chick invitation", body: `${c.actor} wants to raise a chick called "${c.preview}" with you.` }),
     chick_hatched: (c) => ({ title: "🐣 Your chick has hatched!", body: `${c.actor} accepted. "${c.preview}" is yours now!` }),
@@ -156,7 +167,8 @@ const T: Record<PushLang, Record<string, Builder>> = {
       const r = reactionParts(c.preview);
       return { title: c.actor, body: r.text ? `Hat mit ${r.emoji} auf deine Nachricht reagiert: "${clip(r.text)}"` : `Hat mit ${r.emoji} auf deine Nachricht reagiert.` };
     },
-    reply: (c) => ({ title: c.actor, body: "Hat auf deinen Kommentar geantwortet." }),
+    reply: (c) => { const r = replyParts(c.preview); return { title: c.actor, body: !r ? "Hat auf deinen Kommentar geantwortet." : r.comment ? `Hat auf deinen Kommentar „${clip(r.comment)}“ mit „${clip(r.reply)}“ geantwortet.` : `Hat mit „${clip(r.reply)}“ auf deinen Kommentar geantwortet.` }; },
+    comment_like: (c) => ({ title: c.actor, body: c.preview ? `Gefällt dein Kommentar „${clip(c.preview)}“.` : "Gefällt dein Kommentar." }),
     story_reply: (c) => ({ title: c.actor, body: "Hat auf deine Story geantwortet." }),
     chick_invite: (c) => ({ title: "🐣 Küken-Einladung", body: `${c.actor} möchte mit dir das Küken „${c.preview}“ großziehen.` }),
     chick_hatched: (c) => ({ title: "🐣 Dein Küken ist geschlüpft!", body: `${c.actor} hat angenommen. „${c.preview}“ gehört jetzt euch!` }),
@@ -171,11 +183,22 @@ const T: Record<PushLang, Record<string, Builder>> = {
   },
 };
 
+/** zh-tw → zh-TW, pa-arab → pa-Arab (translate.ts ile aynı; bağımsız birim testi için kopya). */
+function googleLangCode(code: string): string {
+  const c = code.trim();
+  const i = c.indexOf("-");
+  if (i < 0) return c.toLowerCase();
+  const base = c.slice(0, i).toLowerCase();
+  const sub = c.slice(i + 1);
+  if (sub.length === 4) return `${base}-${sub[0].toUpperCase()}${sub.slice(1).toLowerCase()}`;
+  return `${base}-${sub.toUpperCase()}`;
+}
+
 async function machineTranslate(text: string, target: string): Promise<string | null> {
   if (!text.trim()) return text;
   try {
     const url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&dt=t" +
-      `&tl=${encodeURIComponent(target)}&q=${encodeURIComponent(text)}`;
+      `&tl=${encodeURIComponent(googleLangCode(target))}&q=${encodeURIComponent(text)}`;
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 2500);
     const res = await fetch(url, { signal: ctrl.signal });

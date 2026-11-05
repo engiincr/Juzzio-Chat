@@ -29,35 +29,16 @@ import {
   sha256Hex,
   UUID_RE,
 } from "../_shared/auth.ts";
+import { translateChunked } from "../_shared/translate.ts";
 
-/** Çeviri; başarısızsa null döner (orijinali çeviri gibi göstermemek için). */
+/** Çeviri; başarısızsa null döner (orijinali çeviri gibi göstermemek için).
+ *  v0.9.3: uzun metin parçalara bölünür; sağlayıcı hata metni çeviri sayılmaz. */
 async function translateOrNull(
   text: string,
   sourceLang: string,
   targetLang: string,
 ): Promise<{ text: string; detected: string } | null> {
-  const clean = text.trim();
-  if (!clean) return null;
-  try {
-    const url =
-      `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${encodeURIComponent(sourceLang)}` +
-      `&tl=${encodeURIComponent(targetLang)}&dt=t&q=${encodeURIComponent(clean)}`;
-    const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data) && Array.isArray(data[0])) {
-        const joined = data[0]
-          .map((segment: unknown[]) => (segment && segment[0] ? String(segment[0]) : ""))
-          .join("")
-          .trim();
-        const detected = typeof data[2] === "string" ? String(data[2]).toLowerCase() : sourceLang;
-        if (joined.length > 0) return { text: joined, detected };
-      }
-    }
-  } catch (_) {
-    // başarısız
-  }
-  return null;
+  return await translateChunked(text, sourceLang, targetLang);
 }
 
 const LANG_RE = /^[a-z]{2,3}(-[a-z0-9]{2,4})?$/;
@@ -156,39 +137,9 @@ async function translateFast(text: string, sourceLang: string, targetLang: strin
   const clean = text.trim();
   if (!clean) return "";
   if (sourceLang !== "auto" && sourceLang === targetLang) return clean;
-
-  try {
-    const url =
-      `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${encodeURIComponent(sourceLang)}` +
-      `&tl=${encodeURIComponent(targetLang)}&dt=t&q=${encodeURIComponent(clean)}`;
-    const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data) && Array.isArray(data[0])) {
-        const joined = data[0]
-          .map((segment: unknown[]) => (segment && segment[0] ? String(segment[0]) : ""))
-          .join("")
-          .trim();
-        if (joined.length > 0) return joined;
-      }
-    }
-  } catch (_) {
-    // yedek servise geç
-  }
-
-  try {
-    const pair = `${sourceLang === "auto" ? "tr" : sourceLang}|${targetLang}`;
-    const res = await fetch(
-      `https://api.mymemory.translated.net/get?q=${encodeURIComponent(clean)}&langpair=${encodeURIComponent(pair)}`,
-    );
-    if (res.ok) {
-      const json = await res.json();
-      if (json?.responseData?.translatedText) return String(json.responseData.translatedText);
-    }
-  } catch (_) {
-    // orijinal metni döndür
-  }
-  return clean;
+  // v0.9.3: parçalı çeviri; çevrilemezse orijinal (hata metni ASLA döndürülmez)
+  const r = await translateChunked(clean, sourceLang, targetLang);
+  return r?.text ?? clean;
 }
 
 async function transcribeWithDeepgram(audio: ArrayBuffer, mime: string, lang: string) {

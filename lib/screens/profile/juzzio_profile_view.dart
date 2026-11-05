@@ -95,40 +95,59 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
     }
   }
 
+  /// v0.9.3: ağdan bağımsız, her parça ayrı ayrı ve süre sınırlı yüklenir. İnternet yokken
+  /// cihazdaki son profil + gönderiler HEMEN gösterilir (dönen yükleme simgesinde kalınmaz);
+  /// bağlantı gelince ağ verisi üzerine yazar.
   Future<void> _load() async {
     final social = JuzzioSocialService.instance;
-    try {
-      final results = await Future.wait<Object?>([
-        SupabaseService.instance.fetchUserProfile(widget.userId),
-        social.fetchProfileSocialCounts(widget.userId),
-        social.fetchFeedPosts(authorId: widget.userId, limit: 90),
-        _isOwn ? social.fetchMySavedPosts(limit: 90) : Future<List<JuzzioPost>>.value(const []),
-        _isOwn
-            ? Future<JuzzioRelationship>.value(const JuzzioRelationship())
-            : JuzzioFeaturesService.instance.fetchRelationship(widget.userId),
-      ]);
+    final svc = SupabaseService.instance;
+    // 1) Anında: cihazdaki son hâl
+    if (_profile == null) {
+      final cached = await svc.cachedUserProfile(widget.userId);
       if (!mounted) return;
-      setState(() {
-        _profile = (results[0] as JuzzioUserProfile?) ?? (_isOwn ? widget.currentUser : null);
-        _counts = results[1] as JuzzioProfileSocialCounts;
-        _posts = results[2] as List<JuzzioPost>;
-        _saved = results[3] as List<JuzzioPost>;
-        _relation = results[4] as JuzzioRelationship;
-        _loading = false;
-      });
-      if (_isOwn) {
-        // Arkadaş sayısı kendi profilde de gösterilir
-        final rel = await JuzzioFeaturesService.instance.fetchRelationship(widget.userId);
-        if (mounted) setState(() => _relation = rel);
+      if (cached != null || _isOwn) {
+        setState(() {
+          _profile = cached ?? widget.currentUser;
+          _loading = false;
+        });
       }
-    } catch (_) {
-      // v0.9.2: çevrimdışı → cihazda kayıtlı son profil (gönderiler/sayılar bağlantı gelince yüklenir)
-      final cached = _profile == null ? await SupabaseService.instance.cachedUserProfile(widget.userId) : null;
-      if (!mounted) return;
-      setState(() {
-        _profile ??= cached ?? (_isOwn ? widget.currentUser : null);
-        _loading = false;
-      });
+    }
+    const limit = Duration(seconds: 12);
+    Future<T> safe<T>(Future<T> f, T fallback) async {
+      try {
+        return await f.timeout(limit);
+      } catch (_) {
+        return fallback;
+      }
+    }
+
+    // 2) Ağ: her biri bağımsız; biri başarısız olursa diğerleri yine gösterilir
+    final results = await Future.wait<Object?>([
+      safe<JuzzioUserProfile?>(svc.fetchUserProfile(widget.userId), null),
+      safe<JuzzioProfileSocialCounts?>(social.fetchProfileSocialCounts(widget.userId), null),
+      safe<List<JuzzioPost>?>(social.fetchFeedPosts(authorId: widget.userId, limit: 90), null),
+      _isOwn ? safe<List<JuzzioPost>?>(social.fetchMySavedPosts(limit: 90), null) : Future<List<JuzzioPost>?>.value(const []),
+      _isOwn
+          ? Future<JuzzioRelationship?>.value(const JuzzioRelationship())
+          : safe<JuzzioRelationship?>(JuzzioFeaturesService.instance.fetchRelationship(widget.userId), null),
+    ]);
+    if (!mounted) return;
+    setState(() {
+      _profile = (results[0] as JuzzioUserProfile?) ?? _profile ?? (_isOwn ? widget.currentUser : null);
+      final counts = results[1] as JuzzioProfileSocialCounts?;
+      if (counts != null) _counts = counts;
+      final posts = results[2] as List<JuzzioPost>?;
+      if (posts != null) _posts = posts;
+      final saved = results[3] as List<JuzzioPost>?;
+      if (saved != null) _saved = saved;
+      final rel = results[4] as JuzzioRelationship?;
+      if (rel != null) _relation = rel;
+      _loading = false;
+    });
+    if (_isOwn) {
+      // Arkadaş sayısı kendi profilde de gösterilir
+      final rel = await safe<JuzzioRelationship?>(JuzzioFeaturesService.instance.fetchRelationship(widget.userId), null);
+      if (mounted && rel != null) setState(() => _relation = rel);
     }
   }
 

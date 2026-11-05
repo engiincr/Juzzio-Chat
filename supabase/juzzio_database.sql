@@ -13183,3 +13183,252 @@ BEGIN
         END;
     END IF;
 END $$;
+
+-- =============================================================================
+-- 10.24 v0.9.3 YORUM BİLDİRİMLERİ — yanıt, beğeni, @bahsetme
+--  * Yanıt bildirimi YANITLANAN kişiye gider (reply_to_username; iç içe yanıtta kök yorum
+--    sahibine değil). Önizleme 'reply|<yanıtlanan yorum>|<yanıt>' → istemci
+--    "Engin, '…' yorumunuza '…' yanıtını verdi." yazar.
+--  * Yorum beğenisi → 'comment_like' bildirimi ("Engin '…' yorumunuzu beğendi.").
+--  * Yanıtta yanıtlanan kişi @etiketlenmişse ayrıca "bahsetti" bildirimi gitmez (çift bildirim yok).
+--  * Engelleme ve kendi kendine bildirim her yerde atlanır.
+-- =============================================================================
+ALTER TABLE public.notifications DROP CONSTRAINT IF EXISTS notifications_event_type_check;
+ALTER TABLE public.notifications ADD CONSTRAINT notifications_event_type_check CHECK (event_type = ANY (ARRAY[
+    'like', 'comment', 'reply', 'follow', 'follow_request', 'follow_accepted', 'friend_request',
+    'friend_accepted', 'story_like', 'story_reply', 'message', 'missed_call', 'incoming_call',
+    'group_activity', 'system', 'chick_invite', 'chick_hatched', 'chick_hungry', 'chick_dying',
+    'chick_died', 'reaction', 'save', 'mention', 'reminder', 'comment_like'
+])) NOT VALID;
+
+-- Yanıtlanan kişi: reply_to_username varsa o, yoksa kök yorumun sahibi
+CREATE OR REPLACE FUNCTION public.juzzio_comment_reply_target(p_comment public.post_comments)
+RETURNS UUID LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+    SELECT COALESCE(
+        (SELECT pr.id FROM public.profiles pr
+          WHERE NULLIF(BTRIM(p_comment.reply_to_username), '') IS NOT NULL
+            AND lower(pr.username) = lower(BTRIM(p_comment.reply_to_username)) LIMIT 1),
+        (SELECT c.author_id FROM public.post_comments c WHERE c.id = p_comment.parent_comment_id));
+$$;
+REVOKE ALL ON FUNCTION public.juzzio_comment_reply_target(public.post_comments) FROM PUBLIC, anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.sync_post_comments_count()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_post UUID := COALESCE(NEW.post_id, OLD.post_id);
+    v_target UUID;
+    v_parent RECORD;
+    v_excerpt TEXT := '';
+BEGIN
+    UPDATE public.posts
+    SET comments_count = (SELECT COUNT(*) FROM public.post_comments WHERE post_id = v_post)
+    WHERE id = v_post;
+
+    IF TG_OP = 'INSERT' THEN
+        BEGIN
+            INSERT INTO public.notifications (recipient_id, actor_id, actor_username, actor_display_name, actor_avatar_url,
+                                              event_type, target_id, target_secondary_id, preview_text, media_thumb_url, dedupe_key)
+            SELECT p.author_id, NEW.author_id, NEW.author_username, NEW.author_display_name, NEW.author_avatar_url,
+                   CASE WHEN NEW.parent_comment_id IS NULL THEN 'comment' ELSE 'reply' END,
+                   p.id::text, NEW.id::text, LEFT(NEW.content, 160),
+                   COALESCE(p.cover_url, p.media_urls->>0),
+                   'comment_' || NEW.id::text
+            FROM public.posts p
+            WHERE p.id = NEW.post_id AND p.author_id <> NEW.author_id
+              AND NOT public.is_blocked_between(p.author_id, NEW.author_id)
+            ON CONFLICT (recipient_id, dedupe_key) DO NOTHING;
+
+            IF NEW.parent_comment_id IS NOT NULL THEN
+                v_target := public.juzzio_comment_reply_target(NEW);
+                SELECT author_id, content INTO v_parent FROM public.post_comments WHERE id = NEW.parent_comment_id;
+                -- Yanıtlanan yorumun metni yalnız kök yorum sahibine yanıtta bilinir
+                IF v_parent.author_id = v_target THEN
+                    v_excerpt := LEFT(REGEXP_REPLACE(COALESCE(v_parent.content, ''), '[\s|]+', ' ', 'g'), 80);
+                END IF;
+                IF v_target IS NOT NULL AND v_target <> NEW.author_id
+                   AND NOT public.is_blocked_between(v_target, NEW.author_id) THEN
+                    INSERT INTO public.notifications (recipient_id, actor_id, actor_username, actor_display_name, actor_avatar_url,
+                                                      event_type, target_id, target_secondary_id, preview_text, dedupe_key)
+                    VALUES (v_target, NEW.author_id, NEW.author_username, NEW.author_display_name, NEW.author_avatar_url,
+                            'reply', NEW.post_id::text, NEW.id::text,
+                            'reply|' || v_excerpt || '|' || LEFT(REGEXP_REPLACE(NEW.content, '\s+', ' ', 'g'), 100),
+                            'reply_' || NEW.id::text)
+                    ON CONFLICT (recipient_id, dedupe_key) DO NOTHING;
+                END IF;
+            END IF;
+        EXCEPTION WHEN OTHERS THEN NULL;
+        END;
+    END IF;
+    RETURN COALESCE(NEW, OLD);
+END;
+$$;
+
+-- Etiket işleyici: atlanacak kullanıcı (yanıt bildirimini zaten alan kişi) desteği
+CREATE OR REPLACE FUNCTION public.juzzio_process_mentions(
+    p_type TEXT, p_content UUID, p_post UUID, p_author UUID, p_text TEXT, p_visibility_owner UUID, p_visibility TEXT, p_skip UUID
+)
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_name TEXT;
+    v_target UUID;
+    v_actor RECORD;
+    v_n INTEGER := 0;
+    v_visible BOOLEAN;
+BEGIN
+    SELECT username, display_name, avatar_url INTO v_actor FROM public.profiles WHERE id = p_author;
+    FOREACH v_name IN ARRAY public.juzzio_extract_mentions(p_text) LOOP
+        SELECT id INTO v_target FROM public.profiles WHERE lower(username) = v_name LIMIT 1;
+        CONTINUE WHEN v_target IS NULL OR NOT public.juzzio_can_mention(p_author, v_target);
+        v_visible := CASE p_type
+            WHEN 'story' THEN public.can_view_story(v_target, p_visibility_owner, p_visibility)
+            ELSE public.can_view_user_content(v_target, p_visibility_owner, p_visibility) END;
+        CONTINUE WHEN NOT COALESCE(v_visible, false);
+        INSERT INTO public.content_mentions (content_type, content_id, post_id, author_id, mentioned_user_id)
+        VALUES (p_type, p_content, p_post, p_author, v_target)
+        ON CONFLICT (content_type, content_id, mentioned_user_id) DO NOTHING;
+        CONTINUE WHEN NOT FOUND;
+        v_n := v_n + 1;
+        CONTINUE WHEN v_target IS NOT DISTINCT FROM p_skip; -- yanıt bildirimi zaten gidiyor
+        CONTINUE WHEN NOT public.juzzio_rate_check(p_author, 'mention_notify', 60, 3600);
+        INSERT INTO public.notifications (
+            recipient_id, actor_id, actor_username, actor_display_name, actor_avatar_url,
+            event_type, target_id, target_secondary_id, preview_text, dedupe_key
+        ) VALUES (
+            v_target, p_author, COALESCE(v_actor.username, ''),
+            COALESCE(NULLIF(v_actor.display_name, ''), v_actor.username, 'Juzzio'), v_actor.avatar_url,
+            'mention', COALESCE(p_post, p_content)::text, p_content::text,
+            p_type || '|' || LEFT(REGEXP_REPLACE(COALESCE(p_text, ''), '\s+', ' ', 'g'), 120),
+            'mention_' || p_type || '_' || p_content::text || '_' || v_target::text
+        )
+        ON CONFLICT (recipient_id, dedupe_key) DO NOTHING;
+    END LOOP;
+    RETURN v_n;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.juzzio_process_mentions(TEXT, UUID, UUID, UUID, TEXT, UUID, TEXT, UUID) FROM PUBLIC, anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.juzzio_process_mentions(
+    p_type TEXT, p_content UUID, p_post UUID, p_author UUID, p_text TEXT, p_visibility_owner UUID, p_visibility TEXT
+)
+RETURNS INTEGER LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+    SELECT public.juzzio_process_mentions(p_type, p_content, p_post, p_author, p_text, p_visibility_owner, p_visibility, NULL::uuid);
+$$;
+REVOKE ALL ON FUNCTION public.juzzio_process_mentions(TEXT, UUID, UUID, UUID, TEXT, UUID, TEXT) FROM PUBLIC, anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.juzzio_mentions_on_comment()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+    v_post RECORD;
+    v_skip UUID;
+BEGIN
+    IF TG_OP = 'UPDATE' AND NEW.content IS NOT DISTINCT FROM OLD.content THEN RETURN NEW; END IF;
+    SELECT author_id, visibility, is_deleted INTO v_post FROM public.posts WHERE id = NEW.post_id;
+    IF v_post.author_id IS NULL OR v_post.is_deleted THEN RETURN NEW; END IF;
+    IF TG_OP = 'INSERT' AND NEW.parent_comment_id IS NOT NULL THEN
+        v_skip := public.juzzio_comment_reply_target(NEW);
+    END IF;
+    PERFORM public.juzzio_process_mentions('comment', NEW.id, NEW.post_id, NEW.author_id, NEW.content, v_post.author_id, v_post.visibility, v_skip);
+    RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+    RETURN NEW;
+END $$;
+
+-- Yorum beğenisi bildirimi (sayaç tetikleyicisinden bağımsız)
+CREATE OR REPLACE FUNCTION public.juzzio_notify_comment_like()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+    c RECORD;
+    a RECORD;
+BEGIN
+    SELECT id, post_id, author_id, content INTO c FROM public.post_comments WHERE id = NEW.comment_id;
+    IF c.author_id IS NULL OR c.author_id = NEW.user_id OR public.is_blocked_between(c.author_id, NEW.user_id) THEN
+        RETURN NEW;
+    END IF;
+    SELECT username, display_name, avatar_url INTO a FROM public.profiles WHERE id = NEW.user_id;
+    INSERT INTO public.notifications (recipient_id, actor_id, actor_username, actor_display_name, actor_avatar_url,
+                                      event_type, target_id, target_secondary_id, preview_text, dedupe_key)
+    VALUES (c.author_id, NEW.user_id, COALESCE(a.username, ''), COALESCE(NULLIF(a.display_name, ''), a.username, 'Juzzio'), a.avatar_url,
+            'comment_like', c.post_id::text, c.id::text, LEFT(REGEXP_REPLACE(c.content, '\s+', ' ', 'g'), 100),
+            'comment_like_' || c.id::text || '_' || NEW.user_id::text)
+    ON CONFLICT (recipient_id, dedupe_key) DO NOTHING;
+    RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+    RETURN NEW;
+END $$;
+DROP TRIGGER IF EXISTS trg_juzzio_notify_comment_like ON public.comment_likes;
+CREATE TRIGGER trg_juzzio_notify_comment_like AFTER INSERT ON public.comment_likes
+    FOR EACH ROW EXECUTE FUNCTION public.juzzio_notify_comment_like();
+
+-- =============================================================================
+-- 10.25 v0.9.3 — "Juzzio Official" hikâyeleri (Admin → Juzzio Story paneli)
+--  • Yalnızca yönetici (@tugkancr) RPC ile paylaşır; visibility='everyone' → arkadaşlık gerekmez.
+--  • is_official istemciden doğrudan yazılamaz (tetikleyici zorla false yapar; yalnız RPC içinde true).
+-- =============================================================================
+ALTER TABLE public.stories ADD COLUMN IF NOT EXISTS is_official BOOLEAN NOT NULL DEFAULT false;
+CREATE INDEX IF NOT EXISTS stories_official_idx ON public.stories (created_at DESC) WHERE is_official;
+
+CREATE OR REPLACE FUNCTION public.juzzio_guard_official_story()
+RETURNS TRIGGER LANGUAGE plpgsql SET search_path = public AS $$
+BEGIN
+    IF COALESCE(current_setting('juzzio.official_story', true), '') <> '1' THEN
+        IF TG_OP = 'INSERT' THEN
+            NEW.is_official := false;
+        ELSE
+            NEW.is_official := OLD.is_official;
+        END IF;
+    ELSIF TG_OP = 'INSERT' AND NEW.is_official THEN
+        -- trg_fill_story_identity (alfabetik olarak önce çalışır) adı ve süreyi profilden ezer; burada geri yazılır
+        NEW.display_name := 'Juzzio Official';
+        NEW.expires_at := COALESCE(NULLIF(current_setting('juzzio.official_expires', true), '')::timestamptz, NEW.expires_at);
+    END IF;
+    RETURN NEW;
+END $$;
+DROP TRIGGER IF EXISTS trg_juzzio_guard_official_story ON public.stories;
+CREATE TRIGGER trg_juzzio_guard_official_story BEFORE INSERT OR UPDATE ON public.stories
+    FOR EACH ROW EXECUTE FUNCTION public.juzzio_guard_official_story();
+
+CREATE OR REPLACE FUNCTION public.admin_post_official_story(
+    p_media_type TEXT, p_media_url TEXT, p_caption TEXT DEFAULT '', p_video_duration_sec INTEGER DEFAULT 15,
+    p_hours INTEGER DEFAULT 24)
+RETURNS UUID LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+    v_uid UUID := auth.uid();
+    v_id UUID;
+    v_p RECORD;
+BEGIN
+    IF v_uid IS NULL OR NOT public.is_juzzio_admin(v_uid) THEN RAISE EXCEPTION 'not_allowed' USING ERRCODE = '42501'; END IF;
+    IF p_media_type NOT IN ('image', 'video') THEN RAISE EXCEPTION 'invalid_media_type' USING ERRCODE = '22023'; END IF;
+    IF COALESCE(BTRIM(p_media_url), '') = '' OR p_media_url !~* '^https://' THEN RAISE EXCEPTION 'invalid_media_url' USING ERRCODE = '22023'; END IF;
+    SELECT username, avatar_url INTO v_p FROM public.profiles WHERE id = v_uid;
+    PERFORM set_config('juzzio.official_story', '1', true);
+    PERFORM set_config('juzzio.official_expires', (NOW() + make_interval(hours => LEAST(GREATEST(COALESCE(p_hours, 24), 1), 168)))::text, true);
+    INSERT INTO public.stories (user_id, username, display_name, user_avatar, media_type, media_url, caption_original,
+                                video_duration_sec, visibility, is_official, expires_at)
+    VALUES (v_uid, COALESCE(v_p.username, 'tugkancr'), 'Juzzio Official', v_p.avatar_url, p_media_type, BTRIM(p_media_url),
+            LEFT(COALESCE(p_caption, ''), 500), LEAST(GREATEST(COALESCE(p_video_duration_sec, 15), 3), 60), 'everyone', true,
+            NOW() + make_interval(hours => LEAST(GREATEST(COALESCE(p_hours, 24), 1), 168)))
+    RETURNING id INTO v_id;
+    PERFORM set_config('juzzio.official_story', '', true);
+    PERFORM set_config('juzzio.official_expires', '', true);
+    RETURN v_id;
+END $$;
+REVOKE ALL ON FUNCTION public.admin_post_official_story(TEXT, TEXT, TEXT, INTEGER, INTEGER) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_post_official_story(TEXT, TEXT, TEXT, INTEGER, INTEGER) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.admin_delete_official_story(p_story UUID)
+RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+    IF auth.uid() IS NULL OR NOT public.is_juzzio_admin(auth.uid()) THEN RAISE EXCEPTION 'not_allowed' USING ERRCODE = '42501'; END IF;
+    DELETE FROM public.stories WHERE id = p_story AND is_official;
+    RETURN FOUND;
+END $$;
+REVOKE ALL ON FUNCTION public.admin_delete_official_story(UUID) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_delete_official_story(UUID) TO authenticated;

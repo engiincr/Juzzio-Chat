@@ -1,6 +1,6 @@
 # Juzzio Gizlilik Politikası ve KVKK Aydınlatma Metni
 
-Son güncelleme: 2 Kasım 2026 · Uygulama sürümü: v0.9.2 (BETA · Erken Erişim)
+Son güncelleme: 6 Kasım 2026 · Uygulama sürümü: v0.9.3 (BETA · Erken Erişim)
 
 Bu metin, Juzzio mobil uygulamasının hangi kişisel verileri hangi amaçla işlediğini, kimlerle paylaştığını ve haklarınızı **olduğu gibi** açıklar. Uygulamanın kaynak kodu GitHub'da açıktır; buradaki her ifade koddan doğrulanabilir.
 
@@ -46,6 +46,11 @@ Bu metin, Juzzio mobil uygulamasının hangi kişisel verileri hangi amaçla iş
 
 - Hesabınıza bağlanan cihazlar, cihaz kimliğinin yalnızca son 6 hanesi ile size gösterilir; yeni cihaz girişi, cihaz kaldırma ve şifreleme anahtarı değişimi sunucu tarafından **güvenlik olayı** olarak kaydedilir. Bu kayıtları yalnızca siz görebilirsiniz; uygulama (istemci) bu kayıtları yazamaz veya değiştiremez.
 - Kayıtlar hesabınız silindiğinde silinir.
+
+## 4d. Bildirim çevirisi ve güzelleştirme (v0.9.3)
+
+- Gelen mesaj bildirimleri uygulama dilinize çevrilir. Uçtan uca şifreli mesajlarda metin önce **cihazınızda** çözülür; çeviri, sohbet içi çeviride olduğu gibi çeviri hizmetine (Google Çeviri) yalnızca o metin gönderilerek yapılır. Ayarlar → Bildirimler'den bildirim önizlemesini kapatırsanız içerik gösterilmez ve çevrilmez.
+- Görüntülü arama ve hikâye fotoğraflarındaki güzelleştirme tamamen **cihazda** uygulanır; yüz verisi çıkarılmaz, saklanmaz veya gönderilmez.
 
 ## 4c. Cihazdaki çevrimdışı önbellek (v0.9.2)
 

@@ -31,10 +31,12 @@ import 'package:livekit_client/livekit_client.dart';
 import '../core/app_theme_and_locale.dart';
 import '../core/config.dart';
 import '../services/deepgram_livekit_service.dart';
+import '../services/juzzio_call_session.dart';
 import '../services/juzzio_features_service.dart';
 import '../services/supabase_service.dart';
 import '../core/theme/juzzio_colors.dart';
 import '../core/theme/juzzio_glass.dart';
+import '../widgets/juzzio_beauty_sheet.dart';
 
 /// Arama sırasında üstte görünen kısa süreli uyarı (ağ yavaş, pil azaldı)
 class _CallAlert {
@@ -184,6 +186,12 @@ class _CallScreenState extends State<CallScreen> {
     _controller.onRemoteBatteryLow = _handleRemoteBatteryLow;
     _controller.addListener(_onControllerUpdate);
     _startBatteryMonitor();
+    // v0.9.3: küçük pencere / PiP görüntüsü ve bildirimden kapatma için oturuma kaydol
+    final session = JuzzioCallSession.instance;
+    if (session.isActive) {
+      session.controller = _controller;
+      session.hangUp = _hangUpAndCloseForEveryone;
+    }
 
     // v0.7.0: Aynı dili konuşanlar (ör. iki Türk) arasında çeviri paneli açılmaz;
     // yalnızca farklı dilde bir katılımcı odaya bağlandığında otomatik açılır.
@@ -384,7 +392,7 @@ class _CallScreenState extends State<CallScreen> {
     ScaffoldMessenger.maybeOf(context)?.showSnackBar(
       SnackBar(content: Text(reason), backgroundColor: JuzzioColors.deepForest),
     );
-    Navigator.of(context).pop();
+    _closeCallUi();
   }
 
   Future<void> _handleRemotePeerEndedCall() async {
@@ -404,7 +412,17 @@ class _CallScreenState extends State<CallScreen> {
     }
     await _controller.disconnectCall();
     if (!mounted) return;
-    Navigator.of(context).pop();
+    _closeCallUi();
+  }
+
+  /// v0.9.3: arama bitti → ekran kapanır (katmanda barındırılıyorsa oturum biter).
+  void _closeCallUi() {
+    final session = JuzzioCallSession.instance;
+    if (session.isActive) {
+      session.finish();
+    } else if (mounted) {
+      Navigator.of(context).pop();
+    }
   }
 
   /// v0.6: kendi görüntümüz/konuşmamız uygunsuz bulundu → arama herkes için kapatılır,
@@ -588,7 +606,7 @@ class _CallScreenState extends State<CallScreen> {
     }
     await _controller.disconnectCall();
     if (mounted) {
-      Navigator.of(context).pop();
+      _closeCallUi();
     }
   }
 
@@ -1914,6 +1932,31 @@ class _CallScreenState extends State<CallScreen> {
       crossAxisAlignment: CrossAxisAlignment.center,
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
+        // v0.9.3: aramayı küçült (arama sürer; sohbetlere gidilebilir)
+        if (JuzzioCallSession.instance.isActive)
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: Semantics(
+              button: true,
+              label: _app.loc('Aramayı küçült', 'Minimize call', 'Anruf minimieren'),
+              child: ClipOval(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: JuzzioGlassTokens.blurNavigation, sigmaY: JuzzioGlassTokens.blurNavigation),
+                  child: Material(
+                    color: _callGlassTint(0.38),
+                    child: InkWell(
+                      onTap: JuzzioCallSession.instance.minimize,
+                      child: const SizedBox(
+                        width: 40,
+                        height: 40,
+                        child: Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white, size: 26),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
         Expanded(
           child: ClipRRect(
             borderRadius: BorderRadius.circular(999),
@@ -2000,7 +2043,7 @@ class _CallScreenState extends State<CallScreen> {
                 iconColor: _controller.isBeautyOn ? const Color(0xFF111113) : Colors.white,
                 active: _controller.isBeautyOn,
                 tooltip: _app.loc('Güzelleştirme', 'Beauty', 'Verschönerung'),
-                onTap: _toggleBeauty,
+                onTap: _openBeautySheet,
               ),
               const SizedBox(width: 6),
             ],
@@ -2407,25 +2450,19 @@ class _CallScreenState extends State<CallScreen> {
     );
   }
 
-  /// Güzelleştirme: tek dokunuşla aç/kapat (doğal mod, görüntüyü bulanıklaştırmaz)
-  Future<void> _toggleBeauty() async {
-    final ok = await _controller.toggleBeauty();
-    _app.setCameraBeautyEnabled(_controller.isBeautyOn);
-    if (!mounted) return;
-    setState(() {});
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    messenger?.hideCurrentSnackBar();
-    messenger?.showSnackBar(SnackBar(
-      duration: const Duration(milliseconds: 1400),
-      content: Text(
-        !ok && _controller.isBeautyOn
-            ? _app.loc('Güzelleştirme kamera açıldığında uygulanacak.', 'The filter will apply once the camera is on.',
-                'Der Filter wird angewendet, sobald die Kamera an ist.')
-            : (_controller.isBeautyOn
-                ? _app.loc('Güzelleştirme açık', 'Beauty on', 'Verschönerung an')
-                : _app.loc('Güzelleştirme kapalı', 'Beauty off', 'Verschönerung aus')),
-      ),
-    ));
+  /// v0.9.3: güzelleştirme sayfası — aç/kapat ve yoğunluk (karşı tarafa giden görüntüye canlı uygulanır)
+  Future<void> _openBeautySheet() async {
+    await showJuzzioBeautySheet(
+      context,
+      enabled: _controller.isBeautyOn,
+      level: _app.beautyLevel,
+      onChanged: (on, level) async {
+        _app.setBeautyLevel(level);
+        _app.setCameraBeautyEnabled(on);
+        await _controller.setBeautyLevel(on ? level : 0);
+        if (mounted) setState(() {});
+      },
+    );
   }
 
   Widget _bottomCircleBtn({

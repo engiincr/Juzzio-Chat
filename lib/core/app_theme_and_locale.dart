@@ -40,6 +40,17 @@ class JuzzioLanguageOption {
 }
 
 /// 142 Farklı Dünya Dili (139+ Dil Altyapısı)
+/// v0.9.3: uygulama kodunu Google Çeviri biçimine çevirir (zh-tw → zh-TW, pa-arab → pa-Arab, pt-pt → pt-PT).
+String juzzioGoogleLangCode(String code) {
+  final c = code.trim();
+  final i = c.indexOf('-');
+  if (i < 0) return c.toLowerCase();
+  final base = c.substring(0, i).toLowerCase();
+  final sub = c.substring(i + 1);
+  if (sub.length == 4) return '$base-${sub[0].toUpperCase()}${sub.substring(1).toLowerCase()}';
+  return '$base-${sub.toUpperCase()}';
+}
+
 const List<JuzzioLanguageOption> kJuzzioSupportedLanguages = [
   JuzzioLanguageOption(code: 'tr', nativeName: 'Türkçe', turkishName: 'Türkçe', flag: '🇹🇷'),
   JuzzioLanguageOption(code: 'en', nativeName: 'English', turkishName: 'İngilizce', flag: '🇬🇧'),
@@ -120,7 +131,7 @@ const List<JuzzioLanguageOption> kJuzzioSupportedLanguages = [
   JuzzioLanguageOption(code: 'so', nativeName: 'Soomaali', turkishName: 'Somalice', flag: '🇸🇴'),
   JuzzioLanguageOption(code: 'rw', nativeName: 'Kinyarwanda', turkishName: 'Kinyarwanda', flag: '🇷🇼'),
   JuzzioLanguageOption(code: 'mg', nativeName: 'Malagasy', turkishName: 'Malgaşça', flag: '🇲🇬'),
-  JuzzioLanguageOption(code: 'SN', nativeName: 'ChiShona', turkishName: 'Şonaca', flag: '🇿🇼'),
+  JuzzioLanguageOption(code: 'sn', nativeName: 'ChiShona', turkishName: 'Şonaca', flag: '🇿🇼'),
   JuzzioLanguageOption(code: 'ny', nativeName: 'Chichewa', turkishName: 'Çiçevaca', flag: '🇲🇼'),
   JuzzioLanguageOption(code: 'st', nativeName: 'Sesotho', turkishName: 'Sothoca', flag: '🇱🇸'),
   JuzzioLanguageOption(code: 'tn', nativeName: 'Setswana', turkishName: 'Tsvanaca', flag: '🇧🇼'),
@@ -133,7 +144,7 @@ const List<JuzzioLanguageOption> kJuzzioSupportedLanguages = [
   JuzzioLanguageOption(code: 'ff', nativeName: 'Fulfulde', turkishName: 'Fulani', flag: '🇸🇳'),
   JuzzioLanguageOption(code: 'ln', nativeName: 'Lingála', turkishName: 'Lingala', flag: '🇨🇩'),
   JuzzioLanguageOption(code: 'kg', nativeName: 'Kikongo', turkishName: 'Kongoca', flag: '🇨🇬'),
-  JuzzioLanguageOption(code: 'RN', nativeName: 'Ikirundi', turkishName: 'Kirundi', flag: '🇧🇮'),
+  JuzzioLanguageOption(code: 'rn', nativeName: 'Ikirundi', turkishName: 'Kirundi', flag: '🇧🇮'),
   JuzzioLanguageOption(code: 'om', nativeName: 'Afaan Oromoo', turkishName: 'Oromca', flag: '🇪🇹'),
   JuzzioLanguageOption(code: 'ti', nativeName: 'ትግርኛ', turkishName: 'Tigrinya', flag: '🇪🇷'),
   JuzzioLanguageOption(code: 'ku', nativeName: 'Kurdî (Kurmancî)', turkishName: 'Kürtçe (Kurmanci)', flag: '🌐'),
@@ -147,7 +158,7 @@ const List<JuzzioLanguageOption> kJuzzioSupportedLanguages = [
   JuzzioLanguageOption(code: 'gl', nativeName: 'Galego', turkishName: 'Galiçyaca', flag: '🇪🇸'),
   JuzzioLanguageOption(code: 'cy', nativeName: 'Cymraeg', turkishName: 'Galce', flag: '🏴󠁧󠁢󠁷󠁬󠁳󠁿'),
   JuzzioLanguageOption(code: 'ga', nativeName: 'Gaeilge', turkishName: 'İrlandaca', flag: '🇮🇪'),
-  JuzzioLanguageOption(code: 'gd', nativeName: 'Gàidhlig', turkishName: 'İskoç گالcesi', flag: '🏴󠁧󠁢󠁳󠁣󠁴󠁿'),
+  JuzzioLanguageOption(code: 'gd', nativeName: 'Gàidhlig', turkishName: 'İskoç Galcesi', flag: '🏴󠁧󠁢󠁳󠁣󠁴󠁿'),
   JuzzioLanguageOption(code: 'mt', nativeName: 'Malti', turkishName: 'Maltaca', flag: '🇲🇹'),
   JuzzioLanguageOption(code: 'lb', nativeName: 'Lëtzebuergesch', turkishName: 'Lüksemburgca', flag: '🇱🇺'),
   JuzzioLanguageOption(code: 'fy', nativeName: 'Frysk', turkishName: 'Frizce', flag: '🇳🇱'),
@@ -185,6 +196,87 @@ const List<JuzzioLanguageOption> kJuzzioSupportedLanguages = [
   JuzzioLanguageOption(code: 'ba', nativeName: 'Башҡортса', turkishName: 'Başkurtça', flag: '🌐'),
   JuzzioLanguageOption(code: 'cv', nativeName: 'Чӑвашла', turkishName: 'Çuvaşça', flag: '🌐'),
   JuzzioLanguageOption(code: 'ce', nativeName: 'Нохчийн', turkishName: 'Çeçence', flag: '🌐'),
+  // v0.9.3: Google Çeviri'nin desteklediği ek diller (toplam 220+)
+  JuzzioLanguageOption(code: 'yue', nativeName: '粵語', turkishName: 'Kantonca', flag: '🇭🇰'),
+  JuzzioLanguageOption(code: 'pt-pt', nativeName: 'Português (Portugal)', turkishName: 'Portekizce (Portekiz)', flag: '🇵🇹'),
+  JuzzioLanguageOption(code: 'fa-af', nativeName: 'دری', turkishName: 'Darice', flag: '🇦🇫'),
+  JuzzioLanguageOption(code: 'pa-arab', nativeName: 'پنجابی (شاہ مکھی)', turkishName: 'Pencapça (Şahmukhi)', flag: '🇵🇰'),
+  JuzzioLanguageOption(code: 'bal', nativeName: 'بلوچی', turkishName: 'Beluçça', flag: '🇵🇰'),
+  JuzzioLanguageOption(code: 'hmn', nativeName: 'Hmoob', turkishName: 'Hmongca', flag: '🌐'),
+  JuzzioLanguageOption(code: 'gom', nativeName: 'कोंकणी', turkishName: 'Konkanice', flag: '🇮🇳'),
+  JuzzioLanguageOption(code: 'doi', nativeName: 'डोगरी', turkishName: 'Dogrice', flag: '🇮🇳'),
+  JuzzioLanguageOption(code: 'bho', nativeName: 'भोजपुरी', turkishName: 'Bhojpurice', flag: '🇮🇳'),
+  JuzzioLanguageOption(code: 'awa', nativeName: 'अवधी', turkishName: 'Avadhice', flag: '🇮🇳'),
+  JuzzioLanguageOption(code: 'mwr', nativeName: 'मारवाड़ी', turkishName: 'Marvarice', flag: '🇮🇳'),
+  JuzzioLanguageOption(code: 'tcy', nativeName: 'ತುಳು', turkishName: 'Tuluca', flag: '🇮🇳'),
+  JuzzioLanguageOption(code: 'lus', nativeName: 'Mizo ṭawng', turkishName: 'Mizoca', flag: '🇮🇳'),
+  JuzzioLanguageOption(code: 'kri', nativeName: 'Krio', turkishName: 'Krio', flag: '🇸🇱'),
+  JuzzioLanguageOption(code: 'nso', nativeName: 'Sesotho sa Leboa', turkishName: 'Kuzey Sotho', flag: '🇿🇦'),
+  JuzzioLanguageOption(code: 'ee', nativeName: 'Eʋegbe', turkishName: 'Ewece', flag: '🇬🇭'),
+  JuzzioLanguageOption(code: 'ak', nativeName: 'Twi', turkishName: 'Twi (Akan)', flag: '🇬🇭'),
+  JuzzioLanguageOption(code: 'gaa', nativeName: 'Gã', turkishName: 'Ga dili', flag: '🇬🇭'),
+  JuzzioLanguageOption(code: 'lg', nativeName: 'Luganda', turkishName: 'Luganda', flag: '🇺🇬'),
+  JuzzioLanguageOption(code: 'ach', nativeName: 'Acholi', turkishName: 'Açolice', flag: '🇺🇬'),
+  JuzzioLanguageOption(code: 'cgg', nativeName: 'Rukiga', turkishName: 'Kigaca', flag: '🇺🇬'),
+  JuzzioLanguageOption(code: 'luo', nativeName: 'Dholuo', turkishName: 'Luoca', flag: '🇰🇪'),
+  JuzzioLanguageOption(code: 'tum', nativeName: 'ChiTumbuka', turkishName: 'Tumbukaca', flag: '🇲🇼'),
+  JuzzioLanguageOption(code: 'bem', nativeName: 'Ichibemba', turkishName: 'Bembaca', flag: '🇿🇲'),
+  JuzzioLanguageOption(code: 'fon', nativeName: 'Fɔ̀ngbè', turkishName: 'Fon dili', flag: '🇧🇯'),
+  JuzzioLanguageOption(code: 'din', nativeName: 'Thuɔŋjäŋ', turkishName: 'Dinkaca', flag: '🇸🇸'),
+  JuzzioLanguageOption(code: 'nus', nativeName: 'Thok Naath', turkishName: 'Nuerce', flag: '🇸🇸'),
+  JuzzioLanguageOption(code: 'tiv', nativeName: 'Tiv', turkishName: 'Tiv dili', flag: '🇳🇬'),
+  JuzzioLanguageOption(code: 'efi', nativeName: 'Efik', turkishName: 'Efikçe', flag: '🇳🇬'),
+  JuzzioLanguageOption(code: 'kr', nativeName: 'Kanuri', turkishName: 'Kanurice', flag: '🇳🇬'),
+  JuzzioLanguageOption(code: 'dyu', nativeName: 'Jula', turkishName: 'Diyulaca', flag: '🇨🇮'),
+  JuzzioLanguageOption(code: 'crs', nativeName: 'Kreol Seselwa', turkishName: 'Seyşel Kreolü', flag: '🇸🇨'),
+  JuzzioLanguageOption(code: 'mfe', nativeName: 'Kreol Morisien', turkishName: 'Morisyen', flag: '🇲🇺'),
+  JuzzioLanguageOption(code: 'pap', nativeName: 'Papiamentu', turkishName: 'Papiamento', flag: '🇨🇼'),
+  JuzzioLanguageOption(code: 'jam', nativeName: 'Patwa', turkishName: 'Jamaika Kreolü', flag: '🇯🇲'),
+  JuzzioLanguageOption(code: 'tpi', nativeName: 'Tok Pisin', turkishName: 'Tok Pisin', flag: '🇵🇬'),
+  JuzzioLanguageOption(code: 'tet', nativeName: 'Tetun', turkishName: 'Tetumca', flag: '🇹🇱'),
+  JuzzioLanguageOption(code: 'ty', nativeName: 'Reo Tahiti', turkishName: 'Tahitice', flag: '🇵🇫'),
+  JuzzioLanguageOption(code: 'mh', nativeName: 'Kajin M̧ajeļ', turkishName: 'Marşalca', flag: '🇲🇭'),
+  JuzzioLanguageOption(code: 'ch', nativeName: 'Chamoru', turkishName: 'Çamorro', flag: '🇬🇺'),
+  JuzzioLanguageOption(code: 'war', nativeName: 'Winaray', turkishName: 'Varayca', flag: '🇵🇭'),
+  JuzzioLanguageOption(code: 'hil', nativeName: 'Ilonggo', turkishName: 'Hiligaynonca', flag: '🇵🇭'),
+  JuzzioLanguageOption(code: 'pam', nativeName: 'Kapampangan', turkishName: 'Kapampanganca', flag: '🇵🇭'),
+  JuzzioLanguageOption(code: 'bik', nativeName: 'Bikol', turkishName: 'Bikolca', flag: '🇵🇭'),
+  JuzzioLanguageOption(code: 'pag', nativeName: 'Pangasinan', turkishName: 'Pangasinanca', flag: '🇵🇭'),
+  JuzzioLanguageOption(code: 'ace', nativeName: 'Bahsa Acèh', turkishName: 'Açece', flag: '🇮🇩'),
+  JuzzioLanguageOption(code: 'ban', nativeName: 'Basa Bali', turkishName: 'Balice', flag: '🇮🇩'),
+  JuzzioLanguageOption(code: 'min', nativeName: 'Baso Minang', turkishName: 'Minangkabauca', flag: '🇮🇩'),
+  JuzzioLanguageOption(code: 'mak', nativeName: 'Basa Mangkasara', turkishName: 'Makassarca', flag: '🇮🇩'),
+  JuzzioLanguageOption(code: 'bew', nativeName: 'Betawi', turkishName: 'Betavice', flag: '🇮🇩'),
+  JuzzioLanguageOption(code: 'iba', nativeName: 'Jaku Iban', turkishName: 'İbanca', flag: '🇲🇾'),
+  JuzzioLanguageOption(code: 'shn', nativeName: 'လိၵ်ႈတႆး', turkishName: 'Şanca', flag: '🇲🇲'),
+  JuzzioLanguageOption(code: 'kac', nativeName: 'Jinghpaw', turkishName: 'Kaçince', flag: '🇲🇲'),
+  JuzzioLanguageOption(code: 'cnh', nativeName: 'Laiholh', turkishName: 'Hakha Çin dili', flag: '🇲🇲'),
+  JuzzioLanguageOption(code: 'ltg', nativeName: 'Latgalīšu', turkishName: 'Latgalce', flag: '🇱🇻'),
+  JuzzioLanguageOption(code: 'szl', nativeName: 'Ślōnski', turkishName: 'Silezyaca', flag: '🇵🇱'),
+  JuzzioLanguageOption(code: 'li', nativeName: 'Limburgs', turkishName: 'Limburgca', flag: '🇳🇱'),
+  JuzzioLanguageOption(code: 'lmo', nativeName: 'Lombard', turkishName: 'Lombardça', flag: '🇮🇹'),
+  JuzzioLanguageOption(code: 'lij', nativeName: 'Ligure', turkishName: 'Ligurca', flag: '🇮🇹'),
+  JuzzioLanguageOption(code: 'vec', nativeName: 'Vèneto', turkishName: 'Venedikçe', flag: '🇮🇹'),
+  JuzzioLanguageOption(code: 'scn', nativeName: 'Sicilianu', turkishName: 'Sicilyaca', flag: '🇮🇹'),
+  JuzzioLanguageOption(code: 'fur', nativeName: 'Furlan', turkishName: 'Friulice', flag: '🇮🇹'),
+  JuzzioLanguageOption(code: 'gv', nativeName: 'Gaelg', turkishName: 'Mankça', flag: '🇮🇲'),
+  JuzzioLanguageOption(code: 'kw', nativeName: 'Kernewek', turkishName: 'Kernevekçe', flag: '🏴'),
+  JuzzioLanguageOption(code: 'crh', nativeName: 'Qırımtatar tili', turkishName: 'Kırım Tatarcası', flag: '🇺🇦'),
+  JuzzioLanguageOption(code: 'sah', nativeName: 'Саха тыла', turkishName: 'Yakutça', flag: '🇷🇺'),
+  JuzzioLanguageOption(code: 'os', nativeName: 'Ирон', turkishName: 'Osetçe', flag: '🌐'),
+  JuzzioLanguageOption(code: 'udm', nativeName: 'Удмурт', turkishName: 'Udmurtça', flag: '🇷🇺'),
+  JuzzioLanguageOption(code: 'chm', nativeName: 'Марий', turkishName: 'Marice', flag: '🇷🇺'),
+  JuzzioLanguageOption(code: 'tyv', nativeName: 'Тыва', turkishName: 'Tuvaca', flag: '🇷🇺'),
+  JuzzioLanguageOption(code: 'bua', nativeName: 'Буряад', turkishName: 'Buryatça', flag: '🇷🇺'),
+  JuzzioLanguageOption(code: 'kv', nativeName: 'Коми', turkishName: 'Komice', flag: '🇷🇺'),
+  JuzzioLanguageOption(code: 'av', nativeName: 'Авар', turkishName: 'Avarca', flag: '🇷🇺'),
+  JuzzioLanguageOption(code: 'ab', nativeName: 'Аԥсуа', turkishName: 'Abhazca', flag: '🌐'),
+  JuzzioLanguageOption(code: 'iu', nativeName: 'ᐃᓄᒃᑎᑐᑦ', turkishName: 'İnuitçe', flag: '🇨🇦'),
+  JuzzioLanguageOption(code: 'yua', nativeName: "Maaya t'aan", turkishName: 'Yukatek Mayacası', flag: '🇲🇽'),
+  JuzzioLanguageOption(code: 'nhe', nativeName: 'Nāhuatl', turkishName: 'Nahuatlca', flag: '🇲🇽'),
+  JuzzioLanguageOption(code: 'zap', nativeName: 'Diidxazá', turkishName: 'Zapotekçe', flag: '🇲🇽'),
+  JuzzioLanguageOption(code: 'kek', nativeName: "Q'eqchi'", turkishName: 'Kekçice', flag: '🇬🇹'),
+  JuzzioLanguageOption(code: 'mam', nativeName: 'Mam', turkishName: 'Mam dili', flag: '🇬🇹'),
 ];
 
 class JuzzioChatThemePreset {
@@ -350,6 +442,9 @@ class JuzzioAppController extends ChangeNotifier {
   /// Gizlilik/bildirim tercihleri kaydedildiğinde Supabase profiline de yansıtılması için
   /// (SupabaseService tarafından atanır; döngüsel bağımlılığı önler).
   static void Function(Map<String, dynamic> prefs)? remotePreferenceSync;
+
+  /// v0.9.3: uygulama dili değişince (bildirim eylem metinleri vb. için) çağrılır.
+  static void Function(String lang)? onUiLangChanged;
   /// v0.9.0 (G12): Sunucu önbellekli arayüz çevirisi (translate-bridge batch_ui). Kaynak →
   /// çeviri haritası döner; ulaşılamazsa boş harita. SupabaseService bağlar.
   static Future<Map<String, String>> Function(String lang, List<String> texts)? serverUiTranslator;
@@ -428,6 +523,8 @@ class JuzzioAppController extends ChangeNotifier {
   // Kamera ve Görüntülü Arama Efektleri
   bool _allowCameraEffects = true;
   bool _cameraBeautyEnabled = true;
+  // v0.9.3: güzelleştirme yoğunluğu 0..100 (arama + hikâye fotoğrafları)
+  int _beautyLevel = 50;
   String _doubleTapReaction = '❤️‍🔥';
   final List<String> _starredMessageIds = <String>[];
 
@@ -555,6 +652,7 @@ class JuzzioAppController extends ChangeNotifier {
 
   bool get allowCameraEffects => _allowCameraEffects;
   bool get cameraBeautyEnabled => _cameraBeautyEnabled;
+  int get beautyLevel => _beautyLevel;
 
   /// Mesaja çift dokununca bırakılan tepki (❤️‍🔥 veya 🌸)
   String get doubleTapReaction => _doubleTapReaction;
@@ -836,7 +934,7 @@ class JuzzioAppController extends ChangeNotifier {
     try {
       final uri = Uri.parse(
         'https://translate.googleapis.com/translate_a/single'
-        '?client=gtx&sl=en&tl=$lang&dt=t&q=${Uri.encodeComponent(masked)}',
+        '?client=gtx&sl=en&tl=${juzzioGoogleLangCode(lang)}&dt=t&q=${Uri.encodeComponent(masked)}',
       );
       final res = await http.get(uri).timeout(timeout);
       if (res.statusCode != 200) return null;
@@ -968,6 +1066,7 @@ class JuzzioAppController extends ChangeNotifier {
       _syncContactsAcrossDevices = raw['syncContactsAcrossDevices'] is bool ? raw['syncContactsAcrossDevices'] as bool : _syncContactsAcrossDevices;
       _allowCameraEffects = raw['allowCameraEffects'] is bool ? raw['allowCameraEffects'] as bool : _allowCameraEffects;
       _cameraBeautyEnabled = raw['cameraBeautyEnabled'] is bool ? raw['cameraBeautyEnabled'] as bool : _cameraBeautyEnabled;
+      if (raw['beautyLevel'] is num) _beautyLevel = (raw['beautyLevel'] as num).toInt().clamp(1, 100);
       final dtr = raw['doubleTapReaction']?.toString() ?? '';
       if (dtr.isNotEmpty) _doubleTapReaction = dtr;
       final starred = raw['starredMessageIds'];
@@ -1096,6 +1195,7 @@ class JuzzioAppController extends ChangeNotifier {
         'blockedUsernames': _blockedUsernames,
         'allowCameraEffects': _allowCameraEffects,
         'cameraBeautyEnabled': _cameraBeautyEnabled,
+        'beautyLevel': _beautyLevel,
         'doubleTapReaction': _doubleTapReaction,
         'starredMessageIds': _starredMessageIds,
         'blockUnknownVolumeMessages': _blockUnknownVolumeMessages,
@@ -1482,6 +1582,7 @@ class JuzzioAppController extends ChangeNotifier {
     await _saveDeviceUiLang(clean);
     _persistUserPreferences();
     notifyListeners();
+    onUiLangChanged?.call(clean);
     if (!kBuiltInUiLangs.contains(clean)) {
       unawaited(prepareLanguagePack(clean));
     }
@@ -1629,6 +1730,13 @@ class JuzzioAppController extends ChangeNotifier {
 
   void setAllowCameraEffects(bool val) {
     _allowCameraEffects = val;
+    _persistUserPreferences();
+    notifyListeners();
+  }
+
+  /// Yoğunluk (1..100) — kapatma için setCameraBeautyEnabled(false) kullanılır.
+  void setBeautyLevel(int level) {
+    _beautyLevel = level.clamp(1, 100);
     _persistUserPreferences();
     notifyListeners();
   }
@@ -2626,6 +2734,13 @@ class JuzzioAppController extends ChangeNotifier {
     bool isUpdate = false,
     bool isCall = false,
     String? channelId,
+    // v0.9.3: dokununca ilgili sohbete gitme + bildirimden yanıt için
+    String? eventType,
+    String? notificationId,
+    String? targetId,
+    String? targetSecondaryId,
+    String? actorId,
+    String? lockScreenBody,
   }) async {
     if (!_notificationsEnabled && !isUpdate && !isCall) return;
     try {
@@ -2635,6 +2750,12 @@ class JuzzioAppController extends ChangeNotifier {
         'isUpdate': isUpdate,
         'isCall': isCall,
         if (channelId != null && channelId.isNotEmpty) 'channelId': channelId,
+        if (eventType != null) 'eventType': eventType,
+        if (notificationId != null) 'notificationId': notificationId,
+        if (targetId != null) 'targetId': targetId,
+        if (targetSecondaryId != null) 'targetSecondaryId': targetSecondaryId,
+        if (actorId != null) 'actorId': actorId,
+        if (lockScreenBody != null) 'lockScreenBody': lockScreenBody,
         'id': DateTime.now().millisecondsSinceEpoch % 100000,
       });
     } catch (_) {}

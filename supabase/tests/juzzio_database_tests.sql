@@ -1733,3 +1733,86 @@ DO $$ BEGIN PERFORM juzzio_send_due_scheduled(); RAISE NOTICE 'FAIL istemci iş�
 EXCEPTION WHEN insufficient_privilege THEN RAISE NOTICE 'PASS işçi istemciye kapalı'; END $$;
 RESET ROLE;
 SELECT 'TÜM v0.9.0 ANKET / ZAMANLANMIŞ MESAJ TESTLERİ GEÇTİ';
+
+-- ===== 10.24 Yorum bildirimleri: yanıt, beğeni, @bahsetme =====
+RESET ROLE;
+DELETE FROM blocked_users WHERE (blocker_id IN (:'A', :'B', :'C')) OR (blocked_id IN (:'A', :'B', :'C'));
+UPDATE profiles SET privacy_mentions = 'everyone' WHERE id IN (:'A', :'B', :'C');
+INSERT INTO posts (id, author_id, content_type, caption, visibility)
+VALUES ('6b6b6b6b-0000-0000-0000-0000000001a1', :'A', 'text', 'yorum testi', 'public');
+-- B kök yorum yazar, C ona @userb ile yanıt verir
+INSERT INTO post_comments (id, post_id, author_id, content)
+VALUES ('6b6b6b6b-0000-0000-0000-0000000001a2', '6b6b6b6b-0000-0000-0000-0000000001a1', :'B', 'Harika bir gönderi');
+INSERT INTO post_comments (id, post_id, author_id, content, parent_comment_id, reply_to_username)
+VALUES ('6b6b6b6b-0000-0000-0000-0000000001a3', '6b6b6b6b-0000-0000-0000-0000000001a1', :'C', '@userb katılıyorum', '6b6b6b6b-0000-0000-0000-0000000001a2', 'userb');
+SELECT pg_temp.check('yanıtlanan kişiye yanıt bildirimi, önizleme yorum + yanıt',
+  (SELECT preview_text FROM notifications WHERE recipient_id = :'B' AND event_type = 'reply'
+     AND target_secondary_id = '6b6b6b6b-0000-0000-0000-0000000001a3') = 'reply|Harika bir gönderi|@userb katılıyorum');
+SELECT pg_temp.check('yanıtlanan kişiye ayrıca "bahsetti" bildirimi gitmez (çift yok)',
+  NOT EXISTS (SELECT 1 FROM notifications WHERE recipient_id = :'B' AND event_type = 'mention'
+     AND target_secondary_id = '6b6b6b6b-0000-0000-0000-0000000001a3'));
+SELECT pg_temp.check('etiket kaydı yine tutulur',
+  EXISTS (SELECT 1 FROM content_mentions WHERE content_id = '6b6b6b6b-0000-0000-0000-0000000001a3' AND mentioned_user_id = :'B'));
+-- A, C'nin yanıtına (iç içe) B'yi değil C'yi yanıtlar → bildirim C'ye gider
+INSERT INTO post_comments (id, post_id, author_id, content, parent_comment_id, reply_to_username)
+VALUES ('6b6b6b6b-0000-0000-0000-0000000001a4', '6b6b6b6b-0000-0000-0000-0000000001a1', :'A', 'teşekkürler', '6b6b6b6b-0000-0000-0000-0000000001a3', 'userc');
+SELECT pg_temp.check('iç içe yanıt yanıtlanan kişiye (C) gider, kök sahibine (B) değil',
+  EXISTS (SELECT 1 FROM notifications WHERE recipient_id = :'C' AND event_type = 'reply' AND target_secondary_id = '6b6b6b6b-0000-0000-0000-0000000001a4')
+  AND NOT EXISTS (SELECT 1 FROM notifications WHERE recipient_id = :'B' AND event_type = 'reply' AND target_secondary_id = '6b6b6b6b-0000-0000-0000-0000000001a4'));
+-- Başka biri yanıtta etiketlenirse bahsetme bildirimi alır
+INSERT INTO post_comments (id, post_id, author_id, content, parent_comment_id, reply_to_username)
+VALUES ('6b6b6b6b-0000-0000-0000-0000000001a5', '6b6b6b6b-0000-0000-0000-0000000001a1', :'C', '@userb bak @ali', '6b6b6b6b-0000-0000-0000-0000000001a2', 'userb');
+SELECT pg_temp.check('yanıtta etiketlenen üçüncü kişiye bahsetme bildirimi',
+  EXISTS (SELECT 1 FROM notifications WHERE recipient_id = :'A' AND event_type = 'mention' AND target_secondary_id = '6b6b6b6b-0000-0000-0000-0000000001a5'));
+-- Yorum beğenisi
+INSERT INTO comment_likes (comment_id, user_id) VALUES ('6b6b6b6b-0000-0000-0000-0000000001a2', :'C');
+SELECT pg_temp.check('yorum beğenisi bildirimi (önizleme = yorum)',
+  (SELECT preview_text FROM notifications WHERE recipient_id = :'B' AND event_type = 'comment_like'
+     AND target_secondary_id = '6b6b6b6b-0000-0000-0000-0000000001a2' AND actor_id = :'C') = 'Harika bir gönderi');
+SELECT pg_temp.check('beğeni sayacı da çalışır',
+  (SELECT likes_count FROM post_comments WHERE id = '6b6b6b6b-0000-0000-0000-0000000001a2') = 1);
+INSERT INTO comment_likes (comment_id, user_id) VALUES ('6b6b6b6b-0000-0000-0000-0000000001a2', :'B');
+SELECT pg_temp.check('kendi yorumunu beğenmek bildirim üretmez',
+  NOT EXISTS (SELECT 1 FROM notifications WHERE recipient_id = :'B' AND event_type = 'comment_like' AND actor_id = :'B'));
+DELETE FROM comment_likes WHERE comment_id = '6b6b6b6b-0000-0000-0000-0000000001a2' AND user_id = :'C';
+INSERT INTO comment_likes (comment_id, user_id) VALUES ('6b6b6b6b-0000-0000-0000-0000000001a2', :'C');
+SELECT pg_temp.check('beğen-geri al-beğen tekrar bildirim üretmez',
+  (SELECT count(*) FROM notifications WHERE recipient_id = :'B' AND event_type = 'comment_like' AND actor_id = :'C') = 1);
+INSERT INTO blocked_users (blocker_id, blocked_id) VALUES (:'B', :'A');
+INSERT INTO comment_likes (comment_id, user_id) VALUES ('6b6b6b6b-0000-0000-0000-0000000001a2', :'A');
+SELECT pg_temp.check('engelliden beğeni bildirimi gelmez',
+  NOT EXISTS (SELECT 1 FROM notifications WHERE recipient_id = :'B' AND event_type = 'comment_like' AND actor_id = :'A'));
+DELETE FROM blocked_users WHERE blocker_id = :'B' AND blocked_id = :'A';
+DELETE FROM posts WHERE id = '6b6b6b6b-0000-0000-0000-0000000001a1';
+SELECT 'TÜM v0.9.3 YORUM BİLDİRİMİ TESTLERİ GEÇTİ';
+
+-- ===== 10.25 Juzzio Official hikâyeleri =====
+RESET ROLE;
+DELETE FROM friendships WHERE (requester_id = :'A' AND receiver_id = :'C') OR (requester_id = :'C' AND receiver_id = :'A');
+UPDATE profiles SET username = 'tugkancr' WHERE id = :'A';
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'B');
+DO $$ BEGIN PERFORM admin_post_official_story('image', 'https://x.test/a.jpg'); RAISE NOTICE 'FAIL yönetici olmayan resmi hikâye paylaştı';
+EXCEPTION WHEN insufficient_privilege THEN RAISE NOTICE 'PASS yönetici olmayan resmi hikâye paylaşamaz'; END $$;
+INSERT INTO stories (user_id, media_type, media_url, is_official, visibility) VALUES (:'B', 'image', 'https://x.test/b.jpg', true, 'friends');
+SELECT pg_temp.check('istemci is_official=true yazamaz',
+  NOT EXISTS (SELECT 1 FROM stories WHERE user_id = :'B' AND is_official));
+UPDATE stories SET is_official = true WHERE user_id = :'B';
+SELECT pg_temp.check('güncellemeyle de resmi yapılamaz', NOT EXISTS (SELECT 1 FROM stories WHERE user_id = :'B' AND is_official));
+SELECT pg_temp.as_user(:'A');
+SELECT admin_post_official_story('video', 'https://x.test/teaser.mp4', 'Juzzio geliyor', 20, 48) AS off1 \gset
+DO $$ BEGIN PERFORM admin_post_official_story('image', 'javascript:alert(1)'); RAISE NOTICE 'FAIL geçersiz adres';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS geçersiz medya adresi reddedildi'; END $$;
+SELECT pg_temp.check('resmi hikâye: ad, görünürlük, süre',
+  (SELECT display_name = 'Juzzio Official' AND visibility = 'everyone' AND is_official AND video_duration_sec = 20
+          AND expires_at > NOW() + INTERVAL '47 hours' FROM stories WHERE id = :'off1'));
+SELECT pg_temp.as_user(:'C');
+SELECT pg_temp.check('arkadaş olmayan kullanıcı resmi hikâyeyi görür', EXISTS (SELECT 1 FROM stories WHERE id = :'off1'));
+DO $$ BEGIN PERFORM admin_delete_official_story(gen_random_uuid()); RAISE NOTICE 'FAIL yönetici olmayan sildi';
+EXCEPTION WHEN insufficient_privilege THEN RAISE NOTICE 'PASS yönetici olmayan resmi hikâyeyi silemez'; END $$;
+SELECT pg_temp.as_user(:'A');
+SELECT pg_temp.check('yönetici resmi hikâyeyi siler', admin_delete_official_story(:'off1'));
+RESET ROLE;
+DELETE FROM stories WHERE user_id = :'B' AND media_url = 'https://x.test/b.jpg';
+UPDATE profiles SET username = 'ali' WHERE id = :'A';
+SELECT 'TÜM v0.9.3 RESMİ HİKÂYE TESTLERİ GEÇTİ';

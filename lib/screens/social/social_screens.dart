@@ -285,6 +285,19 @@ class _JuzzioPostDetailAndCommentsPageState
     }
   }
 
+  /// v0.9.3: yanıtla → yanıtlanan kişi otomatik @etiketlenir (bahsetme bildirimi sunucuda
+  /// yanıt bildirimiyle birleştirilir). Kullanıcı etiketi silebilir; başka @kişiler ekleyebilir.
+  void _prefillReplyMention(String username) {
+    final u = username.trim().replaceAll('@', '');
+    if (u.isEmpty) return;
+    final tag = '@$u ';
+    final current = _commentCtrl.text;
+    // Önceki yanıtın etiketiyle başlıyorsa onu değiştir; yoksa başa ekle
+    final stripped = current.replaceFirst(RegExp(r'^@[A-Za-z0-9_.]{1,30}\s+'), '');
+    final next = tag + stripped;
+    _commentCtrl.value = TextEditingValue(text: next, selection: TextSelection.collapsed(offset: next.length));
+  }
+
   Future<void> _submitComment() async {
     final post = _post;
     if (post == null || _submittingComment || !post.commentsEnabled) return;
@@ -595,6 +608,7 @@ class _JuzzioPostDetailAndCommentsPageState
                                                     InkWell(
                                                       onTap: () {
                                                         setState(() => _replyingTo = c);
+                                                        _prefillReplyMention(c.authorUsername);
                                                         _commentFocus.requestFocus();
                                                       },
                                                       child: Text(
@@ -735,7 +749,12 @@ class _JuzzioPostDetailAndCommentsPageState
                                     ),
                                   ),
                                   InkWell(
-                                    onTap: () => setState(() => _replyingTo = null),
+                                    onTap: () {
+                                      // Yanıt iptal: otomatik eklenen etiket (tek başınaysa) kaldırılır
+                                      final u = _replyingTo?.authorUsername ?? '';
+                                      if (u.isNotEmpty && _commentCtrl.text.trim() == '@$u') _commentCtrl.clear();
+                                      setState(() => _replyingTo = null);
+                                    },
                                     child: const Icon(Icons.close_rounded, size: 16),
                                   ),
                                 ],

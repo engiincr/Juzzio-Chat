@@ -47,6 +47,10 @@ const ALLOWED_EVENT_TYPES = new Set([
   "chick_died",
   "reaction",
   "save",
+  // v0.9.3: önceden listede olmadığı için @bahsetme ve hatırlatma push'ları ATLANIYORDU
+  "mention",
+  "reminder",
+  "comment_like",
 ]);
 
 let cachedOAuthToken: string | null = null;
@@ -575,7 +579,7 @@ Deno.serve(async (req: Request) => {
       if (eventType.includes("follow") || eventType.includes("friend")) {
         return row.notify_follows !== false;
       }
-      if (eventType === "like" || eventType === "comment" || eventType === "reply" || eventType === "save" || eventType === "mention") {
+      if (eventType === "like" || eventType === "comment" || eventType === "reply" || eventType === "save" || eventType === "mention" || eventType === "comment_like") {
         return row.notify_likes_comments !== false;
       }
       if (eventType.includes("story")) return row.notify_stories !== false;

@@ -17,9 +17,42 @@ void main() {
         'created_at': DateTime.now().toIso8601String(),
       };
 
+  setUp(() {
+    // Varsayılan: çeviri değiştirmez (ağ yok, belirleyici)
+    JuzzioNotificationPreview.translateOverride = (t, _) async => t;
+  });
+
   tearDown(() {
     JuzzioNotificationPreview.fetchOverride = null;
     JuzzioNotificationPreview.decryptOverride = null;
+    JuzzioNotificationPreview.translateOverride = null;
+  });
+
+  test('v0.9.3: mesaj uygulama diline çevrilerek gösterilir', () async {
+    JuzzioNotificationPreview.fetchOverride = (_, __) async => {...row(text: 'x'), 'source_lang': 'ja'};
+    JuzzioNotificationPreview.decryptOverride = (m) async => 'Hello friend';
+    final langs = <String>[];
+    JuzzioNotificationPreview.translateOverride = (t, l) async {
+      langs.add(l);
+      return 'Merhaba arkadaşım';
+    };
+    expect(await JuzzioNotificationPreview.resolve(roomId: room, messageId: msg), 'Merhaba arkadaşım');
+    expect(langs.single, isNotEmpty);
+  });
+
+  test('v0.9.3: çeviri başarısız/hata metni → orijinal gösterilir', () async {
+    JuzzioNotificationPreview.fetchOverride = (_, __) async => {...row(text: 'x'), 'source_lang': 'ja'};
+    JuzzioNotificationPreview.decryptOverride = (m) async => 'Hello';
+    JuzzioNotificationPreview.translateOverride = (t, l) async => throw StateError('net');
+    expect(await JuzzioNotificationPreview.resolve(roomId: room, messageId: msg), 'Hello');
+    JuzzioNotificationPreview.translateOverride = (t, l) async => 'QUERY LENGTH LIMIT EXCEEDED. MAX ALLOWED QUERY : 500 CHARS';
+    expect(await JuzzioNotificationPreview.resolve(roomId: room, messageId: msg), 'Hello');
+  });
+
+  test('v0.9.3: sesli mesaj dökümü bildirimde görünür (çevrilerek)', () async {
+    JuzzioNotificationPreview.fetchOverride = (_, __) async => {...row(type: 'voice', text: 'See you tomorrow'), 'source_lang': 'ja'};
+    JuzzioNotificationPreview.translateOverride = (t, l) async => 'Yarın görüşürüz';
+    expect(await JuzzioNotificationPreview.resolve(roomId: room, messageId: msg), '🎤 Yarın görüşürüz');
   });
 
   test('kip ayrıştırma: bilinmeyen değer full', () {

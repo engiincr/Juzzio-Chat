@@ -10,6 +10,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import 'juzzio_chick_art.dart';
+
 class JuzzioNestScene extends StatelessWidget {
   /// 0 = yumurta, 1+ = civciv evreleri
   final int stage;
@@ -21,6 +23,10 @@ class JuzzioNestScene extends StatelessWidget {
   final Animation<double> idle;
   final String chickEmoji;
   final bool dark;
+  /// v0.9.3: HD vektör civciv için ruh hâli ve göz kırpma / kanat çırpma animasyonları
+  final String mood;
+  final Animation<double>? blink;
+  final Animation<double>? flap;
 
   const JuzzioNestScene({
     super.key,
@@ -30,6 +36,9 @@ class JuzzioNestScene extends StatelessWidget {
     required this.idle,
     required this.chickEmoji,
     required this.dark,
+    this.mood = 'happy',
+    this.blink,
+    this.flap,
   });
 
   @override
@@ -39,7 +48,7 @@ class JuzzioNestScene extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(28),
         child: AnimatedBuilder(
-          animation: Listenable.merge([wobble, idle]),
+          animation: Listenable.merge([wobble, idle, if (blink != null) blink!, if (flap != null) flap!]),
           builder: (context, _) {
             return Stack(
               fit: StackFit.expand,
@@ -49,13 +58,17 @@ class JuzzioNestScene extends StatelessWidget {
                 if (stage <= 0)
                   CustomPaint(painter: _EggPainter(crack: crack, wobble: wobble.value, breathe: idle.value))
                 else
-                  Align(
-                    alignment: const Alignment(0, 0.05),
-                    child: Transform.translate(
-                      offset: Offset(0, -8 * idle.value),
-                      child: Transform.rotate(
-                        angle: math.sin(wobble.value * math.pi * 6) * 0.12 * (1 - wobble.value),
-                        child: Text(chickEmoji, style: const TextStyle(fontSize: 92)),
+                  // v0.9.3: emoji yerine her çözünürlükte keskin vektör civciv
+                  Transform.translate(
+                    offset: Offset(0, -6 * idle.value),
+                    child: CustomPaint(
+                      painter: JuzzioChickPainter(
+                        stage: stage,
+                        mood: mood,
+                        blink: blink?.value ?? 0,
+                        breathe: idle.value,
+                        flap: flap?.value ?? 0,
+                        wobble: wobble.value,
                       ),
                     ),
                   ),

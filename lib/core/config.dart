@@ -15,11 +15,11 @@ class JuzzioConfig {
   JuzzioConfig._();
 
   // Uygulama Sürüm ve OTA Güncelleme Sabitleri
-  static const String appVersion = '0.9.2';
+  static const String appVersion = '0.9.3';
   /// CI her derlemede artan sürüm kodunu APP_BUILD olarak verir
   /// (`scripts/release_meta.py build-number`). Yerel derlemede pubspec.yaml'daki
   /// +N değeri kullanılır; `release_meta.py check` ikisinin aynı olmasını zorunlu kılar.
-  static const int appVersionCode = int.fromEnvironment('APP_BUILD', defaultValue: 92);
+  static const int appVersionCode = int.fromEnvironment('APP_BUILD', defaultValue: 93);
   /// v0.8.0: yayın imzası doğrulama anahtarı (ML-DSA-65, FIPS 204). Boşsa imza
   /// kontrolü yapılmaz; CI'da GitHub değişkeni ML_DSA_PUBLIC_KEY ile verilir.
   static const String mlDsaPublicKey = String.fromEnvironment('ML_DSA_PUBLIC_KEY');
@@ -70,6 +70,9 @@ class JuzzioConfig {
 
   // Hikâye süre limiti
   static const int maxStoryVideoDurationSec = 15;
+
+  /// v0.9.3: fotoğraf/metin durumunun ekranda kalma süresi (video kendi süresi kadar, en çok 60 sn).
+  static const int storyImageDisplayMs = 30000;
 
   static String buildDeepgramWsUrl(String languageCode, {bool batterySaver = false}) {
     final code = languageCode.toLowerCase();

@@ -151,16 +151,26 @@ class JuzzioSocialService {
       query = query.eq('topic', topic);
     }
 
-    final rows = await query
-        .order('created_at', ascending: false)
-        .order('id', ascending: false)
-        .limit(limit);
+    // v0.9.3: profil gönderileri çevrimdışı da görünsün — son başarılı liste cihazda saklanır
+    final cacheName = (authorId != null && authorId.isNotEmpty && beforeCreatedAt == null) ? 'posts_$authorId' : null;
+    List rows;
+    try {
+      rows = await query
+          .order('created_at', ascending: false)
+          .order('id', ascending: false)
+          .limit(limit) as List;
+      if (cacheName != null) unawaited(SupabaseService.instance.writeLocalCache(cacheName, rows));
+    } catch (e) {
+      final cached = cacheName == null ? null : await SupabaseService.instance.readLocalCache(cacheName);
+      if (cached is! List) rethrow;
+      rows = cached.whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList();
+    }
 
     final result = <JuzzioPost>[];
     final seenIds = <String>{};
 
     for (final raw in (rows as List)) {
-      final map = raw as Map<String, dynamic>;
+      final map = Map<String, dynamic>.from(raw as Map);
       final post = JuzzioPost.fromMap(
         map,
         isLikedByMe: _likedPostIdsCache.contains(map['id']?.toString()),

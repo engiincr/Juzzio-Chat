@@ -1010,19 +1010,19 @@ class DeepgramLiveKitController extends ChangeNotifier {
   // ---------------------------------------------------------------------------
   static const MethodChannel _nativeChannel = MethodChannel('juzzio/notifications');
 
-  /// 0 = kapalı, 1 = açık (doğal, bulanıklaştırmayan mod)
-  int beautyLevel = JuzzioAppController.instance.cameraBeautyEnabled ? 1 : 0;
+  /// v0.9.3: 0 = kapalı, 1..100 = yoğunluk (kullanıcı ayarı; kaydırıcıyla değişir)
+  int beautyLevel = JuzzioAppController.instance.cameraBeautyEnabled ? JuzzioAppController.instance.beautyLevel : 0;
 
   bool get isBeautyOn => beautyLevel > 0;
 
   Future<bool> setBeautyLevel(int level) async {
-    beautyLevel = level > 0 ? 1 : 0;
+    beautyLevel = level.clamp(0, 100);
     notifyListeners();
     return _applyBeautyFilter();
   }
 
-  /// Tek dokunuşla güzelleştirmeyi aç/kapat
-  Future<bool> toggleBeauty() => setBeautyLevel(isBeautyOn ? 0 : 1);
+  /// Tek dokunuşla güzelleştirmeyi aç/kapat (açılırken son seçilen yoğunluk kullanılır)
+  Future<bool> toggleBeauty() => setBeautyLevel(isBeautyOn ? 0 : JuzzioAppController.instance.beautyLevel);
 
   Future<bool> _applyBeautyFilter() async {
     String? trackId;

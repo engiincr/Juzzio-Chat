@@ -17,6 +17,8 @@
 // 7. Modern Fotoğraf & Video Durum Paylaşımı ve Duruma Yanıt Verme Stüdyosu
 // =============================================================================
 
+import '../services/juzzio_call_session.dart';
+import '../services/juzzio_notification_preview.dart';
 import '../services/juzzio_media_cache.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -67,6 +69,7 @@ import '../widgets/juzzio_emoji_picker.dart';
 import '../widgets/juzzio_story_stickers.dart';
 import 'profile/juzzio_profile_view.dart';
 import 'chick_game_screen.dart';
+import '../widgets/juzzio_chick_art.dart';
 import 'banned_screen.dart';
 import 'maintenance_screen.dart';
 import 'social/juzzio_creator_studio.dart';
@@ -100,6 +103,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   StreamSubscription<List<JuzzioCallLog>>? _incomingCallSub;
   List<JuzzioConversation> _conversations = [];
   bool _conversationsLoaded = false;
+  // v0.9.3: sohbet listesinde son mesajın GERÇEK metni (şifreli mesajlar cihazda çözülür)
+  final Map<String, String> _lastPreviews = {};
+  final Map<String, String> _lastPreviewKeys = {};
   JuzzioCallLog? _incomingCall;
   final Set<String> _handledIncomingCallIds = {};
   bool _isInCall = false;
@@ -186,6 +192,41 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
   // Sohbet penceresindeki sürüklenebilir çatlak yumurta (Civciv oyunu)
   Offset? _eggOffset;
+  // v0.9.3: sohbetteki civciv yumurtası yalnızca ortak civciv ACIKTIĞINDA (veya bu kişiden davet varken) görünür
+  JuzzioChickState? _chickState;
+  DateTime? _chickFetchedAt;
+  bool _chickFetching = false;
+
+  void _refreshChickStateIfStale() {
+    if (_chickFetching) return;
+    final at = _chickFetchedAt;
+    if (at != null && DateTime.now().difference(at) < const Duration(minutes: 5)) return;
+    _chickFetching = true;
+    JuzzioFeaturesService.instance.fetchMyChick().then((st) {
+      if (mounted) setState(() => _chickState = st);
+    }).catchError((_) {}).whenComplete(() {
+      _chickFetching = false;
+      _chickFetchedAt = DateTime.now();
+    });
+  }
+
+  void _openChickGame(JuzzioUserProfile partner) {
+    HapticFeedback.selectionClick();
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (_) => JuzzioChickGameScreen(
+              friends: _acceptedFriendProfiles,
+              myDisplayName: _myProfile?.displayName ?? widget.myDisplayName,
+              inviteFriend: partner,
+            ),
+          ),
+        )
+        .then((_) {
+      _chickFetchedAt = null;
+      if (mounted) _refreshChickStateIfStale();
+    });
+  }
   String? _playingMessageId;
 
   late TextEditingController _profileNameCtrl;
@@ -336,6 +377,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _appLifecycleState = state;
+    // v0.9.3: öne gelince çevrimdışıyken yapılan ayar değişiklikleri sunucuya yazılır
+    if (state == AppLifecycleState.resumed) unawaited(SupabaseService.instance.flushPendingOps());
     if (state != AppLifecycleState.resumed) {
       JuzzioChatActivityService.instance.setLocal(JuzzioActivityState.idle);
       // v0.9.0 §4.6: arka plana geçince kilitli sohbetler yeniden kilitlenir
@@ -387,6 +430,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         if (cachedConvs.isNotEmpty && !_conversationsLoaded) {
           _conversations = cachedConvs;
           _conversationsLoaded = true;
+          unawaited(_refreshLastPreviews(cachedConvs));
           _groupRooms = cachedConvs.where((c) => c.isGroup).map((c) => c.toGroupRoom()).toList();
         }
         if (cachedMe != null && _myProfile == null) _myProfile = cachedMe;
@@ -400,6 +444,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         _conversations = list;
         _conversationsLoaded = true;
         _groupRooms = list.where((c) => c.isGroup).map((c) => c.toGroupRoom()).toList();
+        unawaited(_refreshLastPreviews(list));
         if (_activeGroupRoom != null) {
           for (final g in _groupRooms) {
             if (g.id == _activeGroupRoom!.id) _activeGroupRoom = g;
@@ -407,7 +452,19 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         }
       });
       _syncHomeWidget();
-    }, onError: (_) {
+    }, onError: (_) async {
+      // v0.9.3: ağ hatasında (çevrimdışı) boş liste yerine önbellekteki sohbetler + son mesajlar gösterilir
+      if (_conversations.isEmpty) {
+        final cachedConvs = await svc.loadCachedConversations();
+        if (!mounted) return;
+        if (cachedConvs.isNotEmpty) {
+          setState(() {
+            _conversations = cachedConvs;
+            _groupRooms = cachedConvs.where((c) => c.isGroup).map((c) => c.toGroupRoom()).toList();
+          });
+          unawaited(_refreshLastPreviews(cachedConvs));
+        }
+      }
       if (mounted) setState(() => _conversationsLoaded = true);
     });
 
@@ -566,12 +623,42 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       if ((conv?.isMuted ?? false) || _mutedConversationIds.contains(payload.targetId)) return;
     }
     if (payload.title.isEmpty && payload.body.isEmpty) return;
-    JuzzioAppController.instance.triggerSystemNotification(
+    unawaited(_showForegroundPush(payload));
+  }
+
+  /// v0.9.3: uygulama açıkken (başka ekrandayken) gelen mesaj bildirimi de içeriği UYGULAMA
+  /// DİLİNE çevrilmiş olarak gösterir; dokununca sohbete gider, bildirimden yanıtlanabilir.
+  Future<void> _showForegroundPush(JuzzioPushEventPayload payload) async {
+    final et = payload.eventType;
+    final app = JuzzioAppController.instance;
+    var body = payload.body;
+    String? lockBody;
+    const messageEvents = {'message', 'group_activity', 'story_reply'};
+    if (messageEvents.contains(et) && payload.targetId.isNotEmpty && payload.targetSecondaryId.isNotEmpty) {
+      final mode = juzzioPreviewModeFrom(app.notificationPreviewMode);
+      lockBody = app.trEn('Yeni mesaj', 'New message', 'Neue Nachricht');
+      if (mode == JuzzioNotificationPreviewMode.full) {
+        final clear = await JuzzioNotificationPreview.resolve(roomId: payload.targetId, messageId: payload.targetSecondaryId);
+        if (clear != null && clear.isNotEmpty) body = clear;
+      } else if (mode == JuzzioNotificationPreviewMode.hidden) {
+        body = lockBody;
+      }
+    }
+    if (!mounted) return;
+    // Bu arada kullanıcı o sohbete girdiyse gösterme
+    if (_isInsideConversation && _activeConversationRoomId == payload.targetId && !_isAppInBackground) return;
+    await app.triggerSystemNotification(
       title: payload.title,
-      body: payload.body,
+      body: body,
       isUpdate: et == 'system',
       isCall: et == 'missed_call',
       channelId: payload.channelId.startsWith('juzzio_') ? payload.channelId : null,
+      eventType: et,
+      notificationId: payload.notificationId,
+      targetId: payload.targetId,
+      targetSecondaryId: payload.targetSecondaryId,
+      actorId: payload.actorId,
+      lockScreenBody: lockBody,
     );
   }
 
@@ -1345,6 +1432,11 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       return;
     }
     final uid = SupabaseService.instance.currentUserId;
+    if (_isInCall && JuzzioCallSession.instance.isActive) {
+      // v0.9.3: zaten bir görüşmedeyken yeni arama yerine süren arama büyütülür
+      JuzzioCallSession.instance.expand();
+      return;
+    }
     if (uid == null || _isInCall) return;
 
     final myName = _myProfile?.displayName ?? widget.myDisplayName;
@@ -1358,9 +1450,13 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       final session = await SupabaseService.instance.startCall(roomId: roomId, isVideo: enableVideo);
       if (!mounted) return;
       _isInCall = true;
-      await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => CallScreen(
+      // v0.9.3: arama katmanda yaşar (küçültülebilir, PiP); arama bitince tamamlanır
+      await JuzzioCallSession.instance.start(
+        context,
+        title: partnerName,
+        avatarUrl: targetPartnerAvatar ?? _resolveAvatar(partnerId),
+        isVideo: enableVideo,
+        builder: (_) => CallScreen(
             roomId: roomId,
             livekitRoomName: session.livekitRoomName,
             sessionId: session.sessionId,
@@ -1375,7 +1471,6 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             enableVideo: enableVideo,
             invitableUsers: _callInvitableUsers,
           ),
-        ),
       );
     } catch (e) {
       _showSnack(SupabaseService.instance.friendlyError(e), isError: true);
@@ -1388,6 +1483,11 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
   Future<void> _launchGroupConferenceCall({required JuzzioGroupRoom group, required bool isVideo}) async {
     final uid = SupabaseService.instance.currentUserId;
+    if (_isInCall && JuzzioCallSession.instance.isActive) {
+      // v0.9.3: zaten bir görüşmedeyken yeni arama yerine süren arama büyütülür
+      JuzzioCallSession.instance.expand();
+      return;
+    }
     if (uid == null || _isInCall) return;
     final myName = _myProfile?.displayName ?? widget.myDisplayName;
     try {
@@ -1395,9 +1495,12 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       if (!mounted) return;
       final memberProfiles = _allProfiles.where((p) => group.groupMemberIds.contains(p.id)).toList();
       _isInCall = true;
-      await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => CallScreen(
+      await JuzzioCallSession.instance.start(
+        context,
+        title: group.title,
+        avatarUrl: null,
+        isVideo: isVideo,
+        builder: (_) => CallScreen(
             roomId: group.id,
             livekitRoomName: session.livekitRoomName,
             sessionId: session.sessionId,
@@ -1414,7 +1517,6 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
               for (final u in [..._callInvitableUsers, ...memberProfiles]) u.id: u,
             }.values.toList(),
           ),
-        ),
       );
     } catch (e) {
       _showSnack(SupabaseService.instance.friendlyError(e), isError: true);
@@ -1441,9 +1543,12 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     final group = call.isGroup ? _groupRooms.where((g) => g.id == call.roomId).firstOrNull : null;
     _isInCall = true;
     try {
-      await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => CallScreen(
+      await JuzzioCallSession.instance.start(
+        context,
+        title: call.isGroup ? (call.groupTitle.isNotEmpty ? call.groupTitle : (group?.title ?? call.callerName)) : call.callerName,
+        avatarUrl: call.isGroup ? null : call.callerAvatar,
+        isVideo: call.isVideo,
+        builder: (_) => CallScreen(
             roomId: call.roomId,
             livekitRoomName: call.livekitRoomName,
             sessionId: call.sessionId,
@@ -1462,7 +1567,6 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             groupMemberLanguages: group != null ? _resolveGroupMemberLanguages(group.groupMembers) : const [],
             invitableUsers: _callInvitableUsers,
           ),
-        ),
       );
     } finally {
       _isInCall = false;
@@ -1590,7 +1694,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   void _openStoryViewer(JuzzioStory story) {
     final myUid = SupabaseService.instance.currentUserId;
     // Aynı kişinin tüm aktif hikâyeleri sırayla oynatılır
-    final sameUser = _visibleFriendStories24h.where((s) => s.userId == story.userId).toList()
+    final sameUser = _visibleFriendStories24h
+        .where((s) => story.isOfficial ? s.isOfficial : (s.userId == story.userId && !s.isOfficial))
+        .toList()
       ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
     final startIndex = sameUser.indexWhere((s) => s.id == story.id);
     Navigator.of(context).push(
@@ -1601,6 +1707,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           playlist: sameUser.isEmpty ? [story] : sameUser,
           initialIndex: startIndex < 0 ? 0 : startIndex,
           viewerProfile: _myProfile,
+          // v0.9.3: hikâye başlığındaki isme/fotoğrafa dokununca paylaşanın profili
+          onOpenProfile: (uid) => _openUserProfilePage(uid),
           onOpenChatAfterReply: (roomId) {
             if (roomId == null || story.userId == myUid) return;
             _openRoomById(roomId);
@@ -2191,6 +2299,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   }
 
   void _handlePushDeepLink(JuzzioPushEventPayload payload) {
+    // v0.9.3: görüşme sırasında bildirime dokunuldu → arama küçülür (kesilmez), sohbet açılır
+    if (JuzzioCallSession.instance.isActive && payload.eventType != 'incoming_call') {
+      JuzzioCallSession.instance.minimize();
+    }
     final et = payload.eventType;
     if (et == 'system') {
       Navigator.of(context).push(
@@ -2693,11 +2805,14 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       appCtrl.trEn('Arkadaşlar', 'Friends', 'Freunde'),
     ];
     // v0.5.0: halka yalnızca aktif (24 saat) hikâyesi olan kişide görünür
-    final myHasStory = myUid != null && stories24h.any((st) => st.userId == myUid);
+    final myHasStory = myUid != null && stories24h.any((st) => st.userId == myUid && !st.isOfficial);
+    // v0.9.3: "Juzzio Official" hikâyeleri herkeste ilk sırada, ayrı halkada
+    final officialStories = stories24h.where((st) => st.isOfficial).toList()..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    final officialSeen = officialStories.isNotEmpty && JuzzioStorySeen.instance.allSeen(officialStories.map((e) => e.id).toList());
     final storyOwners = <String, JuzzioStory>{};
     final storyIdsByOwner = <String, List<String>>{};
     for (final st in stories24h) {
-      if (st.userId == myUid) continue;
+      if (st.userId == myUid || st.isOfficial) continue;
       storyIdsByOwner.putIfAbsent(st.userId, () => []).add(st.id);
       // v0.8.0: görülmemiş hikâyeden başla
       final cur = storyOwners[st.userId];
@@ -2798,6 +2913,20 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
               children: [
+                if (officialStories.isNotEmpty)
+                  _buildCircularStatusItem(
+                    p: p,
+                    label: 'Juzzio Official',
+                    avatarUrl: null,
+                    fallbackName: 'Juzzio',
+                    hasStory: true,
+                    storySeen: officialSeen,
+                    showPlusBadge: false,
+                    official: true,
+                    onTap: () => _openStoryViewer(
+                      officialStories.firstWhere((st) => !JuzzioStorySeen.instance.isSeen(st.id), orElse: () => officialStories.first),
+                    ),
+                  ),
                 _buildCircularStatusItem(
                   p: p,
                   label: appCtrl.trEn('Durumun', 'Your status', 'Dein Status'),
@@ -2806,7 +2935,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                   hasStory: myHasStory,
                   showPlusBadge: true,
                   onTap: () {
-                    final myStories = stories24h.where((st) => st.userId == myUid).toList();
+                    final myStories = stories24h.where((st) => st.userId == myUid && !st.isOfficial).toList();
                     if (myStories.isNotEmpty) {
                       _openStoryViewer(myStories.first);
                     } else {
@@ -3133,6 +3262,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     required VoidCallback onTap,
     VoidCallback? onLongPress,
     bool storySeen = false,
+    bool official = false,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -3150,7 +3280,16 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                   width: 62,
                   height: 62,
                   child: Center(
-                    child: JuzzioGlassAvatar(
+                    child: official
+                        ? Container(
+                            padding: const EdgeInsets.all(2.5),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: storySeen ? kJuzzioStorySeenRing : const LinearGradient(colors: [Color(0xFF1D9BF0), Color(0xFF7C4DFF)]),
+                            ),
+                            child: const JuzzioOfficialAvatar(radius: 25),
+                          )
+                        : JuzzioGlassAvatar(
                       imageUrl: avatarUrl,
                       name: fallbackName,
                       radius: hasStory ? 25 : 28,
@@ -3159,6 +3298,12 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                     ),
                   ),
                 ),
+                if (official)
+                  const Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: CircleAvatar(radius: 10, backgroundColor: Colors.white, child: Icon(Icons.verified_rounded, color: Color(0xFF1D9BF0), size: 18)),
+                  ),
                 if (showPlusBadge)
                   Positioned(
                     right: 0,
@@ -3561,14 +3706,27 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     final myUid = SupabaseService.instance.currentUserId;
     final targetStreamRoomId = _activeConversationRoomId;
     _ensurePresenceWatch(activeGroup == null ? partnerProfile?.id : null);
-    final showEgg = activeGroup == null &&
+    final chickEnabled = activeGroup == null &&
         partnerProfile != null &&
         JuzzioFeaturesService.instance.lastAppConfig.chickGameEnabled;
+    if (chickEnabled) _refreshChickStateIfStale();
+    final cs = _chickState;
+    final eggPartner = partnerProfile;
+    final showEgg = chickEnabled &&
+        cs != null &&
+        eggPartner != null &&
+        juzzioChickEggVisible(
+          hasChick: cs.hasChick,
+          mood: cs.mood,
+          chickPartnerId: cs.partnerId,
+          chatPartnerId: eggPartner.id,
+          hasIncomingInviteFromPartner: cs.invites.any((i) => i.incoming && i.otherName == eggPartner.displayName),
+        );
 
     return Stack(
       children: [
         Positioned.fill(child: _buildConversationBody(p, s, appCtrl, partnerProfile, activeGroup, partnerName, myUid, targetStreamRoomId)),
-        if (showEgg) _buildChickEgg(partnerProfile),
+        if (showEgg && eggPartner != null) _buildChickEgg(eggPartner),
       ],
     );
   }
@@ -3590,18 +3748,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             );
           });
         },
-        onTap: () {
-          HapticFeedback.selectionClick();
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => JuzzioChickGameScreen(
-                friends: _acceptedFriendProfiles,
-                myDisplayName: _myProfile?.displayName ?? widget.myDisplayName,
-                inviteFriend: partner,
-              ),
-            ),
-          );
-        },
+        onTap: () => _openChickGame(partner),
         child: Tooltip(
           message: JuzzioAppController.instance.t('chick_invite_friend'),
           child: Container(
@@ -3614,7 +3761,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
               boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 12, offset: Offset(0, 4))],
             ),
             alignment: Alignment.center,
-            child: const Text('🐣', style: TextStyle(fontSize: 27)),
+            child: Text((_chickState?.mood == 'dying') ? '🥺' : '🐥', style: const TextStyle(fontSize: 27)),
           ),
         ),
       ),
@@ -4564,6 +4711,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           case 'profile':
             if (partner != null) _openUserProfilePage(partner.id);
             break;
+          case 'chick':
+            if (partner != null) _openChickGame(partner);
+            break;
           case 'block':
             if (partner == null) break;
             try {
@@ -4585,6 +4735,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           PopupMenuItem(value: 'leave_group', child: Text(appCtrl.trEn('Gruptan ayrıl', 'Leave group', 'Gruppe verlassen'))),
         ] else ...[
           PopupMenuItem(value: 'profile', child: Text(appCtrl.trEn('Profili gör', 'View profile', 'Profil ansehen'))),
+          if (JuzzioFeaturesService.instance.lastAppConfig.chickGameEnabled)
+            PopupMenuItem(value: 'chick', child: Text(appCtrl.t('chick_game_menu'))),
           PopupMenuItem(value: 'clear', child: Text(appCtrl.trEn('Geçmişi temizle', 'Clear history', 'Verlauf löschen'))),
           PopupMenuItem(value: 'block', child: Text(appCtrl.trEn('Engelle', 'Block', 'Blockieren'))),
         ],
@@ -4965,6 +5117,98 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             setState(() => _replyingTo = msg);
           }
         },
+        // v0.9.3: sola yaylı kaydırma → arkadan sessize al / sil belirir
+        open: isSwiped,
+        trailingWidth: 96,
+        onOpenChanged: (open) {
+          if (open && _swipedMessageId != msg.id) setState(() => _swipedMessageId = msg.id);
+          if (!open && _swipedMessageId == msg.id) setState(() => _swipedMessageId = null);
+        },
+        trailing: msg.isDeleted ? null : Row(mainAxisSize: MainAxisSize.min, children: [
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  if (isRoomMuted) {
+                    _mutedConversationIds.remove(currentRoomKey);
+                  } else {
+                    _mutedConversationIds.add(currentRoomKey);
+                  }
+                  _swipedMessageId = null;
+                });
+              },
+              child: Container(
+                width: 38,
+                height: 38,
+                
+                decoration: const BoxDecoration(
+                  color: JuzzioColors.deepForest,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  isRoomMuted ? Icons.notifications_off_outlined : Icons.notifications_none_rounded,
+                  color: Colors.white,
+                  size: 19,
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            GestureDetector(
+              onTap: () async {
+                // v0.9.3: silme onaylı (geri alınamaz)
+                final ok = await showDialog<bool>(
+                  context: context,
+                  builder: (dctx) => AlertDialog(
+                    title: Text(JuzzioAppController.instance.trEn('Mesaj silinsin mi?', 'Delete message?', 'Nachricht löschen?')),
+                    content: Text(isMe
+                        ? JuzzioAppController.instance.trEn('Mesaj herkes için silinecek.', 'The message will be deleted for everyone.', 'Die Nachricht wird für alle gelöscht.')
+                        : JuzzioAppController.instance.trEn('Mesaj yalnız senin için gizlenecek.', 'The message will be hidden only for you.', 'Die Nachricht wird nur für dich ausgeblendet.')),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(dctx, false), child: Text(JuzzioAppController.instance.trEn('Vazgeç', 'Cancel', 'Abbrechen'))),
+                      FilledButton(
+                        style: FilledButton.styleFrom(backgroundColor: JuzzioColors.red500, foregroundColor: Colors.white),
+                        onPressed: () => Navigator.pop(dctx, true),
+                        child: Text(JuzzioAppController.instance.trEn('Sil', 'Delete', 'Löschen')),
+                      ),
+                    ],
+                  ),
+                );
+                if (ok != true || !mounted) {
+                  if (mounted) setState(() => _swipedMessageId = null);
+                  return;
+                }
+                final conv = _activeConversationData;
+                final myUid = SupabaseService.instance.currentUserId;
+                final moderate = conv != null && conv.isGroupStaff && msg.senderId != myUid;
+                setState(() {
+                  if (!moderate) _deletedMessageIds.add(msg.id);
+                  _swipedMessageId = null;
+                });
+                if (moderate) {
+                  // Yönetici/moderatör: gruptaki mesajı herkes için siler
+                  try {
+                    await JuzzioFeaturesService.instance.moderateDeleteMessage(msg.id);
+                    _showSnack(JuzzioAppController.instance.t('group_message_deleted'));
+                  } catch (e) {
+                    _showSnack(SupabaseService.instance.friendlyError(e), isError: true);
+                  }
+                  return;
+                }
+                // Kendi mesajım herkes için silinir; başkasının mesajı yalnızca bende gizlenir.
+                await SupabaseService.instance.deleteMessageById(msg.id, senderId: msg.senderId);
+              },
+              child: Container(
+                width: 38,
+                height: 38,
+                
+                decoration: const BoxDecoration(
+                  color: JuzzioColors.red500,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.delete_outline_rounded, color: Colors.white, size: 19),
+              ),
+            ),
+]),
       child: Row(
         mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
@@ -5161,6 +5405,35 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                                     ),
                                   ),
                                 ),
+                                // v0.9.3: toplam süre; çalarken geçen / toplam
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 6),
+                                  child: isPlaying
+                                      ? StreamBuilder<Duration>(
+                                          stream: _audioPlayer.positionStream,
+                                          builder: (_, snap) => Text(
+                                            msg.audioDurationMs > 0
+                                                ? '${juzzioFormatVoiceDuration(snap.data?.inMilliseconds ?? 0)} / ${juzzioFormatVoiceDuration(msg.audioDurationMs)}'
+                                                : juzzioFormatVoiceDuration(snap.data?.inMilliseconds ?? 0),
+                                            style: TextStyle(
+                                              color: isMe ? Colors.white : p.textSecondary,
+                                              fontSize: 11.5,
+                                              fontFeatures: const [FontFeature.tabularFigures()],
+                                            ),
+                                          ),
+                                        )
+                                      : msg.audioDurationMs <= 0
+                                      ? const SizedBox.shrink()
+                                      : Text(
+                                          juzzioFormatVoiceDuration(msg.audioDurationMs),
+                                          semanticsLabel: JuzzioAppController.instance.trEn('Süre', 'Duration', 'Dauer'),
+                                          style: TextStyle(
+                                            color: isMe ? Colors.white : p.textSecondary,
+                                            fontSize: 11.5,
+                                            fontFeatures: const [FontFeature.tabularFigures()],
+                                          ),
+                                        ),
+                                ),
                                 // G28: oynatma hızı 1x → 1.5x → 2x (çalan sese de anında uygulanır)
                                 Semantics(
                                   button: true,
@@ -5310,69 +5583,6 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
               ),
             ),
           ),
-          if (isSwiped) ...[
-            const SizedBox(width: 8),
-            GestureDetector(
-              onTap: () {
-                setState(() {
-                  if (isRoomMuted) {
-                    _mutedConversationIds.remove(currentRoomKey);
-                  } else {
-                    _mutedConversationIds.add(currentRoomKey);
-                  }
-                  _swipedMessageId = null;
-                });
-              },
-              child: Container(
-                width: 38,
-                height: 38,
-                margin: const EdgeInsets.only(bottom: 14),
-                decoration: const BoxDecoration(
-                  color: JuzzioColors.deepForest,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  isRoomMuted ? Icons.notifications_off_outlined : Icons.notifications_none_rounded,
-                  color: Colors.white,
-                  size: 19,
-                ),
-              ),
-            ),
-            const SizedBox(width: 6),
-            GestureDetector(
-              onTap: () async {
-                final conv = _activeConversationData;
-                final myUid = SupabaseService.instance.currentUserId;
-                final moderate = conv != null && conv.isGroupStaff && msg.senderId != myUid;
-                setState(() {
-                  if (!moderate) _deletedMessageIds.add(msg.id);
-                  _swipedMessageId = null;
-                });
-                if (moderate) {
-                  // Yönetici/moderatör: gruptaki mesajı herkes için siler
-                  try {
-                    await JuzzioFeaturesService.instance.moderateDeleteMessage(msg.id);
-                    _showSnack(JuzzioAppController.instance.t('group_message_deleted'));
-                  } catch (e) {
-                    _showSnack(SupabaseService.instance.friendlyError(e), isError: true);
-                  }
-                  return;
-                }
-                // Kendi mesajım herkes için silinir; başkasının mesajı yalnızca bende gizlenir.
-                await SupabaseService.instance.deleteMessageById(msg.id, senderId: msg.senderId);
-              },
-              child: Container(
-                width: 38,
-                height: 38,
-                margin: const EdgeInsets.only(bottom: 14),
-                decoration: const BoxDecoration(
-                  color: JuzzioColors.red500,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.delete_outline_rounded, color: Colors.white, size: 19),
-              ),
-            ),
-          ],
         ],
       ),
       ),
@@ -7453,8 +7663,40 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     return JuzzioGlassAvatar(imageUrl: avatarUrl, name: fallbackName, radius: radius);
   }
 
+  /// v0.9.3: son mesajın gerçek önizlemesi. Sunucu şifreli mesajın içeriğini bilmez ("🔒 Şifreli
+  /// mesaj") — son mesaj önce cihazdaki önbellekten, yoksa ağdan alınıp CİHAZDA çözülür.
+  Future<void> _refreshLastPreviews(List<JuzzioConversation> list) async {
+    final svc = SupabaseService.instance;
+    final jobs = <Future<void>>[];
+    for (final c in list.take(60)) {
+      if (c.lastMessageAt == null) continue;
+      final key = '${c.lastMessageAt!.toIso8601String()}|${c.lastMessagePreview ?? ''}';
+      if (_lastPreviewKeys[c.roomId] == key) continue;
+      final serverPreview = (c.lastMessagePreview ?? '').trim();
+      final needsLocal = serverPreview.isEmpty || serverPreview.startsWith('🔒');
+      if (!needsLocal) {
+        _lastPreviewKeys[c.roomId] = key;
+        _lastPreviews.remove(c.roomId);
+        continue;
+      }
+      jobs.add(() async {
+        try {
+          final m = await svc.lastMessageForPreview(c.roomId, lastMessageAt: c.lastMessageAt);
+          if (m == null) return;
+          final text = juzzioMessagePreviewText(m, JuzzioAppController.instance);
+          if (text.isEmpty) return;
+          _lastPreviewKeys[c.roomId] = key;
+          _lastPreviews[c.roomId] = text;
+        } catch (_) {}
+      }());
+    }
+    if (jobs.isEmpty) return;
+    await Future.wait(jobs);
+    if (mounted) setState(() {});
+  }
+
   String _conversationSubtitle(JuzzioConversation c, JuzzioAppController appCtrl) {
-    final preview = (c.lastMessagePreview ?? '').trim();
+    final preview = (_lastPreviews[c.roomId] ?? c.lastMessagePreview ?? '').trim();
     if (preview.isEmpty) {
       return c.isGroup
           ? (c.memberNames.isNotEmpty ? c.memberNames.join(', ') : appCtrl.trEn('Grup sohbeti', 'Group chat', 'Gruppenchat'))
@@ -7805,6 +8047,7 @@ class JuzzioStoryViewerModal extends StatefulWidget {
   final int initialIndex;
   final JuzzioUserProfile? viewerProfile;
   final void Function(String? roomId) onOpenChatAfterReply;
+  final void Function(String userId)? onOpenProfile;
 
   const JuzzioStoryViewerModal({
     super.key,
@@ -7813,6 +8056,7 @@ class JuzzioStoryViewerModal extends StatefulWidget {
     this.initialIndex = 0,
     this.viewerProfile,
     required this.onOpenChatAfterReply,
+    this.onOpenProfile,
   });
 
   @override
@@ -7835,6 +8079,16 @@ class _JuzzioStoryViewerModalState extends State<JuzzioStoryViewerModal> {
 
   JuzzioStory get _current => _items[_index];
   bool get _isMine => _current.userId == SupabaseService.instance.currentUserId;
+
+  /// v0.9.3: sol üstteki paylaşan bilgisine dokunma → profil (Juzzio Official → @tugkancr)
+  void _openPosterProfile(JuzzioStory st) {
+    final cb = widget.onOpenProfile;
+    if (cb == null || st.userId.isEmpty) return;
+    HapticFeedback.selectionClick();
+    _setPaused(true);
+    Navigator.of(context).pop();
+    cb(st.userId);
+  }
 
   @override
   void initState() {
@@ -7895,7 +8149,8 @@ class _JuzzioStoryViewerModalState extends State<JuzzioStoryViewerModal> {
       if (real > 0) return real.clamp(3000, 60000);
       return (st.videoDurationSec.clamp(3, 60)) * 1000;
     }
-    return 7000;
+    // v0.9.3: fotoğraf/metin durumları 30 sn gösterilir (önce 7 sn); dokunarak geçilebilir
+    return JuzzioConfig.storyImageDisplayMs;
   }
 
   void _startProgressTimer() {
@@ -8205,7 +8460,16 @@ class _JuzzioStoryViewerModalState extends State<JuzzioStoryViewerModal> {
                     const SizedBox(height: 12),
                     Row(
                       children: [
-                        JuzzioUserAvatar(imageUrl: st.userAvatar, displayName: st.displayName, radius: 20),
+                        Expanded(
+                          child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => _openPosterProfile(st),
+                          child: Row(
+                          children: [
+                        if (st.isOfficial)
+                          const JuzzioOfficialAvatar(radius: 20)
+                        else
+                          JuzzioUserAvatar(imageUrl: st.userAvatar, displayName: st.displayName, radius: 20),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Column(
@@ -8216,7 +8480,7 @@ class _JuzzioStoryViewerModalState extends State<JuzzioStoryViewerModal> {
                                 children: [
                                   Flexible(
                                     child: Text(
-                                      st.displayName,
+                                      st.isOfficial ? 'Juzzio Official' : st.displayName,
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(
@@ -8227,6 +8491,10 @@ class _JuzzioStoryViewerModalState extends State<JuzzioStoryViewerModal> {
                                       ),
                                     ),
                                   ),
+                                  if (st.isOfficial) ...[
+                                    const SizedBox(width: 4),
+                                    const Icon(Icons.verified_rounded, color: Color(0xFF1D9BF0), size: 16),
+                                  ],
                                   const SizedBox(width: 6),
                                   Text(
                                     JuzzioSocialTokens.formatRelativeTime(st.createdAt, appCtrl),
@@ -8244,6 +8512,10 @@ class _JuzzioStoryViewerModalState extends State<JuzzioStoryViewerModal> {
                                 style: const TextStyle(color: Colors.white70, fontSize: 12),
                               ),
                             ],
+                          ),
+                        ),
+                          ],
+                          ),
                           ),
                         ),
                         if (_isMine) ...[
@@ -8509,6 +8781,63 @@ class _JuzzioTypingDotsState extends State<_JuzzioTypingDots> with SingleTickerP
           TextSpan(text: '.' * (3 - n), style: widget.style.copyWith(color: Colors.transparent)),
         ]));
       },
+    );
+  }
+}
+
+/// v0.9.3: sesli mesaj süresi (m:ss; 1 saat üstü h:mm:ss). Süre bilinmiyorsa "0:00".
+String juzzioFormatVoiceDuration(int ms) {
+  final total = (ms < 0 ? 0 : ms) ~/ 1000;
+  final h = total ~/ 3600;
+  final m = (total % 3600) ~/ 60;
+  final sec = (total % 60).toString().padLeft(2, '0');
+  return h > 0 ? '$h:${m.toString().padLeft(2, '0')}:$sec' : '$m:$sec';
+}
+
+/// v0.9.3: sohbet listesi için mesaj önizlemesi (türüne göre simge + metin; tek satır).
+String juzzioMessagePreviewText(JuzzioMessage m, JuzzioAppController app) {
+  if (m.isDeleted) return app.trEn('Bu mesaj silindi', 'This message was deleted', 'Diese Nachricht wurde gelöscht');
+  final text = m.originalText.trim().replaceAll(RegExp(r'\s+'), ' ');
+  switch (m.messageType) {
+    case 'voice':
+      return '🎤 ${app.trEn('Sesli mesaj', 'Voice message', 'Sprachnachricht')}';
+    case 'image':
+      return text.isNotEmpty ? '📷 $text' : '📷 ${app.trEn('Fotoğraf', 'Photo', 'Foto')}';
+    case 'video':
+      return text.isNotEmpty ? '🎬 $text' : '🎬 Video';
+    case 'document':
+      return '📄 ${m.documentName ?? app.trEn('Belge', 'Document', 'Dokument')}';
+    case 'location':
+      return '📍 ${app.trEn('Konum', 'Location', 'Standort')}';
+    case 'call':
+      return '📞 ${app.trEn('Arama', 'Call', 'Anruf')}';
+  }
+  if (text.isEmpty || text == '🔒') return '';
+  return text.length > 120 ? '${text.substring(0, 120)}…' : text;
+}
+
+/// v0.9.3: "Juzzio Official" hesabının logolu yuvarlak avatarı
+class JuzzioOfficialAvatar extends StatelessWidget {
+  final double radius;
+  const JuzzioOfficialAvatar({super.key, this.radius = 20});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: radius * 2,
+      height: radius * 2,
+      decoration: const BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFF0B1220), Color(0xFF1D2B4F)]),
+      ),
+      padding: EdgeInsets.all(radius * 0.28),
+      child: Image.asset(
+        'assets/logo/juzzio_logo.png',
+        fit: BoxFit.contain,
+        errorBuilder: (_, __, ___) => Center(
+          child: Text('J', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: radius * 0.95)),
+        ),
+      ),
     );
   }
 }

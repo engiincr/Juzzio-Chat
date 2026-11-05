@@ -657,6 +657,7 @@ class _JuzzioNotificationsFeedPageState
     if ((item.eventType == 'like' ||
             item.eventType == 'comment' ||
             item.eventType == 'reply' ||
+            item.eventType == 'comment_like' ||
             isPostMention) &&
         item.targetId.isNotEmpty) {
       await Navigator.of(context).push(
@@ -664,7 +665,7 @@ class _JuzzioNotificationsFeedPageState
           builder: (_) => JuzzioPostDetailAndCommentsPage(
             postId: item.targetId,
             currentUser: fallbackUser,
-            focusCommentInput: item.eventType != 'like' && item.eventType != 'mention',
+            focusCommentInput: item.eventType != 'like' && item.eventType != 'mention' && item.eventType != 'comment_like',
           ),
         ),
       );
@@ -697,7 +698,10 @@ class _JuzzioNotificationsFeedPageState
     switch (type) {
       case 'like':
       case 'story_like':
+      case 'comment_like':
         return Icons.favorite_rounded;
+      case 'mention':
+        return Icons.alternate_email_rounded;
       case 'comment':
       case 'reply':
       case 'story_reply':
@@ -723,6 +727,7 @@ class _JuzzioNotificationsFeedPageState
     switch (type) {
       case 'like':
       case 'story_like':
+      case 'comment_like':
         return JuzzioColors.pink500;
       case 'comment':
       case 'reply':

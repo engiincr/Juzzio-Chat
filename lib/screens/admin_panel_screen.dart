@@ -20,6 +20,7 @@ import '../core/theme/juzzio_glass.dart';
 import '../services/supabase_service.dart';
 import '../services/juzzio_features_service.dart';
 import 'admin_extra_tabs.dart';
+import 'admin_story_tab.dart';
 import 'admin_theme_studio_page.dart';
 
 const List<String> kJuzzioBanReasons = [
@@ -281,6 +282,7 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> with Si
   static const List<String> _tabPermissions = [
     'stats.read', 'users.read', 'reports', 'users.read', 'moderation', 'moderation',
     'groups.read', 'calls.manage', 'broadcast', 'releases', 'settings', 'feedback.manage', 'audit.read',
+    'broadcast', // 13: v0.9.3 Juzzio Story
   ];
   bool _can(String perm) => widget.permissions.contains('*') || widget.permissions.contains(perm);
   late final List<int> _visibleTabs = [
@@ -1066,6 +1068,7 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> with Si
             Tab(icon: const Icon(Icons.tune_rounded, size: 20), text: _al('Ayarlar', 'Settings', 'Einstellungen')),
             Tab(icon: const Icon(Icons.bug_report_rounded, size: 20), text: _al('Hata bildirimleri', 'Bug reports', 'Fehlermeldungen')),
             Tab(icon: const Icon(Icons.history_rounded, size: 20), text: _al('Kayıtlar', 'Audit', 'Protokoll')),
+            const Tab(icon: Icon(Icons.auto_awesome_rounded, size: 20), text: 'Juzzio Story'),
       ];
 
   Widget _tabView(int i, JuzzioAppController app, bool isDark) {
@@ -1096,6 +1099,8 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> with Si
         return JuzzioAdminFeedbackTab(token: widget.token);
       case 12:
         return _buildAudit(isDark);
+      case 13:
+        return const JuzzioAdminStoryTab();
       default:
         return const SizedBox.shrink();
     }

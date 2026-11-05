@@ -188,6 +188,12 @@ class JuzzioE2ee {
     }
     // v0.9.2: anahtarlar cihazda hazır; açık anahtar yayını ağ ister. Çevrimdışıyken
     // başarısız olursa yerel çözme ÇALIŞMAYA DEVAM EDER, yayın sonra yeniden denenir.
+    // v0.9.3: ekransız bildirim motorunda yayın beklenmez (bildirim süresi kısıtlı) — ana
+    // uygulama açılınca yayınlanır.
+    if (headless) {
+      _publishPending = true;
+      return;
+    }
     try {
       await _publish(uid);
       _publishPending = false;
@@ -196,11 +202,14 @@ class JuzzioE2ee {
     }
   }
 
+  /// Ekransız (bildirim çözme / hızlı yanıt) motorlarda true: ağ yayını yapılmaz.
+  bool headless = false;
+
   bool _publishPending = false;
   DateTime? _lastPublishTry;
 
   void _retryPublishIfNeeded(String uid) {
-    if (!_publishPending) return;
+    if (!_publishPending || headless) return;
     final now = DateTime.now();
     if (_lastPublishTry != null && now.difference(_lastPublishTry!) < const Duration(seconds: 30)) return;
     _lastPublishTry = now;

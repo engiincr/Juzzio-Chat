@@ -9,6 +9,8 @@
 // - Güvenlik: Token değerleri ve hassas veriler asla log'a veya ekrana yazdırılmaz.
 // =============================================================================
 
+import 'juzzio_call_session.dart';
+import 'supabase_service.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/services.dart';
@@ -185,6 +187,17 @@ class JuzzioFcmPushService {
           final args = call.arguments;
           if (args is Map) return JuzzioNotificationPreview.handleChannelArgs(args);
           return {'text': null};
+        // v0.9.3: süren arama — PiP, bildirimden kapatma, aramaya dönme
+        case 'onPipChanged':
+          final args = call.arguments;
+          JuzzioCallSession.instance.setPip(args is Map && args['inPip'] == true);
+          break;
+        case 'onCallHangupFromNotification':
+          await JuzzioCallSession.instance.hangUpFromNotification();
+          break;
+        case 'onReturnToCall':
+          JuzzioCallSession.instance.expand();
+          break;
         case 'onForegroundFcmMessage':
           final args = call.arguments;
           if (args is Map) {
@@ -308,14 +321,20 @@ class JuzzioFcmPushService {
   /// v0.9.0 N-D: önizleme kipini Android'e (bildirimi çizen taraf) ve sunucudaki bu cihazın
   /// kaydına (FCM yükünü kısan taraf) iletir. Sunucu başarısız olsa bile yerel kip uygulanır.
   Future<void> syncNotificationPreviewMode() async {
+    JuzzioAppController.onUiLangChanged ??= (_) => syncNotificationPreviewMode();
     final mode = JuzzioAppController.instance.notificationPreviewMode;
     try {
-      await _channel.invokeMethod('setNotificationPreviewMode', {'mode': mode});
+      await _channel.invokeMethod('setNotificationPreviewMode', {'mode': mode, 'uiLang': JuzzioAppController.instance.uiLang});
     } catch (_) {}
     final token = _devicePushToken;
     if (token.isEmpty || _client.auth.currentUser == null) return;
     try {
-      await _client.rpc('set_my_push_preview', params: {'p_fcm_token': token, 'p_mode': mode});
+      // v0.9.3: çevrimdışıysa sıraya alınır, bağlantı gelince uygulanır
+      await SupabaseService.instance.writeOrQueue('rpc:set_my_push_preview', {
+        't': 'rpc',
+        'fn': 'set_my_push_preview',
+        'params': {'p_fcm_token': token, 'p_mode': mode},
+      });
     } catch (_) {}
   }
 

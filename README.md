@@ -11,18 +11,20 @@
 [![PQ](https://img.shields.io/badge/Kuantum%20sonras%C4%B1-ML--KEM--768%20%2B%20X25519-7C3AED?style=for-the-badge)](#-gizlilik-ve-güvenlik)
 [![Lisans](https://img.shields.io/badge/Lisans-T%C3%BCm%20haklar%C4%B1%20sakl%C4%B1d%C4%B1r-EF4444?style=for-the-badge)](LICENSE)
 
-🇹🇷 Türkçe · 🇬🇧 English · 🇩🇪 Deutsch · ve 100+ dilde çeviri
+🇹🇷 Türkçe · 🇬🇧 English · 🇩🇪 Deutsch · ve 220+ dilde çeviri
+
+🌐 **Web sitesi:** [engiincr.github.io/Juzzio-Chat](https://engiincr.github.io/Juzzio-Chat/) · **Juzzio** — live translation video call app, translated voice calls, end-to-end encrypted messenger
 
 </div>
 
 <!-- JUZZIO_DYNAMIC_TITLE_START -->
-### 🚀 Son güncelleme: **v0.9.2 — Çevrimdışı Sohbetler ve Medya**
+### 🚀 Son güncelleme: **v0.9.3 — Görüşmede Çoklu Görev ve Dilinizde Bildirimler**
 <!-- JUZZIO_DYNAMIC_TITLE_END -->
 
 <!-- JUZZIO_VERIFIED_APK_START -->
 | Sürüm | APK | Boyut | SHA-256 | Derleme |
 | :-- | :-- | :-- | :-- | :-- |
-| v0.9.2 (+1045) | [Juzzio-latest.apk](https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk) | 100.30 MB | `7e1be1db21b0520d7c8b0964486c5b69e39aea1777bf29772e9fd2a18be6d3d0` | 2026-11-02 09:28 UTC |
+| v0.9.3 (+93) | GitHub Actions derlemesi bekleniyor | – | – | – |
 <!-- JUZZIO_VERIFIED_APK_END -->
 
 ---

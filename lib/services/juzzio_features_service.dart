@@ -112,6 +112,7 @@ class JuzzioChickState {
   final DateTime? myNextFeedAt;
   final String partnerName;
   final String? partnerAvatar;
+  final String partnerId;
   final List<JuzzioChickInvite> invites;
   final String? lastChickName;
   final String? lastChickStatus; // dead | released
@@ -128,6 +129,7 @@ class JuzzioChickState {
     this.myNextFeedAt,
     this.partnerName = '',
     this.partnerAvatar,
+    this.partnerId = '',
     this.invites = const [],
     this.lastChickName,
     this.lastChickStatus,
@@ -151,6 +153,7 @@ class JuzzioChickState {
       myNextFeedAt: DateTime.tryParse(map['my_next_feed_at']?.toString() ?? '')?.toLocal(),
       partnerName: (partner['display_name'] ?? partner['username'] ?? '').toString(),
       partnerAvatar: partner['avatar_url']?.toString(),
+      partnerId: (partner['id'] ?? '').toString(),
       invites: invitesRaw is List
           ? invitesRaw.whereType<Map>().map((m) => JuzzioChickInvite.fromMap(Map<String, dynamic>.from(m))).toList()
           : const [],
@@ -345,13 +348,13 @@ class JuzzioFeaturesService {
     final uid = _svc.currentUserId;
     if (uid == null) _fail('not_authenticated');
     try {
-      await _svc.client.from('profiles').update({
+      // v0.9.3: çevrimdışıysa sıraya alınır, bağlantı gelince yazılır
+      await _svc.writeOrQueue('profile', {'t': 'profile', 'fields': {
         'website_url': websiteUrl.trim(),
         'music_url': musicUrl.trim(),
         'music_start_sec': musicStartSec < 0 ? 0 : musicStartSec,
         'music_title': musicTitle.trim(),
-        'updated_at': DateTime.now().toUtc().toIso8601String(),
-      }).eq('id', uid);
+      }});
     } catch (e) {
       _fail(e);
     }
@@ -372,7 +375,7 @@ class JuzzioFeaturesService {
 
   Future<void> setMyGender(String gender) async {
     try {
-      await _svc.client.rpc('set_my_gender', params: {'p_gender': gender});
+      await _svc.writeOrQueue('rpc:set_my_gender', {'t': 'rpc', 'fn': 'set_my_gender', 'params': {'p_gender': gender}});
     } catch (e) {
       _fail(e);
     }
@@ -680,11 +683,10 @@ class JuzzioFeaturesService {
     final uid = _svc.currentUserId;
     if (uid == null) _fail('not_authenticated');
     try {
-      await _svc.client.from('profiles').update({
+      await _svc.writeOrQueue('profile', {'t': 'profile', 'fields': {
         if (cardBgColor != null) 'card_bg_color': cardBgColor,
         if (cardBgUrl != null) 'card_bg_url': cardBgUrl,
-        'updated_at': DateTime.now().toUtc().toIso8601String(),
-      }).eq('id', uid);
+      }});
     } catch (e) {
       _fail(e);
     }
@@ -700,14 +702,13 @@ class JuzzioFeaturesService {
     final uid = _svc.currentUserId;
     if (uid == null) _fail('not_authenticated');
     try {
-      await _svc.client.from('profiles').update({
+      await _svc.writeOrQueue('profile', {'t': 'profile', 'fields': {
         'music_url': musicUrl.trim(),
         'music_start_sec': startSec < 0 ? 0 : startSec,
         'music_title': title.trim(),
         'music_artist': artist.trim(),
         'music_cover_url': coverUrl.trim(),
-        'updated_at': DateTime.now().toUtc().toIso8601String(),
-      }).eq('id', uid);
+      }});
     } catch (e) {
       _fail(e);
     }
@@ -717,7 +718,7 @@ class JuzzioFeaturesService {
     final uid = _svc.currentUserId;
     if (uid == null) return;
     try {
-      await _svc.client.from('profiles').update({'profile_zoom_enabled': enabled}).eq('id', uid);
+      await _svc.writeOrQueue('profile', {'t': 'profile', 'fields': {'profile_zoom_enabled': enabled}});
     } catch (e) {
       _fail(e);
     }

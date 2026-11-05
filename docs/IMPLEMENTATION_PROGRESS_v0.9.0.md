@@ -181,3 +181,23 @@ kullanılır (talimat §16 "mevcut takip dosyaları varsa onları kullan"); yaln
 - 2026-11-02: Son konsolidasyon talimatı eklendi (yukarıda C-*). Personal 5 sekme uygulandı; Bildirimler sayfasına gömülü kip (geri düğmesi gizli, kök rotayı kapatmaz).
 - 2026-11-01 23:44: Personal/Business ikili deneyim eki tamamen okundu → B0–B11 olarak bu dosyaya eklendi.
 - 2026-11-01: Faz 1c — (1) Özel medya: `lib/services/juzzio_media_url.dart` (imzalı URL + önbellek + `JuzzioStorageImage`), 10 görüntüleme noktası, video denetleyicisi imzadan sonra oluşturulur, sesli mesaj imzalı adresle çalınır; geri bildirim görüntüleri artık özel bucket'ta (personel yalnız `feedback.manage`, moderatör yalnız hikâye/gönderi medyası; özel sohbet medyası personele kapalı — SQL testli). (2) E2EE fail-closed: `encryptForRoomStrict` + `JuzzioE2eeRequiredException`; ağ hatasında oda grup sayılmaz; anahtarsız karşı tarafa düz metin yalnız açık onayla ve `metadata.security=plaintext_consented`; E2EE metni onaysız çeviriye gitmez (gönderen VE alıcı tarafı); Ayarlar'a izin anahtarı. (3) `client_msg_id` idempotency (SQL testli). (4) G13–G19, G21 istemci. Yeni: `scripts/dart_lexcheck.py` (CI'a eklendi), `test/juzzio_v090_test.dart`.
+
+## v0.9.3 (2026-11-06) — 17 maddelik istek
+| # | Konu | Durum | Doğrulama |
+|---|------|-------|-----------|
+| 1 | Görüşmede sohbetlere geçiş, küçük pencere, Android PiP, ön plan servisi, bildirimle sohbete geçiş | Yapıldı | Birim (backDecision); cihazda DENENMEDİ |
+| 2 | Hikâye 30 sn | Yapıldı | config |
+| 3 | Profil çevrimdışı | Yapıldı | Birim (safeCacheName) |
+| 4 | Çevrimdışı ayar kuyruğu | Yapıldı | Birim (isNetworkError) |
+| 5 | Sohbet listesi son mesaj (oturum öncesi boş yayın kök nedeni) | Yapıldı | cihazda DENENMEDİ |
+| 6 | SEO: docs/ GitHub Pages sitesi, sitemap, JSON-LD | Yapıldı | Pages'i açmak ve Search Console kullanıcıda (docs/SEO_KURULUM.md) |
+| 7-8 | Bildirim çevirisi + uygulama dışından yanıt | Yapıldı | Birim (notification_preview) |
+| 9 | Çeviri 500 karakter hatası + sesli mesaj süresi | Yapıldı | Edge 16/16 + Dart birim |
+| 10 | Civciv oyunu yenileme | Yapıldı | Birim (görünürlük, açlık) |
+| 11 | Drive erişim reddedildi | Kod tarafı yapıldı | Google Cloud yapılandırması kullanıcıda |
+| 12 | Yorum yanıtı @bahsetme + bildirimler | Yapıldı | SQL 10.24 testleri, push_i18n 8/8 |
+| 13 | Yaylı sola kaydırarak silme | Yapıldı | Birim (swipe math) |
+| 14 | 224 dil | Yapıldı | l10n check |
+| 15-16 | Juzzio Official hikâyeleri, başlıktan profile | Yapıldı | SQL 10.25 testleri |
+| 17 | Güzelleştirme yoğunluğu (arama + hikâye fotoğrafı) | Yapıldı | Birim (kenar koruma); video hikâyelerde YOK |
+Flutter derlemesi / Kotlin derlemesi yerelde ÇALIŞTIRILMADI (CI'da doğrulanır).

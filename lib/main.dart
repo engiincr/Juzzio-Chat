@@ -17,6 +17,7 @@ import 'core/app_theme_and_locale.dart';
 import 'core/config.dart';
 import 'core/native_bridge.dart';
 import 'screens/chat_screen.dart';
+import 'services/juzzio_e2ee.dart';
 import 'services/fcm_push_service.dart';
 import 'services/juzzio_quick_reply.dart';
 import 'services/juzzio_notification_preview.dart';
@@ -93,9 +94,15 @@ Future<void> juzzioQuickReplyMain() async {
   const channel = MethodChannel('juzzio/quick_reply');
   Map<String, Object> outcome = {'ok': false, 'status': JuzzioQuickReplyStatus.failed.name};
   try {
+    JuzzioE2ee.instance.headless = true;
     await Supabase.initialize(url: JuzzioConfig.supabaseUrl, anonKey: JuzzioConfig.supabaseAnonKey);
     final req = await channel.invokeMapMethod<String, dynamic>('take');
     if (req != null) {
+      try {
+        await JuzzioAppController.instance
+            .loadUserPreferences(Supabase.instance.client.auth.currentUser?.id)
+            .timeout(const Duration(seconds: 2));
+      } catch (_) {}
       // v0.9.0 N-E: Android'in ürettiği client_msg_id ile idempotent gönderim
       outcome = await JuzzioQuickReply.handleChannelArgs(req);
     }
@@ -117,6 +124,7 @@ Future<void> juzzioNotificationPreviewMain() async {
   const channel = MethodChannel('juzzio/notif_preview');
   Map<String, Object?> outcome = {'text': null};
   try {
+    JuzzioE2ee.instance.headless = true;
     await Supabase.initialize(url: JuzzioConfig.supabaseUrl, anonKey: JuzzioConfig.supabaseAnonKey);
     final req = await channel.invokeMapMethod<String, dynamic>('take');
     if (req != null) {
@@ -178,9 +186,9 @@ const PageTransitionsTheme kJuzzioPageTransitions = PageTransitionsTheme(
   },
 );
 
-const Set<String> _kRtlLangs = {'ar', 'fa', 'he', 'iw', 'ur', 'ps', 'ckb', 'yi', 'sd', 'ug', 'dv'};
+const Set<String> _kRtlLangs = {'ar', 'fa', 'he', 'iw', 'ur', 'ps', 'ckb', 'yi', 'sd', 'ug', 'dv', 'bal'};
 
-bool juzzioIsRtl(String uiLang) => _kRtlLangs.contains(uiLang.toLowerCase().split(RegExp('[-_]')).first) || uiLang.toLowerCase() == 'ckb';
+bool juzzioIsRtl(String uiLang) => _kRtlLangs.contains(uiLang.toLowerCase().split(RegExp('[-_]')).first) || uiLang.toLowerCase() == 'ckb' || uiLang.toLowerCase().endsWith('-arab');
 
 /// Uygulama dilini Flutter'ın desteklediği en yakın Material diline eşler.
 Locale juzzioMaterialLocale(String uiLang) {

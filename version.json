@@ -1,16 +1,16 @@
 {
-  "version": "0.9.2",
-  "buildNumber": 1045,
-  "releaseDate": "2026-11-02",
-  "releaseTitle": "Çevrimdışı Sohbetler ve Medya",
+  "version": "0.9.3",
+  "buildNumber": 93,
+  "releaseDate": "2026-11-06",
+  "releaseTitle": "Görüşmede Çoklu Görev ve Dilinizde Bildirimler",
   "mandatory": false,
   "minSupportedVersion": "0.1.0",
   "apkUrl": "https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk",
-  "versionedApkUrl": "https://github.com/engiincr/Juzzio-Chat/releases/download/v0.9.2/juzzio-v0.9.2-release.apk",
-  "apkSha256": "7e1be1db21b0520d7c8b0964486c5b69e39aea1777bf29772e9fd2a18be6d3d0",
-  "apkSize": "100.30 MB",
-  "verifiedBuild": true,
-  "verifiedAt": "2026-11-02 09:28 UTC",
+  "versionedApkUrl": "https://github.com/engiincr/Juzzio-Chat/releases/download/v0.9.3/juzzio-v0.9.3-release.apk",
+  "apkSha256": "",
+  "apkSize": "",
+  "verifiedBuild": false,
+  "verifiedAt": "",
   "developer": {
     "name": "Engin ÇIRPAN",
     "instagram": "https://ig.me/tugkancr",
@@ -18,56 +18,74 @@
     "email": "engiincr@pm.me"
   },
   "changelog": {
-    "tr": "v0.9.2: İnternet yokken de sohbetlerin, fotoğrafların, sesli mesajların ve profillerin WhatsApp'taki gibi açılabilmesi için getirildi.",
-    "en": "v0.9.2: Lets chats, photos, voice messages and profiles open without internet, like WhatsApp.",
-    "de": "v0.9.2: Lets chats, photos, voice messages and profiles open without internet, like WhatsApp."
+    "tr": "v0.9.3: Görüşme sırasında uygulamayı kullanmaya devam edebilmek (küçük pencere / PiP), bildirimleri dilinizde okuyup yanıtlayabilmek ve kullanıcıların bildirdiği 17 sorunu gidermek için getirildi.",
+    "en": "v0.9.3: Lets you keep using the app during calls (mini window / PiP), read and reply to notifications in your language, and fixes 17 user-reported issues.",
+    "de": "v0.9.3: Lets you keep using the app during calls (mini window / PiP), read and reply to notifications in your language, and fixes 17 user-reported issues."
   },
-  "build": 1045,
-  "versionCode": 1045,
+  "build": 93,
+  "versionCode": 93,
   "url": "https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk",
-  "changelog_tr": "v0.9.2: İnternet yokken de sohbetlerin, fotoğrafların, sesli mesajların ve profillerin WhatsApp'taki gibi açılabilmesi için getirildi.",
-  "changelog_en": "v0.9.2: Lets chats, photos, voice messages and profiles open without internet, like WhatsApp.",
-  "changelog_de": "v0.9.2: Lets chats, photos, voice messages and profiles open without internet, like WhatsApp.",
+  "changelog_tr": "v0.9.3: Görüşme sırasında uygulamayı kullanmaya devam edebilmek (küçük pencere / PiP), bildirimleri dilinizde okuyup yanıtlayabilmek ve kullanıcıların bildirdiği 17 sorunu gidermek için getirildi.",
+  "changelog_en": "v0.9.3: Lets you keep using the app during calls (mini window / PiP), read and reply to notifications in your language, and fixes 17 user-reported issues.",
+  "changelog_de": "v0.9.3: Lets you keep using the app during calls (mini window / PiP), read and reply to notifications in your language, and fixes 17 user-reported issues.",
   "details": {
     "tr": {
-      "reason": "İnternet yokken de sohbetlerin, fotoğrafların, sesli mesajların ve profillerin WhatsApp'taki gibi açılabilmesi için getirildi.",
+      "reason": "Görüşme sırasında uygulamayı kullanmaya devam edebilmek (küçük pencere / PiP), bildirimleri dilinizde okuyup yanıtlayabilmek ve kullanıcıların bildirdiği 17 sorunu gidermek için getirildi.",
       "features": [
-        "Çevrimdışı sohbet: her sohbetin son 300 mesajı cihazda saklanır, internet yokken okunabilir",
-        "Görüntülenen fotoğraflar ve profil resimleri cihazda saklanır, internetsiz görünür",
-        "Dinlenen sesli mesajlar internetsiz tekrar çalınabilir",
-        "Kişi profilleri internet yokken son görülen hâliyle açılır",
-        "Bağlantı gelince sohbet kendiliğinden yenilenir (5 sn arayla yeniden bağlanır)"
+        "Görüşme sürerken sohbetlere geçilebilir; uygulama küçültülünce görüşme sağ köşede ekran içinde ekran (PiP) olarak sürer",
+        "Görüşme sırasında gelen mesaj bildirimine dokununca görüşme kesilmeden o sohbet açılır",
+        "Bildirimler uygulama dilinize çevrilmiş mesaj içeriğiyle gelir ve uygulama kapalıyken bile yanıtlanabilir",
+        "Hikâyeler 30 saniye görünür; hikâyede paylaşanın adına dokununca profili açılır",
+        "Juzzio Official: mavi tikli resmi tanıtım hikâyeleri Durumlar'da herkeste ilk sırada",
+        "Güzelleştirme yoğunluğu ayarı: görüntülü aramada ve hikâye fotoğraflarında",
+        "Yorum yanıtında otomatik @bahsetme; 'yorumunuza yanıt verdi' ve 'yorumunuzu beğendi' bildirimleri",
+        "Sesli mesajlarda toplam süre ve oynatılırken geçen süre",
+        "Civciv oyunu yenilendi: HD vektör civciv, likit cam butonlar, sevme ve besleme animasyonları; yumurta sohbette yalnız civciv acıktığında görünür",
+        "Yaylı ve akıcı sola kaydırarak silme (onaylı)",
+        "224 dil desteği (80 yeni dil)",
+        "İnternet yokken profil sayfası açılır; çevrimdışı değiştirilen ayarlar bağlantı gelince uygulanır",
+        "Tanıtım web sitesi: engiincr.github.io/Juzzio-Chat"
       ],
       "fixes": [
-        "İnternet yokken şifreli mesajlar 'kilitli' görünmüyor; anahtarlar cihazdan okunur",
-        "Hesap silindiğinde cihazdaki önbellek de siliniyor"
+        "Sesli mesaj dökümünde 'QUERY LENGTH LIMIT EXCEEDED' hata metni artık görünmüyor; uzun metinler parça parça çevrilir",
+        "Sohbetler ilk açılışta 'Sohbet başlatmak için dokun' yerine son mesajı gösterir",
+        "Google Drive yedeklemede 'erişim reddedildi' hatası: izin yeniden istenir, süresi dolan oturum yenilenir, anlamlı hata mesajları",
+        "@bahsetme ve hatırlatma bildirimleri artık telefona (push) da gelir",
+        "Şonaca ve Kirundi dil kodları düzeltildi"
       ],
       "security": [
-        "Şifreli mesajlar ve şifreli fotoğraflar cihazda da şifreli hâliyle saklanır; çözme yalnız bellekte",
-        "Önbellek hesaba özeldir; çıkışta ve hesap silmede silinir",
-        "Medya önbelleği en fazla 300 MB; Ayarlar > Depolama > Önbelleği Temizle ile silinebilir (mesajlar silinmez)"
+        "Juzzio Official hikâyesini yalnız yönetici paylaşabilir; sunucu tarafında zorunlu denetim",
+        "Uçtan uca şifreleme değişmedi; bildirim çevirisi cihazda çözülen metinle yapılır"
       ]
     },
     "en": {
-      "reason": "Lets chats, photos, voice messages and profiles open without internet, like WhatsApp.",
+      "reason": "Lets you keep using the app during calls (mini window / PiP), read and reply to notifications in your language, and fixes 17 user-reported issues.",
       "features": [
-        "Offline chats: the last 300 messages of each chat are kept on the device and readable without internet",
-        "Viewed photos and profile pictures are stored on the device and shown offline",
-        "Played voice messages can be replayed offline",
-        "Contact profiles open offline with their last seen data",
-        "Chats refresh automatically when the connection returns (reconnects every 5 s)"
+        "You can switch to chats during a call; minimizing the app keeps the call in a picture-in-picture window",
+        "Tapping a message notification during a call opens that chat without ending the call",
+        "Notifications show the message translated into your app language and can be answered even when the app is closed",
+        "Stories are shown for 30 seconds; tap the poster's name to open their profile",
+        "Juzzio Official: blue-tick official teaser stories shown first in everyone's Stories",
+        "Adjustable beauty intensity in video calls and story photos",
+        "Automatic @mention when replying to comments; 'replied to your comment' and 'liked your comment' notifications",
+        "Total duration on voice messages, elapsed time while playing",
+        "Chick game redesigned: HD vector chick, liquid glass buttons, cuddle and feeding animations; the egg shows in chat only when the chick is hungry",
+        "Springy, smooth swipe-left to delete (with confirmation)",
+        "224 languages (80 new)",
+        "Profile page opens offline; settings changed offline apply when the connection returns",
+        "Website: engiincr.github.io/Juzzio-Chat"
       ],
       "fixes": [
-        "Encrypted messages no longer show as locked while offline; keys are read from the device",
-        "Deleting the account also deletes the on-device cache"
+        "Voice transcripts no longer show the 'QUERY LENGTH LIMIT EXCEEDED' error; long texts are translated in chunks",
+        "Chats show the last message on first open instead of 'Tap to start chatting'",
+        "Google Drive backup 'access denied': permission is re-requested, expired sessions are refreshed, clear error messages",
+        "@mention and reminder notifications now also arrive as push",
+        "Fixed Shona and Kirundi language codes"
       ],
       "security": [
-        "Encrypted messages and photos are stored encrypted on the device too; decryption happens only in memory",
-        "The cache is per account and is deleted on sign-out and account deletion",
-        "Media cache is capped at 300 MB and can be cleared in Settings > Storage > Clear cache (messages are kept)"
+        "Only the admin can post Juzzio Official stories; enforced on the server",
+        "End-to-end encryption unchanged; notification translation uses text decrypted on the device"
       ]
     }
-  },
-  "mldsa65Sig": "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",
-  "signatureAlg": "ML-DSA-65 (FIPS 204)"
+  }
 }

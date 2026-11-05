@@ -64,6 +64,42 @@ String juzzioLocalizedNotificationText(JuzzioNotificationItem item) {
       return _l('Arkadaşlık isteğini kabul etti.', 'Accepted your friend request.', 'Hat deine Freundschaftsanfrage angenommen.');
     case 'story_like':
       return _l('Hikâyeni beğendi.', 'Liked your story.', 'Gefällt deine Story.');
+    // v0.9.3: yorum yanıtı / beğenisi
+    case 'reply':
+      final r = juzzioParseReplyPreview(preview);
+      if (r == null) {
+        return preview.isEmpty
+            ? _l('Yorumuna yanıt verdi.', 'Replied to your comment.', 'Hat auf deinen Kommentar geantwortet.')
+            : '${_l('Yorumuna yanıt verdi', 'Replied to your comment', 'Hat geantwortet')}: $preview';
+      }
+      if (r.$1.isEmpty) {
+        return _l('Yorumuna "${r.$2}" yanıtını verdi.', 'Replied "${r.$2}" to your comment.', 'Hat „${r.$2}“ auf deinen Kommentar geantwortet.');
+      }
+      return _l('"${r.$1}" yorumuna "${r.$2}" yanıtını verdi.', 'Replied "${r.$2}" to your comment "${r.$1}".',
+          'Hat auf deinen Kommentar „${r.$1}“ mit „${r.$2}“ geantwortet.');
+    case 'comment_like':
+      return preview.isEmpty
+          ? _l('Yorumunu beğendi.', 'Liked your comment.', 'Gefällt dein Kommentar.')
+          : _l('"$preview" yorumunu beğendi.', 'Liked your comment "$preview".', 'Gefällt dein Kommentar „$preview“.');
+    case 'comment':
+      return preview.isEmpty
+          ? _l('Gönderine yorum yaptı.', 'Commented on your post.', 'Hat deinen Beitrag kommentiert.')
+          : '${_l('Gönderine yorum yaptı', 'Commented on your post', 'Hat kommentiert')}: $preview';
+    case 'mention':
+      if (preview.startsWith('comment|')) {
+        final t = preview.substring(8);
+        return t.isEmpty
+            ? _l('Bir yorumda senden bahsetti.', 'Mentioned you in a comment.', 'Hat dich in einem Kommentar erwähnt.')
+            : '${_l('Bir yorumda senden bahsetti', 'Mentioned you in a comment', 'Hat dich erwähnt')}: $t';
+      }
+      if (preview.startsWith('story|')) return _l('Hikâyesinde senden bahsetti.', 'Mentioned you in their story.', 'Hat dich in der Story erwähnt.');
+      if (preview.startsWith('post|')) {
+        final t = preview.substring(5);
+        return t.isEmpty
+            ? _l('Bir gönderide senden bahsetti.', 'Mentioned you in a post.', 'Hat dich in einem Beitrag erwähnt.')
+            : '${_l('Bir gönderide senden bahsetti', 'Mentioned you in a post', 'Hat dich erwähnt')}: $t';
+      }
+      break;
     case 'like':
       if (preview.isEmpty || preview == 'Gönderini beğendi.') {
         return _l('Gönderini beğendi.', 'Liked your post.', 'Gefällt dein Beitrag.');
@@ -87,4 +123,13 @@ String juzzioLocalizedNotificationText(JuzzioNotificationItem item) {
       return app.t('chick_died_info').replaceAll('{name}', preview.isEmpty ? app.t('chick_title') : preview);
   }
   return preview;
+}
+
+/// v0.9.3: 'reply|<yanıtlanan yorum>|<yanıt>' → (yorum, yanıt); biçim değilse null.
+(String, String)? juzzioParseReplyPreview(String preview) {
+  if (!preview.startsWith('reply|')) return null;
+  final rest = preview.substring(6);
+  final i = rest.indexOf('|');
+  if (i < 0) return null;
+  return (rest.substring(0, i).trim(), rest.substring(i + 1).trim());
 }

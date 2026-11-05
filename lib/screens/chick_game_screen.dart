@@ -7,8 +7,10 @@
 // =============================================================================
 
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../core/app_theme_and_locale.dart';
 import '../core/config.dart';
@@ -16,6 +18,7 @@ import '../core/theme/juzzio_colors.dart';
 import '../core/theme/juzzio_glass.dart';
 import '../services/juzzio_features_service.dart';
 import '../services/supabase_service.dart';
+import '../widgets/juzzio_chick_art.dart';
 import '../widgets/juzzio_nest_scene.dart';
 
 class JuzzioChickGameScreen extends StatefulWidget {
@@ -42,6 +45,48 @@ class _JuzzioChickGameScreenState extends State<JuzzioChickGameScreen> with Tick
   late final AnimationController _bounce;
   // v0.7.0: besleme anında yumurta/civciv titrer
   late final AnimationController _wobble = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
+  // v0.9.3: göz kırpma, kanat çırpma ve parçacık (kalp / yem) animasyonları
+  late final AnimationController _blink = AnimationController(vsync: this, duration: const Duration(milliseconds: 170));
+  late final AnimationController _flap = AnimationController(vsync: this, duration: const Duration(milliseconds: 650));
+  late final AnimationController _fx = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
+  bool _fxHearts = true;
+  int _fxSeed = 1;
+  int _pets = 0;
+  Timer? _blinkTimer;
+  final math.Random _rnd = math.Random();
+
+  void _scheduleBlink() {
+    _blinkTimer?.cancel();
+    _blinkTimer = Timer(Duration(milliseconds: 2400 + _rnd.nextInt(3200)), () async {
+      if (!mounted) return;
+      try {
+        await _blink.forward(from: 0);
+        if (mounted) await _blink.reverse();
+      } catch (_) {}
+      if (mounted) _scheduleBlink();
+    });
+  }
+
+  void _burst({required bool hearts}) {
+    setState(() {
+      _fxHearts = hearts;
+      _fxSeed = _rnd.nextInt(1 << 20);
+    });
+    _fx.forward(from: 0);
+  }
+
+  /// Sahneye dokunma: yumurtada titreme, civcivde sevme (kalp + kanat çırpma)
+  void _pet(JuzzioChickState st) {
+    HapticFeedback.selectionClick();
+    _wobble.forward(from: 0);
+    if (st.stage >= 1) {
+      _flap.forward(from: 0).then((_) {
+        if (mounted) _flap.reverse();
+      });
+      _burst(hearts: true);
+      setState(() => _pets++);
+    }
+  }
 
   @override
   void initState() {
@@ -52,6 +97,7 @@ class _JuzzioChickGameScreenState extends State<JuzzioChickGameScreen> with Tick
       if (mounted) setState(() => _gender = g);
     });
     _refreshTimer = Timer.periodic(const Duration(seconds: 60), (_) => _load(silent: true));
+    _scheduleBlink();
   }
 
   @override
@@ -59,6 +105,10 @@ class _JuzzioChickGameScreenState extends State<JuzzioChickGameScreen> with Tick
     _refreshTimer?.cancel();
     _bounce.dispose();
     _wobble.dispose();
+    _blinkTimer?.cancel();
+    _blink.dispose();
+    _flap.dispose();
+    _fx.dispose();
     super.dispose();
   }
 
@@ -163,7 +213,17 @@ class _JuzzioChickGameScreenState extends State<JuzzioChickGameScreen> with Tick
     setState(() => _busy = true);
     try {
       final res = await _features.feedChick();
-      if (res.fed) _wobble.forward(from: 0);
+      if (res.fed) {
+        _wobble.forward(from: 0);
+        HapticFeedback.mediumImpact();
+        _burst(hearts: false);
+        _flap.forward(from: 0).then((_) {
+          if (mounted) _flap.reverse();
+        });
+        Future.delayed(const Duration(milliseconds: 900), () {
+          if (mounted) _burst(hearts: true);
+        });
+      }
       _snack(res.fed ? JuzzioAppController.instance.t('chick_fed') : JuzzioAppController.instance.t('chick_too_soon'),
           error: !res.fed);
       await _load(silent: true);
@@ -340,7 +400,7 @@ class _JuzzioChickGameScreenState extends State<JuzzioChickGameScreen> with Tick
         padding: const EdgeInsets.all(20),
         children: [
           const SizedBox(height: 10),
-          const Center(child: Text('🥚', style: TextStyle(fontSize: 96))),
+          JuzzioNestScene(stage: 0, crack: 0, wobble: _wobble, idle: _bounce, chickEmoji: '🥚', dark: p.isDark),
           const SizedBox(height: 12),
           Text(app.t('chick_intro'),
               textAlign: TextAlign.center, style: TextStyle(color: textColor, fontSize: 15.5, height: 1.45)),
@@ -354,17 +414,12 @@ class _JuzzioChickGameScreenState extends State<JuzzioChickGameScreen> with Tick
             ),
           ],
           const SizedBox(height: 22),
-          FilledButton.icon(
-            onPressed: _busy ? null : _inviteFlow,
-            icon: const Icon(Icons.favorite_rounded),
-            label: Text(app.t('chick_invite_friend')),
-            style: FilledButton.styleFrom(
-              // v0.8.3: oyun butonları seçili temanın buton renklerini kullanır
-              backgroundColor: JuzzioGlassTokens.accentFill,
-              foregroundColor: JuzzioGlassTokens.onAccent,
-              minimumSize: const Size.fromHeight(52),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            ),
+          JuzzioLiquidGlassButton(
+            onTap: _busy ? null : _inviteFlow,
+            icon: Icons.favorite_rounded,
+            label: app.t('chick_invite_friend'),
+            tint: const Color(0xFFFF6F91),
+            loading: _busy,
           ),
           if (st.invites.isNotEmpty) ...[
             const SizedBox(height: 24),
@@ -433,7 +488,11 @@ class _JuzzioChickGameScreenState extends State<JuzzioChickGameScreen> with Tick
       padding: const EdgeInsets.all(20),
       children: [
         Center(
-          child: Container(
+          child: AnimatedSwitcher(
+           duration: const Duration(milliseconds: 380),
+           transitionBuilder: (c, a) => ScaleTransition(scale: CurvedAnimation(parent: a, curve: Curves.elasticOut), child: c),
+           child: Container(
+            key: ValueKey(_speech(st)),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
               color: moodColor.withValues(alpha: 0.15),
@@ -443,20 +502,52 @@ class _JuzzioChickGameScreenState extends State<JuzzioChickGameScreen> with Tick
             child: Text(_speech(st),
                 textAlign: TextAlign.center,
                 style: TextStyle(color: textColor, fontWeight: FontWeight.w800, fontSize: 15)),
+           ),
           ),
         ),
         const SizedBox(height: 8),
         // v0.7.0: beyaz zemin yerine gerçek saman kuş yuvası; yumurta beslendikçe titrer
         // ve deneyim puanı arttıkça kabuğu adım adım çatlar.
         GestureDetector(
-          onTap: () => _wobble.forward(from: 0),
-          child: JuzzioNestScene(
-            stage: st.stage,
-            crack: st.stage <= 0 ? progress : 0,
-            wobble: _wobble,
-            idle: _bounce,
-            chickEmoji: _stageEmoji(st.stage),
-            dark: p.isDark,
+          onTap: () => _pet(st),
+          child: Stack(
+            children: [
+              JuzzioNestScene(
+                stage: st.stage,
+                crack: st.stage <= 0 ? progress : 0,
+                wobble: _wobble,
+                idle: _bounce,
+                chickEmoji: _stageEmoji(st.stage),
+                dark: p.isDark,
+                mood: st.mood,
+                blink: _blink,
+                flap: _flap,
+              ),
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: AnimatedBuilder(
+                    animation: _fx,
+                    builder: (_, __) => CustomPaint(
+                      painter: JuzzioChickParticlesPainter(progress: _fx.value, hearts: _fxHearts, seed: _fxSeed),
+                    ),
+                  ),
+                ),
+              ),
+              if (_pets > 0)
+                Positioned(
+                  right: 14,
+                  top: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.28),
+                      borderRadius: BorderRadius.circular(99),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
+                    ),
+                    child: Text('♥ $_pets', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+                  ),
+                ),
+            ],
           ),
         ),
         Center(
@@ -484,7 +575,32 @@ class _JuzzioChickGameScreenState extends State<JuzzioChickGameScreen> with Tick
           textAlign: TextAlign.center,
           style: TextStyle(color: p.textSecondary, fontSize: 12.5),
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 14),
+        // v0.9.3: cam bilgi kartları — tokluk ve büyüme
+        Row(
+          children: [
+            Expanded(
+              child: JuzzioGlassStatChip(
+                icon: Icons.restaurant_rounded,
+                label: app.t('chick_satiety'),
+                value: '${((1 - juzzioChickHungerLevel(st.hoursSinceFed)) * 100).round()}%',
+                color: moodColor,
+                meter: 1 - juzzioChickHungerLevel(st.hoursSinceFed),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: JuzzioGlassStatChip(
+                icon: Icons.trending_up_rounded,
+                label: app.t('chick_growth'),
+                value: '${(progress * 100).round()}%',
+                color: const Color(0xFF7C4DFF),
+                meter: progress,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
         ListTile(
           leading: CircleAvatar(
             backgroundImage: st.partnerAvatar != null && st.partnerAvatar!.isNotEmpty ? NetworkImage(st.partnerAvatar!) : null,
@@ -500,17 +616,15 @@ class _JuzzioChickGameScreenState extends State<JuzzioChickGameScreen> with Tick
           ),
         ),
         const SizedBox(height: 12),
-        FilledButton.icon(
-          onPressed: (_busy || !st.canFeedNow) ? null : _feed,
-          icon: const Icon(Icons.restaurant_rounded),
-          label: Text(st.canFeedNow || st.myNextFeedAt == null ? app.t('chick_feed') : _formatWait(st.myNextFeedAt!)),
-          style: FilledButton.styleFrom(
-            backgroundColor: JuzzioGlassTokens.accentFill,
-            foregroundColor: JuzzioGlassTokens.onAccent,
-            minimumSize: const Size.fromHeight(54),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          ),
+        JuzzioLiquidGlassButton(
+          onTap: (_busy || !st.canFeedNow) ? null : _feed,
+          icon: Icons.restaurant_rounded,
+          label: st.canFeedNow || st.myNextFeedAt == null ? app.t('chick_feed') : _formatWait(st.myNextFeedAt!),
+          tint: st.mood == 'happy' ? const Color(0xFFFFA000) : moodColor,
+          loading: _busy,
         ),
+        const SizedBox(height: 8),
+        Text(app.t('chick_pet_hint'), textAlign: TextAlign.center, style: TextStyle(color: p.textSecondary, fontSize: 12)),
         const SizedBox(height: 10),
         TextButton(
           onPressed: _busy ? null : _confirmRelease,
