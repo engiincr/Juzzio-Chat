@@ -13,7 +13,6 @@
 // =============================================================================
 
 import 'dart:async';
-import 'dart:ui' show FontFeature;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -24,9 +23,9 @@ import 'deepgram_livekit_service.dart';
 
 enum JuzzioCallView { full, minimized, pip }
 
-class JuzzioCallSession extends ChangeNotifier with WidgetsBindingObserver {
-  JuzzioCallSession._();
-  static final JuzzioCallSession instance = JuzzioCallSession._();
+class JuzzioActiveCall extends ChangeNotifier with WidgetsBindingObserver {
+  JuzzioActiveCall._();
+  static final JuzzioActiveCall instance = JuzzioActiveCall._();
 
   static const MethodChannel _native = MethodChannel('juzzio/notifications');
 
@@ -197,7 +196,7 @@ class JuzzioCallSession extends ChangeNotifier with WidgetsBindingObserver {
 
 class _JuzzioCallHost extends StatefulWidget {
   const _JuzzioCallHost({required this.session, required this.builder});
-  final JuzzioCallSession session;
+  final JuzzioActiveCall session;
   final WidgetBuilder builder;
 
   @override
@@ -286,7 +285,7 @@ class _JuzzioCallHostState extends State<_JuzzioCallHost> {
 /// Küçük pencere / PiP içeriği: karşı tarafın görüntüsü ya da fotoğrafı + süre.
 class _CallCompactView extends StatelessWidget {
   const _CallCompactView({required this.session, required this.pip});
-  final JuzzioCallSession session;
+  final JuzzioActiveCall session;
   final bool pip;
 
   @override

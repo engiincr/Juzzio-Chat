@@ -190,13 +190,13 @@ class JuzzioFcmPushService {
         // v0.9.3: süren arama — PiP, bildirimden kapatma, aramaya dönme
         case 'onPipChanged':
           final args = call.arguments;
-          JuzzioCallSession.instance.setPip(args is Map && args['inPip'] == true);
+          JuzzioActiveCall.instance.setPip(args is Map && args['inPip'] == true);
           break;
         case 'onCallHangupFromNotification':
-          await JuzzioCallSession.instance.hangUpFromNotification();
+          await JuzzioActiveCall.instance.hangUpFromNotification();
           break;
         case 'onReturnToCall':
-          JuzzioCallSession.instance.expand();
+          JuzzioActiveCall.instance.expand();
           break;
         case 'onForegroundFcmMessage':
           final args = call.arguments;

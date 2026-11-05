@@ -17,7 +17,6 @@ import '../core/theme/juzzio_colors.dart';
 import '../core/theme/juzzio_glass.dart';
 import '../services/juzzio_features_service.dart';
 import '../services/supabase_service.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' show Supabase;
 
 String _t(String tr, String en, String de) => JuzzioAppController.instance.trEn(tr, en, de);
 

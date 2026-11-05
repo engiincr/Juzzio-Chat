@@ -187,7 +187,7 @@ class _CallScreenState extends State<CallScreen> {
     _controller.addListener(_onControllerUpdate);
     _startBatteryMonitor();
     // v0.9.3: küçük pencere / PiP görüntüsü ve bildirimden kapatma için oturuma kaydol
-    final session = JuzzioCallSession.instance;
+    final session = JuzzioActiveCall.instance;
     if (session.isActive) {
       session.controller = _controller;
       session.hangUp = _hangUpAndCloseForEveryone;
@@ -417,7 +417,7 @@ class _CallScreenState extends State<CallScreen> {
 
   /// v0.9.3: arama bitti → ekran kapanır (katmanda barındırılıyorsa oturum biter).
   void _closeCallUi() {
-    final session = JuzzioCallSession.instance;
+    final session = JuzzioActiveCall.instance;
     if (session.isActive) {
       session.finish();
     } else if (mounted) {
@@ -1933,7 +1933,7 @@ class _CallScreenState extends State<CallScreen> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         // v0.9.3: aramayı küçült (arama sürer; sohbetlere gidilebilir)
-        if (JuzzioCallSession.instance.isActive)
+        if (JuzzioActiveCall.instance.isActive)
           Padding(
             padding: const EdgeInsets.only(right: 8),
             child: Semantics(
@@ -1945,7 +1945,7 @@ class _CallScreenState extends State<CallScreen> {
                   child: Material(
                     color: _callGlassTint(0.38),
                     child: InkWell(
-                      onTap: JuzzioCallSession.instance.minimize,
+                      onTap: JuzzioActiveCall.instance.minimize,
                       child: const SizedBox(
                         width: 40,
                         height: 40,

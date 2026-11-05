@@ -1432,9 +1432,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       return;
     }
     final uid = SupabaseService.instance.currentUserId;
-    if (_isInCall && JuzzioCallSession.instance.isActive) {
+    if (_isInCall && JuzzioActiveCall.instance.isActive) {
       // v0.9.3: zaten bir görüşmedeyken yeni arama yerine süren arama büyütülür
-      JuzzioCallSession.instance.expand();
+      JuzzioActiveCall.instance.expand();
       return;
     }
     if (uid == null || _isInCall) return;
@@ -1451,7 +1451,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       if (!mounted) return;
       _isInCall = true;
       // v0.9.3: arama katmanda yaşar (küçültülebilir, PiP); arama bitince tamamlanır
-      await JuzzioCallSession.instance.start(
+      await JuzzioActiveCall.instance.start(
         context,
         title: partnerName,
         avatarUrl: targetPartnerAvatar ?? _resolveAvatar(partnerId),
@@ -1483,9 +1483,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
   Future<void> _launchGroupConferenceCall({required JuzzioGroupRoom group, required bool isVideo}) async {
     final uid = SupabaseService.instance.currentUserId;
-    if (_isInCall && JuzzioCallSession.instance.isActive) {
+    if (_isInCall && JuzzioActiveCall.instance.isActive) {
       // v0.9.3: zaten bir görüşmedeyken yeni arama yerine süren arama büyütülür
-      JuzzioCallSession.instance.expand();
+      JuzzioActiveCall.instance.expand();
       return;
     }
     if (uid == null || _isInCall) return;
@@ -1495,7 +1495,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       if (!mounted) return;
       final memberProfiles = _allProfiles.where((p) => group.groupMemberIds.contains(p.id)).toList();
       _isInCall = true;
-      await JuzzioCallSession.instance.start(
+      await JuzzioActiveCall.instance.start(
         context,
         title: group.title,
         avatarUrl: null,
@@ -1543,7 +1543,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     final group = call.isGroup ? _groupRooms.where((g) => g.id == call.roomId).firstOrNull : null;
     _isInCall = true;
     try {
-      await JuzzioCallSession.instance.start(
+      await JuzzioActiveCall.instance.start(
         context,
         title: call.isGroup ? (call.groupTitle.isNotEmpty ? call.groupTitle : (group?.title ?? call.callerName)) : call.callerName,
         avatarUrl: call.isGroup ? null : call.callerAvatar,
@@ -2300,8 +2300,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
   void _handlePushDeepLink(JuzzioPushEventPayload payload) {
     // v0.9.3: görüşme sırasında bildirime dokunuldu → arama küçülür (kesilmez), sohbet açılır
-    if (JuzzioCallSession.instance.isActive && payload.eventType != 'incoming_call') {
-      JuzzioCallSession.instance.minimize();
+    if (JuzzioActiveCall.instance.isActive && payload.eventType != 'incoming_call') {
+      JuzzioActiveCall.instance.minimize();
     }
     final et = payload.eventType;
     if (et == 'system') {
@@ -3726,7 +3726,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     return Stack(
       children: [
         Positioned.fill(child: _buildConversationBody(p, s, appCtrl, partnerProfile, activeGroup, partnerName, myUid, targetStreamRoomId)),
-        if (showEgg && eggPartner != null) _buildChickEgg(eggPartner),
+        if (showEgg) _buildChickEgg(eggPartner),
       ],
     );
   }

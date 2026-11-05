@@ -59,7 +59,7 @@ void main() {
 
   test('arama sırasında geri tuşu aramayı kapatmaz, küçültür', () {
     String d({bool active = true, JuzzioCallView view = JuzzioCallView.full, bool pip = false, bool inner = false}) =>
-        JuzzioCallSession.backDecision(active: active, view: view, inPip: pip, innerCanPop: inner);
+        JuzzioActiveCall.backDecision(active: active, view: view, inPip: pip, innerCanPop: inner);
     expect(d(), 'minimize');
     expect(d(inner: true), 'pop_inner');
     expect(d(view: JuzzioCallView.minimized), 'pass');
@@ -68,8 +68,8 @@ void main() {
   });
 
   test('arama oturumu başlangıçta etkin değil', () {
-    expect(JuzzioCallSession.instance.isActive, isFalse);
-    expect(JuzzioCallSession.instance.elapsedText(), '0:00');
+    expect(JuzzioActiveCall.instance.isActive, isFalse);
+    expect(JuzzioActiveCall.instance.elapsedText(), '0:00');
   });
 
   test('Drive "erişim reddedildi" nedenleri ayrıştırılır', () {

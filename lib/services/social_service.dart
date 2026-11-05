@@ -169,7 +169,7 @@ class JuzzioSocialService {
     final result = <JuzzioPost>[];
     final seenIds = <String>{};
 
-    for (final raw in (rows as List)) {
+    for (final raw in rows) {
       final map = Map<String, dynamic>.from(raw as Map);
       final post = JuzzioPost.fromMap(
         map,
