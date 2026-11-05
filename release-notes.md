@@ -72,3 +72,16 @@ Lets you keep using the app during calls (mini window / PiP), read and reply to 
 
 </details>
 
+## İndirme
+
+- Son sürüm: [Juzzio-latest.apk](https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk)
+- Bu sürüm: `juzzio-v0.9.3-release.apk` (103.05 MB)
+
+## APK doğrulama
+
+```bash
+sha256sum Juzzio-latest.apk
+# c4f3e8fc51e126f7c21ad65b1ec06ae4ef1a3050ecf180817a61ae4b52e11efe  Juzzio-latest.apk
+```
+
+Derleme zamanı: 2026-11-05 21:26 UTC — GitHub Actions
