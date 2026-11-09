@@ -1,87 +1,31 @@
-# Juzzio v0.9.3 — Görüşmede Çoklu Görev ve Dilinizde Bildirimler
+# Juzzio v0.9.9 — Cloth Refresh: Pixel-Faithful 3D Revision
 
-## Neden bu güncelleme?
+## 🎯 Why did this update come?
 
-Görüşme sırasında uygulamayı kullanmaya devam edebilmek (küçük pencere / PiP), bildirimleri dilinizde okuyup yanıtlayabilmek ve kullanıcıların bildirdiği 17 sorunu gidermek için getirildi.
+The v0.9.8 cloth refresh preview was compared frame by frame with the reference video and 11 visual/timing deviations were found. This update fixes the 3D hand, fabric folds, notch layering and page sync to match all 11 points exactly.
 
-## ✨ Yeni özellikler
+## ✨ What's new?
 
-- Görüşme sürerken sohbetlere geçilebilir; uygulama küçültülünce görüşme sağ köşede ekran içinde ekran (PiP) olarak sürer
-- Görüşme sırasında gelen mesaj bildirimine dokununca görüşme kesilmeden o sohbet açılır
-- Bildirimler uygulama dilinize çevrilmiş mesaj içeriğiyle gelir ve uygulama kapalıyken bile yanıtlanabilir
-- Hikâyeler 30 saniye görünür; hikâyede paylaşanın adına dokununca profili açılır
-- Juzzio Official: mavi tikli resmi tanıtım hikâyeleri Durumlar'da herkeste ilk sırada
-- Güzelleştirme yoğunluğu ayarı: görüntülü aramada ve hikâye fotoğraflarında
-- Yorum yanıtında otomatik @bahsetme; 'yorumunuza yanıt verdi' ve 'yorumunuzu beğendi' bildirimleri
-- Sesli mesajlarda toplam süre ve oynatılırken geçen süre
-- Civciv oyunu yenilendi: HD vektör civciv, likit cam butonlar, sevme ve besleme animasyonları; yumurta sohbette yalnız civciv acıktığında görünür
-- Yaylı ve akıcı sola kaydırarak silme (onaylı)
-- 224 dil desteği (80 yeni dil)
-- İnternet yokken profil sayfası açılır; çevrimdışı değiştirilen ayarlar bağlantı gelince uygulanır
-- Tanıtım web sitesi: engiincr.github.io/Juzzio-Chat
+- ⚫ The Dynamic Island is pure black (#000000) in both themes and always on the top layer; the hand is masked at the island's bottom edge, emerges from it and disappears back into it
+- 👀 On the first pull (0–35 px) only the 4 chubby fingertips and nails peek out from under the island; the hand and wrist come down as you keep pulling
+- 🖐️ A shorter, chubbier 3D clay arm (wrist ≈ 55% of the island width), glossy 3D nails on every finger including the thumb, knuckle creases and a warm matte peach skin (#F2C2B3 / #DF9F8E / #F9DCD3)
+- 🕰️ During the pendulum the root stays fixed at the island while the arm and wrist bend like a flexible bone; at the +25° peak the fingers fan out, then close again on the way back (9 separate 3D poses)
+- ✊ The fist clearly shows the 4 curled fingers' knuckles, vertical shadow grooves between them and the thumb clenched underneath
+- 🦋 When the fist closes, butterfly-wing pinch folds curl up toward the island on its left and right; the bottom stays smooth
+- 🧵 On the yank, 6 curved, asymmetric 3D drapery pleats cover the search icon, location title and avatar like a semi-transparent sheet and reach down to "Popular Food"
+- 📏 The content moves 140–155 px down while pulling and swinging, so the hand swings in clean empty space without touching any text or icon
+- 🔒 The page stays locked at the fully pulled position until the fist grabs the fabric; only during the yank does it rise, attached to the fist's lower edge at the same speed as the hand
+- 🧺 In the last 250 ms the folds stretch upward and flatten, and the page settles with no jitter
 
-## 🛠️ Düzeltilen hatalar
+## 🛠️ What was fixed?
 
-- Sesli mesaj dökümünde 'QUERY LENGTH LIMIT EXCEEDED' hata metni artık görünmüyor; uzun metinler parça parça çevrilir
-- Sohbetler ilk açılışta 'Sohbet başlatmak için dokun' yerine son mesajı gösterir
-- Google Drive yedeklemede 'erişim reddedildi' hatası: izin yeniden istenir, süresi dolan oturum yenilenir, anlamlı hata mesajları
-- @bahsetme ve hatırlatma bildirimleri artık telefona (push) da gelir
-- Şonaca ve Kirundi dil kodları düzeltildi
+- Removed the black/dark grey "sunburst" lines in light mode: valleys are only silver grey (#DFE2E8–#C8CDD6), ridges pure white
+- Removed the white haze around the fist in dark mode: valleys #07080B, ridges #222630
+- The hand no longer paints over the notch; the grey notch in dark mode is fixed
+- Removed the rigid single-sprite arm rotation
+- Fixed the page jumping up early while the fist was still closing
 
-## 🔒 Güvenlik ve gizlilik
+## 🔒 Security & privacy
 
-- Juzzio Official hikâyesini yalnız yönetici paylaşabilir; sunucu tarafında zorunlu denetim
-- Uçtan uca şifreleme değişmedi; bildirim çevirisi cihazda çözülen metinle yapılır
+- The new visuals are fully original 3D renders made by us; no extra permissions or data collection
 
----
-
-<details><summary>English</summary>
-
-## Why this update?
-
-Lets you keep using the app during calls (mini window / PiP), read and reply to notifications in your language, and fixes 17 user-reported issues.
-
-## ✨ New features
-
-- You can switch to chats during a call; minimizing the app keeps the call in a picture-in-picture window
-- Tapping a message notification during a call opens that chat without ending the call
-- Notifications show the message translated into your app language and can be answered even when the app is closed
-- Stories are shown for 30 seconds; tap the poster's name to open their profile
-- Juzzio Official: blue-tick official teaser stories shown first in everyone's Stories
-- Adjustable beauty intensity in video calls and story photos
-- Automatic @mention when replying to comments; 'replied to your comment' and 'liked your comment' notifications
-- Total duration on voice messages, elapsed time while playing
-- Chick game redesigned: HD vector chick, liquid glass buttons, cuddle and feeding animations; the egg shows in chat only when the chick is hungry
-- Springy, smooth swipe-left to delete (with confirmation)
-- 224 languages (80 new)
-- Profile page opens offline; settings changed offline apply when the connection returns
-- Website: engiincr.github.io/Juzzio-Chat
-
-## 🛠️ Fixed bugs
-
-- Voice transcripts no longer show the 'QUERY LENGTH LIMIT EXCEEDED' error; long texts are translated in chunks
-- Chats show the last message on first open instead of 'Tap to start chatting'
-- Google Drive backup 'access denied': permission is re-requested, expired sessions are refreshed, clear error messages
-- @mention and reminder notifications now also arrive as push
-- Fixed Shona and Kirundi language codes
-
-## 🔒 Security and privacy
-
-- Only the admin can post Juzzio Official stories; enforced on the server
-- End-to-end encryption unchanged; notification translation uses text decrypted on the device
-
-</details>
-
-## İndirme
-
-- Son sürüm: [Juzzio-latest.apk](https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk)
-- Bu sürüm: `juzzio-v0.9.3-release.apk` (103.05 MB)
-
-## APK doğrulama
-
-```bash
-sha256sum Juzzio-latest.apk
-# c4f3e8fc51e126f7c21ad65b1ec06ae4ef1a3050ecf180817a61ae4b52e11efe  Juzzio-latest.apk
-```
-
-Derleme zamanı: 2026-11-05 21:26 UTC — GitHub Actions

@@ -46,6 +46,9 @@ class MainActivity : FlutterActivity() {
         const val PREFS_NAME = "juzzio_fcm_push_prefs"
         const val PREF_NOTIF_PREVIEW = "notif_preview_mode"
         const val PREF_UI_LANG = "ui_lang"
+        // v0.9.7: bildirim yığını (grup) anahtarı ve özet bildirim kimliği
+        const val JUZZIO_NOTIF_GROUP = "com.juzzio.app.STACK"
+        const val JUZZIO_NOTIF_SUMMARY_ID = 990001
 
         // v0.7.0: Uygulamaya özel bildirim tonları ve zil sesleri (res/raw). Android 8+
         // kanal sesi kanal oluşturulurken sabitlendiği için her ses ayrı bir kanaldır:
@@ -455,8 +458,30 @@ class MainActivity : FlutterActivity() {
                     builder.setFullScreenIntent(pendingIntent, true)
                 }
 
+                // v0.9.7: bildirim yığını — arama dışı bildirimler tek grupta üst üste toplanır
+                val stackable = !isCall && eventType != "incoming_call"
+                if (stackable) {
+                    builder.setGroup(JUZZIO_NOTIF_GROUP)
+                    builder.setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_CHILDREN)
+                }
+
                 val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                 nm.notify(id, builder.build())
+                if (stackable && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    try {
+                        val summary = NotificationCompat.Builder(context, resolvedChannelId)
+                            .setSmallIcon(smallIconRes)
+                            .setContentTitle("Juzzio")
+                            .setStyle(NotificationCompat.InboxStyle().setSummaryText("Juzzio"))
+                            .setGroup(JUZZIO_NOTIF_GROUP)
+                            .setGroupSummary(true)
+                            .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_CHILDREN)
+                            .setAutoCancel(true)
+                            .setContentIntent(pendingIntent)
+                            .build()
+                        nm.notify(JUZZIO_NOTIF_SUMMARY_ID, summary)
+                    } catch (_: Exception) {}
+                }
             } catch (_: Exception) {}
         }
     }
@@ -674,6 +699,29 @@ class MainActivity : FlutterActivity() {
                     result.success(true)
                 }
                 "enterCallPip" -> result.success(enterCallPip())
+                // v0.9.4: cihaz saati sunucudan saparsa Tarih ve Saat ayarları açılır
+                // v0.9.5: tek seferlik medya görüntülenirken ekran görüntüsü/kayıt engellenir
+                "setSecureScreen" -> {
+                    val on = call.argument<Boolean>("secure") ?: false
+                    if (on) window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+                    else window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+                    result.success(true)
+                }
+                "openDateSettings" -> {
+                    try {
+                        startActivity(android.content.Intent(android.provider.Settings.ACTION_DATE_SETTINGS)
+                            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+                        result.success(true)
+                    } catch (_: Exception) {
+                        result.success(false)
+                    }
+                }
+                "isAutoTimeEnabled" -> {
+                    val auto = try {
+                        android.provider.Settings.Global.getInt(contentResolver, android.provider.Settings.Global.AUTO_TIME, 1) == 1
+                    } catch (_: Exception) { true }
+                    result.success(auto)
+                }
                 "showSystemNotification" -> {
                     val title = call.argument<String>("title") ?: "Juzzio"
                     val body = call.argument<String>("body") ?: ""

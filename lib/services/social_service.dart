@@ -86,16 +86,15 @@ class JuzzioSocialService {
     } catch (_) {}
 
     try {
-      final blocksRows = await _client
-          .from('blocked_users')
-          .select('blocker_id, blocked_id')
-          .or('blocker_id.eq.$uid,blocked_id.eq.$uid');
+      // v0.9.4: engellenen kişi engelleyenin satırını (ve sebebini) okuyamaz; iki yönlü engel
+      // listesi yalnız kimlik olarak güvenli RPC'den gelir
+      final peers = await _client.rpc('my_block_peer_ids');
       _blockedUserIdsCache.clear();
-      for (final r in (blocksRows as List)) {
-        final blocker = (r['blocker_id'] ?? '').toString();
-        final blocked = (r['blocked_id'] ?? '').toString();
-        if (blocker == uid && blocked.isNotEmpty) _blockedUserIdsCache.add(blocked);
-        if (blocked == uid && blocker.isNotEmpty) _blockedUserIdsCache.add(blocker);
+      if (peers is List) {
+        for (final r in peers) {
+          final id = (r is Map ? (r['my_block_peer_ids'] ?? r.values.first) : r)?.toString() ?? '';
+          if (id.isNotEmpty && id != uid) _blockedUserIdsCache.add(id);
+        }
       }
     } catch (_) {}
 

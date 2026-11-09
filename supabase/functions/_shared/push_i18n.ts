@@ -46,6 +46,12 @@ export function replyParts(preview: string): { comment: string; reply: string } 
   return { comment: rest.slice(0, i).trim(), reply: rest.slice(i + 1).trim() };
 }
 
+/** v0.9.5: "<önek>|a|b|c" önizlemesini parçalara ayırır. */
+export function previewParts(preview: string, prefix: string): string[] | null {
+  if (!preview.startsWith(prefix + "|")) return null;
+  return preview.slice(prefix.length + 1).split("|");
+}
+
 function clip(text: string, max = 40): string {
   return text.length > max ? text.slice(0, max - 1) + "…" : text;
 }
@@ -53,7 +59,23 @@ function clip(text: string, max = 40): string {
 const T: Record<PushLang, Record<string, Builder>> = {
   tr: {
     message: (c) => ({ title: c.actor, body: "Size yeni bir mesaj gönderdi." }),
-    reminder: (c) => (c.preview.startsWith("message|") ? { title: "⏰ Hatırlatma", body: "Yanıtlamak için işaretlediğin mesajın zamanı geldi." } : { title: "⏰ Hatırlatma", body: c.preview.replace(/^task\|/, "") || "Görevinin zamanı geldi." }),
+    poll_closed: (c) => {
+      const p = previewParts(c.preview, "poll") ?? [];
+      return { title: "📊 Anket sonuçlandı", body: p[1] ? `${clip(p[0] ?? "", 60)} → ${p[1]} (${p[2]}/${p[3]} oy)` : `${clip(p[0] ?? "", 60)} — oy kullanılmadı` };
+    },
+    memory: (c) => {
+      const p = previewParts(c.preview, "memory") ?? [];
+      return { title: `📸 Bugün ${p[0] ?? "1"} yıl önce`, body: p[1] ? clip(p[1], 80) : "O gün paylaştığın anıya göz at." };
+    },
+    sos: (c) => {
+      const p = previewParts(c.preview, "sos") ?? [];
+      const why = p[0] === "battery" ? "Pili bitmek üzere" : p[0] === "inactive" ? "Uzun süredir hareket yok" : p[0] === "overdue" ? "Varış süresi doldu, haber yok" : "Acil yardım istedi";
+      return { title: `🆘 ${c.actor} — GÜVENLİK UYARISI`, body: `${why}. ${p[1] ? "Son konum: " + p[1] : "Konum bilinmiyor."}` };
+    },
+    qa_question: (c) => ({ title: "❓ Yeni soru", body: `${c.actor || "Anonim"}: ${clip(c.preview, 80)}` }),
+    qa_answer: (c) => ({ title: `💬 ${c.actor} sorunu yanıtladı`, body: clip(c.preview, 80) }),
+    watch_party: (c) => ({ title: `🎬 ${c.actor} izleme partisi başlattı`, body: `${clip(c.preview.replace(/^watch\|/, ""), 60)} — katılmak için dokun` }),
+    reminder: (c) => c.preview.startsWith("event|") ? { title: "📅 Etkinlik yaklaşıyor", body: c.preview.slice(6) } : (c.preview.startsWith("message|") ? { title: "⏰ Hatırlatma", body: "Yanıtlamak için işaretlediğin mesajın zamanı geldi." } : { title: "⏰ Hatırlatma", body: c.preview.replace(/^task\|/, "") || "Görevinin zamanı geldi." }),
     mention: (c) => ({ title: c.actor, body: c.preview.startsWith("comment|") ? "Bir yorumda sizden bahsetti." : c.preview.startsWith("story|") ? "Hikâyesinde sizden bahsetti." : "Bir gönderide sizden bahsetti." }),
     group_activity: (c) => ({ title: c.actor, body: "Grup sohbetinde yeni bir mesaj var." }),
     missed_call: (c) => {
@@ -97,7 +119,23 @@ const T: Record<PushLang, Record<string, Builder>> = {
   },
   en: {
     message: (c) => ({ title: c.actor, body: "Sent you a new message." }),
-    reminder: (c) => (c.preview.startsWith("message|") ? { title: "⏰ Reminder", body: "Time to reply to the message you marked." } : { title: "⏰ Reminder", body: c.preview.replace(/^task\|/, "") || "Your task is due." }),
+    poll_closed: (c) => {
+      const p = previewParts(c.preview, "poll") ?? [];
+      return { title: "📊 Poll closed", body: p[1] ? `${clip(p[0] ?? "", 60)} → ${p[1]} (${p[2]}/${p[3]} votes)` : `${clip(p[0] ?? "", 60)} — no votes` };
+    },
+    memory: (c) => {
+      const p = previewParts(c.preview, "memory") ?? [];
+      return { title: `📸 ${p[0] ?? "1"} year(s) ago today`, body: p[1] ? clip(p[1], 80) : "Look back at what you shared." };
+    },
+    sos: (c) => {
+      const p = previewParts(c.preview, "sos") ?? [];
+      const why = p[0] === "battery" ? "Battery almost empty" : p[0] === "inactive" ? "No movement for a while" : p[0] === "overdue" ? "Arrival time passed with no check-in" : "Asked for help";
+      return { title: `🆘 ${c.actor} — SAFETY ALERT`, body: `${why}. ${p[1] ? "Last location: " + p[1] : "Location unknown."}` };
+    },
+    qa_question: (c) => ({ title: "❓ New question", body: `${c.actor || "Anonymous"}: ${clip(c.preview, 80)}` }),
+    qa_answer: (c) => ({ title: `💬 ${c.actor} answered your question`, body: clip(c.preview, 80) }),
+    watch_party: (c) => ({ title: `🎬 ${c.actor} started a watch party`, body: `${clip(c.preview.replace(/^watch\|/, ""), 60)} — tap to join` }),
+    reminder: (c) => c.preview.startsWith("event|") ? { title: "📅 Event starting soon", body: c.preview.slice(6) } : (c.preview.startsWith("message|") ? { title: "⏰ Reminder", body: "Time to reply to the message you marked." } : { title: "⏰ Reminder", body: c.preview.replace(/^task\|/, "") || "Your task is due." }),
     mention: (c) => ({ title: c.actor, body: c.preview.startsWith("comment|") ? "Mentioned you in a comment." : c.preview.startsWith("story|") ? "Mentioned you in their story." : "Mentioned you in a post." }),
     group_activity: (c) => ({ title: c.actor, body: "There is a new message in the group chat." }),
     missed_call: (c) => {
@@ -138,7 +176,23 @@ const T: Record<PushLang, Record<string, Builder>> = {
   },
   de: {
     message: (c) => ({ title: c.actor, body: "Hat dir eine neue Nachricht gesendet." }),
-    reminder: (c) => (c.preview.startsWith("message|") ? { title: "⏰ Erinnerung", body: "Zeit, auf die markierte Nachricht zu antworten." } : { title: "⏰ Erinnerung", body: c.preview.replace(/^task\|/, "") || "Deine Aufgabe ist fällig." }),
+    poll_closed: (c) => {
+      const p = previewParts(c.preview, "poll") ?? [];
+      return { title: "📊 Umfrage beendet", body: p[1] ? `${clip(p[0] ?? "", 60)} → ${p[1]} (${p[2]}/${p[3]} Stimmen)` : `${clip(p[0] ?? "", 60)} — keine Stimmen` };
+    },
+    memory: (c) => {
+      const p = previewParts(c.preview, "memory") ?? [];
+      return { title: `📸 Heute vor ${p[0] ?? "1"} Jahr(en)`, body: p[1] ? clip(p[1], 80) : "Schau dir deine Erinnerung an." };
+    },
+    sos: (c) => {
+      const p = previewParts(c.preview, "sos") ?? [];
+      const why = p[0] === "battery" ? "Akku fast leer" : p[0] === "inactive" ? "Seit Längerem keine Bewegung" : p[0] === "overdue" ? "Ankunftszeit überschritten" : "Bittet um Hilfe";
+      return { title: `🆘 ${c.actor} — SICHERHEITSALARM`, body: `${why}. ${p[1] ? "Letzter Standort: " + p[1] : "Standort unbekannt."}` };
+    },
+    qa_question: (c) => ({ title: "❓ Neue Frage", body: `${c.actor || "Anonym"}: ${clip(c.preview, 80)}` }),
+    qa_answer: (c) => ({ title: `💬 ${c.actor} hat deine Frage beantwortet`, body: clip(c.preview, 80) }),
+    watch_party: (c) => ({ title: `🎬 ${c.actor} hat eine Watch-Party gestartet`, body: `${clip(c.preview.replace(/^watch\|/, ""), 60)} — zum Beitreten tippen` }),
+    reminder: (c) => c.preview.startsWith("event|") ? { title: "📅 Termin beginnt bald", body: c.preview.slice(6) } : (c.preview.startsWith("message|") ? { title: "⏰ Erinnerung", body: "Zeit, auf die markierte Nachricht zu antworten." } : { title: "⏰ Erinnerung", body: c.preview.replace(/^task\|/, "") || "Deine Aufgabe ist fällig." }),
     mention: (c) => ({ title: c.actor, body: c.preview.startsWith("comment|") ? "Hat dich in einem Kommentar erwähnt." : c.preview.startsWith("story|") ? "Hat dich in der Story erwähnt." : "Hat dich in einem Beitrag erwähnt." }),
     group_activity: (c) => ({ title: c.actor, body: "Neue Nachricht im Gruppenchat." }),
     missed_call: (c) => {

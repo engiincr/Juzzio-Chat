@@ -27,6 +27,7 @@ class JuzzioNestScene extends StatelessWidget {
   final String mood;
   final Animation<double>? blink;
   final Animation<double>? flap;
+  final Map<String, String> style;
 
   const JuzzioNestScene({
     super.key,
@@ -39,6 +40,7 @@ class JuzzioNestScene extends StatelessWidget {
     this.mood = 'happy',
     this.blink,
     this.flap,
+    this.style = const {},
   });
 
   @override
@@ -53,7 +55,15 @@ class JuzzioNestScene extends StatelessWidget {
             return Stack(
               fit: StackFit.expand,
               children: [
-                CustomPaint(painter: _BarnBackdropPainter(dark: dark)),
+                // v0.9.4: gardırop teması seçiliyse ahır yerine tema gradyanı
+                if (style['theme'] != null)
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: juzzioChickThemeColors(style['theme'], dark)),
+                    ),
+                  )
+                else
+                  CustomPaint(painter: _BarnBackdropPainter(dark: dark)),
                 CustomPaint(painter: _NestPainter(back: true)),
                 if (stage <= 0)
                   CustomPaint(painter: _EggPainter(crack: crack, wobble: wobble.value, breathe: idle.value))
@@ -69,6 +79,7 @@ class JuzzioNestScene extends StatelessWidget {
                         breathe: idle.value,
                         flap: flap?.value ?? 0,
                         wobble: wobble.value,
+                        style: style,
                       ),
                     ),
                   ),

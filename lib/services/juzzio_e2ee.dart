@@ -341,6 +341,20 @@ class JuzzioE2ee {
     return JuzzioE2eeOutcome(JuzzioE2eeStatus.encrypted, payload);
   }
 
+  /// v0.9.5: Güvenlik numarası (Signal/WhatsApp benzeri). İki tarafın kimlik + KEM açık
+  /// anahtarlarından türetilir; iki cihazda aynı 60 haneyi görüyorsanız arada kimse yoktur.
+  /// Anahtar yoksa null döner.
+  Future<String?> safetyNumber(String peerUid) async {
+    final me = SupabaseService.instance.currentUserId;
+    final c0 = _current;
+    if (me == null || c0 == null) return null;
+    final cur = await _materialize(c0);
+    if (cur.xPub.isEmpty || cur.kemEk == null) return null;
+    final peer = await _peerBundle(peerUid);
+    if (peer == null || peer.$1.isEmpty || peer.$2.isEmpty) return null;
+    return juzzioSafetyNumber(me, '${cur.xPub}|${base64Encode(cur.kemEk!)}', peerUid, '${peer.$1}|${peer.$2}');
+  }
+
   Future<String?> peerForRoom(String roomId) async {
     if (_roomPeers.containsKey(roomId)) return _roomPeers[roomId];
     final svc = SupabaseService.instance;
@@ -571,4 +585,21 @@ class JuzzioE2ee {
 
   String _lockedText() =>
       '🔒 Bu mesajın anahtarı bu cihazda yok. Ayarlar → Sohbet yedeği → Yedeği geri yükle ile açabilirsin.';
+}
+
+/// v0.9.5: kullanıcı kimliği sıralı (iki tarafta aynı sonuç), SHA-256 → 60 hane (12 × 5).
+Future<String> juzzioSafetyNumber(String uidA, String keysA, String uidB, String keysB) async {
+  final a = '$uidA:$keysA';
+  final b = '$uidB:$keysB';
+  final ordered = uidA.compareTo(uidB) <= 0 ? '$a\n$b' : '$b\n$a';
+  final digest = await Sha256().hash(utf8.encode('juzzio-safety-v1\n$ordered'));
+  final bytes = digest.bytes;
+  final out = StringBuffer();
+  for (var i = 0; i < 12; i++) {
+    // her grup için 3 bayt → 0..16777215 → mod 100000 (5 hane)
+    final v = (bytes[i * 2] << 16) | (bytes[i * 2 + 1] << 8) | bytes[(i * 2 + 2) % bytes.length];
+    out.write((v % 100000).toString().padLeft(5, '0'));
+    if (i != 11) out.write(i % 4 == 3 ? '\n' : ' ');
+  }
+  return out.toString();
 }

@@ -40,6 +40,10 @@ import 'theme_preview_page.dart';
 import 'theme_studio_page.dart';
 import '../widgets/glass/juzzio_theme_gallery.dart';
 import 'legal_page.dart';
+import 'badges_screen.dart';
+import 'qa_box_screen.dart';
+import 'eye_comfort_page.dart';
+import '../services/juzzio_error_reporter.dart';
 import 'security_center_page.dart';
 import 'file_center_page.dart';
 import '../core/release_notes.dart';
@@ -50,6 +54,8 @@ import 'social/social_screens.dart';
 import '../core/theme/juzzio_aurora.dart';
 import '../core/theme/juzzio_colors.dart';
 import '../core/theme/juzzio_glass.dart';
+import '../widgets/juzzio_cloth_refresh.dart';
+import '../widgets/juzzio_ui_kit.dart';
 
 /// Üç dilli (tr/en/de) arayüz metni; diğer diller dil paketinden gelir.
 String _l3(String tr, String en, String de) => JuzzioAppController.instance.trEn(tr, en, de);
@@ -658,6 +664,7 @@ class _JuzzioNotificationsFeedPageState
             item.eventType == 'comment' ||
             item.eventType == 'reply' ||
             item.eventType == 'comment_like' ||
+            item.eventType == 'memory' ||
             isPostMention) &&
         item.targetId.isNotEmpty) {
       await Navigator.of(context).push(
@@ -665,7 +672,7 @@ class _JuzzioNotificationsFeedPageState
           builder: (_) => JuzzioPostDetailAndCommentsPage(
             postId: item.targetId,
             currentUser: fallbackUser,
-            focusCommentInput: item.eventType != 'like' && item.eventType != 'mention' && item.eventType != 'comment_like',
+            focusCommentInput: item.eventType != 'like' && item.eventType != 'mention' && item.eventType != 'comment_like' && item.eventType != 'memory',
           ),
         ),
       );
@@ -832,7 +839,7 @@ class _JuzzioNotificationsFeedPageState
                                   'Real-time likes, comments, follow requests, messages, and calls will appear here.', 'Likes, Kommentare, Folgeanfragen, Nachrichten und Anrufe erscheinen hier in Echtzeit.',
                                 ),
                               )
-                            : RefreshIndicator(
+                            : JuzzioClothRefresh(
                                 onRefresh: _loadNotifications,
                                 child: ListView.separated(
                                   padding: const EdgeInsets.fromLTRB(14, 6, 14, 24),
@@ -1886,6 +1893,60 @@ class _JuzzioAccountSettingsPageState extends State<JuzzioAccountSettingsPage> {
                   ),
                   trailing: Icon(Icons.chevron_right_rounded, color: p.textMuted),
                   onTap: () => JuzzioSecurityCenterPage.open(context),
+                ),
+                // v0.9.5
+                Divider(height: 1, color: p.glassBorder),
+                ListTile(
+                  leading: Icon(Icons.emoji_events_rounded, color: p.amberGlow),
+                  title: Text(_l3('Rozetler ve seriler', 'Badges & streaks', 'Abzeichen & Serien'),
+                      style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w700)),
+                  subtitle: Text(_l3('Günlük seri, civciv bakımı, kazanılan rozetler, bugün geçmişte', 'Daily streak, chick care, earned badges, on this day', 'Serien, Abzeichen, Erinnerungen'),
+                      style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textSecondary, fontSize: 12)),
+                  trailing: Icon(Icons.chevron_right_rounded, color: p.textMuted),
+                  onTap: () => JuzzioBadgesScreen.open(context),
+                ),
+                Divider(height: 1, color: p.glassBorder),
+                ListTile(
+                  leading: Icon(Icons.help_center_rounded, color: p.amberGlow),
+                  title: Text(_l3('Soru kutum', 'My question box', 'Mein Fragekasten'),
+                      style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w700)),
+                  subtitle: Text(_l3('Profilinde anonim soru al ve yanıtla', 'Receive and answer anonymous questions on your profile', 'Anonyme Fragen beantworten'),
+                      style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textSecondary, fontSize: 12)),
+                  trailing: Icon(Icons.chevron_right_rounded, color: p.textMuted),
+                  onTap: () => JuzzioQaInboxScreen.open(context),
+                ),
+                // v0.9.6
+                Divider(height: 1, color: p.glassBorder),
+                ListTile(
+                  leading: Icon(Icons.nightlight_round, color: p.amberGlow),
+                  title: Text(_l3('Göz Konforu', 'Eye Comfort', 'Augenkomfort'),
+                      style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w700)),
+                  subtitle: Text(_l3('Mavi ışık filtresi: elle, zamanlanmış veya gün batımında', 'Blue-light filter: manual, scheduled or at sunset', 'Blaulichtfilter: manuell, geplant oder bei Sonnenuntergang'),
+                      style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textSecondary, fontSize: 12)),
+                  trailing: Switch(
+                    activeThumbColor: p.onlineGreen,
+                    value: JuzzioAppController.instance.eyeComfortMode != 'off',
+                    onChanged: (v) => setState(() => JuzzioAppController.instance.setEyeComfort(mode: v ? 'on' : 'off')),
+                  ),
+                  onTap: () async {
+                    await JuzzioEyeComfortPage.open(context);
+                    if (mounted) setState(() {});
+                  },
+                ),
+                Divider(height: 1, color: p.glassBorder),
+                SwitchListTile(
+                  activeThumbColor: p.onlineGreen,
+                  secondary: Icon(Icons.bug_report_rounded, color: p.amberGlow),
+                  title: Text(_l3('Hata raporlarını otomatik gönder', 'Send crash reports automatically', 'Absturzberichte automatisch senden'),
+                      style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w700)),
+                  subtitle: Text(_l3('Yalnız hata türü ve yığın izi; mesaj içeriği, e-posta ve numaralar maskelenir', 'Only error type and stack trace; message content, emails and numbers are masked', 'Nur Fehlertyp und Stacktrace; Inhalte maskiert'),
+                      style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textSecondary, fontSize: 12)),
+                  value: JuzzioAppController.instance.autoErrorReports,
+                  onChanged: (v) {
+                    JuzzioAppController.instance.setAutoErrorReports(v);
+                    JuzzioErrorReporter.instance.userEnabled = v;
+                    setState(() {});
+                  },
                 ),
                 Divider(height: 1, color: p.glassBorder),
                 ListTile(
@@ -5233,7 +5294,7 @@ class _JuzzioStorageSettingsPageState extends State<JuzzioStorageSettingsPage> {
         ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const JuzzioListSkeleton()
           : ListView(
               padding: const EdgeInsets.all(20),
               children: [
@@ -6649,6 +6710,33 @@ class JuzzioBatteryOptimizationPage extends StatelessWidget {
                       ),
                       value: appCtrl.callBatterySaverEnabled,
                       onChanged: appCtrl.setCallBatterySaverEnabled,
+                    ),
+                    // v0.9.5
+                    Divider(height: 1, color: p.glassBorder),
+                    SwitchListTile(
+                      activeThumbColor: p.onlineGreen,
+                      title: Text(appCtrl.trEn('Düşük Veri Modu', 'Data Saver', 'Datensparmodus'),
+                          style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w800)),
+                      subtitle: Text(
+                        appCtrl.trEn('Görüntülü aramada ≈360p/15 fps, sessizken ses gönderilmez; sohbete gönderilen fotoğraflar küçültülür.',
+                            'Video calls at ≈360p/15 fps, no audio packets in silence; photos you send are downscaled.', 'Videoanrufe mit ≈360p/15 fps; gesendete Fotos verkleinert.'),
+                        style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textSecondary, fontSize: 12),
+                      ),
+                      value: appCtrl.dataSaverEnabled,
+                      onChanged: appCtrl.setDataSaverEnabled,
+                    ),
+                    Divider(height: 1, color: p.glassBorder),
+                    SwitchListTile(
+                      activeThumbColor: p.onlineGreen,
+                      title: Text(appCtrl.trEn('Aramada Gürültü Engelleme', 'Call Noise Suppression', 'Rauschunterdrückung'),
+                          style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w800)),
+                      subtitle: Text(
+                        appCtrl.trEn('Arka plan gürültüsünü, klavye ve nefes seslerini azaltır (ses izolasyonu). Harici stüdyo mikrofonunda kapatabilirsiniz.',
+                            'Reduces background noise, typing and breathing (voice isolation). Turn off for an external studio mic.', 'Reduziert Hintergrundgeräusche.'),
+                        style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textSecondary, fontSize: 12),
+                      ),
+                      value: appCtrl.callNoiseFilterEnabled,
+                      onChanged: appCtrl.setCallNoiseFilterEnabled,
                     ),
                     Divider(height: 1, color: p.glassBorder),
                     SwitchListTile(

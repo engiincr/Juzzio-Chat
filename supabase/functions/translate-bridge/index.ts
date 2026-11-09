@@ -23,6 +23,7 @@ import {
   corsHeaders,
   isUuid,
   jsonResponse,
+  aiQuotaTake,
   rateLimit,
   requiredEnv,
   requireUser,
@@ -204,6 +205,7 @@ async function handleVoiceNote(
     return jsonResponse({ error: "invalid_path" }, 400);
   }
   if (!(await rateLimit(userId, "voice_transcribe", 20, 600))) return jsonResponse({ error: "rate_limited" }, 429);
+  if (!(await aiQuotaTake(userId, "voice_transcribe", 5))) return jsonResponse({ error: "ai_quota_exceeded" }, 429);
 
   const admin = adminClient();
   const { data: resolved, error } = await admin.rpc("juzzio_voice_note_for_transcription", {
@@ -334,6 +336,7 @@ Deno.serve(async (req: Request) => {
 
     if (mode === "content") {
       if (!(await rateLimit(user.id, "content_translate", 120, 600))) return jsonResponse({ error: "rate_limited" }, 429);
+      if (!(await aiQuotaTake(user.id, "content_translate"))) return jsonResponse({ error: "ai_quota_exceeded" }, 429);
       return await translateContent(req, body);
     }
 
@@ -347,6 +350,7 @@ Deno.serve(async (req: Request) => {
 
     if (mode !== "text") return jsonResponse({ error: "invalid_mode" }, 400);
     if (!(await rateLimit(user.id, "text_translate", 120, 60))) return jsonResponse({ error: "rate_limited" }, 429);
+    if (!(await aiQuotaTake(user.id, "text_translate"))) return jsonResponse({ error: "ai_quota_exceeded" }, 429);
     const text = String(body.text ?? "").slice(0, 5000);
     const translatedText = await translateFast(text, sourceLang, targetLang);
     return jsonResponse({ mode: "text", sourceLang, targetLang, originalText: text, translatedText });

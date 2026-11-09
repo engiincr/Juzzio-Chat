@@ -15,11 +15,11 @@ class JuzzioConfig {
   JuzzioConfig._();
 
   // Uygulama Sürüm ve OTA Güncelleme Sabitleri
-  static const String appVersion = '0.9.3';
+  static const String appVersion = '0.9.9';
   /// CI her derlemede artan sürüm kodunu APP_BUILD olarak verir
   /// (`scripts/release_meta.py build-number`). Yerel derlemede pubspec.yaml'daki
   /// +N değeri kullanılır; `release_meta.py check` ikisinin aynı olmasını zorunlu kılar.
-  static const int appVersionCode = int.fromEnvironment('APP_BUILD', defaultValue: 93);
+  static const int appVersionCode = int.fromEnvironment('APP_BUILD', defaultValue: 99);
   /// v0.8.0: yayın imzası doğrulama anahtarı (ML-DSA-65, FIPS 204). Boşsa imza
   /// kontrolü yapılmaz; CI'da GitHub değişkeni ML_DSA_PUBLIC_KEY ile verilir.
   static const String mlDsaPublicKey = String.fromEnvironment('ML_DSA_PUBLIC_KEY');
@@ -81,7 +81,9 @@ class JuzzioConfig {
       'nl', 'hi', 'zh', 'uk', 'pl', 'sv', 'da', 'no', 'fi', 'id',
     };
     final dgLang = supported.contains(code) ? code : 'multi';
-    final endpointMs = batterySaver ? 240 : 180;
+    // v0.9.4: 180 ms çok kısaydı — konuşmacı nefes alırken cümle ikiye bölünüyordu.
+    // Bölüt yalnız konuşma gerçekten bitince (speech_final / UtteranceEnd) kapanır.
+    final endpointMs = batterySaver ? 700 : 550;
     return 'wss://api.deepgram.com/v1/listen'
         '?model=nova-2'
         '&language=$dgLang'
@@ -90,6 +92,8 @@ class JuzzioConfig {
         '&channels=1'
         '&interim_results=true'
         '&endpointing=$endpointMs'
+        '&utterance_end_ms=1200'
+        '&vad_events=true'
         '&smart_format=true'
         '&punctuate=true';
   }

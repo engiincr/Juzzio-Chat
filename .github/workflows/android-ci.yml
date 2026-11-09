@@ -103,6 +103,7 @@ jobs:
           python3 scripts/verify_tree.py
           python3 scripts/l10n_tools.py check
           python3 scripts/dart_lexcheck.py
+          python3 scripts/gen_legal.py --check
 
       - name: Statik analiz (hatalar derlemeyi durdurur)
         run: flutter analyze --no-fatal-infos --no-fatal-warnings

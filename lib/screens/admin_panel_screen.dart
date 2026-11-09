@@ -21,7 +21,11 @@ import '../services/supabase_service.dart';
 import '../services/juzzio_features_service.dart';
 import 'admin_extra_tabs.dart';
 import 'admin_story_tab.dart';
+import 'admin_god_tab.dart';
+import 'admin_trust_tab.dart';
 import 'admin_theme_studio_page.dart';
+import '../widgets/juzzio_cloth_refresh.dart';
+import '../widgets/juzzio_ui_kit.dart';
 
 const List<String> kJuzzioBanReasons = [
   'spam',
@@ -283,6 +287,8 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> with Si
     'stats.read', 'users.read', 'reports', 'users.read', 'moderation', 'moderation',
     'groups.read', 'calls.manage', 'broadcast', 'releases', 'settings', 'feedback.manage', 'audit.read',
     'broadcast', // 13: v0.9.3 Juzzio Story
+    'reports', // 14: v0.9.5 Güven puanı
+    'stats.read', // 15: v0.9.6 Sistem (Tanrı modu); kritik işlemler sunucuda süper yönetici ister
   ];
   bool _can(String perm) => widget.permissions.contains('*') || widget.permissions.contains(perm);
   late final List<int> _visibleTabs = [
@@ -1036,7 +1042,7 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> with Si
         ),
       ),
       body: _loading && _stats.isEmpty
-          ? const Center(child: CircularProgressIndicator())
+          ? const JuzzioListSkeleton()
           : TabBarView(
               controller: _tabs,
               children: [
@@ -1069,6 +1075,8 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> with Si
             Tab(icon: const Icon(Icons.bug_report_rounded, size: 20), text: _al('Hata bildirimleri', 'Bug reports', 'Fehlermeldungen')),
             Tab(icon: const Icon(Icons.history_rounded, size: 20), text: _al('Kayıtlar', 'Audit', 'Protokoll')),
             const Tab(icon: Icon(Icons.auto_awesome_rounded, size: 20), text: 'Juzzio Story'),
+            Tab(icon: const Icon(Icons.verified_user_rounded, size: 20), text: _al('Güven', 'Trust', 'Vertrauen')),
+            Tab(icon: const Icon(Icons.admin_panel_settings_rounded, size: 20), text: _al('Sistem', 'System', 'System')),
       ];
 
   Widget _tabView(int i, JuzzioAppController app, bool isDark) {
@@ -1101,6 +1109,10 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> with Si
         return _buildAudit(isDark);
       case 13:
         return const JuzzioAdminStoryTab();
+      case 14:
+        return JuzzioAdminTrustTab(token: widget.token);
+      case 15:
+        return JuzzioAdminGodTab(token: widget.token);
       default:
         return const SizedBox.shrink();
     }
@@ -1180,7 +1192,7 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> with Si
       _StatTileData(_al('Civciv (canlı)', 'Chicks alive', 'Küken lebend'), _num(s['chick_alive']), Icons.egg_rounded, JuzzioColors.amber500),
       _StatTileData(_al('Depolama', 'Storage', 'Speicher'), _bytes(storage['bytes']), Icons.cloud_rounded, JuzzioColors.slate500),
     ];
-    return RefreshIndicator(
+    return JuzzioClothRefresh(
       onRefresh: () async {
         await _reloadAll();
         await _loadHealth();

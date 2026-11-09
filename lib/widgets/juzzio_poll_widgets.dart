@@ -2,6 +2,8 @@
 // JUZZIO v0.9.0 — G26 anket kartı / oluşturma, G27 zamanlama sayfası
 // =============================================================================
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../core/app_theme_and_locale.dart';
@@ -22,11 +24,22 @@ class _JuzzioPollCardState extends State<JuzzioPollCard> {
   JuzzioPollResults? _r;
   bool _busy = false;
   Object? _error;
+  Timer? _poll;
 
   @override
   void initState() {
     super.initState();
     _load();
+    // v0.9.4: diğer üyelerin oyları canlı görünsün (oylar RLS ile gizli; sayım RPC'den gelir)
+    _poll = Timer.periodic(const Duration(seconds: 8), (_) {
+      if (!_busy) _load();
+    });
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -152,6 +165,8 @@ Future<void> showJuzzioCreatePollSheet(BuildContext context, {required String ro
   var multi = false;
   var anonymous = false;
   var busy = false;
+  String? error;
+  int? deadlineHours; // v0.9.5: süre dolunca otomatik kapanır, sonuç herkese bildirilir
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -178,25 +193,46 @@ Future<void> showJuzzioCreatePollSheet(BuildContext context, {required String ro
               title: Text(app.trEn('Gizli oylama', 'Anonymous voting', 'Anonyme Abstimmung')),
               subtitle: Text(app.trEn('Kimin neye oy verdiği kimseye gösterilmez', 'Nobody sees who voted for what', 'Niemand sieht, wer wofür stimmte')),
             ),
+            Text(app.trEn('Otomatik kapanış', 'Auto close', 'Automatisch schließen'), style: const TextStyle(fontWeight: FontWeight.w700)),
+            Wrap(spacing: 8, children: [
+              for (final h in const [0, 1, 24, 72])
+                ChoiceChip(
+                  label: Text(h == 0 ? app.trEn('Yok', 'None', 'Keine') : (h < 24 ? app.trEn('$h saat', '$h h', '$h Std.') : app.trEn('${h ~/ 24} gün', '${h ~/ 24} d', '${h ~/ 24} T.'))),
+                  selected: (deadlineHours ?? 0) == h,
+                  onSelected: (_) => setS(() => deadlineHours = h == 0 ? null : h),
+                ),
+            ]),
+            const SizedBox(height: 8),
+            if (error != null) Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(error!, style: const TextStyle(color: Colors.redAccent))),
             FilledButton(
               onPressed: busy
                   ? null
                   : () async {
                       final options = opts.map((c) => c.text.trim()).where((t) => t.isNotEmpty).toList();
                       if (q.text.trim().isEmpty || options.length < 2) {
-                        ScaffoldMessenger.maybeOf(ctx)?.showSnackBar(SnackBar(
-                            content: Text(app.trEn('Soru ve en az 2 seçenek gerekli', 'A question and at least 2 options are required', 'Frage und mind. 2 Optionen nötig'))));
+                        setS(() => error = app.trEn('Soru ve en az 2 seçenek gerekli', 'A question and at least 2 options are required', 'Frage und mind. 2 Optionen nötig'));
                         return;
                       }
-                      setS(() => busy = true);
+                      setS(() {
+                        busy = true;
+                        error = null;
+                      });
                       try {
-                        await JuzzioPollsService.instance.createPoll(roomId: roomId, question: q.text.trim(), options: options, multi: multi, anonymous: anonymous);
+                        final pollId = await JuzzioPollsService.instance.createPoll(roomId: roomId, question: q.text.trim(), options: options, multi: multi, anonymous: anonymous);
+                        if (deadlineHours != null) {
+                          await SupabaseService.instance.client.rpc('poll_set_deadline', params: {
+                            'p_poll': pollId,
+                            'p_closes_at': DateTime.now().toUtc().add(Duration(hours: deadlineHours!)).toIso8601String(),
+                          });
+                        }
                         if (ctx.mounted) Navigator.pop(ctx);
                       } catch (e) {
-                        setS(() => busy = false);
-                        if (ctx.mounted) {
-                          ScaffoldMessenger.maybeOf(ctx)?.showSnackBar(SnackBar(content: Text(SupabaseService.instance.friendlyError(e))));
-                        }
+                        // v0.9.4: hata sayfanın içinde gösterilir — önceden snackbar alttaki sayfaya
+                        // düşüp görünmüyordu ve anket "hiçbir şey olmuyor" gibi bozuk görünüyordu
+                        setS(() {
+                          busy = false;
+                          error = SupabaseService.instance.friendlyError(e);
+                        });
                       }
                     },
               child: Text(app.trEn('Gönder', 'Send', 'Senden')),

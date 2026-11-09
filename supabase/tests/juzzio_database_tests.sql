@@ -291,6 +291,9 @@ SELECT admin_delete_banned_term('test-admin-token-060', 'deneme kufur');
 SELECT pg_temp.check('ad taraması çalışır', jsonb_typeof(admin_scan_names('test-admin-token-060')->'users') = 'array');
 SELECT admin_set_setting('test-admin-token-060', 'default_glass_palette', '"emerald"'::jsonb);
 SELECT pg_temp.check('cam teması ayarı', (get_app_config()->>'default_glass_palette') = 'emerald');
+SELECT admin_set_setting('test-admin-token-060', 'default_glass_palette', '"cyber_neon"'::jsonb);
+SELECT pg_temp.check('v0.9.5: yeni cam temaları da seçilebilir', (get_app_config()->>'default_glass_palette') = 'cyber_neon');
+SELECT admin_set_setting('test-admin-token-060', 'default_glass_palette', '"juzzio_liquid"'::jsonb);
 SELECT admin_set_setting('test-admin-token-060', 'default_glass_palette', '"ocean"'::jsonb);
 DO $$ BEGIN
   PERFORM admin_set_setting('test-admin-token-060', 'default_glass_palette', '"orange"'::jsonb);
@@ -1816,3 +1819,324 @@ RESET ROLE;
 DELETE FROM stories WHERE user_id = :'B' AND media_url = 'https://x.test/b.jpg';
 UPDATE profiles SET username = 'ali' WHERE id = :'A';
 SELECT 'TÜM v0.9.3 RESMİ HİKÂYE TESTLERİ GEÇTİ';
+
+-- ===== 10.26 v0.9.4 denetim düzeltmeleri + modüller =====
+RESET ROLE;
+DELETE FROM chick_pets WHERE owner_a IN (:'A', :'B') OR owner_b IN (:'A', :'B');
+INSERT INTO blocked_users (blocker_id, blocked_id, reason) VALUES (:'C', :'A', 'gizli sebep') ON CONFLICT DO NOTHING;
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+SELECT pg_temp.check('engellenen, engelleyen satırını (sebebi) okuyamaz', NOT EXISTS (SELECT 1 FROM blocked_users WHERE blocker_id = :'C'));
+SELECT pg_temp.check('engellenen yine de iki yönlü kimliği alır', EXISTS (SELECT 1 FROM my_block_peer_ids() x WHERE x = :'C'));
+SELECT pg_temp.as_user(:'C');
+SELECT pg_temp.check('engelleyen kendi satırını okur', EXISTS (SELECT 1 FROM blocked_users WHERE blocker_id = :'C' AND blocked_id = :'A'));
+SELECT pg_temp.check('sunucu saati', abs(extract(epoch FROM get_server_time() - NOW())) < 5);
+RESET ROLE;
+DELETE FROM blocked_users WHERE blocker_id = :'C' AND blocked_id = :'A';
+SELECT pg_temp.check('kopya indeks kaldırıldı', to_regclass('public.idx_blocked_users_blocker') IS NULL AND to_regclass('public.idx_comment_likes_comment') IS NULL);
+SELECT pg_temp.check('rol kısıtında dil kodu yok', pg_get_constraintdef((SELECT oid FROM pg_constraint WHERE conname = 'room_participants_role_check')) NOT LIKE '%''tr''%');
+
+-- Civciv gardırobu
+INSERT INTO chick_pets (owner_a, owner_b, stage) VALUES (:'A', :'B', 1) RETURNING id AS ck \gset
+INSERT INTO chick_feed_log (chick_id, fed_by) SELECT :'ck', :'A' FROM generate_series(1, 3);
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+SELECT pg_temp.check('jeton = 3 besleme*10 + evre 1*50', (chick_wardrobe() ->> 'coins')::int = 80);
+DO $$ BEGIN PERFORM chick_buy_accessory('crown'); RAISE NOTICE 'FAIL evre yetersizken taç alındı';
+EXCEPTION WHEN OTHERS THEN IF SQLERRM = 'chick_stage_too_low' THEN RAISE NOTICE 'PASS evre sınırı'; ELSE RAISE NOTICE 'FAIL %', SQLERRM; END IF; END $$;
+DO $$ BEGIN PERFORM chick_set_style('hat', 'party_hat'); RAISE NOTICE 'FAIL alınmamış aksesuar giyildi';
+EXCEPTION WHEN OTHERS THEN IF SQLERRM = 'accessory_not_owned' THEN RAISE NOTICE 'PASS alınmamış aksesuar giyilemez'; ELSE RAISE NOTICE 'FAIL %', SQLERRM; END IF; END $$;
+SELECT pg_temp.check('satın alma jetonu düşer', (chick_buy_accessory('party_hat') ->> 'coins')::int = 50);
+SELECT pg_temp.check('tekrar satın alma ücret almaz', (chick_buy_accessory('party_hat') ->> 'coins')::int = 50);
+DO $$ BEGIN PERFORM chick_buy_accessory('cape'); RAISE NOTICE 'FAIL';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS evre/jeton sınırı (%)', SQLERRM; END $$;
+SELECT pg_temp.as_user(:'B');
+SELECT pg_temp.check('ortak sahip giydirir', (chick_set_style('hat', 'party_hat') -> 'style' ->> 'hat') = 'party_hat');
+SELECT pg_temp.check('renk', (chick_set_style('color', NULL, '#ff8800') -> 'style' ->> 'color') = '#FF8800');
+DO $$ BEGIN PERFORM chick_set_style('color', NULL, 'red;drop'); RAISE NOTICE 'FAIL geçersiz renk';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS geçersiz renk reddedildi'; END $$;
+DO $$ BEGIN INSERT INTO chick_owned_accessories (chick_id, code) SELECT id, 'crown' FROM chick_pets LIMIT 1; RAISE NOTICE 'FAIL doğrudan yazma';
+EXCEPTION WHEN insufficient_privilege THEN RAISE NOTICE 'PASS gardıroba doğrudan yazılamaz'; END $$;
+SELECT pg_temp.as_user(:'C');
+SELECT pg_temp.check('yabancı sahiplik göremez', NOT EXISTS (SELECT 1 FROM chick_owned_accessories) AND (chick_wardrobe() ->> 'has_chick')::boolean = false);
+
+-- Vardiya
+SELECT pg_temp.as_user(:'A');
+SELECT create_group_room('Vardiya ekibi', ARRAY[:'B'::uuid], 'off', false, 'group_work', '', '') AS wg \gset
+INSERT INTO user_shifts (user_id, room_id, shift_date, shift_code) VALUES (:'A', :'wg', CURRENT_DATE, 'morning_08_16');
+DO $$ BEGIN INSERT INTO user_shifts (user_id, shift_date, shift_code) VALUES (current_setting('request.jwt.claim.sub')::uuid, CURRENT_DATE, 'night_00_08'); RAISE NOTICE 'FAIL aynı güne iki vardiya';
+EXCEPTION WHEN unique_violation THEN RAISE NOTICE 'PASS gün başına tek vardiya'; END $$;
+DO $$ BEGIN INSERT INTO user_shifts (user_id, shift_date, shift_code) VALUES ('bbbbbbbb-0000-0000-0000-000000000002', CURRENT_DATE + 1, 'off_day'); RAISE NOTICE 'FAIL başkası adına';
+EXCEPTION WHEN insufficient_privilege THEN RAISE NOTICE 'PASS başkası adına vardiya yazılamaz'; END $$;
+SELECT pg_temp.as_user(:'B');
+SELECT pg_temp.check('grup üyesi grup takvimini görür', EXISTS (SELECT 1 FROM user_shifts WHERE user_id = :'A'));
+SELECT pg_temp.as_user(:'D');
+SELECT pg_temp.check('üye olmayan göremez', NOT EXISTS (SELECT 1 FROM user_shifts WHERE user_id = :'A'));
+
+-- Etkinlik
+SELECT pg_temp.as_user(:'A');
+SELECT create_room_event(:'wg', 'Film gecesi', NOW() + INTERVAL '10 minutes', 'Pizza', 15) AS ev \gset
+DO $$ BEGIN PERFORM create_room_event(current_setting('jz.dm')::uuid, 'x', NOW() + INTERVAL '1 day'); RAISE NOTICE 'FAIL birebir etkinlik';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS etkinlik yalnız grupta'; END $$;
+SELECT pg_temp.check('etkinlik mesajı', EXISTS (SELECT 1 FROM messages WHERE metadata ->> 'event_id' = :'ev'));
+SELECT pg_temp.as_user(:'B');
+SELECT pg_temp.check('katılım kaydı', rsvp_room_event(:'ev', 'maybe'));
+SELECT pg_temp.check('katılım sayımı', (room_event_details(:'ev') ->> 'maybe')::int = 1 AND (room_event_details(:'ev') ->> 'going')::int = 1);
+SELECT pg_temp.as_user(:'D');
+DO $$ BEGIN PERFORM room_event_details(current_setting('jz.pg')::uuid); RAISE NOTICE 'FAIL'; EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS üye olmayan etkinliği göremez'; END $$;
+RESET ROLE;
+SELECT pg_temp.check('hatırlatma üretilir', juzzio_fire_event_reminders() = 1);
+SELECT pg_temp.check('iki üyeye bildirim', (SELECT count(*) FROM notifications WHERE dedupe_key = 'event_' || :'ev') = 2);
+SELECT pg_temp.check('tekrar hatırlatılmaz', juzzio_fire_event_reminders() = 0);
+DELETE FROM notifications WHERE dedupe_key = 'event_' || :'ev';
+DELETE FROM user_shifts WHERE user_id = :'A';
+DELETE FROM chick_pets WHERE id = :'ck';
+SELECT 'TÜM v0.9.4 DENETİM / MODÜL TESTLERİ GEÇTİ';
+
+-- ===== 10.27 v0.9.5 =====
+SET ROLE authenticated;
+-- A) tek seferlik medya
+SELECT pg_temp.as_user(:'A');
+INSERT INTO messages (room_id, sender_id, message_type, original_text, image_url, is_view_once)
+VALUES (:'wg', :'A', 'image', '', 'https://x.supabase.co/storage/v1/object/public/chat-media/a/vo.jpg', true) RETURNING id AS vo \gset
+SELECT set_config('jz.vo', :'vo', false);
+DO $$ BEGIN PERFORM open_view_once(current_setting('jz.vo')::uuid); RAISE NOTICE 'FAIL gönderen açtı';
+EXCEPTION WHEN OTHERS THEN IF SQLERRM = 'view_once_sender' THEN RAISE NOTICE 'PASS gönderen kendi tek seferlik medyasını açamaz'; ELSE RAISE NOTICE 'FAIL %', SQLERRM; END IF; END $$;
+SELECT pg_temp.as_user(:'B');
+SELECT pg_temp.check('alıcı bir kez açar', (open_view_once(:'vo') ->> 'image_url') LIKE '%vo.jpg');
+DO $$ BEGIN PERFORM open_view_once(current_setting('jz.vo')::uuid); RAISE NOTICE 'FAIL ikinci açılış';
+EXCEPTION WHEN OTHERS THEN IF SQLERRM = 'view_once_already_opened' THEN RAISE NOTICE 'PASS ikinci kez açılamaz'; ELSE RAISE NOTICE 'FAIL %', SQLERRM; END IF; END $$;
+UPDATE messages SET is_view_once = false, view_once_opened_at = NULL WHERE id = :'vo';
+SELECT pg_temp.check('bayrak istemciden sıfırlanamaz', finish_view_once(:'vo'));
+RESET ROLE;
+SELECT pg_temp.check('medya silindi + kuyruğa alındı', (SELECT image_url IS NULL AND is_view_once FROM messages WHERE id = :'vo')
+   AND EXISTS (SELECT 1 FROM juzzio_storage_cleanup_queue WHERE object_name = 'a/vo.jpg' AND reason = 'view_once'));
+
+-- B) anket kapanış özeti
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+SELECT create_poll(:'wg', 'Pizza mı?', ARRAY['Evet', 'Hayır'], false, false) AS p5 \gset
+SELECT vote_poll(:'p5', ARRAY[0]::smallint[]);
+SELECT pg_temp.as_user(:'B');
+SELECT vote_poll(:'p5', ARRAY[0]::smallint[]);
+SELECT pg_temp.as_user(:'A');
+SELECT pg_temp.check('son tarih', poll_set_deadline(:'p5', NOW() + INTERVAL '10 minutes'));
+RESET ROLE;
+UPDATE polls SET closes_at = NOW() - INTERVAL '1 second' WHERE id = :'p5';
+SELECT pg_temp.check('süresi dolan anket kapanır', juzzio_close_due_polls() = 1);
+SELECT pg_temp.check('kazanan özeti bildirimi', (SELECT preview_text FROM notifications WHERE dedupe_key = 'poll_closed_' || :'p5' AND recipient_id = :'B') = 'poll|Pizza mı?|Evet|2|2');
+
+-- C) anılar
+INSERT INTO posts (author_id, caption, created_at) VALUES (:'A', 'Geçen yıl', NOW() - INTERVAL '1 year') RETURNING id AS mp \gset
+SELECT pg_temp.check('anı bildirimi üretildi', juzzio_fire_memories() >= 1);
+SELECT pg_temp.check('anı bildirimi doğru gönderiye', EXISTS (SELECT 1 FROM notifications WHERE event_type = 'memory' AND target_id = :'mp'));
+SELECT pg_temp.check('anı tekrar gönderilmez', juzzio_fire_memories() = 0);
+
+-- D) seriler / rozetler
+SELECT pg_temp.check('seri başlar', juzzio_bump_streak(:'A', 'daily_app', CURRENT_DATE - 2) = 1);
+SELECT pg_temp.check('ardışık gün +1', juzzio_bump_streak(:'A', 'daily_app', CURRENT_DATE - 1) = 2);
+SELECT pg_temp.check('aynı gün sayılmaz', juzzio_bump_streak(:'A', 'daily_app', CURRENT_DATE - 1) = 2);
+SELECT pg_temp.check('gün atlanınca sıfırlanır', juzzio_bump_streak(:'A', 'daily_app', CURRENT_DATE + 1) = 1);
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+SELECT pg_temp.check('ilk gönderi rozeti', user_badges() ? 'first_post');
+DO $$ BEGIN INSERT INTO user_streaks (user_id, kind, last_date) VALUES ('aaaaaaaa-0000-0000-0000-000000000001', 'chick_care', CURRENT_DATE); RAISE NOTICE 'FAIL seri yazıldı';
+EXCEPTION WHEN insufficient_privilege THEN RAISE NOTICE 'PASS seri istemciden yazılamaz'; END $$;
+RESET ROLE;
+-- E) güven puanı
+SELECT pg_temp.check('güven puanı aralıkta', juzzio_trust_score(:'B') BETWEEN 0 AND 100);
+INSERT INTO moderation_strikes (user_id, kind, strike_no, penalty) VALUES (:'C', 'admin', 91, 'warning'), (:'C', 'admin', 92, 'warning'), (:'C', 'admin', 93, 'warning');
+SELECT pg_temp.check('ihlaller puanı düşürür', juzzio_trust_score(:'C') < 30);
+DELETE FROM moderation_strikes WHERE user_id = :'C' AND strike_no > 90;
+
+-- H) watch party
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+DO $$ BEGIN PERFORM start_watch_party(current_setting('jz.pg')::uuid, 'javascript:alert(1)'); RAISE NOTICE 'FAIL geçersiz adres';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS geçersiz izleme adresi reddedildi'; END $$;
+SELECT start_watch_party(:'wg', 'https://cdn.example.com/film.m3u8', 'Film') AS wp \gset
+SELECT pg_temp.check('HLS türü', (SELECT source_kind FROM watch_party_sessions WHERE id = :'wp') = 'hls');
+SELECT pg_temp.check('ev sahibi oynatır', (watch_party_control(:'wp', true, 60000, 1.0) ->> 'is_playing')::boolean);
+SELECT pg_temp.as_user(:'B');
+DO $$ BEGIN PERFORM watch_party_control((SELECT id FROM watch_party_sessions WHERE status = 'active' LIMIT 1), false, 0, 1); RAISE NOTICE 'FAIL misafir kontrol etti';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS yalnız ev sahibi kontrol eder'; END $$;
+SELECT pg_temp.check('üye oturumu görür', EXISTS (SELECT 1 FROM watch_party_sessions WHERE id = :'wp'));
+SELECT pg_temp.as_user(:'A');
+SELECT pg_temp.check('ikinci parti başlar', start_watch_party(:'wg', 'https://x.com/b.mp4') IS NOT NULL);
+SELECT pg_temp.check('ikinci parti öncekini bitirir', (SELECT status FROM watch_party_sessions WHERE id = :'wp') = 'ended');
+
+-- I) SOS
+SELECT start_safety_session(:'wg', 30, 'Ev', 15) AS ss \gset
+SELECT pg_temp.check('konum bildirimi', safety_ping(:'ss', 37.77, 29.08, 80) = 'active');
+SELECT pg_temp.check('kritik pil SOS tetikler', safety_ping(:'ss', 37.77, 29.08, 4) = 'sos_triggered');
+SELECT pg_temp.as_user(:'B');
+SELECT pg_temp.check('üye SOS oturumunu görür', EXISTS (SELECT 1 FROM safety_sessions WHERE id = :'ss' AND status = 'sos_triggered'));
+SELECT pg_temp.as_user(:'A');
+SELECT safety_finish(:'ss', true);
+SELECT start_safety_session(:'wg', 10, 'İş') AS ss2 \gset
+RESET ROLE;
+UPDATE safety_sessions SET expires_at = NOW() - INTERVAL '1 minute' WHERE id = :'ss2';
+SELECT pg_temp.check('süre aşımı otomatik SOS', juzzio_check_safety_sessions() = 1);
+SELECT pg_temp.check('SOS bildirimi konum linkli', (SELECT preview_text FROM notifications WHERE dedupe_key = 'sos_' || :'ss' AND recipient_id = :'B') LIKE 'sos|battery|https://maps.google.com/?q=37.770000,29.080000|4');
+
+-- J) soru kutusu
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+SELECT qa_setup_box('Sor bakalım', true, true);
+SELECT pg_temp.as_user(:'B');
+SELECT qa_ask(:'A', 'En sevdiğin film?', true) AS q1 \gset
+DO $$ BEGIN PERFORM * FROM qa_submissions; RAISE NOTICE 'FAIL tablo okundu';
+EXCEPTION WHEN insufficient_privilege THEN RAISE NOTICE 'PASS soru tablosu doğrudan okunamaz'; END $$;
+SELECT pg_temp.as_user(:'A');
+SELECT pg_temp.check('anonim soruda gönderen gizli', (qa_inbox() -> 0 ->> 'sender_id') IS NULL AND (qa_inbox() -> 0 ->> 'question') = 'En sevdiğin film?');
+SELECT pg_temp.check('yanıt', qa_answer(:'q1', 'Yıldızlararası'));
+SELECT pg_temp.as_user(:'C');
+SELECT pg_temp.check('herkese açık yanıt kimliksiz', (qa_public(:'A') -> 0 ->> 'answer') = 'Yıldızlararası' AND NOT ((qa_public(:'A') -> 0) ? 'sender_id'));
+RESET ROLE;
+SELECT pg_temp.check('soran yanıt bildirimi alır (kimliği sunucuda)', EXISTS (SELECT 1 FROM notifications WHERE dedupe_key = 'qa_a_' || :'q1' AND recipient_id = :'B'));
+SELECT pg_temp.check('kutu sahibine anonim bildirim', (SELECT actor_id IS NULL FROM notifications WHERE dedupe_key = 'qa_q_' || :'q1'));
+DELETE FROM qa_boxes WHERE owner_id = :'A';
+SELECT 'TÜM v0.9.5 TESTLERİ GEÇTİ';
+
+-- =============================================================================
+-- v0.9.6 — sabitleme, çeviri geçersizleme, hata merkezi, Tanrı modu araçları
+-- =============================================================================
+RESET ROLE;
+SET search_path = public, extensions;
+UPDATE profiles SET username = 'tugkancr' WHERE id = :'A';
+DELETE FROM admin_sessions WHERE user_id = :'A';
+INSERT INTO admin_sessions (token_hash, user_id, expires_at)
+VALUES ((SELECT encode(digest('tok096', 'sha256'), 'hex')), :'A', NOW() + INTERVAL '1 hour');
+DO $$ BEGIN
+    IF to_regclass('public.message_translations') IS NULL THEN
+        CREATE TABLE public.message_translations (message_id UUID NOT NULL, target_lang TEXT NOT NULL, translated_text TEXT NOT NULL DEFAULT '');
+    END IF;
+END $$;
+INSERT INTO messages (room_id, sender_id, original_text) VALUES (:'wg', :'B', 'B mesajı') RETURNING id AS pm1 \gset
+INSERT INTO messages (room_id, sender_id, original_text) VALUES (:'wg', :'A', 'A mesajı') RETURNING id AS pm2 \gset
+INSERT INTO message_translations (message_id, target_lang, translated_text) VALUES (:'pm2', 'en', 'A message');
+SELECT set_config('jz.pm1', :'pm1', false), set_config('jz.pm2', :'pm2', false), set_config('jz.wg', :'wg', false), set_config('jz.B', :'B', false);
+
+SET ROLE authenticated;
+-- A) sabitleme yetkisi
+SELECT pg_temp.as_user(:'C');
+DO $$ BEGIN PERFORM pin_message(current_setting('jz.pm1')::uuid, true); RAISE NOTICE 'FAIL üye olmayan sabitledi';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS üye olmayan sabitleyemez'; END $$;
+SELECT pg_temp.as_user(:'B');
+DO $$ BEGIN PERFORM pin_message(current_setting('jz.pm2')::uuid, true); RAISE NOTICE 'FAIL sıradan üye başkasının mesajını sabitledi';
+EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM <> 'pin_not_allowed' THEN RAISE NOTICE 'FAIL beklenmeyen: %', SQLERRM; ELSE RAISE NOTICE 'PASS grupta yalnız gönderen/yönetici sabitler'; END IF; END $$;
+SELECT pg_temp.check('gönderen kendi mesajını sabitler', (pin_message(:'pm1', true) ->> 'pinned')::boolean);
+SELECT pg_temp.as_user(:'A');
+SELECT pg_temp.check('grup sahibi sabitler', (pin_message(:'pm2', true) ->> 'ok')::boolean);
+UPDATE messages SET is_pinned = false WHERE id = :'pm2';
+SELECT pg_temp.check('istemci is_pinned sütununu doğrudan değiştiremez', (SELECT is_pinned FROM messages WHERE id = :'pm2'));
+SELECT pg_temp.check('sabit liste', (SELECT COUNT(*) FROM room_pinned_messages(:'wg')) = 2);
+RESET ROLE;
+INSERT INTO messages (room_id, sender_id, original_text)
+SELECT :'wg', :'A', 'çoklu ' || g FROM generate_series(1, 5) g;
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+DO $$ DECLARE r RECORD; BEGIN
+    FOR r IN SELECT id FROM messages WHERE room_id = current_setting('jz.wg')::uuid AND original_text LIKE 'çoklu %' LOOP
+        PERFORM pin_message(r.id, true);
+    END LOOP;
+END $$;
+SELECT pg_temp.check('sohbet başına en fazla 5 sabit', (SELECT COUNT(*) FROM messages WHERE room_id = :'wg' AND is_pinned) = 5);
+SELECT pg_temp.check('sabit kaldırma', NOT (pin_message(:'pm2', false) ->> 'pinned')::boolean);
+-- B) düzenleme eski çeviriyi siler
+UPDATE messages SET original_text = 'A mesajı (düzeltildi)' WHERE id = :'pm2';
+RESET ROLE;
+SELECT pg_temp.check('düzenleme çeviri önbelleğini temizler', NOT EXISTS (SELECT 1 FROM message_translations WHERE message_id = :'pm2'));
+SELECT pg_temp.check('düzenleme kaydı', EXISTS (SELECT 1 FROM message_edits WHERE message_id = :'pm2'));
+SELECT pg_temp.check('düzenleme bildirimi (Düzenlendi)', EXISTS (SELECT 1 FROM notifications WHERE recipient_id = :'B' AND dedupe_key LIKE 'msgedit_' || :'pm2' || '_%' AND preview_text LIKE '%(Düzenlendi) A mesajı (düzeltildi)'));
+
+-- C) hata merkezi
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'B');
+SELECT pg_temp.check('hata raporu', report_app_error('fp_test_0001', 'StateError', 'Bad state', '#0 main', '0.9.6', 'android', 'chat', true));
+SELECT report_app_error('fp_test_0001', 'StateError', 'Bad state', '#0 main', '0.9.6', 'android', 'chat', false);
+DO $$ BEGIN PERFORM * FROM app_error_reports; RAISE NOTICE 'FAIL hata tablosu okundu';
+EXCEPTION WHEN insufficient_privilege THEN RAISE NOTICE 'PASS hata tablosu istemciden okunamaz'; END $$;
+SELECT pg_temp.as_user(:'A');
+SELECT report_app_error('fp_test_0001', 'StateError', 'Bad state', '#0 main', '0.9.6', 'android', 'chat', false);
+RESET ROLE;
+SELECT pg_temp.check('aynı hata tek satırda toplanır', (SELECT occurrences = 3 AND affected_users = 2 AND is_fatal FROM app_error_reports WHERE fingerprint = 'fp_test_0001'));
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'C');
+DO $$ BEGIN PERFORM admin_list_app_errors('', 'open', 10); RAISE NOTICE 'FAIL yetkisiz hata listesi';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS hata listesi yetki ister'; END $$;
+SELECT pg_temp.as_user(:'A');
+SELECT pg_temp.check('yönetici hata listesini görür', jsonb_array_length(admin_list_app_errors('tok096', 'open', 10)) >= 1);
+SELECT admin_set_app_error_status('tok096', (SELECT (admin_list_app_errors('tok096', 'all', 1) -> 0 ->> 'id')::bigint), 'resolved');
+SELECT pg_temp.check('hata çözüldü', jsonb_array_length(admin_list_app_errors('tok096', 'resolved', 10)) >= 1);
+
+-- D) ayarlar / sınırlar
+DO $$ BEGIN PERFORM admin_set_setting('tok096', 'voice_max_seconds', '5000'::jsonb); RAISE NOTICE 'FAIL aralık dışı ayar';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS aralık dışı ses süresi reddedildi'; END $$;
+SELECT admin_set_setting('tok096', 'voice_max_seconds', '120'::jsonb);
+SELECT pg_temp.check('ses süresi ayarı yayında', (get_app_config() ->> 'voice_max_seconds')::int = 120);
+DO $$ BEGIN PERFORM admin_set_setting('', 'min_supported_build', '96'::jsonb); RAISE NOTICE 'FAIL belirteçsiz minimum sürüm';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS minimum sürüm süper yönetici ister'; END $$;
+SELECT admin_set_setting('tok096', 'ai_daily_quota_per_user', '2'::jsonb);
+RESET ROLE;
+SELECT pg_temp.check('AI kotası 1', juzzio_ai_quota_take(:'B', 'text_translate'));
+SELECT pg_temp.check('AI kotası 2', juzzio_ai_quota_take(:'B', 'content_translate'));
+SELECT pg_temp.check('AI kotası aşıldı', NOT juzzio_ai_quota_take(:'B', 'text_translate'));
+UPDATE app_settings SET value = '0'::jsonb WHERE key = 'ai_daily_quota_per_user';
+SELECT pg_temp.check('kota 0 = sınırsız', juzzio_ai_quota_take(:'B', 'text_translate'));
+UPDATE app_settings SET value = '300'::jsonb WHERE key = 'voice_max_seconds';
+
+-- E) Tanrı modu araçları
+INSERT INTO user_devices (user_id, device_id, platform) VALUES (:'A', 'shared-device-0001', 'android'), (:'B', 'shared-device-0001', 'android')
+ON CONFLICT DO NOTHING;
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+SELECT pg_temp.check('sistem özeti', (admin_god_overview('tok096') ->> 'total_users')::int >= 2 AND (admin_god_overview('tok096') ->> 'shared_devices')::int >= 1);
+SELECT pg_temp.check('çoklu hesap tespiti (cihaz maskeli)',
+    EXISTS (SELECT 1 FROM jsonb_array_elements(admin_multi_accounts('tok096', 50)) x WHERE x ->> 'device' = 'shar…0001' AND (x ->> 'accounts')::int = 2));
+SELECT pg_temp.check('AI kullanım listesi', jsonb_array_length(admin_ai_usage('tok096', 1, 10)) >= 1);
+SELECT pg_temp.check('depolama kuyruğu listesi', jsonb_typeof(admin_storage_queue('tok096', false, 10)) = 'array');
+DO $$ BEGIN PERFORM admin_legal_export('tok096', current_setting('jz.B')::uuid, ''); RAISE NOTICE 'FAIL gerekçesiz dışa aktarım';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS yasal dışa aktarım gerekçe ister'; END $$;
+SELECT pg_temp.check('yasal dışa aktarım', (admin_legal_export('tok096', :'B', 'Savcılık yazısı 2026/1') -> 'profile' ->> 'id') = :'B');
+DO $$ BEGIN PERFORM admin_legal_export('', current_setting('jz.B')::uuid, 'deneme gerekçe'); RAISE NOTICE 'FAIL belirteçsiz dışa aktarım';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS yasal dışa aktarım yalnız süper yönetici'; END $$;
+DO $$ BEGIN PERFORM admin_kill_all_sessions('tok096', 'evet'); RAISE NOTICE 'FAIL onaysız oturum kapatma';
+EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM <> 'confirmation_required' THEN RAISE NOTICE 'FAIL beklenmeyen: %', SQLERRM; ELSE RAISE NOTICE 'PASS genel oturum kapatma açık onay ister'; END IF; END $$;
+RESET ROLE;
+SELECT pg_temp.check('dışa aktarım denetim kaydında', EXISTS (SELECT 1 FROM admin_audit_log WHERE action = 'legal_export' AND target = :'B'));
+DELETE FROM user_devices WHERE device_id = 'shared-device-0001';
+DELETE FROM admin_sessions WHERE user_id = :'A';
+UPDATE profiles SET username = 'ali' WHERE id = :'A';
+SELECT 'TÜM v0.9.6 TESTLERİ GEÇTİ';
+
+-- =============================================================================
+-- v0.9.7 — yeni temalar ve medya önbelleği sınırı
+-- =============================================================================
+RESET ROLE;
+SET search_path = public, extensions;
+UPDATE profiles SET username = 'tugkancr' WHERE id = :'A';
+INSERT INTO admin_sessions (token_hash, user_id, expires_at)
+VALUES ((SELECT encode(digest('tok097', 'sha256'), 'hex')), :'A', NOW() + INTERVAL '1 hour');
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+SELECT admin_set_setting('tok097', 'default_glass_palette', '"aurora_borealis"'::jsonb);
+SELECT pg_temp.check('yeni cam teması kabul edilir', (get_app_config() ->> 'default_glass_palette') = 'aurora_borealis');
+SELECT admin_set_setting('tok097', 'default_glass_palette', '"nordic_frost"'::jsonb);
+DO $$ BEGIN PERFORM admin_set_setting('tok097', 'default_glass_palette', '"sunset_orange"'::jsonb); RAISE NOTICE 'FAIL bilinmeyen tema';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS bilinmeyen tema reddedilir'; END $$;
+SELECT admin_set_setting('tok097', 'media_cache_max_mb', '512'::jsonb);
+SELECT pg_temp.check('medya önbelleği sınırı yayında', (get_app_config() ->> 'media_cache_max_mb')::int = 512);
+DO $$ BEGIN PERFORM admin_set_setting('tok097', 'media_cache_max_mb', '10'::jsonb); RAISE NOTICE 'FAIL çok küçük önbellek';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS önbellek sınırı aralık denetimi'; END $$;
+SELECT admin_set_setting('tok097', 'media_cache_max_age_days', '0'::jsonb);
+SELECT pg_temp.check('önbellek yaşı 0 = sınırsız kabul', (get_app_config() ->> 'media_cache_max_age_days')::int = 0);
+RESET ROLE;
+UPDATE app_settings SET value = '"juzzio_liquid"'::jsonb WHERE key = 'default_glass_palette';
+UPDATE app_settings SET value = '300'::jsonb WHERE key = 'media_cache_max_mb';
+UPDATE app_settings SET value = '60'::jsonb WHERE key = 'media_cache_max_age_days';
+DELETE FROM admin_sessions WHERE user_id = :'A';
+UPDATE profiles SET username = 'ali' WHERE id = :'A';
+SELECT 'TÜM v0.9.7 TESTLERİ GEÇTİ';

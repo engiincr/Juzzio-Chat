@@ -74,6 +74,9 @@ class JuzzioGlassTokens {
   /// renk kullanır. Ayarlardan değiştirilir.
   static bool reducedEffects = false;
 
+  /// v0.9.7: buzlu cam dokusu (grain). Düşük donanımda / performans modunda kapalı.
+  static bool grain = true;
+
   /// v0.8.1 Cam yoğunluğu (Ayarlar → Görünüm): 0.6 sade … 1.4 belirgin. Yüzey/kenar
   /// opaklığını ve blur miktarını güvenli sınırlar içinde ölçekler.
   static double intensity = 1.0;
@@ -82,6 +85,13 @@ class JuzzioGlassTokens {
   static bool get _hc => highContrastResolver();
   /// v0.8.4: etkin temanın cam karakteri (blur, opaklık, ışık, derinlik, kenar rengi)
   static JuzzioGlassCharacter Function() characterResolver = () => JuzzioGlassCharacter.standard;
+  /// v0.9.7: etkin temanın iki vurgu rengi (avatar baş harf zemini, okunmamış rozeti vb.)
+  static List<Color> Function() accentPairResolver = () => const [Color(0xFF20D9F2), Color(0xFF397BFF)];
+  static List<Color> get accentPair {
+    final t = _ct;
+    if (t != null) return [t.button, Color.lerp(t.button, t.background, 0.45)!];
+    return accentPairResolver();
+  }
   static JuzzioGlassCharacter get character => custom != null ? JuzzioGlassCharacter.standard : characterResolver();
   static Color _scaled(Color c) =>
       c.withValues(alpha: (c.a * intensity * character.opacity * (_hc ? 2.2 : 1.0)).clamp(0.0, 1.0));
@@ -224,7 +234,16 @@ class JuzzioGlass extends StatelessWidget {
         decoration: BoxDecoration(borderRadius: br, color: tint),
         child: DecoratedBox(
           decoration: BoxDecoration(borderRadius: br, gradient: JuzzioGlassTokens.sheen),
-          child: padding == null ? child : Padding(padding: padding!, child: child),
+          // v0.9.7: buzlu cam dokusu (çok ince grain) — yalnız bulanık üst yüzeylerde;
+          // önbelleğe alınan tek katman, kaydırmada yeniden çizilmez
+          child: blur && !JuzzioGlassTokens.reducedEffects && JuzzioGlassTokens.grain
+              ? CustomPaint(
+                  isComplex: true,
+                  willChange: false,
+                  foregroundPainter: JuzzioGrainPainter(dark: d),
+                  child: padding == null ? child : Padding(padding: padding!, child: child),
+                )
+              : (padding == null ? child : Padding(padding: padding!, child: child)),
         ),
       ),
     );
@@ -243,6 +262,33 @@ class JuzzioGlass extends StatelessWidget {
       ),
     );
   }
+}
+
+/// v0.9.7: buzlu cam grain dokusu. Sabit tohumlu sözde rastgele noktalar (her karede aynı
+/// desen → titreşim yok); yoğunluk alanla ölçeklenir, alfa çok düşüktür (okunurluğu bozmaz).
+class JuzzioGrainPainter extends CustomPainter {
+  const JuzzioGrainPainter({required this.dark});
+  final bool dark;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.isEmpty) return;
+    final rnd = math.Random(0x5EED);
+    final n = (size.width * size.height / 70).clamp(0, 9000).toInt();
+    final light = <Offset>[];
+    final shade = <Offset>[];
+    for (var i = 0; i < n; i++) {
+      final o = Offset(rnd.nextDouble() * size.width, rnd.nextDouble() * size.height);
+      (rnd.nextBool() ? light : shade).add(o);
+    }
+    canvas.drawPoints(ui.PointMode.points, light,
+        Paint()..color = Colors.white.withValues(alpha: dark ? 0.035 : 0.10)..strokeWidth = 1);
+    canvas.drawPoints(ui.PointMode.points, shade,
+        Paint()..color = Colors.black.withValues(alpha: dark ? 0.06 : 0.03)..strokeWidth = 1);
+  }
+
+  @override
+  bool shouldRepaint(JuzzioGrainPainter old) => old.dark != dark;
 }
 
 /// 3D speküler + hafif yanardöner (iridescent) kenar ve içe sızan ışık (inner glow).
@@ -605,6 +651,27 @@ class JuzzioGlassTextField extends StatelessWidget {
 
 /// Profil fotoğrafı; fotoğraf yoksa ya da yüklenemezse baş harf gösterilir.
 /// [ringColor] verilirse (ör. aktif hikâye veya konuşma) çevresinde halka çizilir.
+/// v0.9.7: ada göre kararlı, temaya bağlı avatar gradyanı (saf fonksiyon).
+List<Color> juzzioAvatarGradient(String name, List<Color> accents, {bool dark = true}) {
+  final a = accents.isNotEmpty ? accents.first : const Color(0xFF20D9F2);
+  final b = accents.length > 1 ? accents[1] : a;
+  var h = 0;
+  for (final r in name.trim().toLowerCase().runes) {
+    h = (h * 31 + r) & 0x7fffffff;
+  }
+  final shift = ((h % 9) - 4) * 7.0; // −28°..+28° ton kayması
+  Color tune(Color c, double light) {
+    final hsl = HSLColor.fromColor(c);
+    final hue = (hsl.hue + shift) % 360;
+    final sat = (hsl.saturation * 0.85).clamp(0.25, 0.85);
+    return hsl.withHue(hue < 0 ? hue + 360 : hue).withSaturation(sat).withLightness(light).toColor();
+  }
+  return dark ? [tune(a, 0.46), tune(b, 0.30)] : [tune(a, 0.62), tune(b, 0.48)];
+}
+
+/// Zemin rengine göre okunur metin rengi (beyaz/koyu).
+Color juzzioReadableOn(Color bg) => bg.computeLuminance() > 0.45 ? const Color(0xFF111113) : Colors.white;
+
 class JuzzioGlassAvatar extends StatelessWidget {
   final String? imageUrl;
   final String name;
@@ -632,22 +699,23 @@ class JuzzioGlassAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final url = (imageUrl ?? '').trim();
+    // v0.9.7: gri yerine etkin temanın vurgu renkleri; her ada küçük bir ton kayması verilir
+    // (kişiler ayırt edilir ama hepsi aynı palet ailesinde kalır)
+    final pair = juzzioAvatarGradient(name, JuzzioGlassTokens.accentPair, dark: JuzzioGlassTokens._d);
     final fallback = Container(
       width: radius * 2,
       height: radius * 2,
       alignment: Alignment.center,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF48484A), Color(0xFF242427)],
-        ),
+        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: pair),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.22), width: 0.8),
       ),
       child: Text(
         initialOf(name),
         style: TextStyle(
-          color: Colors.white,
+          color: juzzioReadableOn(pair.first),
+          shadows: const [Shadow(color: Color(0x33000000), blurRadius: 2)],
           fontWeight: FontWeight.w900,
           fontSize: radius * 0.85,
         ),

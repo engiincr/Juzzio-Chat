@@ -13,6 +13,7 @@ import '../core/app_theme_and_locale.dart';
 import '../core/theme/juzzio_glass.dart';
 import '../services/juzzio_e2ee.dart';
 import '../services/supabase_service.dart';
+import '../widgets/juzzio_cloth_refresh.dart';
 
 enum JuzzioFileKind { media, documents, voice }
 
@@ -151,7 +152,7 @@ class _JuzzioFileCenterPageState extends State<JuzzioFileCenterPage> {
         Expanded(
           child: visible.isEmpty
               ? Center(child: Text(_app.trEn('Bu kategoride dosya yok', 'No files in this category', 'Keine Dateien'), style: TextStyle(color: p.textSecondary)))
-              : RefreshIndicator(
+              : JuzzioClothRefresh(
                   onRefresh: _load,
                   child: ListView.separated(
                     padding: const EdgeInsets.all(16),

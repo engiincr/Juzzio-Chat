@@ -18,8 +18,12 @@ import '../core/theme/juzzio_colors.dart';
 import '../core/theme/juzzio_glass.dart';
 import '../services/juzzio_features_service.dart';
 import '../services/supabase_service.dart';
+import '../services/juzzio_time_sync.dart';
+import '../services/juzzio_chick_wardrobe.dart';
 import '../widgets/juzzio_chick_art.dart';
+import 'chick_wardrobe_screen.dart';
 import '../widgets/juzzio_nest_scene.dart';
+import '../widgets/juzzio_cloth_refresh.dart';
 
 class JuzzioChickGameScreen extends StatefulWidget {
   final List<JuzzioUserProfile> friends;
@@ -112,8 +116,18 @@ class _JuzzioChickGameScreenState extends State<JuzzioChickGameScreen> with Tick
     super.dispose();
   }
 
+  Map<String, String> _style = const {};
+
+  Future<void> _loadWardrobe() async {
+    try {
+      final w = await JuzzioChickWardrobeService.instance.fetch();
+      if (mounted) setState(() => _style = w.style);
+    } catch (_) {}
+  }
+
   Future<void> _load({bool silent = false}) async {
     if (!silent) setState(() => _loading = true);
+    unawaited(_loadWardrobe());
     try {
       final st = await _features.fetchMyChick();
       if (!mounted) return;
@@ -340,7 +354,7 @@ class _JuzzioChickGameScreenState extends State<JuzzioChickGameScreen> with Tick
 
   String _formatWait(DateTime at) {
     final app = JuzzioAppController.instance;
-    final diff = at.difference(DateTime.now());
+    final diff = at.difference(JuzzioClock.now());
     if (diff.isNegative) return app.t('chick_feed');
     final h = diff.inHours;
     final m = diff.inMinutes % 60;
@@ -358,6 +372,16 @@ class _JuzzioChickGameScreenState extends State<JuzzioChickGameScreen> with Tick
         foregroundColor: JuzzioGlassTokens.heading,
         title: Text(app.t('chick_title'), style: const TextStyle(fontFamily: JuzzioConfig.fontRegularBold, fontWeight: FontWeight.w800)),
         actions: [
+          // v0.9.4: gardırop (yalnız civciv yumurtadan çıktıysa)
+          if ((_state?.hasChick ?? false) && (_state?.stage ?? 0) >= 1)
+            IconButton(
+              tooltip: app.trEn('Gardırop', 'Wardrobe', 'Garderobe'),
+              icon: const Icon(Icons.checkroom_rounded),
+              onPressed: () async {
+                await Navigator.of(context).push(MaterialPageRoute(builder: (_) => JuzzioChickWardrobeScreen(mood: _state?.mood ?? 'happy')));
+                if (mounted) _loadWardrobe();
+              },
+            ),
           IconButton(
             tooltip: app.t('chick_rules_title'),
             icon: const Icon(Icons.info_outline_rounded),
@@ -372,7 +396,7 @@ class _JuzzioChickGameScreenState extends State<JuzzioChickGameScreen> with Tick
           ),
         ],
       ),
-      body: RefreshIndicator(
+      body: JuzzioClothRefresh(
         onRefresh: () => _load(silent: true),
         child: _buildBody(p),
       ),
@@ -513,6 +537,7 @@ class _JuzzioChickGameScreenState extends State<JuzzioChickGameScreen> with Tick
           child: Stack(
             children: [
               JuzzioNestScene(
+                style: _style,
                 stage: st.stage,
                 crack: st.stage <= 0 ? progress : 0,
                 wobble: _wobble,

@@ -14,6 +14,7 @@ import '../../services/supabase_service.dart';
 import '../../widgets/social_common_widgets.dart';
 import '../../widgets/juzzio_mentions.dart';
 import '../profile/juzzio_profile_view.dart';
+import '../../widgets/juzzio_cloth_refresh.dart';
 
 /// Merkezdeki "+" Oluşturma Seçim Menüsü (Gönderi / Hikâye / İptal)
 Future<String?> showJuzzioCreateContentBottomSheet(BuildContext context) async {
@@ -456,7 +457,7 @@ class _JuzzioPostDetailAndCommentsPageState
                             actionLabel: app.loc('Geri Dön', 'Go Back', 'Zurück'),
                             onAction: () => Navigator.pop(context),
                           )
-                        : RefreshIndicator(
+                        : JuzzioClothRefresh(
                             onRefresh: _loadPostAndComments,
                             child: ListView(
                               padding: const EdgeInsets.only(top: 8, bottom: 20),
@@ -1452,7 +1453,7 @@ class _JuzzioFriendsAndRelationsPageState
           Expanded(
             child: _loading
                 ? const JuzzioSkeletonListView(itemCount: 4, itemHeight: 74)
-                : RefreshIndicator(
+                : JuzzioClothRefresh(
                     onRefresh: _loadAllRelations,
                     child: _buildTabContent(isDark, app),
                   ),

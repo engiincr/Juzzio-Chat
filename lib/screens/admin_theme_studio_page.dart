@@ -16,6 +16,7 @@ import '../core/widgets/glass_components.dart';
 import '../services/juzzio_features_service.dart';
 import '../services/supabase_service.dart';
 import 'theme_studio_page.dart';
+import '../widgets/juzzio_ui_kit.dart';
 
 String _t(String tr, String en) => JuzzioAppController.instance.trEn(tr, en);
 
@@ -130,7 +131,7 @@ class _JuzzioAdminThemeStudioPageState extends State<JuzzioAdminThemeStudioPage>
         label: Text(_t('Yeni taslak', 'New draft'), style: const TextStyle(fontWeight: FontWeight.w900)),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const JuzzioListSkeleton()
           : ListView(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 110),
               children: [

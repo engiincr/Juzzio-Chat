@@ -44,6 +44,7 @@ String? juzzioLocalizedCallPreview(String preview) {
 String juzzioLocalizedNotificationText(JuzzioNotificationItem item) {
   final app = JuzzioAppController.instance;
   final preview = item.previewText.trim();
+  final actor = item.actorDisplayName.isNotEmpty ? item.actorDisplayName : (item.actorUsername.isNotEmpty ? '@${item.actorUsername}' : 'Juzzio');
   final call = juzzioLocalizedCallPreview(preview);
   if (call != null) {
     if (item.eventType == 'missed_call') {
@@ -121,6 +122,40 @@ String juzzioLocalizedNotificationText(JuzzioNotificationItem item) {
       return preview.isEmpty ? app.t('chick_mood_dying') : '$preview: ${app.t('chick_mood_dying')}';
     case 'chick_died':
       return app.t('chick_died_info').replaceAll('{name}', preview.isEmpty ? app.t('chick_title') : preview);
+    // v0.9.5
+    case 'poll_closed':
+      final pp = juzzioPreviewParts(preview, 'poll');
+      if (pp == null) return preview;
+      return pp.length >= 4 && pp[1].isNotEmpty
+          ? '📊 ${pp[0]} → ${pp[1]} (${pp[2]}/${pp[3]} ${app.trEn('oy', 'votes', 'Stimmen')})'
+          : '📊 ${pp[0]} — ${app.trEn('anket kapandı', 'poll closed', 'Umfrage beendet')}';
+    case 'memory':
+      final mp = juzzioPreviewParts(preview, 'memory') ?? const ['1', ''];
+      return '📸 ${app.trEn('Bugün ${mp[0]} yıl önce', '${mp[0]} year(s) ago today', 'Heute vor ${mp[0]} Jahr(en)')}${mp.length > 1 && mp[1].isNotEmpty ? ': ${mp[1]}' : ''}';
+    case 'sos':
+      final sp = juzzioPreviewParts(preview, 'sos') ?? const [''];
+      final why = switch (sp.first) {
+        'battery' => app.trEn('pili bitmek üzere', 'battery almost empty', 'Akku fast leer'),
+        'inactive' => app.trEn('uzun süredir hareket yok', 'no movement for a while', 'keine Bewegung'),
+        'overdue' => app.trEn('varış süresi doldu, haber yok', 'arrival time passed', 'Ankunftszeit überschritten'),
+        _ => app.trEn('acil yardım istedi', 'asked for help', 'bittet um Hilfe'),
+      };
+      return '🆘 $actor: $why';
+    case 'qa_question':
+      return '❓ ${app.trEn('Yeni soru', 'New question', 'Neue Frage')}: $preview';
+    case 'qa_answer':
+      return '💬 $actor ${app.trEn('sorunu yanıtladı', 'answered your question', 'hat geantwortet')}: $preview';
+    case 'watch_party':
+      return '🎬 $actor ${app.trEn('izleme partisi başlattı', 'started a watch party', 'hat eine Watch-Party gestartet')}: ${preview.replaceFirst('watch|', '')}';
+    case 'reminder':
+      // v0.9.4: 'event|<başlık>' sohbet etkinliği, 'task|<başlık>' görev, 'message|' mesaj hatırlatıcısı
+      if (preview.startsWith('event|')) {
+        return '📅 ${app.trEn('Etkinlik yaklaşıyor', 'Event starting soon', 'Termin beginnt bald')}: ${preview.substring(6)}';
+      }
+      if (preview.startsWith('message|')) {
+        return '⏰ ${app.trEn('Yanıtlamak için işaretlediğin mesajın zamanı geldi.', 'Time to reply to the message you marked.', 'Zeit, auf die markierte Nachricht zu antworten.')}';
+      }
+      return '⏰ ${preview.startsWith('task|') ? preview.substring(5) : preview}';
   }
   return preview;
 }
@@ -132,4 +167,10 @@ String juzzioLocalizedNotificationText(JuzzioNotificationItem item) {
   final i = rest.indexOf('|');
   if (i < 0) return null;
   return (rest.substring(0, i).trim(), rest.substring(i + 1).trim());
+}
+
+/// v0.9.5: '<önek>|a|b' → [a, b]; önek tutmuyorsa null.
+List<String>? juzzioPreviewParts(String preview, String prefix) {
+  if (!preview.startsWith('$prefix|')) return null;
+  return preview.substring(prefix.length + 1).split('|');
 }

@@ -1,16 +1,16 @@
 {
-  "version": "0.9.3",
-  "buildNumber": 1047,
-  "releaseDate": "2026-11-05",
-  "releaseTitle": "Görüşmede Çoklu Görev ve Dilinizde Bildirimler",
+  "version": "0.9.9",
+  "buildNumber": 99,
+  "releaseDate": "2026-11-09",
+  "releaseTitle": "Kumaş Yenileme: Referansa Birebir 3D Revizyon",
   "mandatory": false,
   "minSupportedVersion": "0.1.0",
   "apkUrl": "https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk",
-  "versionedApkUrl": "https://github.com/engiincr/Juzzio-Chat/releases/download/v0.9.3/juzzio-v0.9.3-release.apk",
-  "apkSha256": "c4f3e8fc51e126f7c21ad65b1ec06ae4ef1a3050ecf180817a61ae4b52e11efe",
-  "apkSize": "103.05 MB",
-  "verifiedBuild": true,
-  "verifiedAt": "2026-11-05 21:26 UTC",
+  "versionedApkUrl": "https://github.com/engiincr/Juzzio-Chat/releases/download/v0.9.9/juzzio-v0.9.9-release.apk",
+  "apkSha256": "",
+  "apkSize": "",
+  "verifiedBuild": false,
+  "verifiedAt": "",
   "developer": {
     "name": "Engin ÇIRPAN",
     "instagram": "https://ig.me/tugkancr",
@@ -18,76 +18,92 @@
     "email": "engiincr@pm.me"
   },
   "changelog": {
-    "tr": "v0.9.3: Görüşme sırasında uygulamayı kullanmaya devam edebilmek (küçük pencere / PiP), bildirimleri dilinizde okuyup yanıtlayabilmek ve kullanıcıların bildirdiği 17 sorunu gidermek için getirildi.",
-    "en": "v0.9.3: Lets you keep using the app during calls (mini window / PiP), read and reply to notifications in your language, and fixes 17 user-reported issues.",
-    "de": "v0.9.3: Lets you keep using the app during calls (mini window / PiP), read and reply to notifications in your language, and fixes 17 user-reported issues."
+    "tr": "v0.9.9: v0.9.8 kumaş yenileme önizlemesi referans videoyla kare kare karşılaştırıldı ve 11 görsel/zamanlama sapması bulundu. Bu güncelleme 3D el, kumaş kıvrımları, çentik katmanı ve sayfa senkronizasyonunu bu 11 maddeye birebir uyacak şekilde düzeltir.",
+    "en": "v0.9.9: The v0.9.8 cloth refresh preview was compared frame by frame with the reference video and 11 visual/timing deviations were found. This update fixes the 3D hand, fabric folds, notch layering and page sync to match all 11 points exactly.",
+    "de": "v0.9.9: The v0.9.8 cloth refresh preview was compared frame by frame with the reference video and 11 visual/timing deviations were found. This update fixes the 3D hand, fabric folds, notch layering and page sync to match all 11 points exactly."
   },
-  "build": 1047,
-  "versionCode": 1047,
+  "build": 99,
+  "versionCode": 99,
   "url": "https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk",
-  "changelog_tr": "v0.9.3: Görüşme sırasında uygulamayı kullanmaya devam edebilmek (küçük pencere / PiP), bildirimleri dilinizde okuyup yanıtlayabilmek ve kullanıcıların bildirdiği 17 sorunu gidermek için getirildi.",
-  "changelog_en": "v0.9.3: Lets you keep using the app during calls (mini window / PiP), read and reply to notifications in your language, and fixes 17 user-reported issues.",
-  "changelog_de": "v0.9.3: Lets you keep using the app during calls (mini window / PiP), read and reply to notifications in your language, and fixes 17 user-reported issues.",
+  "changelog_tr": "v0.9.9: v0.9.8 kumaş yenileme önizlemesi referans videoyla kare kare karşılaştırıldı ve 11 görsel/zamanlama sapması bulundu. Bu güncelleme 3D el, kumaş kıvrımları, çentik katmanı ve sayfa senkronizasyonunu bu 11 maddeye birebir uyacak şekilde düzeltir.",
+  "changelog_en": "v0.9.9: The v0.9.8 cloth refresh preview was compared frame by frame with the reference video and 11 visual/timing deviations were found. This update fixes the 3D hand, fabric folds, notch layering and page sync to match all 11 points exactly.",
+  "changelog_de": "v0.9.9: The v0.9.8 cloth refresh preview was compared frame by frame with the reference video and 11 visual/timing deviations were found. This update fixes the 3D hand, fabric folds, notch layering and page sync to match all 11 points exactly.",
   "details": {
     "tr": {
-      "reason": "Görüşme sırasında uygulamayı kullanmaya devam edebilmek (küçük pencere / PiP), bildirimleri dilinizde okuyup yanıtlayabilmek ve kullanıcıların bildirdiği 17 sorunu gidermek için getirildi.",
+      "reason": "v0.9.8 kumaş yenileme önizlemesi referans videoyla kare kare karşılaştırıldı ve 11 görsel/zamanlama sapması bulundu. Bu güncelleme 3D el, kumaş kıvrımları, çentik katmanı ve sayfa senkronizasyonunu bu 11 maddeye birebir uyacak şekilde düzeltir.",
       "features": [
-        "Görüşme sürerken sohbetlere geçilebilir; uygulama küçültülünce görüşme sağ köşede ekran içinde ekran (PiP) olarak sürer",
-        "Görüşme sırasında gelen mesaj bildirimine dokununca görüşme kesilmeden o sohbet açılır",
-        "Bildirimler uygulama dilinize çevrilmiş mesaj içeriğiyle gelir ve uygulama kapalıyken bile yanıtlanabilir",
-        "Hikâyeler 30 saniye görünür; hikâyede paylaşanın adına dokununca profili açılır",
-        "Juzzio Official: mavi tikli resmi tanıtım hikâyeleri Durumlar'da herkeste ilk sırada",
-        "Güzelleştirme yoğunluğu ayarı: görüntülü aramada ve hikâye fotoğraflarında",
-        "Yorum yanıtında otomatik @bahsetme; 'yorumunuza yanıt verdi' ve 'yorumunuzu beğendi' bildirimleri",
-        "Sesli mesajlarda toplam süre ve oynatılırken geçen süre",
-        "Civciv oyunu yenilendi: HD vektör civciv, likit cam butonlar, sevme ve besleme animasyonları; yumurta sohbette yalnız civciv acıktığında görünür",
-        "Yaylı ve akıcı sola kaydırarak silme (onaylı)",
-        "224 dil desteği (80 yeni dil)",
-        "İnternet yokken profil sayfası açılır; çevrimdışı değiştirilen ayarlar bağlantı gelince uygulanır",
-        "Tanıtım web sitesi: engiincr.github.io/Juzzio-Chat"
+        "⚫ Dynamic Island her iki temada tam siyah (#000000) ve en üst katmanda; el çentiğin alt kenarından maskelenerek çıkar ve içine girerek kaybolur",
+        "👀 İlk çekişte (0–35 px) çentiğin altından önce yalnız 4 tombul parmak ucu ve tırnaklar görünür; çekme sürdükçe el ve bilek iner",
+        "🖐️ Daha kısa ve tombul 3D kil kol (bilek ≈ çentik genişliğinin %55'i), başparmak dahil tüm parmaklarda parlak 3D tırnaklar ve boğum çizgileri; sıcak mat şeftali cilt (#F2C2B3 / #DF9F8E / #F9DCD3)",
+        "🕰️ Sarkaçta kök çentikte sabit, kol ve bilek esnek bir kemik gibi bükülür; +25° zirvede parmaklar yelpaze gibi açılır, merkeze dönerken kapanır (9 ayrı 3D poz)",
+        "✊ Yumrukta 4 kıvrık parmağın boğumları, aralarındaki dikey gölge oyukları ve altta sıkılı başparmak net görünür",
+        "🦋 Yumruk anında sol ve sağ yanda çentiğe doğru kıvrılan kelebek kanadı kıstırma katları; alt taraf pürüzsüz",
+        "🧵 Yukarı çekmede 6 kavisli, asimetrik 3D perde katı arama ikonu, konum başlığı ve avatarın üzerini yarı saydam bir çarşaf gibi örter ve \"Popular Food\" hizasına iner",
+        "📏 Çekme ve sarkaç boyunca içerik 140–155 px aşağı kayar; el hiçbir yazı veya ikonla çakışmadan temiz boşlukta sallanır",
+        "🔒 Sayfa yumruk kumaşı kavrayana kadar tam çekilmiş konumda kilitli kalır; yalnız yukarı çekmede yumruğun alt sınırına bağlı olarak elle aynı hızda kalkar",
+        "🧺 Son 250 ms'de kıvrımlar yukarı gerilerek düzleşir; sayfa titremeden yerine oturur"
       ],
       "fixes": [
-        "Sesli mesaj dökümünde 'QUERY LENGTH LIMIT EXCEEDED' hata metni artık görünmüyor; uzun metinler parça parça çevrilir",
-        "Sohbetler ilk açılışta 'Sohbet başlatmak için dokun' yerine son mesajı gösterir",
-        "Google Drive yedeklemede 'erişim reddedildi' hatası: izin yeniden istenir, süresi dolan oturum yenilenir, anlamlı hata mesajları",
-        "@bahsetme ve hatırlatma bildirimleri artık telefona (push) da gelir",
-        "Şonaca ve Kirundi dil kodları düzeltildi"
+        "Aydınlık temada kumaş kıvrımlarındaki siyah/koyu gri \"güneş ışını\" çizgiler kaldırıldı: vadiler yalnız gümüş-gri (#DFE2E8–#C8CDD6), sırtlar saf beyaz",
+        "Koyu temada yumruk çevresindeki beyaz sis/hale kaldırıldı: vadiler #07080B, sırtlar #222630",
+        "El artık çentiğin üstüne binmiyor; koyu temada gri çentik düzeltildi",
+        "Kolun tek parça döndürülmesi (katı sprite) kaldırıldı",
+        "Sayfanın yumruk anında erken yukarı kaçması düzeltildi"
       ],
       "security": [
-        "Juzzio Official hikâyesini yalnız yönetici paylaşabilir; sunucu tarafında zorunlu denetim",
-        "Uçtan uca şifreleme değişmedi; bildirim çevirisi cihazda çözülen metinle yapılır"
+        "Yeni görseller tamamen özgün, kendi ürettiğimiz 3D render'lar; ek izin veya veri toplanmaz"
       ]
     },
     "en": {
-      "reason": "Lets you keep using the app during calls (mini window / PiP), read and reply to notifications in your language, and fixes 17 user-reported issues.",
+      "reason": "The v0.9.8 cloth refresh preview was compared frame by frame with the reference video and 11 visual/timing deviations were found. This update fixes the 3D hand, fabric folds, notch layering and page sync to match all 11 points exactly.",
       "features": [
-        "You can switch to chats during a call; minimizing the app keeps the call in a picture-in-picture window",
-        "Tapping a message notification during a call opens that chat without ending the call",
-        "Notifications show the message translated into your app language and can be answered even when the app is closed",
-        "Stories are shown for 30 seconds; tap the poster's name to open their profile",
-        "Juzzio Official: blue-tick official teaser stories shown first in everyone's Stories",
-        "Adjustable beauty intensity in video calls and story photos",
-        "Automatic @mention when replying to comments; 'replied to your comment' and 'liked your comment' notifications",
-        "Total duration on voice messages, elapsed time while playing",
-        "Chick game redesigned: HD vector chick, liquid glass buttons, cuddle and feeding animations; the egg shows in chat only when the chick is hungry",
-        "Springy, smooth swipe-left to delete (with confirmation)",
-        "224 languages (80 new)",
-        "Profile page opens offline; settings changed offline apply when the connection returns",
-        "Website: engiincr.github.io/Juzzio-Chat"
+        "⚫ The Dynamic Island is pure black (#000000) in both themes and always on the top layer; the hand is masked at the island's bottom edge, emerges from it and disappears back into it",
+        "👀 On the first pull (0–35 px) only the 4 chubby fingertips and nails peek out from under the island; the hand and wrist come down as you keep pulling",
+        "🖐️ A shorter, chubbier 3D clay arm (wrist ≈ 55% of the island width), glossy 3D nails on every finger including the thumb, knuckle creases and a warm matte peach skin (#F2C2B3 / #DF9F8E / #F9DCD3)",
+        "🕰️ During the pendulum the root stays fixed at the island while the arm and wrist bend like a flexible bone; at the +25° peak the fingers fan out, then close again on the way back (9 separate 3D poses)",
+        "✊ The fist clearly shows the 4 curled fingers' knuckles, vertical shadow grooves between them and the thumb clenched underneath",
+        "🦋 When the fist closes, butterfly-wing pinch folds curl up toward the island on its left and right; the bottom stays smooth",
+        "🧵 On the yank, 6 curved, asymmetric 3D drapery pleats cover the search icon, location title and avatar like a semi-transparent sheet and reach down to \"Popular Food\"",
+        "📏 The content moves 140–155 px down while pulling and swinging, so the hand swings in clean empty space without touching any text or icon",
+        "🔒 The page stays locked at the fully pulled position until the fist grabs the fabric; only during the yank does it rise, attached to the fist's lower edge at the same speed as the hand",
+        "🧺 In the last 250 ms the folds stretch upward and flatten, and the page settles with no jitter"
       ],
       "fixes": [
-        "Voice transcripts no longer show the 'QUERY LENGTH LIMIT EXCEEDED' error; long texts are translated in chunks",
-        "Chats show the last message on first open instead of 'Tap to start chatting'",
-        "Google Drive backup 'access denied': permission is re-requested, expired sessions are refreshed, clear error messages",
-        "@mention and reminder notifications now also arrive as push",
-        "Fixed Shona and Kirundi language codes"
+        "Removed the black/dark grey \"sunburst\" lines in light mode: valleys are only silver grey (#DFE2E8–#C8CDD6), ridges pure white",
+        "Removed the white haze around the fist in dark mode: valleys #07080B, ridges #222630",
+        "The hand no longer paints over the notch; the grey notch in dark mode is fixed",
+        "Removed the rigid single-sprite arm rotation",
+        "Fixed the page jumping up early while the fist was still closing"
       ],
       "security": [
-        "Only the admin can post Juzzio Official stories; enforced on the server",
-        "End-to-end encryption unchanged; notification translation uses text decrypted on the device"
+        "The new visuals are fully original 3D renders made by us; no extra permissions or data collection"
+      ]
+    },
+    "de": {
+      "reason": "The v0.9.8 cloth refresh preview was compared frame by frame with the reference video and 11 visual/timing deviations were found. This update fixes the 3D hand, fabric folds, notch layering and page sync to match all 11 points exactly.",
+      "features": [
+        "⚫ The Dynamic Island is pure black (#000000) in both themes and always on the top layer; the hand is masked at the island's bottom edge, emerges from it and disappears back into it",
+        "👀 On the first pull (0–35 px) only the 4 chubby fingertips and nails peek out from under the island; the hand and wrist come down as you keep pulling",
+        "🖐️ A shorter, chubbier 3D clay arm (wrist ≈ 55% of the island width), glossy 3D nails on every finger including the thumb, knuckle creases and a warm matte peach skin (#F2C2B3 / #DF9F8E / #F9DCD3)",
+        "🕰️ During the pendulum the root stays fixed at the island while the arm and wrist bend like a flexible bone; at the +25° peak the fingers fan out, then close again on the way back (9 separate 3D poses)",
+        "✊ The fist clearly shows the 4 curled fingers' knuckles, vertical shadow grooves between them and the thumb clenched underneath",
+        "🦋 When the fist closes, butterfly-wing pinch folds curl up toward the island on its left and right; the bottom stays smooth",
+        "🧵 On the yank, 6 curved, asymmetric 3D drapery pleats cover the search icon, location title and avatar like a semi-transparent sheet and reach down to \"Popular Food\"",
+        "📏 The content moves 140–155 px down while pulling and swinging, so the hand swings in clean empty space without touching any text or icon",
+        "🔒 The page stays locked at the fully pulled position until the fist grabs the fabric; only during the yank does it rise, attached to the fist's lower edge at the same speed as the hand",
+        "🧺 In the last 250 ms the folds stretch upward and flatten, and the page settles with no jitter"
+      ],
+      "fixes": [
+        "Removed the black/dark grey \"sunburst\" lines in light mode: valleys are only silver grey (#DFE2E8–#C8CDD6), ridges pure white",
+        "Removed the white haze around the fist in dark mode: valleys #07080B, ridges #222630",
+        "The hand no longer paints over the notch; the grey notch in dark mode is fixed",
+        "Removed the rigid single-sprite arm rotation",
+        "Fixed the page jumping up early while the fist was still closing"
+      ],
+      "security": [
+        "The new visuals are fully original 3D renders made by us; no extra permissions or data collection"
       ]
     }
   },
-  "mldsa65Sig": "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",
-  "signatureAlg": "ML-DSA-65 (FIPS 204)"
+  "releaseTitleEn": "Cloth Refresh: Pixel-Faithful 3D Revision"
 }

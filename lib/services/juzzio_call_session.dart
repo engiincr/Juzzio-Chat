@@ -128,6 +128,8 @@ class JuzzioActiveCall extends ChangeNotifier with WidgetsBindingObserver {
   void setPip(bool inPip) {
     if (!isActive || _inPip == inPip) return;
     _inPip = inPip;
+    // v0.9.7: PiP'te küçük pencere → düşük güç profili (360p·15 fps); çıkınca normal
+    controller?.setLowPowerReason('pip', inPip);
     _entry?.markNeedsBuild();
     notifyListeners();
   }
@@ -145,6 +147,14 @@ class JuzzioActiveCall extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   // Geri tuşu: arama içindeki sayfayı kapatır, yoksa aramayı KÜÇÜLTÜR (kapatmaz)
+  /// v0.9.7: ekran kapalı / uygulama arka planda (PiP değilken) → düşük güç profili.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!isActive) return;
+    final bg = state == AppLifecycleState.paused || state == AppLifecycleState.hidden;
+    controller?.setLowPowerReason('background', bg);
+  }
+
   @override
   Future<bool> didPopRoute() async {
     if (!isActive || _view != JuzzioCallView.full || _inPip) return false;
@@ -290,6 +300,16 @@ class _CallCompactView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // v0.9.7: denetleyici her yeni altyazı paketinde bildirir → PiP'te canlı çeviri akar
+    final ctrl = session.controller;
+    if (ctrl == null) return _body(context, const []);
+    return ListenableBuilder(
+      listenable: ctrl,
+      builder: (context, _) => _body(context, ctrl.recentSegments(count: pip ? 2 : 1)),
+    );
+  }
+
+  Widget _body(BuildContext context, List<LiveSubtitlePacket> captions) {
     final track = session.remoteVideoTrack();
     final radius = pip ? 0.0 : 22.0;
     final avatar = session.avatarUrl;
@@ -323,6 +343,52 @@ class _CallCompactView extends StatelessWidget {
                           style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800),
                         )
                       : null,
+                ),
+              ),
+            // v0.9.7: küçük pencerede / PiP'te canlı çeviri katmanı (en yeni bölüt altta)
+            if (captions.isNotEmpty)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: pip ? 26 : 24,
+                child: IgnorePointer(
+                  child: Container(
+                    padding: EdgeInsets.fromLTRB(pip ? 8 : 5, pip ? 10 : 6, pip ? 8 : 5, 4),
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Color(0x00000000), Color(0xB3000000)],
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (final c in captions)
+                          Text.rich(
+                            TextSpan(children: [
+                              if (pip && c.speakerName.trim().isNotEmpty)
+                                TextSpan(
+                                  text: '${c.speakerName.trim().split(' ').first}: ',
+                                  style: const TextStyle(color: Color(0xFF7DD3FC), fontWeight: FontWeight.w800),
+                                ),
+                              TextSpan(text: (c.translatedText.trim().isNotEmpty ? c.translatedText : c.originalText).trim()),
+                            ]),
+                            maxLines: pip ? 2 : 3,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: pip ? 13 : 10.5,
+                              height: 1.2,
+                              fontWeight: FontWeight.w600,
+                              fontStyle: c.isFinal ? FontStyle.normal : FontStyle.italic,
+                              shadows: const [Shadow(color: Colors.black, blurRadius: 3)],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             Positioned(

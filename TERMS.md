@@ -1,58 +1,60 @@
-# Juzzio Kullanım Koşulları
+# 📜 Juzzio Terms of Use
 
-Son güncelleme: 1 Kasım 2026 · v0.7.0 (BETA · Erken Erişim)
+Last updated: November 9, 2026 · v0.9.7 (BETA · Early Access)
 
-## 1. Kabul
+> 🇹🇷 The legally binding Turkish version is in [docs/legal/tr/TERMS.md](docs/legal/tr/TERMS.md). In the app, the Turkish text is shown when the app language is Turkish.
 
-Juzzio'yu kullanarak bu koşulları kabul etmiş olursunuz. Juzzio bir **BETA (Erken Erişim)** uygulamasıdır; özellikler değişebilir, hatalar olabilir.
+## 1. Acceptance
 
-## 2. Hesap
+By using Juzzio you accept these terms. Juzzio is a **BETA (Early Access)** app; features may change and bugs may occur.
 
-- Kayıt olurken doğru bilgi vermelisiniz; hesabınızın güvenliğinden siz sorumlusunuz.
-- Uygunsuz kullanıcı adı, ad veya profil fotoğrafı kullanılamaz; sahte veya trol hesap açmak yasaktır.
+## 2. Account
 
-## 3. Topluluk kuralları
+- You must provide accurate information when signing up; you are responsible for the security of your account.
+- Inappropriate usernames, names or profile photos may not be used; creating fake or troll accounts is prohibited.
 
-- Sohbetlerde ve aramalarda argo ve küfür kullanmak tek başına yasak sebebi değildir.
-- Görüntülü aramada çıplaklık ve cinsel organ gösterimi yasaktır ve otomatik olarak tespit edilebilir. Ceza basamağı: 1. ihlal 1 saat, 2. ihlal 4 saat, 3. ihlal kalıcı engel (cihaz ve e-posta dahil).
-- Taciz, tehdit, nefret söylemi, dolandırıcılık, başkasının kişisel verilerini izinsiz paylaşma ve yasa dışı içerik yasaktır.
+## 3. Community rules
 
-## 4. İçerik
+- Slang and swearing in chats and calls are not, on their own, grounds for a ban.
+- Nudity and showing genitals in video calls are prohibited and may be detected automatically. Penalty ladder: 1st violation 1 hour, 2nd violation 4 hours, 3rd violation permanent ban (including device and email).
+- Harassment, threats, hate speech, fraud, sharing other people's personal data without permission and illegal content are prohibited.
 
-- Paylaştığınız içerikten siz sorumlusunuz. İçeriğinizin hakları sizde kalır; hizmetin çalışması için gereken ölçüde (saklama, iletme, gösterme) işlenmesine izin vermiş olursunuz.
-- Kurallara aykırı içerikler kaldırılabilir, hesaplar askıya alınabilir.
+## 4. Content
 
-## 5. Tüketici hakları
+- You are responsible for the content you share. You keep the rights to your content and allow it to be processed to the extent needed to run the service (storing, delivering, displaying).
+- Content that violates the rules may be removed and accounts may be suspended.
 
-- Juzzio ücretsizdir; uygulama içi satın alma, abonelik veya ödeme yoktur.
-- 6502 sayılı Tüketicinin Korunması Hakkında Kanun ve ilgili mevzuattan doğan haklarınız saklıdır.
+## 5. Consumer rights
 
-## 6. Sorumluluğun sınırlandırılması
+- Juzzio is free; there are no in-app purchases, subscriptions or payments.
+- Your rights under Turkish Consumer Protection Law No. 6502 and related legislation are reserved.
 
-Hizmet "olduğu gibi" sunulur. Kesintisiz veya hatasız çalışacağı garanti edilmez. Yürürlükteki hukukun izin verdiği ölçüde dolaylı zararlardan sorumluluk kabul edilmez.
+## 6. Limitation of liability
 
-## 7. Fikri mülkiyet
+The service is provided "as is". Uninterrupted or error-free operation is not guaranteed. To the extent permitted by applicable law, no liability is accepted for indirect damages.
 
-Juzzio'nun kaynak kodu, tasarımı, adı ve logosu telif hakkıyla korunur. Kopyalanması, çoğaltılması, dağıtılması, satılması ve türev uygulama yapılması yazılı izin olmadan yasaktır. Ayrıntılar: `LICENSE`.
+## 7. Intellectual property
 
-## 8. Güvenlik ihlalleri, saldırılar ve izinsiz erişim
+Juzzio's source code, design, name and logo are protected by copyright. Copying, reproducing, distributing, selling or creating derivative apps without written permission is prohibited. Details: `LICENSE`.
 
-Aşağıdaki eylemler kesinlikle yasaktır ve tespit edildiğinde hesap ve cihaz kalıcı olarak engellenir, kayıtlar (IP, cihaz kimliği, zaman damgası) delil olarak saklanır ve yetkili makamlara suç duyurusunda bulunulur:
+## 8. Security breaches, attacks and unauthorized access
 
-- Juzzio sunucularına, veritabanına, depolama alanına veya diğer kullanıcıların hesaplarına izinsiz erişmek ya da erişmeye çalışmak (**TCK m.243 – bilişim sistemine girme**),
-- Sistemin işleyişini engellemek, bozmak, verileri silmek, değiştirmek veya erişilmez kılmak; hizmet engelleme (DoS/DDoS), otomatik istek bombardımanı, kaba kuvvet denemeleri (**TCK m.244**),
-- Başkasına ait kimlik, oturum belirteci veya anahtarları kullanmak; kimlik avı (phishing) yapmak (**TCK m.245** ve **TCK m.158/1-f**),
-- Kişisel verileri hukuka aykırı olarak ele geçirmek, kaydetmek, yaymak (**TCK m.135–136**, **6698 sayılı KVKK m.12 ve m.17**),
-- Haberleşmenin gizliliğini ihlal etmek, aramaları veya mesajları gizlice dinlemek/kaydetmek (**TCK m.132–133**),
-- Uygulamayı kaynak koda dönüştürmek (decompile), değiştirilmiş/korsan sürümünü dağıtmak, güvenlik önlemlerini aşmak (**5846 sayılı Fikir ve Sanat Eserleri Kanunu m.71–72**),
-- Zararlı yazılım, istismar kodu veya otomasyon araçlarıyla hizmete müdahale etmek (**5651 sayılı Kanun** kapsamındaki yükümlülükler saklıdır).
+The following actions are strictly prohibited. When detected, the account and device are permanently banned, records (IP, device ID, timestamp) are kept as evidence and a criminal complaint is filed with the competent authorities:
 
-Bu eylemlerden doğan her türlü maddi ve manevi zararın tazmini hukuk yoluyla talep edilir. Güvenlik açığı bulduysanız sorumlu bildirim için lütfen **engiincr@pm.me** adresine yazın; iyi niyetli ve zarar vermeden yapılan bildirimler için yasal yola başvurulmaz.
+- Accessing or attempting to access Juzzio servers, the database, storage or other users' accounts without authorization (**Turkish Penal Code Art. 243 – unauthorized access to an information system**),
+- Obstructing or disrupting the system, deleting, altering or making data inaccessible; denial of service (DoS/DDoS), automated request flooding, brute-force attempts (**Turkish Penal Code Art. 244**),
+- Using someone else's identity, session token or keys; phishing (**Turkish Penal Code Art. 245** and **Art. 158/1-f**),
+- Unlawfully obtaining, recording or disseminating personal data (**Turkish Penal Code Art. 135–136**, **Personal Data Protection Law No. 6698 Art. 12 and 17**),
+- Violating the confidentiality of communications, secretly listening to or recording calls or messages (**Turkish Penal Code Art. 132–133**),
+- Decompiling the app, distributing modified/pirated versions, bypassing security measures (**Law on Intellectual and Artistic Works No. 5846 Art. 71–72**),
+- Interfering with the service using malware, exploit code or automation tools (obligations under **Law No. 5651** are reserved).
 
-## 9. Uygulanacak hukuk
+Compensation for all material and moral damages arising from these actions will be claimed through legal means. If you found a security vulnerability, please write to **engiincr@pm.me** for responsible disclosure; no legal action is taken for good-faith reports made without causing harm.
 
-Bu koşullar Türkiye Cumhuriyeti hukukuna tabidir. Uyuşmazlıklarda İstanbul (Merkez) Mahkemeleri ve İcra Daireleri yetkilidir; tüketiciler için 6502 sayılı Kanun'daki tüketici hakem heyeti ve tüketici mahkemesi hakları saklıdır.
+## 9. Governing law
 
-## 10. İletişim
+These terms are governed by the laws of the Republic of Türkiye. Istanbul (Central) Courts and Enforcement Offices have jurisdiction; consumers' rights to consumer arbitration committees and consumer courts under Law No. 6502 are reserved.
+
+## 10. Contact
 
 engiincr@pm.me

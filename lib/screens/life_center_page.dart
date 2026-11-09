@@ -11,6 +11,8 @@ import '../core/app_theme_and_locale.dart';
 import '../core/theme/juzzio_glass.dart';
 import '../services/juzzio_life_service.dart';
 import '../services/supabase_service.dart';
+import 'shift_planner_screen.dart';
+import '../widgets/juzzio_cloth_refresh.dart';
 
 enum JuzzioLifeView { list, calendar, done }
 
@@ -229,7 +231,7 @@ class _JuzzioLifeCenterPageState extends State<JuzzioLifeCenterPage> {
         ]);
       case JuzzioLifeView.list:
         final none = g.overdue.isEmpty && g.today.isEmpty && g.upcoming.isEmpty && g.undated.isEmpty;
-        return RefreshIndicator(
+        return JuzzioClothRefresh(
           onRefresh: _load,
           child: ListView(padding: const EdgeInsets.all(16), children: [
             if (none)
@@ -258,6 +260,12 @@ class _JuzzioLifeCenterPageState extends State<JuzzioLifeCenterPage> {
             elevation: 0,
             title: Text(_app.trEn('Yaşam Merkezi', 'Life Center', 'Lebenszentrale')),
             actions: [
+              // v0.9.4: vardiya planlayıcı (08-16 / 16-00 / 00-08, ekip takvimi)
+              IconButton(
+                tooltip: _app.trEn('Vardiya planım', 'My shifts', 'Meine Schichten'),
+                icon: const Icon(Icons.work_history_rounded),
+                onPressed: () => JuzzioShiftPlannerScreen.open(context),
+              ),
               IconButton(
                 tooltip: _app.trEn('Bugün', 'Today', 'Heute'),
                 icon: const Icon(Icons.today_rounded),

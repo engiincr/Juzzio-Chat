@@ -28,6 +28,9 @@ import '../../widgets/profile_extras.dart';
 import '../../widgets/social_common_widgets.dart';
 import '../social/social_screens.dart';
 import 'juzzio_profile_card_page.dart';
+import '../qa_box_screen.dart';
+import '../../widgets/juzzio_cloth_refresh.dart';
+import '../../widgets/juzzio_ui_kit.dart';
 
 String _l(String tr, String en, String de) => JuzzioAppController.instance.trEn(tr, en, de);
 
@@ -537,7 +540,8 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
           _buildTopBar(fg, prof),
           Expanded(
             child: _loading && prof == null
-                ? const Center(child: CircularProgressIndicator(strokeWidth: 2.4))
+                // v0.9.7: parıldayan profil iskeleti
+                ? const JuzzioProfileSkeleton()
                 : prof == null || _relation.blocked || _counts.isBlockedBetween
                     ? JuzzioEmptyStateView(
                         icon: Icons.person_off_outlined,
@@ -545,7 +549,7 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
                         subtitle: _l('Bu kullanıcıya şu anda ulaşılamıyor.', 'This user is currently unavailable.',
                             'Dieser Nutzer ist derzeit nicht verfügbar.'),
                       )
-                    : RefreshIndicator(
+                    : JuzzioClothRefresh(
                         onRefresh: _load,
                         child: CustomScrollView(
                           physics: const AlwaysScrollableScrollPhysics(),
@@ -773,6 +777,8 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
             const SizedBox(height: 4),
             JuzzioWebsiteChip(url: prof.websiteUrl, isDark: isDark),
           ],
+          // v0.9.5: anonim soru kutusu (yalnız başkasının profilinde, kutu açıksa görünür)
+          if (!_isOwn) JuzzioQaProfileSection(key: ValueKey('qa_${widget.userId}'), ownerId: widget.userId),
           if (prof.hasProfileMusic) ...[
             const SizedBox(height: 8),
             JuzzioMusicPill(

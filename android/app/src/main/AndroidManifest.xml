@@ -13,6 +13,9 @@
     <!-- Mikrofon ve Kamera İzinleri -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- v0.9.4: sohbette konum paylaşımı (yalnız kullanıcı "Konum"a dokunduğunda istenir) -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 
     <!-- Galeri ve Medya İzinleri (Android 13+ ve Öncesi) -->

@@ -51,6 +51,13 @@ const ALLOWED_EVENT_TYPES = new Set([
   "mention",
   "reminder",
   "comment_like",
+  // v0.9.5
+  "poll_closed",
+  "memory",
+  "sos",
+  "qa_question",
+  "qa_answer",
+  "watch_party",
 ]);
 
 let cachedOAuthToken: string | null = null;
@@ -201,8 +208,9 @@ async function resolveRecipientSound(client: any, recipientId: string, actorId: 
 }
 
 function resolveAndroidChannelId(eventType: string): string {
-  if (eventType === "missed_call" || eventType === "incoming_call") return "juzzio_calls_priority_v2";
-  if (eventType === "message" || eventType === "group_activity" || eventType === "reaction") {
+  // v0.9.5: SOS güvenlik uyarısı en yüksek öncelikli (ekranda açılır, sessiz modda bile duyulur) kanaldan
+  if (eventType === "missed_call" || eventType === "incoming_call" || eventType === "sos") return "juzzio_calls_priority_v2";
+  if (eventType === "message" || eventType === "group_activity" || eventType === "reaction" || eventType === "watch_party" || eventType === "poll_closed") {
     return "juzzio_high_priority_v2";
   }
   if (eventType === "system") return "juzzio_ota_update_v2";

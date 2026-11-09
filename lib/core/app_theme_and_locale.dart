@@ -525,6 +525,17 @@ class JuzzioAppController extends ChangeNotifier {
   bool _cameraBeautyEnabled = true;
   // v0.9.3: güzelleştirme yoğunluğu 0..100 (arama + hikâye fotoğrafları)
   int _beautyLevel = 50;
+  // v0.9.5: düşük veri modu ve aramada gürültü engelleme
+  bool _dataSaverEnabled = false;
+  bool _callNoiseFilterEnabled = true;
+  // v0.9.6: Göz Konforu (mavi ışık filtresi) ve otomatik hata raporları
+  String _eyeComfortMode = 'off'; // off · on · schedule · sun
+  int _eyeComfortIntensity = 40; // 5..90
+  int _eyeComfortStartMin = 20 * 60; // 20:00
+  int _eyeComfortEndMin = 7 * 60; // 07:00
+  double? _eyeComfortLat;
+  double? _eyeComfortLng;
+  bool _autoErrorReports = true;
   String _doubleTapReaction = '❤️‍🔥';
   final List<String> _starredMessageIds = <String>[];
 
@@ -653,6 +664,45 @@ class JuzzioAppController extends ChangeNotifier {
   bool get allowCameraEffects => _allowCameraEffects;
   bool get cameraBeautyEnabled => _cameraBeautyEnabled;
   int get beautyLevel => _beautyLevel;
+  bool get dataSaverEnabled => _dataSaverEnabled;
+  bool get callNoiseFilterEnabled => _callNoiseFilterEnabled;
+
+  void setDataSaverEnabled(bool v) {
+    _dataSaverEnabled = v;
+    _persistUserPreferences();
+    notifyListeners();
+  }
+
+  String get eyeComfortMode => _eyeComfortMode;
+  int get eyeComfortIntensity => _eyeComfortIntensity;
+  int get eyeComfortStartMin => _eyeComfortStartMin;
+  int get eyeComfortEndMin => _eyeComfortEndMin;
+  double? get eyeComfortLat => _eyeComfortLat;
+  double? get eyeComfortLng => _eyeComfortLng;
+  bool get autoErrorReports => _autoErrorReports;
+
+  void setEyeComfort({String? mode, int? intensity, int? startMin, int? endMin, double? lat, double? lng}) {
+    if (mode != null && const ['off', 'on', 'schedule', 'sun'].contains(mode)) _eyeComfortMode = mode;
+    if (intensity != null) _eyeComfortIntensity = intensity.clamp(5, 90);
+    if (startMin != null) _eyeComfortStartMin = startMin.clamp(0, 1439);
+    if (endMin != null) _eyeComfortEndMin = endMin.clamp(0, 1439);
+    if (lat != null && lat.abs() <= 90) _eyeComfortLat = lat;
+    if (lng != null && lng.abs() <= 180) _eyeComfortLng = lng;
+    _persistUserPreferences();
+    notifyListeners();
+  }
+
+  void setAutoErrorReports(bool v) {
+    _autoErrorReports = v;
+    _persistUserPreferences();
+    notifyListeners();
+  }
+
+  void setCallNoiseFilterEnabled(bool v) {
+    _callNoiseFilterEnabled = v;
+    _persistUserPreferences();
+    notifyListeners();
+  }
 
   /// Mesaja çift dokununca bırakılan tepki (❤️‍🔥 veya 🌸)
   String get doubleTapReaction => _doubleTapReaction;
@@ -1067,6 +1117,16 @@ class JuzzioAppController extends ChangeNotifier {
       _allowCameraEffects = raw['allowCameraEffects'] is bool ? raw['allowCameraEffects'] as bool : _allowCameraEffects;
       _cameraBeautyEnabled = raw['cameraBeautyEnabled'] is bool ? raw['cameraBeautyEnabled'] as bool : _cameraBeautyEnabled;
       if (raw['beautyLevel'] is num) _beautyLevel = (raw['beautyLevel'] as num).toInt().clamp(1, 100);
+      if (raw['dataSaverEnabled'] is bool) _dataSaverEnabled = raw['dataSaverEnabled'] as bool;
+      if (raw['callNoiseFilterEnabled'] is bool) _callNoiseFilterEnabled = raw['callNoiseFilterEnabled'] as bool;
+      final ecm = raw['eyeComfortMode'];
+      if (ecm is String && const ['off', 'on', 'schedule', 'sun'].contains(ecm)) _eyeComfortMode = ecm;
+      if (raw['eyeComfortIntensity'] is num) _eyeComfortIntensity = (raw['eyeComfortIntensity'] as num).toInt().clamp(5, 90);
+      if (raw['eyeComfortStartMin'] is num) _eyeComfortStartMin = (raw['eyeComfortStartMin'] as num).toInt().clamp(0, 1439);
+      if (raw['eyeComfortEndMin'] is num) _eyeComfortEndMin = (raw['eyeComfortEndMin'] as num).toInt().clamp(0, 1439);
+      if (raw['eyeComfortLat'] is num) _eyeComfortLat = (raw['eyeComfortLat'] as num).toDouble();
+      if (raw['eyeComfortLng'] is num) _eyeComfortLng = (raw['eyeComfortLng'] as num).toDouble();
+      if (raw['autoErrorReports'] is bool) _autoErrorReports = raw['autoErrorReports'] as bool;
       final dtr = raw['doubleTapReaction']?.toString() ?? '';
       if (dtr.isNotEmpty) _doubleTapReaction = dtr;
       final starred = raw['starredMessageIds'];
@@ -1196,6 +1256,15 @@ class JuzzioAppController extends ChangeNotifier {
         'allowCameraEffects': _allowCameraEffects,
         'cameraBeautyEnabled': _cameraBeautyEnabled,
         'beautyLevel': _beautyLevel,
+        'dataSaverEnabled': _dataSaverEnabled,
+        'callNoiseFilterEnabled': _callNoiseFilterEnabled,
+        'eyeComfortMode': _eyeComfortMode,
+        'eyeComfortIntensity': _eyeComfortIntensity,
+        'eyeComfortStartMin': _eyeComfortStartMin,
+        'eyeComfortEndMin': _eyeComfortEndMin,
+        if (_eyeComfortLat != null) 'eyeComfortLat': _eyeComfortLat,
+        if (_eyeComfortLng != null) 'eyeComfortLng': _eyeComfortLng,
+        'autoErrorReports': _autoErrorReports,
         'doubleTapReaction': _doubleTapReaction,
         'starredMessageIds': _starredMessageIds,
         'blockUnknownVolumeMessages': _blockUnknownVolumeMessages,
@@ -2209,6 +2278,8 @@ class JuzzioAppController extends ChangeNotifier {
 
   /// Güncellemeden sonra ilk açılışta "Sürüm X ile neler geldi?" penceresi gösterilmeli mi?
   bool get whatsNewPending => _whatsNewPending;
+  /// v0.9.7: kullanıcının en son "Yenilikler"ini gördüğü sürüm (aradaki tüm sürümler gösterilir)
+  String get whatsNewSeenVersion => _whatsNewSeenVersion;
 
   Future<File> _otaStateFile() async {
     final dir = await getApplicationSupportDirectory();

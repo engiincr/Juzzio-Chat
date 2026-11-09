@@ -12,6 +12,7 @@ import '../core/theme/juzzio_glass.dart';
 import '../services/juzzio_e2ee.dart';
 import '../services/juzzio_life_service.dart';
 import '../services/supabase_service.dart';
+import '../widgets/juzzio_cloth_refresh.dart';
 
 class JuzzioSavedMessagesPage extends StatefulWidget {
   const JuzzioSavedMessagesPage({super.key, required this.roomId, required this.title});
@@ -146,7 +147,7 @@ class _JuzzioSavedMessagesPageState extends State<JuzzioSavedMessagesPage> {
         elevation: 0,
         title: Text(_app.trEn('Kayıtlı mesajlar', 'Saved messages', 'Gespeicherte Nachrichten')),
       ),
-      body: RefreshIndicator(onRefresh: _load, child: body),
+      body: JuzzioClothRefresh(onRefresh: _load, child: body),
     );
   }
 }

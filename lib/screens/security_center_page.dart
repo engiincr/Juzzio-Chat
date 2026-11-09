@@ -11,6 +11,7 @@ import '../core/theme/juzzio_glass.dart';
 import '../services/juzzio_backup_service.dart';
 import '../services/juzzio_security_center.dart';
 import '../services/supabase_service.dart';
+import '../widgets/juzzio_cloth_refresh.dart';
 
 class JuzzioSecurityCenterPage extends StatefulWidget {
   const JuzzioSecurityCenterPage({super.key});
@@ -159,7 +160,7 @@ class _JuzzioSecurityCenterPageState extends State<JuzzioSecurityCenterPage> {
       );
     } else {
       final o = _overview!;
-      body = RefreshIndicator(
+      body = JuzzioClothRefresh(
         onRefresh: _load,
         child: ListView(padding: const EdgeInsets.all(16), children: [
           _section(p, _app.trEn('Özet', 'Overview', 'Übersicht'), [

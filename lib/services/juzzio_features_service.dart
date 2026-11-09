@@ -14,6 +14,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../core/app_theme_and_locale.dart';
+import 'juzzio_error_reporter.dart';
+import 'juzzio_media_cache.dart';
 import 'supabase_service.dart';
 
 class JuzzioBadgeInfo {
@@ -205,6 +207,15 @@ class JuzzioAppConfig {
   final bool groupCreationEnabled;
   final bool globalFeedEnabled;
   final String announcementBanner;
+  // v0.9.6: medya sınırları, minimum sürüm, hata raporlama
+  final int voiceMaxSeconds;
+  final int audioBitrateKbps;
+  final int videoMaxSeconds;
+  final int minSupportedBuild;
+  final bool errorReportingEnabled;
+  // v0.9.7: cihazdaki medya önbelleği sınırı (MB) ve azami dosya yaşı (gün; 0 = sınırsız)
+  final int mediaCacheMaxMb;
+  final int mediaCacheMaxAgeDays;
 
   const JuzzioAppConfig({
     this.maintenanceMode = false,
@@ -224,10 +235,18 @@ class JuzzioAppConfig {
     this.groupCreationEnabled = true,
     this.globalFeedEnabled = true,
     this.announcementBanner = '',
+    this.voiceMaxSeconds = 300,
+    this.audioBitrateKbps = 96,
+    this.videoMaxSeconds = 180,
+    this.minSupportedBuild = 0,
+    this.errorReportingEnabled = true,
+    this.mediaCacheMaxMb = 300,
+    this.mediaCacheMaxAgeDays = 60,
   });
 
   factory JuzzioAppConfig.fromMap(Map<String, dynamic> map) {
     bool b(String k, bool d) => map[k] is bool ? map[k] as bool : d;
+    int n(String k, int d) => map[k] is num ? (map[k] as num).toInt() : d;
     return JuzzioAppConfig(
       maintenanceMode: b('maintenance_mode', false),
       maintenanceMessage: (map['maintenance_message'] ?? '').toString(),
@@ -249,6 +268,13 @@ class JuzzioAppConfig {
       groupCreationEnabled: b('group_creation_enabled', true),
       globalFeedEnabled: b('global_feed_enabled', true),
       announcementBanner: (map['announcement_banner'] ?? '').toString(),
+      voiceMaxSeconds: n('voice_max_seconds', 300).clamp(15, 900),
+      audioBitrateKbps: n('audio_bitrate_kbps', 96).clamp(16, 256),
+      videoMaxSeconds: n('video_max_seconds', 180).clamp(10, 600),
+      minSupportedBuild: n('min_supported_build', 0).clamp(0, 100000),
+      errorReportingEnabled: b('error_reporting_enabled', true),
+      mediaCacheMaxMb: n('media_cache_max_mb', 300).clamp(50, 4096),
+      mediaCacheMaxAgeDays: n('media_cache_max_age_days', 60).clamp(0, 365),
     );
   }
 }
@@ -669,6 +695,8 @@ class JuzzioFeaturesService {
       final res = _asMap(await _svc.client.rpc('get_app_config'));
       final cfg = JuzzioAppConfig.fromMap(res);
       lastAppConfig = cfg;
+      JuzzioErrorReporter.instance.serverEnabled = cfg.errorReportingEnabled;
+      JuzzioMediaDiskCache.instance.applyLimits(maxMb: cfg.mediaCacheMaxMb, ageDays: cfg.mediaCacheMaxAgeDays);
       // Yöneticinin seçtiği varsayılan cam teması (kullanıcı kendi temasını seçmediyse)
       JuzzioAppController.instance.applyDefaultGlassPalette(cfg.defaultGlassPalette);
       return cfg;

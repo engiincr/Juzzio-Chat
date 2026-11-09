@@ -8,6 +8,10 @@
 //    aynı dosyaya düşer. Dış adreslerde tam adres.
 //  * Uçtan uca şifreli fotoğraflar diske ŞİFRELİ hâliyle yazılır (çözme bellekte).
 //  * Sınır: 300 MB; aşılınca en eski kullanılanlar silinerek 240 MB'a inilir.
+//  * v0.9.7: sınır ve azami dosya yaşı YÖNETİCİ PANELİNDEN yönetilir
+//    (media_cache_max_mb, media_cache_max_age_days). Açılışta ve her 20 indirmede
+//    akıllı temizlik: önce süresi geçenler, sonra en uzun süredir kullanılmayanlar
+//    (LRU) %80 hedefine kadar; yarım kalan .part ve geçici çözülmüş dosyalar da silinir.
 // =============================================================================
 
 import 'dart:async';
@@ -32,6 +36,45 @@ class JuzzioMediaDiskCache {
   static const int maxBytes = 300 * 1024 * 1024;
   static const int pruneTarget = 240 * 1024 * 1024;
   static const int maxItemBytes = 30 * 1024 * 1024;
+
+  /// v0.9.7: yönetici ayarlarından gelen etkin sınırlar.
+  int limitBytes = maxBytes;
+  int maxAgeDays = 60;
+
+  /// Yönetici ayarı (MB, gün) uygulanır; sınır küçüldüyse hemen temizlenir.
+  void applyLimits({required int maxMb, required int ageDays}) {
+    final newLimit = maxMb.clamp(50, 4096) * 1024 * 1024;
+    final newAge = ageDays.clamp(0, 365);
+    final shrink = newLimit < limitBytes || (newAge > 0 && (maxAgeDays == 0 || newAge < maxAgeDays));
+    limitBytes = newLimit;
+    maxAgeDays = newAge;
+    if (shrink) unawaited(prune());
+  }
+
+  /// Saf karar fonksiyonu (test edilir): hangi dosyalar silinmeli?
+  /// [files]: (ad, boyut, son kullanım). Önce yaşı geçenler, sonra LRU ile hedefe inilir.
+  static List<String> planPrune(List<(String, int, DateTime)> files,
+      {required int limit, required int target, required int maxAgeDays, required DateTime now}) {
+    final out = <String>[];
+    var total = files.fold<int>(0, (a, f) => a + f.$2);
+    final rest = <(String, int, DateTime)>[];
+    for (final f in files) {
+      if (maxAgeDays > 0 && now.difference(f.$3).inDays >= maxAgeDays) {
+        out.add(f.$1);
+        total -= f.$2;
+      } else {
+        rest.add(f);
+      }
+    }
+    if (total <= limit) return out;
+    rest.sort((a, b) => a.$3.compareTo(b.$3));
+    for (final f in rest) {
+      if (total <= target) break;
+      out.add(f.$1);
+      total -= f.$2;
+    }
+    return out;
+  }
 
   Directory? _dir;
   String _owner = '';
@@ -63,6 +106,8 @@ class JuzzioMediaDiskCache {
       if (!d.existsSync()) d.createSync(recursive: true);
       _dir = d;
       _owner = uid;
+      // Açılışta, ilk kareyi yavaşlatmadan arka planda temizlik
+      Timer(const Duration(seconds: 8), () => unawaited(prune()));
     } catch (_) {
       _dir = null;
       _owner = '';
@@ -158,29 +203,48 @@ class JuzzioMediaDiskCache {
     return sum;
   }
 
-  /// En eski kullanılan dosyalardan başlayarak sınırın altına iner.
-  Future<void> prune({int limit = maxBytes, int target = pruneTarget}) async {
+  /// Akıllı temizlik: süresi geçenler + LRU ile sınırın %80'ine iner.
+  Future<void> prune({int? limit, int? target}) async {
     final d = _dir;
     if (d == null || !d.existsSync()) return;
-    final files = <(File, int, DateTime)>[];
-    var total = 0;
+    final lim = limit ?? limitBytes;
+    final tgt = target ?? (lim * 0.8).round();
+    final now = DateTime.now();
+    final files = <(String, int, DateTime)>[];
     for (final e in d.listSync(followLinks: false)) {
       if (e is! File) continue;
       try {
-        final len = e.lengthSync();
-        total += len;
-        files.add((e, len, e.lastModifiedSync()));
+        final mod = e.lastModifiedSync();
+        // Yarım kalmış indirmeler (1 saatten eski) her zaman silinir
+        if (e.path.endsWith('.part')) {
+          if (now.difference(mod).inHours >= 1) e.deleteSync();
+          continue;
+        }
+        files.add((e.path, e.lengthSync(), mod));
       } catch (_) {}
     }
-    if (total <= limit) return;
-    files.sort((a, b) => a.$3.compareTo(b.$3));
-    for (final f in files) {
-      if (total <= target) break;
+    for (final path in planPrune(files, limit: lim, target: tgt, maxAgeDays: maxAgeDays, now: now)) {
       try {
-        f.$1.deleteSync();
-        total -= f.$2;
+        File(path).deleteSync();
       } catch (_) {}
     }
+    unawaited(_pruneTempDecrypted());
+  }
+
+  /// Cihazda çözülüp açılan geçici dosyalar (sesli mesaj, belge, video) 1 günden eskiyse silinir.
+  Future<void> _pruneTempDecrypted() async {
+    try {
+      final tmp = await getTemporaryDirectory();
+      final now = DateTime.now();
+      for (final e in tmp.listSync(followLinks: false)) {
+        final name = e.path.split(Platform.pathSeparator).last;
+        final ours = name.startsWith('jvn_') || name.startsWith('juzzio_docs') || name.startsWith('juzzio_media_') || name.startsWith('jv_');
+        if (!ours) continue;
+        try {
+          if (now.difference(e.statSync().modified).inHours >= 24) e.deleteSync(recursive: true);
+        } catch (_) {}
+      }
+    } catch (_) {}
   }
 
   /// Yalnız medya önbelleğini siler (mesajlar, anahtarlar, hesap verisi silinmez).

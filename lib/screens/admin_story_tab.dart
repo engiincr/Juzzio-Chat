@@ -15,6 +15,7 @@ import '../core/app_theme_and_locale.dart';
 import '../core/theme/juzzio_colors.dart';
 import '../core/theme/juzzio_glass.dart';
 import '../services/supabase_service.dart';
+import '../widgets/juzzio_cloth_refresh.dart';
 
 class JuzzioAdminStoryTab extends StatefulWidget {
   const JuzzioAdminStoryTab({super.key});
@@ -139,7 +140,7 @@ class _JuzzioAdminStoryTabState extends State<JuzzioAdminStoryTab> {
     // Yetki sunucuda denetlenir (yalnız @tugkancr); diğer hesaplarda RPC 'not_allowed' döner.
     final tc = JuzzioGlassTokens.textPrimary;
     final t2 = JuzzioGlassTokens.textSecondary;
-    return RefreshIndicator(
+    return JuzzioClothRefresh(
       onRefresh: _load,
       child: ListView(
         padding: const EdgeInsets.all(16),

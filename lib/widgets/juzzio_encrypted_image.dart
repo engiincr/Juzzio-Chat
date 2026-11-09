@@ -22,9 +22,11 @@ class JuzzioEncryptedMedia {
 
   static bool isEncrypted(Map<String, dynamic> metadata) => metadata['media_e2ee'] != null && metadata['e2ee'] is Map;
 
-  static Future<Uint8List?> load(String messageId, String url) {
+  static Future<Uint8List?> load(String messageId, String url, {bool keepInMemory = true}) {
     // Önbellek anahtarı hesaba bağlıdır: hesap değişince başka hesabın görselleri dönmez
     final ck = '${SupabaseService.instance.currentUserId ?? ''}|$messageId';
+    // v0.9.4: büyük belgeler bellekte tutulmaz (25 MB × 40 bellek taşmasını önler)
+    if (!keepInMemory) return _load(ck, messageId, url, keep: false);
     final hit = _cache[ck];
     if (hit != null) return Future.value(hit);
     return _inFlight[ck] ??= _load(ck, messageId, url).whenComplete(() {
@@ -32,7 +34,7 @@ class JuzzioEncryptedMedia {
     });
   }
 
-  static Future<Uint8List?> _load(String ck, String messageId, String url) async {
+  static Future<Uint8List?> _load(String ck, String messageId, String url, {bool keep = true}) async {
     final key = JuzzioE2ee.instance.mediaKeyFor(messageId);
     if (key == null) return null;
     try {
@@ -41,6 +43,7 @@ class JuzzioEncryptedMedia {
       if (cipher == null) return null;
       final out = await JuzzioMediaCrypto.open(cipher, key);
       if (out == null) return null;
+      if (!keep) return out;
       if (_cache.length >= 40) _cache.remove(_cache.keys.first);
       _cache[ck] = out;
       return out;

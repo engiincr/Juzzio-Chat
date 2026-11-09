@@ -201,3 +201,76 @@ kullanılır (talimat §16 "mevcut takip dosyaları varsa onları kullan"); yaln
 | 15-16 | Juzzio Official hikâyeleri, başlıktan profile | Yapıldı | SQL 10.25 testleri |
 | 17 | Güzelleştirme yoğunluğu (arama + hikâye fotoğrafı) | Yapıldı | Birim (kenar koruma); video hikâyelerde YOK |
 Flutter derlemesi / Kotlin derlemesi yerelde ÇALIŞTIRILMADI (CI'da doğrulanır).
+
+## v0.9.4 (2026-11-09) — yapıştırılan denetim raporları + özellik listesi
+Yapıldı (SQL 10.26 + istemci): kopya indeksler, engel gizliliği (my_block_peer_ids), rol kısıtı,
+avatars 5 MB + posts/reels MIME, get_server_time + saat uyarısı, opak arama zemini, ataş menüsü
+(belge E2EE, konum, kişi kartı, anket, etkinlik, zamanlama), anket hata görünürlüğü + canlı sonuç,
+grup etkinlikleri + hatırlatma, civciv gardırobu, vardiya planlayıcı, canlı altyazı bölünmesi.
+Zaten vardı (rapor iddiası bu depo için geçersiz): anket RPC'leri (RLS yerine SECURITY DEFINER),
+profil/gönderi sahtecilik tetikleyicileri, simetrik arkadaşlık indeksi, DM tekilliği, push token RPC,
+takip yükseltme koruması, sayaç koruması (replies_count güvenli), diğer oturumları kapatma.
+Yapılmadı (ayrı sürüm gerekir): Watch Party, anonim soru kutusu, çıkartma mağazası, SOS takibi,
+rozet/seri, API/Webhook merkezi, Bluetooth/Wi-Fi mesh, Drift'e geçiş, duygu analizi, AI ses filtresi,
+AR maskeleri, ağ teşhis paneli, hava/ruh hâli temaları, uyku modu, yılın özeti, sesli komutlar, Labs,
+çok dilli sesli çeviri köprüsü (TTS).
+
+## v0.9.5 (2026-11-09)
+Yapıldı: yönetici tema seçimi hatası (sunucu 6 tema ile sınırlıydı), tek seferlik medya, anket
+otomatik kapanış + kazanan bildirimi, anılar, seri/rozet, güven puanı (+ gönderi sınırı, yönetici
+sekmesi), Watch Party (.mp4/.m3u8 senkron; web siteleri tarayıcıda), SOS güvenli takip, anonim soru
+kutusu, güvenlik numarası, Çalıyor/Aranıyor + bekleme tonu, hikâyeye sesli/görüntülü yanıt, düşük
+veri modu, gürültü engelleme ayarı, pil dostu siyah ekran. SQL 10.27 + 37 test.
+Yapılmadı: "Hey Juzzio" sesli komut (sürekli dinleyen uyandırma sözcüğü motoru gerekir), çoklu hesap,
+Bluetooth/Wi-Fi mesh, çıkartma mağazası, API/Webhook merkezi, AR maskeleri, duygu analizi, hava
+durumu teması, uyku modu, yılın özeti, Labs, işletme mesai dışı yanıtları (Business v0.9.1'de kaldırıldı).
+
+## v0.9.6 (2026-11-09)
+Yapıldı: birebir sohbette uçtan uca şifreli sesli mesaj / video / hikâye yanıtı; mobil veride Veri Koruma
+önerisi + "Uygula" (otomatik açılma kaldırıldı); düzenlemede "Düzeltildi" etiketi, grupta yeniden çeviri,
+çeviri önbelleği temizliği, message_edits kaydı, "(Düzenlendi)" anlık bildirimi; sabit mesajlar (RPC + şerit,
+sohbet başına 5); mesaj sayfalama (en yeni 50, "Daha eski mesajlar"; realtime yalnız açık sohbet); aramada
+mikrofon/kamera kapalı rozetleri; Göz Konforu (elle/zamanlanmış/gün batımı, yoğunluk); otomatik hata/çökme
+merkezi (report_app_error, maskeleme, admin sekmesi); Yönetici → Sistem (Tanrı modu): sağlık özeti, DB
+boyutu/şişme, depolama kuyruğu + yeniden deneme + öksüz medya taraması, cihaz bazlı çoklu hesap tespiti,
+AI günlük kotası (translate-bridge), ses/video süre ve bitrate sınırları, minimum desteklenen sürüm,
+kaba kuvvet eşikleri, yasal dışa aktarım, genel oturum kapatma. SQL 10.28 + testler.
+Zaten vardı (yeniden yazılmadı): kullanıcı/rol/mavi tik/ban/hesap silme, şikâyet kuyruğu, duyuru, sürüm
+yönetimi, bakım modu (yalnız süper yönetici), segment bildirimleri, uygulama içi hata bildirimi formu,
+güvenlik olayları, denetim kaydı, tema yönetimi.
+Yapılmadı: serbest SQL konsolu (güvenlik gereği bilinçli), IP tabanlı coğrafi tespit (IP saklanmıyor),
+uygulama içi 2FA (Supabase MFA gerekir), tam Drift/SQLite önbelleği (mevcut JSON önbellek + sayfalama),
+çıkartma/emoji mağazası, API/Webhook merkezi, "Hey Juzzio", çoklu hesap, mesh, AR, duygu analizi.
+
+## v0.9.7 (2026-11-09)
+Yapıldı: Drift (SQLite) yerel önbellek (kod üretimsiz GeneratedDatabase; hesap başına dosya; mesaj
+penceresi + KV; JSON önbellekten otomatik geçiş; çıkışta silinir), açılışta "dokun" yerine iskelet
+önizleme; sohbet listesi ters (reverse) — en alttan açılış, üste yaklaşınca otomatik 50'lik sayfa,
+titreme döngüsü kaldırıldı; kumaş / esnek zar pull-to-refresh (videodaki efekt; 21 sayfa + sohbetler);
+shimmer iskeletler; hap okunmamış rozeti; avatar/çevrimiçi noktası tema renkleri; dairesel tema
+geçişi; uygulama içi bildirim yığını + Android bildirim grubu; 4 yeni cam teması + grain dokusu;
+PiP'te canlı çeviri; arama güç profili (arka plan/PiP/zayıf ağ 360p·15fps, saniyelik yeniden çizim
+kaldırıldı); yönetici kontrollü medya önbellek GC; sıkı .gitignore + yasak dosya taraması; GitHub
+sayfaları (README, PRIVACY, TERMS, LICENSE, SECURITY, sürüm notları) İngilizce ve emojili; Türkçe
+yasal metinler docs/legal/tr; "Yenilikler" penceresi son görülen sürümden bu yana tüm sürümleri
+gösterir. SQL 10.29 + testler.
+
+## v0.9.8 (2026-11-09)
+Kumaş yenileme videoyla birebir 5 fazlı 3D mimariyle yeniden yazıldı: tools/cloth_render/hand.py (SDF
+raymarch kil el, açık→yumruk 8 kare + ikincil hareket karesi), folds.py (yükseklik alanından
+gölgelendirilmiş gerilme ve perde kıvrımı haritaları, tema rengine boyanır), simulate.py (Dart faz
+motoru + painter'ının birebir Python kopyası; önizleme videosu). Widget: içerik ValueNotifier +
+Transform ile kayar, el/kumaş kök Overlay'de RepaintBoundary içinde tek CustomPainter; içerik Faz 4-5'te
+ele yay fiziğiyle bağlı. Fazlar: çekme (~90-110 px) → sarkaç (−15°, +25°, 0; min 1,4 sn) → yumruk
+(0,3 sn) → yukarı çekme (0,5 sn) → ütüleme (0,25 sn).
+
+## v0.9.9 (2026-11-09)
+Kumaş yenileme, v0.9.8 önizlemesinin referans videoyla kare kare karşılaştırılmasında bulunan 11 maddeye
+göre revize edildi. hand.py v2: tombul kısa kol (bilek ≈ çentiğin %%55'i), spline gibi bükülen kol, parlak
+3D tırnaklar (başparmak dahil) + kütikül oyuğu, boğum çizgileri, #F2C2B3/#DF9F8E/#F9DCD3; 9 sarkaç pozu
+(−15°…+25°, sağda parmak yelpazesi) + 8 yumruk karesi (render_hands.sh). folds.py v2: Bezier boyunca
+keskin sırtlı kavisli pli katları — yumruk yanlarında kelebek kanadı kıstırma döngüleri, 6 asimetrik
+perde katı + yarı saydam çarşaf örtüsü (_cov). Widget: siyah Dynamic Island en üst katman, el çentik
+altına maskeli; parmak ucu görünmesi (üs 1,3); içerik 140–155 px, sarkaç/yumrukta kilitli, yukarı
+çekmede yumruğun alt sınırına orantılı; kumaş renkleri spesifikasyondaki değerler; ütülemede içerik
+sabit. simulate.py aynı geometri ve motorla güncellendi; önizleme: Juzzio_v0.9.9_kumas_onizleme.mp4.

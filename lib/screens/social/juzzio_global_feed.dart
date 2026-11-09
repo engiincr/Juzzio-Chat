@@ -19,6 +19,8 @@ import '../../services/social_service.dart';
 import '../../services/supabase_service.dart';
 import '../../widgets/social_common_widgets.dart';
 import '../../widgets/juzzio_mentions.dart';
+import '../../widgets/juzzio_cloth_refresh.dart';
+import '../../widgets/juzzio_ui_kit.dart';
 
 class JuzzioGlobalFeedView extends StatefulWidget {
   final JuzzioUserProfile currentUser;
@@ -341,7 +343,7 @@ class _JuzzioGlobalFeedViewState extends State<JuzzioGlobalFeedView> {
   }
 
   Widget _feedScroll() {
-    return RefreshIndicator(
+    return JuzzioClothRefresh(
         onRefresh: _load,
         child: CustomScrollView(
           controller: _scroll,
@@ -352,10 +354,7 @@ class _JuzzioGlobalFeedViewState extends State<JuzzioGlobalFeedView> {
             SliverToBoxAdapter(child: _tabs()),
             SliverToBoxAdapter(child: _topicChips()),
             if (_loading && _posts.isEmpty)
-              const SliverFillRemaining(
-                hasScrollBody: false,
-                child: Center(child: CircularProgressIndicator()),
-              )
+              const SliverToBoxAdapter(child: SizedBox(height: 520, child: JuzzioListSkeleton(count: 5)))
             else if (_error != null && _posts.isEmpty)
               SliverFillRemaining(
                 hasScrollBody: false,

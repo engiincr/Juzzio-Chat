@@ -78,6 +78,8 @@ class JuzzioChickPainter extends CustomPainter {
   final double breathe; // 0..1
   final double flap; // 0..1 kanat çırpma
   final double wobble; // 0..1 besleme titreşimi
+  /// v0.9.4: gardırop — {'hat','glasses','outfit','shoes','color'}
+  final Map<String, String> style;
 
   JuzzioChickPainter({
     required this.stage,
@@ -86,6 +88,7 @@ class JuzzioChickPainter extends CustomPainter {
     this.breathe = 0,
     this.flap = 0,
     this.wobble = 0,
+    this.style = const {},
   });
 
   @override
@@ -100,9 +103,10 @@ class JuzzioChickPainter extends CustomPainter {
     final baseY = size.height * 0.80;
     final angle = math.sin(wobble * math.pi * 6) * 0.12 * (1 - wobble);
 
-    final bodyLight = _desat(hen ? const Color(0xFFFFF8EC) : const Color(0xFFFFF3A0), look.saturation);
-    final bodyMid = _desat(hen ? const Color(0xFFF1D9B5) : const Color(0xFFFFD43B), look.saturation);
-    final bodyDark = _desat(hen ? const Color(0xFFC79A66) : const Color(0xFFF2A516), look.saturation);
+    final custom = juzzioParseHexColor(style['color']);
+    final bodyLight = _desat(custom != null ? Color.lerp(custom, Colors.white, 0.55)! : (hen ? const Color(0xFFFFF8EC) : const Color(0xFFFFF3A0)), look.saturation);
+    final bodyMid = _desat(custom ?? (hen ? const Color(0xFFF1D9B5) : const Color(0xFFFFD43B)), look.saturation);
+    final bodyDark = _desat(custom != null ? Color.lerp(custom, Colors.black, 0.3)! : (hen ? const Color(0xFFC79A66) : const Color(0xFFF2A516)), look.saturation);
     final beakC = _desat(const Color(0xFFFF8A1F), look.saturation);
     final beakD = _desat(const Color(0xFFD9620A), look.saturation);
 
@@ -336,6 +340,8 @@ class JuzzioChickPainter extends CustomPainter {
       canvas.drawOval(Rect.fromCenter(center: Offset(0, beakY + r * 0.3), width: r * 0.16, height: r * 0.24), Paint()..color = wattleC);
     }
 
+    juzzioPaintChickAccessories(canvas, style: style, r: r, bodyRect: bodyRect, eyeY: eyeY, eyeDx: eyeDx, eyeR: eyeR, beakY: beakY);
+
     canvas.restore();
   }
 
@@ -346,7 +352,169 @@ class JuzzioChickPainter extends CustomPainter {
       old.blink != blink ||
       old.breathe != breathe ||
       old.flap != flap ||
-      old.wobble != wobble;
+      old.wobble != wobble ||
+      !_sameStyle(old.style, style);
+}
+
+bool _sameStyle(Map<String, String> a, Map<String, String> b) {
+  if (a.length != b.length) return false;
+  for (final e in a.entries) {
+    if (b[e.key] != e.value) return false;
+  }
+  return true;
+}
+
+/// '#RRGGBB' → Color (geçersizse null).
+Color? juzzioParseHexColor(String? hex) {
+  if (hex == null || !RegExp(r'^#[0-9A-Fa-f]{6}$').hasMatch(hex)) return null;
+  return Color(0xFF000000 | int.parse(hex.substring(1), radix: 16));
+}
+
+/// Gardırop aksesuarlarını gövdeye göre çizer (tümü vektör, her çözünürlükte keskin).
+void juzzioPaintChickAccessories(Canvas canvas,
+    {required Map<String, String> style,
+    required double r,
+    required Rect bodyRect,
+    required double eyeY,
+    required double eyeDx,
+    required double eyeR,
+    required double beakY}) {
+  final top = bodyRect.top;
+  // Kıyafet (boyunda)
+  switch (style['outfit']) {
+    case 'bow_tie':
+      final y = beakY + r * 0.42;
+      final c = Paint()..color = const Color(0xFFE53935);
+      final left = Path()..moveTo(0, y)..lineTo(-r * 0.3, y - r * 0.15)..lineTo(-r * 0.3, y + r * 0.15)..close();
+      final right = Path()..moveTo(0, y)..lineTo(r * 0.3, y - r * 0.15)..lineTo(r * 0.3, y + r * 0.15)..close();
+      canvas.drawPath(left, c);
+      canvas.drawPath(right, c);
+      canvas.drawCircle(Offset(0, y), r * 0.07, Paint()..color = const Color(0xFFB71C1C));
+    case 'scarf':
+      final y = beakY + r * 0.4;
+      final band = RRect.fromRectAndRadius(Rect.fromCenter(center: Offset(0, y), width: r * 1.5, height: r * 0.22), Radius.circular(r * 0.11));
+      canvas.drawRRect(band, Paint()..color = const Color(0xFF1E88E5));
+      final tail = RRect.fromRectAndRadius(Rect.fromLTWH(r * 0.25, y, r * 0.2, r * 0.55), Radius.circular(r * 0.08));
+      canvas.drawRRect(tail, Paint()..color = const Color(0xFF1565C0));
+      final stripe = Paint()
+        ..color = Colors.white.withValues(alpha: 0.8)
+        ..strokeWidth = r * 0.03;
+      for (var i = -2; i <= 2; i++) {
+        canvas.drawLine(Offset(i * r * 0.25, y - r * 0.1), Offset(i * r * 0.25, y + r * 0.1), stripe);
+      }
+    case 'cape':
+      final y = beakY + r * 0.35;
+      final cape = Path()
+        ..moveTo(-r * 0.75, y)
+        ..quadraticBezierTo(0, y + r * 0.12, r * 0.75, y)
+        ..lineTo(r * 1.05, bodyRect.bottom - r * 0.1)
+        ..quadraticBezierTo(0, bodyRect.bottom + r * 0.12, -r * 1.05, bodyRect.bottom - r * 0.1)
+        ..close();
+      canvas.drawPath(cape, Paint()..color = const Color(0xFF8E24AA).withValues(alpha: 0.88));
+      canvas.drawCircle(Offset(0, y + r * 0.04), r * 0.08, Paint()..color = const Color(0xFFFFD54F));
+  }
+  // Gözlük
+  switch (style['glasses']) {
+    case 'round_glasses':
+      final g = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = r * 0.045
+        ..color = const Color(0xFF263238);
+      for (final side in [-1.0, 1.0]) {
+        canvas.drawCircle(Offset(side * eyeDx, eyeY), eyeR * 1.7, g);
+      }
+      canvas.drawLine(Offset(-eyeDx + eyeR * 1.7, eyeY), Offset(eyeDx - eyeR * 1.7, eyeY), g);
+    case 'sunglasses':
+      final lens = Paint()..color = const Color(0xE6101418);
+      for (final side in [-1.0, 1.0]) {
+        canvas.drawRRect(
+            RRect.fromRectAndRadius(Rect.fromCenter(center: Offset(side * eyeDx, eyeY + eyeR * 0.1), width: eyeR * 3.6, height: eyeR * 2.4), Radius.circular(eyeR * 0.9)),
+            lens);
+        canvas.drawLine(Offset(side * eyeDx - eyeR, eyeY - eyeR * 0.5), Offset(side * eyeDx - eyeR * 0.2, eyeY - eyeR * 0.8),
+            Paint()
+              ..color = Colors.white.withValues(alpha: 0.5)
+              ..strokeWidth = r * 0.025);
+      }
+      canvas.drawLine(Offset(-eyeDx + eyeR * 1.8, eyeY), Offset(eyeDx - eyeR * 1.8, eyeY), Paint()
+        ..color = const Color(0xFF101418)
+        ..strokeWidth = r * 0.045);
+    case 'heart_glasses':
+      final hp = Paint()..color = const Color(0xE6FF4F7B);
+      for (final side in [-1.0, 1.0]) {
+        final c = Offset(side * eyeDx, eyeY);
+        final s2 = eyeR * 1.8;
+        final h = Path()
+          ..moveTo(c.dx, c.dy + s2 * 0.6)
+          ..cubicTo(c.dx - s2 * 1.2, c.dy - s2 * 0.2, c.dx - s2 * 0.5, c.dy - s2 * 1.0, c.dx, c.dy - s2 * 0.4)
+          ..cubicTo(c.dx + s2 * 0.5, c.dy - s2 * 1.0, c.dx + s2 * 1.2, c.dy - s2 * 0.2, c.dx, c.dy + s2 * 0.6);
+        canvas.drawPath(h, hp);
+      }
+  }
+  // Şapka
+  switch (style['hat']) {
+    case 'party_hat':
+      final hat = Path()..moveTo(-r * 0.32, top + r * 0.12)..lineTo(r * 0.05, top - r * 0.7)..lineTo(r * 0.36, top + r * 0.1)..close();
+      canvas.drawPath(hat, Paint()..shader = const LinearGradient(colors: [Color(0xFF7C4DFF), Color(0xFFFF4081)]).createShader(hat.getBounds()));
+      final dot = Paint()..color = Colors.white.withValues(alpha: 0.85);
+      canvas.drawCircle(Offset(-r * 0.05, top - r * 0.15), r * 0.05, dot);
+      canvas.drawCircle(Offset(r * 0.12, top - r * 0.35), r * 0.04, dot);
+      canvas.drawCircle(Offset(r * 0.05, top - r * 0.72), r * 0.09, Paint()..color = const Color(0xFFFFEB3B));
+    case 'crown':
+      final y = top + r * 0.1;
+      final crown = Path()
+        ..moveTo(-r * 0.42, y)
+        ..lineTo(-r * 0.46, y - r * 0.42)
+        ..lineTo(-r * 0.22, y - r * 0.2)
+        ..lineTo(0, y - r * 0.55)
+        ..lineTo(r * 0.22, y - r * 0.2)
+        ..lineTo(r * 0.46, y - r * 0.42)
+        ..lineTo(r * 0.42, y)
+        ..close();
+      canvas.drawPath(crown, Paint()..shader = const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFFFFE082), Color(0xFFFFA000)]).createShader(crown.getBounds()));
+      canvas.drawCircle(Offset(0, y - r * 0.18), r * 0.07, Paint()..color = const Color(0xFFE53935));
+    case 'beanie':
+      final rect = Rect.fromCenter(center: Offset(0, top + r * 0.08), width: r * 1.3, height: r * 0.9);
+      canvas.drawArc(rect, math.pi, math.pi, true, Paint()..color = const Color(0xFF43A047));
+      canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromCenter(center: Offset(0, top + r * 0.1), width: r * 1.36, height: r * 0.2), Radius.circular(r * 0.1)),
+          Paint()..color = const Color(0xFF2E7D32));
+      canvas.drawCircle(Offset(0, top - r * 0.42), r * 0.13, Paint()..color = Colors.white);
+    case 'cowboy_hat':
+      final y = top + r * 0.05;
+      canvas.drawOval(Rect.fromCenter(center: Offset(0, y), width: r * 1.9, height: r * 0.32), Paint()..color = const Color(0xFF8D6E63));
+      final crownRect = RRect.fromRectAndRadius(Rect.fromCenter(center: Offset(0, y - r * 0.25), width: r * 0.9, height: r * 0.5), Radius.circular(r * 0.2));
+      canvas.drawRRect(crownRect, Paint()..color = const Color(0xFF6D4C41));
+      canvas.drawRect(Rect.fromCenter(center: Offset(0, y - r * 0.08), width: r * 0.92, height: r * 0.08), Paint()..color = const Color(0xFF3E2723));
+  }
+  // Ayakkabı (ayakların altında)
+  final shoe = style['shoes'];
+  if (shoe != null) {
+    final c = shoe == 'boots' ? const Color(0xFF5D4037) : const Color(0xFFE53935);
+    for (final dx in [-r * 0.32, r * 0.32]) {
+      canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromCenter(center: Offset(dx, r * 0.03), width: r * 0.42, height: shoe == 'boots' ? r * 0.24 : r * 0.16), Radius.circular(r * 0.08)),
+          Paint()..color = c);
+      if (shoe == 'sneakers') {
+        canvas.drawLine(Offset(dx - r * 0.18, r * 0.07), Offset(dx + r * 0.18, r * 0.07), Paint()
+          ..color = Colors.white
+          ..strokeWidth = r * 0.03);
+      }
+    }
+  }
+}
+
+/// Tema → sahne arka plan gradyanı.
+List<Color> juzzioChickThemeColors(String? theme, bool dark) {
+  switch (theme) {
+    case 'theme_night':
+      return const [Color(0xFF0B1033), Color(0xFF2B1B5A)];
+    case 'theme_beach':
+      return const [Color(0xFF4FC3F7), Color(0xFFFFE0B2)];
+    case 'theme_snow':
+      return const [Color(0xFFB3E5FC), Color(0xFFF5F9FF)];
+    case 'theme_meadow':
+      return const [Color(0xFF9CCC65), Color(0xFFE6F4D7)];
+    default:
+      return dark ? const [Color(0xFF1B2433), Color(0xFF0F141C)] : const [Color(0xFFFFF4D6), Color(0xFFFFE6B3)];
+  }
 }
 
 /// Likit cam buton: arka planı bulanıklaştırır, üstten ışık kenarı, basınca yaylanır.

@@ -18,3 +18,12 @@ eq((await buildLocalizedPush("comment_like", "tr", ctx("Harika gönderi"))).body
 eq((await buildLocalizedPush("comment_like", "en", ctx(""))).body, "Liked your comment.", "en beğeni boş");
 eq((await buildLocalizedPush("comment_like", "de", ctx("x"))).title, "Engin", "de başlık");
 console.log(`push_i18n: ${n}/${n} PASS`);
+
+// v0.9.5 yeni bildirim türleri
+{
+  const m = await import("./push_i18n.js");
+  const parts = m.previewParts("poll|Pizza mı?|Evet|2|2", "poll");
+  if (!parts || parts[1] !== "Evet" || parts[3] !== "2") throw new Error("previewParts");
+  if (m.previewParts("x|y", "poll") !== null) throw new Error("previewParts null");
+  console.log("push_i18n v0.9.5: 2/2 PASS");
+}

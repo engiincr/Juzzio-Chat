@@ -17,6 +17,7 @@ import '../core/theme/juzzio_colors.dart';
 import '../core/theme/juzzio_glass.dart';
 import '../services/juzzio_features_service.dart';
 import '../services/supabase_service.dart';
+import '../widgets/juzzio_cloth_refresh.dart';
 
 String _t(String tr, String en, String de) => JuzzioAppController.instance.trEn(tr, en, de);
 
@@ -670,7 +671,7 @@ class _JuzzioAdminModerationTabState extends State<JuzzioAdminModerationTab> {
       default:
         body = _strikesList();
     }
-    return RefreshIndicator(
+    return JuzzioClothRefresh(
       onRefresh: _load,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(14, 14, 14, 40),
@@ -801,7 +802,7 @@ class _JuzzioAdminGroupsTabState extends State<JuzzioAdminGroupsTab> {
 
   @override
   Widget build(BuildContext context) {
-    return RefreshIndicator(
+    return JuzzioClothRefresh(
       onRefresh: _load,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(14, 14, 14, 40),
@@ -939,7 +940,7 @@ class _JuzzioAdminLiveTabState extends State<JuzzioAdminLiveTab> {
 
   @override
   Widget build(BuildContext context) {
-    return RefreshIndicator(
+    return JuzzioClothRefresh(
       onRefresh: _load,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(14, 14, 14, 40),
@@ -1348,7 +1349,7 @@ class _JuzzioAdminFeedbackTabState extends State<JuzzioAdminFeedbackTab> {
   Widget build(BuildContext context) {
     String kindLabel(String k) =>
         k == 'idea' ? _t('Öneri', 'Idea', 'Idee') : (k == 'feedback' ? _t('Geri bildirim', 'Feedback', 'Feedback') : _t('Hata', 'Bug', 'Fehler'));
-    return RefreshIndicator(
+    return JuzzioClothRefresh(
       onRefresh: _load,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(14, 14, 14, 40),

@@ -60,7 +60,7 @@ class JuzzioAuroraPalette {
   }
 }
 
-/// v0.8.4 Tasarım ailesi: 12 temanın hepsi aynı Liquid Glass bileşenlerini kullanır;
+/// v0.8.4 Tasarım ailesi (v0.9.7: 16 tema): temaların hepsi aynı Liquid Glass bileşenlerini kullanır;
 /// yalnızca camın rengi, ışığı, derinliği ve atmosferi (bu "karakter") değişir.
 class JuzzioGlassCharacter {
   final String tr;
@@ -124,6 +124,15 @@ const Map<String, JuzzioGlassCharacter> kJuzzioGlassCharacters = {
       blur: 1.2, sheen: 1.0, rim: Color(0xFF22D3EE), glow: 0.35),
   'high_contrast': JuzzioGlassCharacter(tr: 'Erişilebilirlik odaklı, belirgin yüzeyler', en: 'Accessible, distinct surfaces', de: 'Barrierefreie, klare Flächen',
       blur: 0.6, opacity: 1.8, sheen: 0.5),
+  // v0.9.7: 2026 Liquid Glass yönelimleri — renkli kenar ışığı (koyu), tek ışık yönü, yumuşak gradyan zemin
+  'aurora_borealis': JuzzioGlassCharacter(tr: 'Kuzey ışıkları, derin cam', en: 'Northern lights, deep glass', de: 'Nordlicht, tiefes Glas',
+      blur: 1.25, opacity: 1.0, sheen: 1.2, depth: 1.15, rim: Color(0xFF5EEAD4), glow: 0.12),
+  'frosted_pearl': JuzzioGlassCharacter(tr: 'Buzlu inci, yanardöner açık cam', en: 'Frosted pearl, iridescent light glass', de: 'Frostperle, schillerndes Glas',
+      blur: 1.35, opacity: 0.85, sheen: 1.6, depth: 0.75, rim: Color(0xFFF5F3FF)),
+  'midnight_sapphire': JuzzioGlassCharacter(tr: 'Lacivert safir, mor kenar ışığı', en: 'Navy sapphire, violet rim light', de: 'Saphir, violettes Randlicht',
+      blur: 1.2, opacity: 1.1, sheen: 1.3, depth: 1.25, rim: Color(0xFFA78BFA), glow: 0.08),
+  'nordic_frost': JuzzioGlassCharacter(tr: 'Kuzey buzu, gümüş-mavi kristal', en: 'Nordic frost, silver-blue crystal', de: 'Nordischer Frost, Silberblau',
+      blur: 1.3, opacity: 0.9, sheen: 1.5, depth: 0.9, rim: Color(0xFFBAE6FD)),
 };
 
 extension JuzzioAuroraPaletteCharacter on JuzzioAuroraPalette {
@@ -362,6 +371,91 @@ const List<JuzzioAuroraPalette> kJuzzioAuroraPalettes = [
       JuzzioAuroraOrb(Alignment(-1.0, -0.8), 0.85, Color(0x4D67E8F9)),
       JuzzioAuroraOrb(Alignment(1.0, 0.2), 0.8, Color(0x40F0ABFC)),
       JuzzioAuroraOrb(Alignment(-0.2, 1.05), 0.75, Color(0x4093C5FD)),
+    ],
+  ),
+  // v0.9.7 yeni cam temaları
+  JuzzioAuroraPalette(
+    id: 'aurora_borealis',
+    nameTr: 'Kuzey Işıkları',
+    nameEn: 'Aurora Borealis',
+    nameDe: 'Nordlicht',
+    base: Color(0xFF020B0E),
+    baseLight: Color(0xFFE8F8F4),
+    swatchA: Color(0xFF2DD4BF),
+    swatchB: Color(0xFF8B5CF6),
+    orbs: [
+      JuzzioAuroraOrb(Alignment(-1.0, -0.9), 0.95, Color(0x6610B981)),
+      JuzzioAuroraOrb(Alignment(0.9, -0.55), 0.80, Color(0x5C2DD4BF)),
+      JuzzioAuroraOrb(Alignment(-0.3, 0.6), 0.85, Color(0x4D8B5CF6)),
+      JuzzioAuroraOrb(Alignment(0.95, 1.0), 0.55, Color(0x40EC4899)),
+    ],
+    orbsLight: [
+      JuzzioAuroraOrb(Alignment(-1.0, -0.9), 0.95, Color(0x4D6EE7B7)),
+      JuzzioAuroraOrb(Alignment(0.9, -0.55), 0.80, Color(0x405EEAD4)),
+      JuzzioAuroraOrb(Alignment(-0.3, 0.6), 0.85, Color(0x33C4B5FD)),
+    ],
+  ),
+  JuzzioAuroraPalette(
+    id: 'frosted_pearl',
+    nameTr: 'Buzlu İnci',
+    nameEn: 'Frosted Pearl',
+    nameDe: 'Frostperle',
+    base: Color(0xFF14121A),
+    baseLight: Color(0xFFF7F5FB),
+    swatchA: Color(0xFFF5F3FF),
+    swatchB: Color(0xFFBFDBFE),
+    orbs: [
+      JuzzioAuroraOrb(Alignment(-0.9, -0.8), 0.90, Color(0x40E9D5FF)),
+      JuzzioAuroraOrb(Alignment(1.0, -0.2), 0.80, Color(0x3DBFDBFE)),
+      JuzzioAuroraOrb(Alignment(-0.5, 1.0), 0.80, Color(0x33FBCFE8)),
+      JuzzioAuroraOrb(Alignment(0.8, 0.9), 0.50, Color(0x2EA7F3D0)),
+    ],
+    orbsLight: [
+      JuzzioAuroraOrb(Alignment(-0.9, -0.8), 0.95, Color(0x59E9D5FF)),
+      JuzzioAuroraOrb(Alignment(1.0, -0.2), 0.85, Color(0x4DBFDBFE)),
+      JuzzioAuroraOrb(Alignment(-0.5, 1.0), 0.85, Color(0x4DFBCFE8)),
+      JuzzioAuroraOrb(Alignment(0.8, 0.9), 0.55, Color(0x40A7F3D0)),
+    ],
+  ),
+  JuzzioAuroraPalette(
+    id: 'midnight_sapphire',
+    nameTr: 'Gece Safiri',
+    nameEn: 'Midnight Sapphire',
+    nameDe: 'Mitternachtssaphir',
+    base: Color(0xFF040616),
+    baseLight: Color(0xFFECEEFB),
+    swatchA: Color(0xFF1E3A8A),
+    swatchB: Color(0xFFA78BFA),
+    orbs: [
+      JuzzioAuroraOrb(Alignment(-0.95, -0.7), 0.95, Color(0x991E3A8A)),
+      JuzzioAuroraOrb(Alignment(1.0, -0.3), 0.75, Color(0x667C3AED)),
+      JuzzioAuroraOrb(Alignment(-0.2, 1.05), 0.85, Color(0x660F172A)),
+      JuzzioAuroraOrb(Alignment(0.8, 0.85), 0.50, Color(0x4D3B82F6)),
+    ],
+    orbsLight: [
+      JuzzioAuroraOrb(Alignment(-0.95, -0.7), 0.95, Color(0x4D93C5FD)),
+      JuzzioAuroraOrb(Alignment(1.0, -0.3), 0.75, Color(0x40C4B5FD)),
+      JuzzioAuroraOrb(Alignment(0.8, 0.85), 0.50, Color(0x3360A5FA)),
+    ],
+  ),
+  JuzzioAuroraPalette(
+    id: 'nordic_frost',
+    nameTr: 'Kuzey Buzu',
+    nameEn: 'Nordic Frost',
+    nameDe: 'Nordischer Frost',
+    base: Color(0xFF070C12),
+    baseLight: Color(0xFFF0F6FA),
+    swatchA: Color(0xFFBAE6FD),
+    swatchB: Color(0xFF94A3B8),
+    orbs: [
+      JuzzioAuroraOrb(Alignment(-0.9, -0.85), 0.90, Color(0x4D7DD3FC)),
+      JuzzioAuroraOrb(Alignment(1.0, 0.0), 0.80, Color(0x40CBD5E1)),
+      JuzzioAuroraOrb(Alignment(-0.4, 1.0), 0.85, Color(0x4D0C4A6E)),
+    ],
+    orbsLight: [
+      JuzzioAuroraOrb(Alignment(-0.9, -0.85), 0.95, Color(0x59BAE6FD)),
+      JuzzioAuroraOrb(Alignment(1.0, 0.0), 0.80, Color(0x40E2E8F0)),
+      JuzzioAuroraOrb(Alignment(-0.4, 1.0), 0.85, Color(0x407DD3FC)),
     ],
   ),
   JuzzioAuroraPalette(

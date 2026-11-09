@@ -88,7 +88,12 @@ class JuzzioNotificationPreview {
       if (text == null || text.trim().isEmpty) return null;
       // v0.9.3: mesaj UYGULAMA DİLİNE çevrilerek gösterilir (çeviri açıksa). Çeviri 3 sn'de
       // gelmezse veya başarısızsa orijinal metin gösterilir — bildirim asla gecikip kaybolmaz.
-      return clip(await translateForNotification(text, msg));
+      final shown = await translateForNotification(text, msg);
+      // v0.9.6: düzenlenen mesajın bildirimi "(Düzenlendi)" önekiyle gelir
+      if (msg.editedAt != null) {
+        return clip('✏️ (${JuzzioAppController.instance.trEn('Düzenlendi', 'Edited', 'Bearbeitet')}) $shown');
+      }
+      return clip(shown);
     } catch (_) {
       return null;
     }

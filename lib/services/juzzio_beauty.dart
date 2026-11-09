@@ -121,3 +121,30 @@ Future<File> juzzioBeautifyImageFile(File source, int level, {int maxSide = 2160
     return source;
   }
 }
+
+Uint8List? _compressJpegIsolate(Map<String, Object> args) {
+  final decoded = img.decodeImage(args['bytes'] as Uint8List);
+  if (decoded == null) return null;
+  var im = img.bakeOrientation(decoded);
+  final maxSide = args['maxSide'] as int;
+  if ((im.width > im.height ? im.width : im.height) > maxSide) {
+    im = im.width >= im.height ? img.copyResize(im, width: maxSide) : img.copyResize(im, height: maxSide);
+  }
+  return Uint8List.fromList(img.encodeJpg(im, quality: args['quality'] as int));
+}
+
+/// v0.9.4: profil/kapak görselini yüklemeden önce ≤[maxSide] px JPEG'e sıkıştırır (avatars kovası 5 MB).
+/// Çözülemeyen dosyada orijinal döner.
+Future<File> juzzioCompressImageForUpload(File source, {int maxSide = 1600, int quality = 85}) async {
+  try {
+    final bytes = await source.readAsBytes();
+    final out = await compute(_compressJpegIsolate, <String, Object>{'bytes': bytes, 'maxSide': maxSide, 'quality': quality});
+    if (out == null) return source;
+    final dir = await getTemporaryDirectory();
+    final f = File('${dir.path}/juzzio_up_${DateTime.now().microsecondsSinceEpoch}.jpg');
+    await f.writeAsBytes(out, flush: true);
+    return f;
+  } catch (_) {
+    return source;
+  }
+}
