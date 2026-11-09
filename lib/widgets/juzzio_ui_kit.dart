@@ -216,9 +216,10 @@ class JuzzioUnreadPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final accents = JuzzioGlassTokens.accentPair;
     final dark = JuzzioAppController.instance.isDark;
-    final a = muted ? JuzzioGlassTokens.textMuted : accents.first;
-    final b = muted ? JuzzioGlassTokens.textMuted.withValues(alpha: 0.8) : (accents.length > 1 ? accents[1] : accents.first);
-    final fg = juzzioReadableOn(Color.lerp(a, b, 0.5)!);
+    // v1.0.0 Juzzio Space: okunmamış rozeti temanın parlayan vurgusu
+    final a = muted ? JuzzioGlassTokens.textMuted : JuzzioGlassTokens.glow;
+    final b = muted ? JuzzioGlassTokens.textMuted.withValues(alpha: 0.8) : JuzzioGlassTokens.glow;
+    final fg = muted ? juzzioReadableOn(a) : JuzzioGlassTokens.onGlow;
     return SizedBox(
       height: 22,
       child: AnimatedSwitcher(

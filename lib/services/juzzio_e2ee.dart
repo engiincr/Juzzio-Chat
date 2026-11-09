@@ -511,7 +511,9 @@ class JuzzioE2ee {
     final e = m.metadata['e2ee'];
     if (e is! Map || m.isDeleted) return m;
     // v0.9.0 §4.5: düzenlenen mesajın eski çözümü kullanılmaz (anahtar = kimlik + düzenleme zamanı)
-    final cacheKey = '${m.id}@${m.editedAt?.toIso8601String() ?? ''}';
+    // v1.0.0: çeviri gönderimden sonra ayrı şifreli yük (e2ee_tr) olarak gelebilir
+    final trPayload = m.metadata['e2ee_tr'];
+    final cacheKey = '${m.id}@${m.editedAt?.toIso8601String() ?? ''}${trPayload is Map ? '+tr' : ''}';
     final hit = _plainCache[cacheKey];
     if (hit != null) return m.withText(hit.$1, hit.$2);
     await ensureReady();
@@ -520,7 +522,17 @@ class JuzzioE2ee {
       if (clear == null) return m.withText(_lockedText(), '');
       final obj = jsonDecode(utf8.decode(clear));
       final t = (obj is Map ? obj['t'] : '')?.toString() ?? '';
-      final x = (obj is Map ? obj['x'] : '')?.toString() ?? '';
+      var x = (obj is Map ? obj['x'] : '')?.toString() ?? '';
+      if (x.isEmpty && trPayload is Map) {
+        try {
+          final tm = Map<String, dynamic>.from(trPayload);
+          final c2 = (tm['v'] == 2) ? await _decryptV2(tm) : await _decryptV1(tm);
+          if (c2 != null) {
+            final o2 = jsonDecode(utf8.decode(c2));
+            x = (o2 is Map ? o2['t'] : '')?.toString() ?? '';
+          }
+        } catch (_) {}
+      }
       final mk = obj is Map ? JuzzioMediaKey.fromJson(obj['m']) : null;
       if (mk != null) _mediaKeys[m.id] = mk;
       if (_plainCache.length > 4000) _plainCache.clear();

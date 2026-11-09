@@ -49,6 +49,8 @@ class _JuzzioChickGameScreenState extends State<JuzzioChickGameScreen> with Tick
   late final AnimationController _bounce;
   // v0.7.0: besleme anında yumurta/civciv titrer
   late final AnimationController _wobble = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
+  /// v1.0.0: sevilince prenses gibi sağa dönüp cilve yapar
+  late final AnimationController _twirl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1700));
   // v0.9.3: göz kırpma, kanat çırpma ve parçacık (kalp / yem) animasyonları
   late final AnimationController _blink = AnimationController(vsync: this, duration: const Duration(milliseconds: 170));
   late final AnimationController _flap = AnimationController(vsync: this, duration: const Duration(milliseconds: 650));
@@ -82,8 +84,9 @@ class _JuzzioChickGameScreenState extends State<JuzzioChickGameScreen> with Tick
   /// Sahneye dokunma: yumurtada titreme, civcivde sevme (kalp + kanat çırpma)
   void _pet(JuzzioChickState st) {
     HapticFeedback.selectionClick();
-    _wobble.forward(from: 0);
+    if (st.stage < 1) _wobble.forward(from: 0); // yumurta titrer
     if (st.stage >= 1) {
+      if (!JuzzioAppController.instance.reduceMotion) _twirl.forward(from: 0);
       _flap.forward(from: 0).then((_) {
         if (mounted) _flap.reverse();
       });
@@ -109,6 +112,7 @@ class _JuzzioChickGameScreenState extends State<JuzzioChickGameScreen> with Tick
     _refreshTimer?.cancel();
     _bounce.dispose();
     _wobble.dispose();
+    _twirl.dispose();
     _blinkTimer?.cancel();
     _blink.dispose();
     _flap.dispose();
@@ -547,6 +551,7 @@ class _JuzzioChickGameScreenState extends State<JuzzioChickGameScreen> with Tick
                 mood: st.mood,
                 blink: _blink,
                 flap: _flap,
+                twirl: _twirl,
               ),
               Positioned.fill(
                 child: IgnorePointer(

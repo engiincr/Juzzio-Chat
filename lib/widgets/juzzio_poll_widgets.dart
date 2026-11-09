@@ -7,6 +7,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../core/app_theme_and_locale.dart';
+import '../core/theme/juzzio_glass.dart';
 import '../services/juzzio_polls_service.dart';
 import '../services/supabase_service.dart';
 
@@ -104,58 +105,158 @@ class _JuzzioPollCardState extends State<JuzzioPollCard> {
             : TextButton(onPressed: _load, child: Text(_app.trEn('Anket yüklenemedi · tekrar dene', 'Poll failed to load · retry', 'Umfrage nicht geladen · erneut'))),
       );
     }
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(r.question, style: TextStyle(color: fg, fontWeight: FontWeight.w800, fontSize: 15)),
-      const SizedBox(height: 4),
-      Text(
-        [
-          if (r.multi) _app.trEn('Çoklu seçim', 'Multiple choice', 'Mehrfachauswahl'),
-          if (r.anonymous) _app.trEn('Gizli oylama', 'Anonymous', 'Anonym'),
-          if (r.closed) _app.trEn('Kapandı', 'Closed', 'Geschlossen'),
-          '${r.voters} ${_app.trEn('kişi oy verdi', 'voted', 'abgestimmt')}',
-        ].join(' · '),
-        style: TextStyle(color: fg.withValues(alpha: 0.75), fontSize: 12),
-      ),
-      const SizedBox(height: 8),
-      for (var i = 0; i < r.options.length; i++)
-        Semantics(
-          button: !r.closed,
-          selected: r.myVotes.contains(i),
-          label: '${r.options[i]}, ${r.counts[i]}',
-          child: InkWell(
-            borderRadius: BorderRadius.circular(10),
-            onTap: r.closed ? null : () => _tap(i),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 5),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  Icon(r.myVotes.contains(i) ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded, size: 18, color: fg),
-                  const SizedBox(width: 6),
-                  Expanded(child: Text(r.options[i], style: TextStyle(color: fg))),
-                  Text('${r.counts[i]}', style: TextStyle(color: fg, fontWeight: FontWeight.w700)),
-                ]),
-                const SizedBox(height: 4),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(value: r.share(i), minHeight: 5, backgroundColor: fg.withValues(alpha: 0.15), color: fg),
-                ),
-                if (r.byOption != null && (r.byOption![i] ?? const []).isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(r.byOption![i]!.join(', '), maxLines: 2, overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: fg.withValues(alpha: 0.7), fontSize: 11)),
+    // v1.0.0 modern anket kartı: üst etiket + durum çipi, büyük soru, oran çubuklu seçenek
+    // döşemeleri (dolgu arka planda canlı büyür), yüzde, kazanan vurgusu, alt bilgi şeridi.
+    final glow = JuzzioGlassTokens.glow;
+    final onGlow = JuzzioGlassTokens.onGlow;
+    final sub = fg.withValues(alpha: 0.72);
+    final tileBg = widget.isMe ? Colors.white.withValues(alpha: 0.12) : JuzzioGlassTokens.spaceInset;
+    final fill = widget.isMe ? Colors.white.withValues(alpha: 0.24) : glow.withValues(alpha: _app.isDark ? 0.22 : 0.35);
+    final maxCount = r.counts.isEmpty ? 0 : r.counts.reduce((a, b) => a > b ? a : b);
+    final calm = _app.reduceMotion;
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 230, maxWidth: 300),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+        Row(children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(color: widget.isMe ? Colors.white.withValues(alpha: 0.18) : glow, borderRadius: BorderRadius.circular(8)),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.bar_chart_rounded, size: 14, color: widget.isMe ? Colors.white : onGlow),
+              const SizedBox(width: 4),
+              Text(_app.trEn('ANKET', 'POLL', 'UMFRAGE'),
+                  style: TextStyle(color: widget.isMe ? Colors.white : onGlow, fontWeight: FontWeight.w900, fontSize: 10.5, letterSpacing: 1.2)),
+            ]),
+          ),
+          const SizedBox(width: 6),
+          if (r.multi) _chip(_app.trEn('Çoklu', 'Multi', 'Mehrfach'), Icons.done_all_rounded, fg),
+          if (r.anonymous) _chip(_app.trEn('Gizli', 'Anonymous', 'Anonym'), Icons.visibility_off_outlined, fg),
+          const Spacer(),
+          _chip(r.closed ? _app.trEn('Kapandı', 'Closed', 'Beendet') : _app.trEn('Açık', 'Open', 'Offen'),
+              r.closed ? Icons.lock_outline_rounded : Icons.circle, fg, dot: !r.closed),
+        ]),
+        const SizedBox(height: 10),
+        Text(r.question, style: TextStyle(color: fg, fontWeight: FontWeight.w900, fontSize: 16.5, height: 1.25, letterSpacing: -0.2)),
+        const SizedBox(height: 12),
+        for (var i = 0; i < r.options.length; i++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Semantics(
+              button: !r.closed,
+              selected: r.myVotes.contains(i),
+              label: '${r.options[i]}, ${r.counts[i]}',
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(14),
+                  onTap: r.closed ? null : () => _tap(i),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: tileBg,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: r.myVotes.contains(i)
+                            ? (widget.isMe ? Colors.white : glow)
+                            : (widget.isMe ? Colors.white.withValues(alpha: 0.18) : JuzzioGlassTokens.spaceCardBorder),
+                        width: r.myVotes.contains(i) ? 1.6 : 1,
+                      ),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(13),
+                      child: Stack(children: [
+                        Positioned.fill(
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: TweenAnimationBuilder<double>(
+                              tween: Tween(begin: 0, end: r.share(i)),
+                              duration: Duration(milliseconds: calm ? 0 : 650),
+                              curve: Curves.easeOutCubic,
+                              builder: (_, v, __) => FractionallySizedBox(widthFactor: v.clamp(0.0, 1.0), heightFactor: 1, child: ColoredBox(color: fill)),
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                          child: Row(children: [
+                            AnimatedSwitcher(
+                              duration: Duration(milliseconds: calm ? 0 : 200),
+                              child: r.myVotes.contains(i)
+                                  ? Container(
+                                      key: const ValueKey('on'),
+                                      width: 20,
+                                      height: 20,
+                                      decoration: BoxDecoration(color: widget.isMe ? Colors.white : glow, shape: BoxShape.circle),
+                                      child: Icon(Icons.check_rounded, size: 14, color: widget.isMe ? Colors.black : onGlow),
+                                    )
+                                  : Container(
+                                      key: const ValueKey('off'),
+                                      width: 20,
+                                      height: 20,
+                                      decoration: BoxDecoration(
+                                        shape: r.multi ? BoxShape.rectangle : BoxShape.circle,
+                                        borderRadius: r.multi ? BorderRadius.circular(6) : null,
+                                        border: Border.all(color: sub, width: 1.6),
+                                      ),
+                                    ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(r.options[i],
+                                  style: TextStyle(color: fg, fontWeight: r.myVotes.contains(i) ? FontWeight.w800 : FontWeight.w600, fontSize: 14)),
+                            ),
+                            if (r.closed && maxCount > 0 && r.counts[i] == maxCount) ...[
+                              Icon(Icons.emoji_events_rounded, size: 16, color: widget.isMe ? Colors.white : JuzzioGlassTokens.glowText),
+                              const SizedBox(width: 4),
+                            ],
+                            Text('${(r.share(i) * 100).round()}%', style: TextStyle(color: fg, fontWeight: FontWeight.w900, fontSize: 13)),
+                          ]),
+                        ),
+                      ]),
+                    ),
                   ),
-              ]),
+                ),
+              ),
             ),
           ),
-        ),
-      if (r.isCreator && !r.closed)
-        Align(
-          alignment: Alignment.centerRight,
-          child: TextButton(onPressed: _close, child: Text(_app.trEn('Anketi kapat', 'Close poll', 'Umfrage schließen'), style: TextStyle(color: fg))),
-        ),
-    ]);
+        if (r.byOption != null)
+          for (var i = 0; i < r.options.length; i++)
+            if ((r.byOption![i] ?? const []).isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text('${r.options[i]}: ${r.byOption![i]!.join(', ')}',
+                    maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: sub, fontSize: 11.5)),
+              ),
+        const SizedBox(height: 2),
+        Row(children: [
+          Icon(Icons.how_to_vote_outlined, size: 15, color: sub),
+          const SizedBox(width: 5),
+          Text('${r.voters} ${_app.trEn('oy', r.voters == 1 ? 'vote' : 'votes', 'Stimmen')}',
+              style: TextStyle(color: sub, fontSize: 12, fontWeight: FontWeight.w700)),
+          const Spacer(),
+          if (r.isCreator && !r.closed)
+            TextButton.icon(
+              style: TextButton.styleFrom(foregroundColor: fg, visualDensity: VisualDensity.compact),
+              onPressed: _close,
+              icon: const Icon(Icons.lock_outline_rounded, size: 15),
+              label: Text(_app.trEn('Kapat', 'Close', 'Schließen'), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5)),
+            ),
+        ]),
+      ]),
+    );
   }
+
+  Widget _chip(String label, IconData icon, Color fg, {bool dot = false}) => Padding(
+        padding: const EdgeInsets.only(right: 4),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+          decoration: BoxDecoration(color: fg.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(8)),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(icon, size: dot ? 7 : 12, color: dot ? JuzzioGlassTokens.glow : fg.withValues(alpha: 0.8)),
+            const SizedBox(width: 4),
+            Text(label, style: TextStyle(color: fg.withValues(alpha: 0.85), fontSize: 10.5, fontWeight: FontWeight.w800)),
+          ]),
+        ),
+      );
 }
 
 Future<void> showJuzzioCreatePollSheet(BuildContext context, {required String roomId}) {

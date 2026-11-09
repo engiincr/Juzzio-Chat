@@ -2,7 +2,7 @@
 
 const String kJuzzioPrivacyMd = r'''# Juzzio Gizlilik Politikası ve KVKK Aydınlatma Metni
 
-Son güncelleme: 9 Kasım 2026 · Uygulama sürümü: v0.9.9 (BETA · Erken Erişim)
+Son güncelleme: 9 Kasım 2026 · Uygulama sürümü: v1.0.0 (BETA · Erken Erişim)
 
 Bu metin, Juzzio mobil uygulamasının hangi kişisel verileri hangi amaçla işlediğini, kimlerle paylaştığını ve haklarınızı **olduğu gibi** açıklar. Uygulamanın kaynak kodu GitHub'da açıktır; buradaki her ifade koddan doğrulanabilir.
 
@@ -275,7 +275,7 @@ the Republic of Türkiye.
 
 const String kJuzzioPrivacyMdEn = r'''# 🔐 Juzzio Privacy Policy
 
-Last updated: November 9, 2026 · App version: v0.9.9 (BETA · Early Access)
+Last updated: November 9, 2026 · App version: v1.0.0 (BETA · Early Access)
 
 > 🇹🇷 The legally binding Turkish version (Privacy Policy and KVKK Disclosure Notice) is in [docs/legal/tr/PRIVACY.md](docs/legal/tr/PRIVACY.md). In the app, the Turkish text is shown when the app language is Turkish.
 

@@ -78,6 +78,9 @@ class JuzzioChickPainter extends CustomPainter {
   final double breathe; // 0..1
   final double flap; // 0..1 kanat çırpma
   final double wobble; // 0..1 besleme titreşimi
+  /// v1.0.0: sevilince prenses dönüşü + cilve (0..1). İlk yarı: sağa doğru zarif bir tur
+  /// (3B dönüş yanılsaması + küçük zıplama); ikinci yarı: başını sağa eğip göz kırpar, yanakları kızarır.
+  final double twirl;
   /// v0.9.4: gardırop — {'hat','glasses','outfit','shoes','color'}
   final Map<String, String> style;
 
@@ -88,6 +91,7 @@ class JuzzioChickPainter extends CustomPainter {
     this.breathe = 0,
     this.flap = 0,
     this.wobble = 0,
+    this.twirl = 0,
     this.style = const {},
   });
 
@@ -110,11 +114,14 @@ class JuzzioChickPainter extends CustomPainter {
     final beakC = _desat(const Color(0xFFFF8A1F), look.saturation);
     final beakD = _desat(const Color(0xFFD9620A), look.saturation);
 
+    // Prenses dönüşü ve cilve
+    final tw = juzzioChickTwirlPose(twirl);
     canvas.save();
     canvas.translate(cx, baseY);
-    canvas.rotate(angle);
-    final squash = 1 + 0.025 * math.sin(breathe * math.pi);
-    canvas.scale(1 / squash, squash);
+    canvas.rotate(angle + tw.tilt);
+    canvas.translate(0, -r * tw.hop);
+    final squash = (1 + 0.025 * math.sin(breathe * math.pi)) * tw.curtsy;
+    canvas.scale(tw.spinX / squash, squash);
 
     // Zemin gölgesi
     canvas.drawOval(
@@ -265,7 +272,8 @@ class JuzzioChickPainter extends CustomPainter {
     final open = (look.eyeOpen * (1 - blink)).clamp(0.0, 1.0);
     for (final side in [-1.0, 1.0]) {
       final c = Offset(side * eyeDx, eyeY);
-      if (open < 0.08) {
+      final winking = tw.wink && side > 0;
+      if (open < 0.08 || winking) {
         // Kapalı göz: yay
         canvas.drawArc(
           Rect.fromCircle(center: c, radius: eyeR * 0.9),
@@ -298,11 +306,11 @@ class JuzzioChickPainter extends CustomPainter {
         final outer = Offset(side * (eyeDx + eyeR * 0.9), eyeY - eyeR * (1.5 + 0.35 * look.browTilt) + eyeR * 0.9 * look.browTilt);
         canvas.drawLine(inner, outer, bp);
       }
-      if (look.blush) {
+      if (look.blush || tw.blush > 0) {
         canvas.drawOval(
           Rect.fromCenter(center: Offset(side * (eyeDx + r * 0.1), eyeY + r * 0.24), width: r * 0.26, height: r * 0.14),
           Paint()
-            ..color = const Color(0xFFFF7A9A).withValues(alpha: 0.45)
+            ..color = const Color(0xFFFF7A9A).withValues(alpha: math.max(look.blush ? 0.45 : 0.0, 0.45 + 0.4 * tw.blush))
             ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.5),
         );
       }
@@ -351,6 +359,7 @@ class JuzzioChickPainter extends CustomPainter {
       old.mood != mood ||
       old.blink != blink ||
       old.breathe != breathe ||
+      old.twirl != twirl ||
       old.flap != flap ||
       old.wobble != wobble ||
       !_sameStyle(old.style, style);
@@ -412,6 +421,33 @@ void juzzioPaintChickAccessories(Canvas canvas,
         ..close();
       canvas.drawPath(cape, Paint()..color = const Color(0xFF8E24AA).withValues(alpha: 0.88));
       canvas.drawCircle(Offset(0, y + r * 0.04), r * 0.08, Paint()..color = const Color(0xFFFFD54F));
+    // v1.0.0: prenses tütüsü ve inci kolye
+    case 'tutu':
+      final y = bodyRect.bottom - r * 0.38;
+      for (var layer = 0; layer < 2; layer++) {
+        final w = r * (1.55 - layer * 0.18);
+        final skirt = Path()..moveTo(-w / 2, y);
+        const n = 9;
+        for (var i = 0; i <= n; i++) {
+          final x = -w / 2 + w * i / n;
+          skirt.lineTo(x, y + r * (i.isEven ? 0.26 : 0.16) + layer * r * 0.04);
+        }
+        skirt
+          ..lineTo(w / 2, y)
+          ..quadraticBezierTo(0, y - r * 0.12, -w / 2, y)
+          ..close();
+        canvas.drawPath(skirt, Paint()..color = (layer == 0 ? const Color(0xFFF8BBD0) : const Color(0xFFF48FB1)).withValues(alpha: 0.92));
+      }
+      for (var i = -3; i <= 3; i++) {
+        canvas.drawCircle(Offset(i * r * 0.2, y + r * 0.02), r * 0.025, Paint()..color = Colors.white.withValues(alpha: 0.9));
+      }
+    case 'necklace':
+      final y = beakY + r * 0.42;
+      for (var i = -4; i <= 4; i++) {
+        final x = i * r * 0.11;
+        canvas.drawCircle(Offset(x, y + (x * x) / (r * 1.6)), r * 0.05, Paint()..color = const Color(0xFFFFF8E1));
+      }
+      canvas.drawCircle(Offset(0, y + r * 0.1), r * 0.08, Paint()..color = const Color(0xFFE91E63));
   }
   // Gözlük
   switch (style['glasses']) {
@@ -449,6 +485,20 @@ void juzzioPaintChickAccessories(Canvas canvas,
           ..cubicTo(c.dx + s2 * 0.5, c.dy - s2 * 1.0, c.dx + s2 * 1.2, c.dy - s2 * 0.2, c.dx, c.dy + s2 * 0.6);
         canvas.drawPath(h, hp);
       }
+    case 'star_glasses':
+      final sp = Paint()..color = const Color(0xE6FFC107);
+      for (final side in [-1.0, 1.0]) {
+        final c = Offset(side * eyeDx, eyeY);
+        final st = Path();
+        for (var i = 0; i < 10; i++) {
+          final ang = -math.pi / 2 + i * math.pi / 5;
+          final rr = (i.isEven ? 2.1 : 0.95) * eyeR;
+          final pt = c + Offset(math.cos(ang) * rr, math.sin(ang) * rr);
+          i == 0 ? st.moveTo(pt.dx, pt.dy) : st.lineTo(pt.dx, pt.dy);
+        }
+        st.close();
+        canvas.drawPath(st, sp);
+      }
   }
   // Şapka
   switch (style['hat']) {
@@ -484,11 +534,47 @@ void juzzioPaintChickAccessories(Canvas canvas,
       final crownRect = RRect.fromRectAndRadius(Rect.fromCenter(center: Offset(0, y - r * 0.25), width: r * 0.9, height: r * 0.5), Radius.circular(r * 0.2));
       canvas.drawRRect(crownRect, Paint()..color = const Color(0xFF6D4C41));
       canvas.drawRect(Rect.fromCenter(center: Offset(0, y - r * 0.08), width: r * 0.92, height: r * 0.08), Paint()..color = const Color(0xFF3E2723));
+    // v1.0.0: prenses tacı, çiçek taç, büyücü şapkası
+    case 'tiara':
+      final y = top + r * 0.12;
+      final band = Path()
+        ..moveTo(-r * 0.46, y)
+        ..quadraticBezierTo(0, y - r * 0.12, r * 0.46, y)
+        ..lineTo(r * 0.38, y - r * 0.12)
+        ..lineTo(r * 0.2, y - r * 0.22)
+        ..lineTo(0, y - r * 0.5)
+        ..lineTo(-r * 0.2, y - r * 0.22)
+        ..lineTo(-r * 0.38, y - r * 0.12)
+        ..close();
+      canvas.drawPath(band, Paint()..shader = const LinearGradient(colors: [Color(0xFFE0E0E0), Color(0xFFFFFFFF), Color(0xFFBDBDBD)]).createShader(band.getBounds()));
+      canvas.drawCircle(Offset(0, y - r * 0.3), r * 0.08, Paint()..color = const Color(0xFFEC407A));
+      for (final dx in [-r * 0.24, r * 0.24]) {
+        canvas.drawCircle(Offset(dx, y - r * 0.13), r * 0.045, Paint()..color = const Color(0xFF80DEEA));
+      }
+    case 'flower_crown':
+      final y = top + r * 0.08;
+      const colors = [Color(0xFFFF8A80), Color(0xFFFFF59D), Color(0xFFB39DDB), Color(0xFF80CBC4), Color(0xFFFFAB91)];
+      for (var i = 0; i < 5; i++) {
+        final x = -r * 0.44 + i * r * 0.22;
+        final c = Offset(x, y - r * 0.06 - (i == 2 ? r * 0.06 : 0));
+        for (var k = 0; k < 5; k++) {
+          final ang = k * 2 * math.pi / 5;
+          canvas.drawCircle(c + Offset(math.cos(ang), math.sin(ang)) * r * 0.06, r * 0.05, Paint()..color = colors[i]);
+        }
+        canvas.drawCircle(c, r * 0.04, Paint()..color = const Color(0xFFFFD54F));
+      }
+    case 'wizard_hat':
+      final y = top + r * 0.1;
+      canvas.drawOval(Rect.fromCenter(center: Offset(0, y), width: r * 1.5, height: r * 0.26), Paint()..color = const Color(0xFF283593));
+      final cone = Path()..moveTo(-r * 0.4, y)..quadraticBezierTo(-r * 0.05, y - r * 0.5, r * 0.28, y - r * 0.95)..lineTo(r * 0.4, y)..close();
+      canvas.drawPath(cone, Paint()..color = const Color(0xFF3949AB));
+      canvas.drawCircle(Offset(-r * 0.02, y - r * 0.35), r * 0.05, Paint()..color = const Color(0xFFFFEB3B));
+      canvas.drawCircle(Offset(r * 0.14, y - r * 0.6), r * 0.035, Paint()..color = const Color(0xFFFFEB3B));
   }
   // Ayakkabı (ayakların altında)
   final shoe = style['shoes'];
   if (shoe != null) {
-    final c = shoe == 'boots' ? const Color(0xFF5D4037) : const Color(0xFFE53935);
+    final c = shoe == 'boots' ? const Color(0xFF5D4037) : (shoe == 'ballet_shoes' ? const Color(0xFFF8BBD0) : const Color(0xFFE53935));
     for (final dx in [-r * 0.32, r * 0.32]) {
       canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromCenter(center: Offset(dx, r * 0.03), width: r * 0.42, height: shoe == 'boots' ? r * 0.24 : r * 0.16), Radius.circular(r * 0.08)),
           Paint()..color = c);
@@ -499,6 +585,30 @@ void juzzioPaintChickAccessories(Canvas canvas,
       }
     }
   }
+}
+
+/// v1.0.0: prenses dönüşü + cilve pozu (saf fonksiyon, test edilir).
+///  0.00–0.50 dönüş: spinX = cos(2π·e) (önden → yandan → arkadan → önden), küçük zıplama.
+///  0.50–1.00 cilve: başı sağa eğik, sağ göz kırpar (0.62–0.88), yanak kızarır, hafif reverans.
+({double spinX, double hop, double tilt, double curtsy, bool wink, double blush}) juzzioChickTwirlPose(double t) {
+  if (t <= 0 || t >= 1) return (spinX: 1.0, hop: 0.0, tilt: 0.0, curtsy: 1.0, wink: false, blush: 0.0);
+  if (t < 0.5) {
+    final u = t / 0.5;
+    final e = u < 0.5 ? 2 * u * u : 1 - math.pow(-2 * u + 2, 2) / 2;
+    var sx = math.cos(2 * math.pi * e);
+    if (sx.abs() < 0.12) sx = sx.isNegative ? -0.12 : 0.12; // yandan görünüşte kaybolmasın
+    return (spinX: sx, hop: 0.32 * math.sin(math.pi * u), tilt: 0.06 * math.sin(math.pi * u), curtsy: 1.0, wink: false, blush: 0.0);
+  }
+  final v = (t - 0.5) / 0.5;
+  final s = math.sin(math.pi * math.min(1.0, v * 1.25));
+  return (
+    spinX: 1.0,
+    hop: 0.0,
+    tilt: 0.17 * s,
+    curtsy: 1 - 0.07 * math.sin(math.pi * v),
+    wink: v > 0.24 && v < 0.76,
+    blush: s,
+  );
 }
 
 /// Tema → sahne arka plan gradyanı.
@@ -512,6 +622,13 @@ List<Color> juzzioChickThemeColors(String? theme, bool dark) {
       return const [Color(0xFFB3E5FC), Color(0xFFF5F9FF)];
     case 'theme_meadow':
       return const [Color(0xFF9CCC65), Color(0xFFE6F4D7)];
+    // v1.0.0
+    case 'theme_castle':
+      return const [Color(0xFFF8BBD0), Color(0xFFFCE4EC)];
+    case 'theme_space':
+      return const [Color(0xFF0D0221), Color(0xFF3A0CA3)];
+    case 'theme_sakura':
+      return const [Color(0xFFFFC1E3), Color(0xFFFFF0F6)];
     default:
       return dark ? const [Color(0xFF1B2433), Color(0xFF0F141C)] : const [Color(0xFFFFF4D6), Color(0xFFFFE6B3)];
   }
@@ -733,4 +850,78 @@ class JuzzioChickParticlesPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant JuzzioChickParticlesPainter old) => old.progress != progress || old.hearts != hearts || old.seed != seed;
+}
+
+/// v1.0.0: sohbetteki civciv rozeti — 🐥 emojisi yerine HD vektör civciv. Arada bir (ve
+/// dokunmadan önce basılı tutulunca) prenses gibi sağa doğru zarifçe dönüp göz kırparak cilve yapar.
+class JuzzioChickBadge extends StatefulWidget {
+  const JuzzioChickBadge({super.key, this.stage = 1, this.mood = 'happy', this.size = 52, this.reduceMotion = false});
+  final int stage;
+  final String mood;
+  final double size;
+  final bool reduceMotion;
+
+  @override
+  State<JuzzioChickBadge> createState() => _JuzzioChickBadgeState();
+}
+
+class _JuzzioChickBadgeState extends State<JuzzioChickBadge> with SingleTickerProviderStateMixin {
+  late final AnimationController _twirl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1700));
+  late final math.Random _rnd = math.Random();
+  bool _alive = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _run();
+  }
+
+  Future<void> _run() async {
+    await Future<void>.delayed(const Duration(milliseconds: 900));
+    while (_alive && mounted) {
+      if (!widget.reduceMotion && widget.mood != 'dying') {
+        try {
+          await _twirl.forward(from: 0);
+        } catch (_) {}
+      }
+      await Future<void>.delayed(Duration(milliseconds: 7000 + _rnd.nextInt(5000)));
+    }
+  }
+
+  @override
+  void dispose() {
+    _alive = false;
+    _twirl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.size;
+    return GestureDetector(
+      onLongPress: () {
+        if (widget.reduceMotion) return;
+        HapticFeedback.selectionClick();
+        _twirl.forward(from: 0);
+      },
+      child: Container(
+        width: s,
+        height: s,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: const RadialGradient(colors: [Color(0xFFFFF4C2), Color(0xFFFFC94D)]),
+          border: Border.all(color: Colors.white, width: 2.5),
+          boxShadow: const [BoxShadow(color: Color(0x5E000000), blurRadius: 12, offset: Offset(0, 4))],
+        ),
+        child: ClipOval(
+          child: AnimatedBuilder(
+            animation: _twirl,
+            builder: (_, __) => CustomPaint(
+              painter: JuzzioChickPainter(stage: widget.stage.clamp(1, 3), mood: widget.mood, twirl: _twirl.value),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

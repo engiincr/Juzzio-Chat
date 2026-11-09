@@ -475,7 +475,8 @@ class JuzzioAppController extends ChangeNotifier {
   int _darkStartMin = 20 * 60; // 20:00
   int _darkEndMin = 7 * 60; // 07:00
   Timer? _scheduleTimer;
-  String _defaultGlassPaletteId = 'juzzio_liquid';
+  // v1.0.0: yeni kullanıcıların ilk görünümü Figma "Juzzio Space" — Zümrüt
+  String _defaultGlassPaletteId = 'emerald';
   double _chatThemeIntensity = 1.0;
 
   // Dil Ayarları (Cihaz Dilini Otomatik Baz Alır, 142 Dili Destekler)
@@ -2846,56 +2847,45 @@ class JuzzioPalette {
   Color get bgPrimary => Colors.transparent;
   Color get bgSecondary => isDark ? const Color(0x14FFFFFF) : const Color(0x8CFFFFFF);
   /// Alt pencere / diyalog gibi içeriğin üstüne açılan yüzeyler (okunurluk için yarı opak cam)
-  Color get sheetBg => (JuzzioGlassTokens.custom == null ? null : JuzzioGlassTokens.sheet) ?? (isDark ? const Color(0xC7101116) : const Color(0xE0F7F8FB));
-  Color get bgGlowTop => isDark ? JuzzioColors.slate900 : const Color(0xFFEEF2FF);
-  Color get bgGlowBottom => isDark ? JuzzioColors.surface191D26 : const Color(0xFFF3E8FF);
+  /// Alt pencere / diyalog / menü: v1.0.0 neredeyse opak, temanın derin tonunda (okunur)
+  Color get sheetBg => JuzzioGlassTokens.sheet;
+  Color get bgGlowTop => JuzzioGlassTokens.space.depth[0];
+  Color get bgGlowBottom => JuzzioGlassTokens.space.depth[2];
 
-  // v0.5 nötr cam: koyu modda kartlar hafif saydam grafit + ince kristal kenar
-  // v0.8.1 sıvı cam: yüzeyler yarı saydam, seçili tema arkadan görünür
-  Color get cardBg => (JuzzioGlassTokens.custom == null ? null : JuzzioGlassTokens.surfaceSolid) ?? (isDark
-      ? const Color(0x5C15161B)
-      : const Color(0x8CFFFFFF));
-  Color get cardBgElevated => (JuzzioGlassTokens.custom == null ? null : JuzzioGlassTokens.surfaceSolid) ?? (isDark
-      ? const Color(0x7A1C1D23)
-      : const Color(0xB3FFFFFF));
-  Color get glassPanelBg => (JuzzioGlassTokens.custom == null ? null : JuzzioGlassTokens.surfaceSolid) ?? (isDark
-      ? const Color(0x70121318)
-      : const Color(0xA6FFFFFF));
+  // v1.0.0 Juzzio Space: tüm sayfalardaki kart/panel/girdi yüzeyleri aynı cam belirteçlerinden
+  Color get cardBg => (JuzzioGlassTokens.custom == null ? null : JuzzioGlassTokens.surfaceSolid) ?? JuzzioGlassTokens.spaceCard;
+  Color get cardBgElevated => (JuzzioGlassTokens.custom == null ? null : JuzzioGlassTokens.surfaceSolid) ?? JuzzioGlassTokens.spaceButton;
+  Color get glassPanelBg => (JuzzioGlassTokens.custom == null ? null : JuzzioGlassTokens.surfaceSolid) ?? JuzzioGlassTokens.spaceCard;
   Color get glassCardBg => glassPanelBg;
-  Color get inputBg => (JuzzioGlassTokens.custom == null ? null : JuzzioGlassTokens.surface) ?? (isDark
-      ? const Color(0x14FFFFFF)
-      : const Color(0x8CFFFFFF));
-  Color get pillBg => (JuzzioGlassTokens.custom == null ? null : JuzzioGlassTokens.surfaceStrong) ?? (isDark
-      ? const Color(0x1AFFFFFF)
-      : const Color(0x99FFFFFF));
+  Color get inputBg => (JuzzioGlassTokens.custom == null ? null : JuzzioGlassTokens.surface) ?? JuzzioGlassTokens.spaceInset;
+  Color get pillBg => (JuzzioGlassTokens.custom == null ? null : JuzzioGlassTokens.surfaceStrong) ?? JuzzioGlassTokens.spaceButton;
 
-  Color get glassBorder => (JuzzioGlassTokens.custom == null ? null : JuzzioGlassTokens.border) ?? (isDark
-      ? const Color(0x2EFFFFFF)
-      : const Color(0xB3FFFFFF));
+  Color get glassBorder => (JuzzioGlassTokens.custom == null ? null : JuzzioGlassTokens.border) ?? JuzzioGlassTokens.spaceCardBorder;
   Color get glassHighlight => isDark
       ? Colors.white.withValues(alpha: 0.08)
       : Colors.white;
 
-  // "Cool!" ve "Turn on notifications" butonlarının karakteristik derin siyah (#161618) tonu
-  Color get coolButtonBg => JuzzioGlassTokens.custom?.button ?? (isDark ? JuzzioColors.white : JuzzioColors.ink);
-  Color get coolButtonFg => JuzzioGlassTokens.custom?.buttonText ?? (isDark ? JuzzioColors.surface141416 : JuzzioColors.white);
+  /// Birincil buton: temanın parlayan vurgusu
+  Color get coolButtonBg => JuzzioGlassTokens.glow;
+  Color get coolButtonFg => JuzzioGlassTokens.onGlow;
 
-  // Vurgu renkleri: Modern Orman Siyahı (#07120C) + Kraliyet İndigo/Mavisi (#2563EB / #3B28CC)
-  // Gece modunda eski turuncu tonlar tamamen kaldırıldı.
-  Color get amberPrimary => JuzzioColors.blue600;
-  Color get amberLight => isDark ? JuzzioColors.blue500 : JuzzioColors.slate800;
-  Color get amberDark => JuzzioColors.surface0B0F17;
-  Color get amberGlow => JuzzioGlassTokens.custom?.icon ?? (isDark ? JuzzioColors.blue400 : JuzzioColors.blue600);
+  // Vurgu renkleri temanın parlayan vurgusundan türetilir (aydınlıkta okunur tonu)
+  Color get amberPrimary => JuzzioGlassTokens.glowText;
+  Color get amberLight => JuzzioGlassTokens.glowText;
+  Color get amberDark => JuzzioGlassTokens.space.depth[2];
+  /// Beyaz yazının okunduğu koyu vurgu tonu (avatar baş harf zemini, kilit rozeti)
+  Color get accentDeep => Color.lerp(JuzzioGlassTokens.glow, const Color(0xFF000000), 0.58)!;
+  Color get amberGlow => JuzzioGlassTokens.custom?.icon ?? JuzzioGlassTokens.glowText;
   Color get badgeOrange => JuzzioColors.red500;
-  Color get badgeBlue => JuzzioColors.blueVivid;
+  Color get badgeBlue => JuzzioGlassTokens.glowText;
   Color get headerDarkForest => Colors.transparent;
-  Color get activeNavIndigo => isDark ? JuzzioColors.indigo500 : JuzzioColors.brandIndigo;
+  Color get activeNavIndigo => JuzzioGlassTokens.glowText;
 
-  Color get textPrimary => JuzzioGlassTokens.custom?.text ?? (isDark ? JuzzioColors.slate50 : JuzzioColors.slate900);
-  Color get textSecondary => (JuzzioGlassTokens.custom == null ? null : JuzzioGlassTokens.textSecondary) ?? (isDark ? JuzzioColors.slate400 : JuzzioColors.slate500);
-  Color get textMuted => (JuzzioGlassTokens.custom == null ? null : JuzzioGlassTokens.textMuted) ?? (isDark ? JuzzioColors.slate500 : JuzzioColors.slate400);
+  Color get textPrimary => JuzzioGlassTokens.textPrimary;
+  Color get textSecondary => JuzzioGlassTokens.textSecondary;
+  Color get textMuted => JuzzioGlassTokens.textMuted;
 
-  Color get onlineGreen => JuzzioColors.emerald500;
+  Color get onlineGreen => JuzzioGlassTokens.glow;
   Color get dangerRed => JuzzioColors.red500;
 
   // Nötr cam: giden balon grafit, beyaz yazı her iki modda okunur
@@ -2960,25 +2950,13 @@ class JuzzioPalette {
   LinearGradient get backgroundGradient => LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: isDark
-            ? const [
-                JuzzioColors.obsidianRaised,
-                JuzzioColors.obsidian,
-                Color(0xFF070708),
-              ]
-            : const [
-                JuzzioColors.white,
-                JuzzioColors.surfaceF9FAFC,
-                JuzzioColors.surfaceF3F5F9,
-              ],
+        colors: isDark ? JuzzioGlassTokens.space.depth : JuzzioGlassTokens.space.depthLight,
       );
 
   LinearGradient get amberButtonGradient => LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: isDark
-            ? const [Color(0xFF636366), Color(0xFF3A3A3C)]
-            : const [JuzzioColors.deepForest, JuzzioColors.slate800],
+        colors: [accentDeep, Color.lerp(accentDeep, JuzzioGlassTokens.glow, 0.35)!],
       );
 }
 

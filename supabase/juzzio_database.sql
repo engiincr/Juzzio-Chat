@@ -7959,8 +7959,13 @@ BEGIN
     PERFORM public._staff_require(p_token, 'audit.read');
     RETURN COALESCE((
         SELECT jsonb_agg(row_to_json(x) ORDER BY x.created_at DESC) FROM (
-            SELECT l.id, l.action, l.target, l.details, l.created_at, p.username AS admin_username
-            FROM public.admin_audit_log l LEFT JOIN public.profiles p ON p.id = l.admin_id
+            -- v1.0.0: hedef kimliği okunur hâle getirilir (kullanıcı adı / grup adı)
+            SELECT l.id, l.action, l.target, l.details, l.created_at, p.username AS admin_username,
+                   tp.username AS target_username, COALESCE(tp.display_name, tr.title) AS target_name
+            FROM public.admin_audit_log l
+            LEFT JOIN public.profiles p ON p.id = l.admin_id
+            LEFT JOIN public.profiles tp ON tp.id::text = l.target
+            LEFT JOIN public.rooms tr ON tr.id::text = l.target
             ORDER BY l.created_at DESC
             LIMIT LEAST(GREATEST(COALESCE(p_limit, 100), 1), 300)
         ) x
@@ -15173,3 +15178,35 @@ BEGIN
 END;
 $$;
 GRANT EXECUTE ON FUNCTION public.admin_set_setting(TEXT, TEXT, JSONB) TO authenticated;
+
+-- =============================================================================
+-- 10.30 v1.0.0 — Civciv ekonomisi: kazanmak daha zor, ürünler daha pahalı, yeni
+--   özelleştirmeler (prenses tacı, çiçek taç, büyücü şapkası, yıldız gözlük, tütü,
+--   inci kolye, bale pabucu, Şato/Uzay/Sakura sahneleri). Yönetici kayıtları okunur
+--   hedef adlarıyla (admin_audit → target_username / target_name).
+--   Mevcut kullanıcıların BİRİKMİŞ jetonları korunur: 2026-11-10 öncesi beslemeler eski
+--   oranla (10), sonrası yeni oranla (4) sayılır; satın alınmış ürünler ellerinde kalır.
+-- =============================================================================
+CREATE OR REPLACE FUNCTION public.juzzio_chick_coins(p_chick UUID)
+RETURNS INTEGER LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+    SELECT GREATEST(0,
+        (SELECT COUNT(*) FILTER (WHERE fed_at < TIMESTAMPTZ '2026-11-10 00:00:00+00')::int * 10
+              + COUNT(*) FILTER (WHERE fed_at >= TIMESTAMPTZ '2026-11-10 00:00:00+00')::int * 4
+           FROM public.chick_feed_log WHERE chick_id = p_chick)
+      + (SELECT COALESCE(stage, 0) * 30 FROM public.chick_pets WHERE id = p_chick)
+      - (SELECT COALESCE(SUM(price_paid), 0)::int FROM public.chick_owned_accessories WHERE chick_id = p_chick));
+$$;
+REVOKE ALL ON FUNCTION public.juzzio_chick_coins(UUID) FROM PUBLIC, anon, authenticated;
+
+INSERT INTO public.chick_accessories (code, slot, price, min_stage, sort_order) VALUES
+    ('party_hat', 'hat', 90, 1, 1), ('crown', 'hat', 450, 2, 2), ('beanie', 'hat', 150, 1, 3), ('cowboy_hat', 'hat', 300, 2, 4),
+    ('flower_crown', 'hat', 260, 1, 5), ('tiara', 'hat', 620, 2, 6), ('wizard_hat', 'hat', 780, 3, 7),
+    ('round_glasses', 'glasses', 120, 1, 10), ('sunglasses', 'glasses', 220, 1, 11), ('heart_glasses', 'glasses', 320, 2, 12),
+    ('star_glasses', 'glasses', 380, 2, 13),
+    ('bow_tie', 'outfit', 110, 1, 20), ('scarf', 'outfit', 180, 1, 21), ('cape', 'outfit', 520, 2, 22),
+    ('necklace', 'outfit', 340, 1, 23), ('tutu', 'outfit', 560, 2, 24),
+    ('sneakers', 'shoes', 160, 2, 30), ('boots', 'shoes', 260, 2, 31), ('ballet_shoes', 'shoes', 420, 2, 32),
+    ('theme_meadow', 'theme', 0, 0, 40), ('theme_night', 'theme', 200, 0, 41), ('theme_beach', 'theme', 260, 0, 42),
+    ('theme_snow', 'theme', 340, 0, 43), ('theme_sakura', 'theme', 480, 0, 44), ('theme_space', 'theme', 640, 0, 45),
+    ('theme_castle', 'theme', 900, 0, 46)
+ON CONFLICT (code) DO UPDATE SET slot = EXCLUDED.slot, price = EXCLUDED.price, min_stage = EXCLUDED.min_stage, sort_order = EXCLUDED.sort_order;

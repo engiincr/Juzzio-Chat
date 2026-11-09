@@ -1,4 +1,5 @@
 // JUZZIO v0.7.0 birim testleri
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:juzzio/core/app_theme_and_locale.dart';
@@ -72,7 +73,10 @@ English only
     final lightText = JuzzioGlassTokens.textPrimary;
     expect(darkText.computeLuminance(), greaterThan(0.8));
     expect(lightText.computeLuminance(), lessThan(0.1));
-    expect(JuzzioGlassTokens.accentFill.computeLuminance(), lessThan(0.1));
+    // v1.0.0 Juzzio Space: birincil dolgu temanın parlayan vurgusu; üstündeki metin her zaman okunur
+    expect(JuzzioGlassTokens.accentFill, JuzzioGlassTokens.glow);
+    final a = JuzzioGlassTokens.accentFill.computeLuminance(), b = JuzzioGlassTokens.onAccent.computeLuminance();
+    expect((math.max(a, b) + 0.05) / (math.min(a, b) + 0.05), greaterThanOrEqualTo(4.5));
     JuzzioGlassTokens.isDarkResolver = () => true;
   });
 

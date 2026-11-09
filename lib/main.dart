@@ -67,6 +67,7 @@ Future<void> main() async {
   // v0.8.4: hazır temanın cam karakteri (özel temada standart karakter)
   JuzzioGlassTokens.characterResolver = () => appCtrl.glassPalette.character;
   JuzzioGlassTokens.accentPairResolver = () => [appCtrl.glassPalette.swatchA, appCtrl.glassPalette.swatchB];
+  JuzzioGlassTokens.spaceResolver = () => appCtrl.glassPalette.space;
   // v0.8.2 erişilebilirlik: Yüksek Kontrast teması, Ayarlar → Erişilebilirlik → "Kontrastı artır"
   // veya işletim sisteminin yüksek kontrast ayarı açıkken kenar ve metinler belirginleşir.
   JuzzioGlassTokens.highContrastResolver = () =>

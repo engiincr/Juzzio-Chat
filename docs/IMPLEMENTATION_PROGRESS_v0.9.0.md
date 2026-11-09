@@ -274,3 +274,13 @@ perde katı + yarı saydam çarşaf örtüsü (_cov). Widget: siyah Dynamic Isla
 altına maskeli; parmak ucu görünmesi (üs 1,3); içerik 140–155 px, sarkaç/yumrukta kilitli, yukarı
 çekmede yumruğun alt sınırına orantılı; kumaş renkleri spesifikasyondaki değerler; ütülemede içerik
 sabit. simulate.py aynı geometri ve motorla güncellendi; önizleme: Juzzio_v0.9.9_kumas_onizleme.mp4.
+
+## v1.0.0 (2026-11-09)
+Juzzio Space tasarım dili (Figma): JuzzioSpaceSpec (temaya özel parlayan vurgu + derin gradyan; Zümrüt
+birebir örneklendi), JuzzioGlassTokens.glow/onGlow/spaceCard/…, juzzio_space_kit.dart bileşenleri, sohbet
+listesi/alt menü/aramalar/küresel akış başlıkları, ortak JuzzioDarkHeaderBar/JuzzioFilterPillBar ve
+JuzzioPalette belirteçleri üzerinden tüm sayfalar. Anında gönderim (yerel balon + client_msg_id eşleme,
+_translateAfterSend; E2EE'de e2ee_tr). juzzio_rich_text.dart (bağlantı/e-posta/telefon, konum kartı).
+Modern anket kartı. Vardiya tarih aralığı (juzzioBuildShiftRows). admin_audit_format.dart + admin_audit
+hedef adları. Civciv prenses dönüşü (juzzioChickTwirlPose, JuzzioChickBadge). Ekonomi: SQL 10.30.
+Kumaş yenileme: clamping fizik + taşma efekti kapalı, radyal gölge. Varsayılan tema Zümrüt.

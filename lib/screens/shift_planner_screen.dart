@@ -1,5 +1,8 @@
 // =============================================================================
 // JUZZIO v0.9.4 — Vardiya planlayıcı (08-16 · 16-00 · 00-08 · izin · fazla mesai)
+//  v1.0.0: TARİH ARALIĞI ile toplu planlama — başlangıç/bitiş günü + saatler (gece yarısını
+//  aşan vardiyalar dahil, ör. 00:00–12:00 veya 20:00–08:00), isteğe bağlı hafta içi/sonu
+//  seçimi, grupla paylaşım ve gruba "plan güncellendi" mesajı. Tek kayıtla tüm günler yazılır.
 //  • Kendi vardiya takvimin (ay görünümü, güne dokun → vardiya seç).
 //  • Vardiyayı bir grup sohbetiyle paylaşırsan grup üyeleri "Ekip takvimi"nde görür
 //    (RLS: yalnız o grubun üyeleri). Gün başına tek kayıt.
@@ -9,6 +12,7 @@ import 'package:flutter/material.dart';
 
 import '../core/app_theme_and_locale.dart';
 import '../core/theme/juzzio_colors.dart';
+import '../core/theme/juzzio_glass.dart';
 import '../services/supabase_service.dart';
 import '../widgets/juzzio_cloth_refresh.dart';
 
@@ -20,7 +24,27 @@ class JuzzioShift {
   final String code;
   final String note;
   final String ownerName;
-  const JuzzioShift({required this.id, required this.userId, required this.roomId, required this.date, required this.code, required this.note, this.ownerName = ''});
+  final DateTime? startsAt;
+  final DateTime? endsAt;
+  const JuzzioShift({
+    required this.id,
+    required this.userId,
+    required this.roomId,
+    required this.date,
+    required this.code,
+    required this.note,
+    this.ownerName = '',
+    this.startsAt,
+    this.endsAt,
+  });
+
+  /// "00:00–12:00" (saat yoksa boş)
+  String get hoursLabel {
+    final a = startsAt, b = endsAt;
+    if (a == null || b == null) return '';
+    String hm(DateTime d) => '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+    return '${hm(a)}–${hm(b)}';
+  }
 
   static JuzzioShift fromMap(Map<String, dynamic> m) {
     final prof = m['profiles'];
@@ -32,6 +56,8 @@ class JuzzioShift {
       code: (m['shift_code'] ?? 'custom').toString(),
       note: (m['note'] ?? '').toString(),
       ownerName: prof is Map ? ((prof['display_name'] ?? '').toString().isNotEmpty ? prof['display_name'].toString() : (prof['username'] ?? '').toString()) : '',
+      startsAt: DateTime.tryParse('${m['starts_at'] ?? ''}')?.toLocal(),
+      endsAt: DateTime.tryParse('${m['ends_at'] ?? ''}')?.toLocal(),
     );
   }
 }
@@ -74,6 +100,62 @@ String juzzioShiftLabel(String code, JuzzioAppController app) {
     default:
       return app.trEn('Özel', 'Custom', 'Individuell');
   }
+}
+
+/// Hazır vardiyaların varsayılan saatleri (izin/fazla mesai için yok)
+(TimeOfDay, TimeOfDay)? juzzioShiftDefaultHours(String code) {
+  switch (code) {
+    case 'morning_08_16':
+      return (const TimeOfDay(hour: 8, minute: 0), const TimeOfDay(hour: 16, minute: 0));
+    case 'evening_16_00':
+      return (const TimeOfDay(hour: 16, minute: 0), const TimeOfDay(hour: 0, minute: 0));
+    case 'night_00_08':
+      return (const TimeOfDay(hour: 0, minute: 0), const TimeOfDay(hour: 8, minute: 0));
+    default:
+      return null;
+  }
+}
+
+/// v1.0.0: tarih aralığından toplu vardiya kayıtları üretir (saf fonksiyon, test edilir).
+///  • [from]..[to] dahil her gün; [weekdays] (1=Pzt … 7=Paz) boşsa tüm günler.
+///  • Bitiş saati başlangıçtan önce/eşitse vardiya ERTESİ GÜN biter (gece vardiyası).
+///  • En fazla 92 gün (bir çeyrek) — yanlışlıkla yıllık kayıt oluşmasın.
+List<Map<String, dynamic>> juzzioBuildShiftRows({
+  required String userId,
+  required DateTime from,
+  required DateTime to,
+  required String code,
+  TimeOfDay? start,
+  TimeOfDay? end,
+  String? roomId,
+  String note = '',
+  Set<int> weekdays = const {},
+}) {
+  final a = DateTime(from.year, from.month, from.day);
+  final b = DateTime(to.year, to.month, to.day);
+  if (b.isBefore(a)) return const [];
+  final rows = <Map<String, dynamic>>[];
+  final now = DateTime.now().toUtc().toIso8601String();
+  for (var d = a; !d.isAfter(b) && rows.length < 92; d = DateTime(d.year, d.month, d.day + 1)) {
+    if (weekdays.isNotEmpty && !weekdays.contains(d.weekday)) continue;
+    DateTime? s, e;
+    if (start != null && end != null) {
+      s = DateTime(d.year, d.month, d.day, start.hour, start.minute);
+      e = DateTime(d.year, d.month, d.day, end.hour, end.minute);
+      if (!e.isAfter(s)) e = e.add(const Duration(days: 1));
+    }
+    rows.add({
+      'user_id': userId,
+      'shift_date': _ymd(d),
+      'shift_code': code,
+      'room_id': roomId,
+      'note': note,
+      'starts_at': s?.toUtc().toIso8601String(),
+      'ends_at': e?.toUtc().toIso8601String(),
+      'updated_at': now,
+    });
+  }
+  return rows;
 }
 
 String _ymd(DateTime d) => '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
@@ -144,7 +226,7 @@ class _JuzzioShiftPlannerScreenState extends State<JuzzioShiftPlannerScreen> {
             .select('*, profiles(display_name, username)')
             .eq('room_id', _teamRoom!)
             .gte('shift_date', _ymd(now))
-            .lte('shift_date', _ymd(now.add(const Duration(days: 6))))
+            .lte('shift_date', _ymd(now.add(const Duration(days: 13))))
             .order('shift_date');
         team = [for (final r in t as List) JuzzioShift.fromMap(Map<String, dynamic>.from(r as Map))];
       }
@@ -171,6 +253,8 @@ class _JuzzioShiftPlannerScreenState extends State<JuzzioShiftPlannerScreen> {
     final existing = _mine[_ymd(day)];
     String? code = existing?.code;
     String? room = existing?.roomId;
+    TimeOfDay? start = existing?.startsAt != null ? TimeOfDay.fromDateTime(existing!.startsAt!) : null;
+    TimeOfDay? end = existing?.endsAt != null ? TimeOfDay.fromDateTime(existing!.endsAt!) : null;
     final note = TextEditingController(text: existing?.note ?? '');
     final res = await showModalBottomSheet<String>(
       context: context,
@@ -189,9 +273,26 @@ class _JuzzioShiftPlannerScreenState extends State<JuzzioShiftPlannerScreen> {
                   avatar: CircleAvatar(backgroundColor: juzzioShiftColor(c), radius: 6),
                   label: Text(juzzioShiftLabel(c, _app)),
                   selected: code == c,
-                  onSelected: (_) => setS(() => code = c),
+                  onSelected: (_) => setS(() {
+                    code = c;
+                    final h = juzzioShiftDefaultHours(c);
+                    if (h != null) {
+                      start = h.$1;
+                      end = h.$2;
+                    } else if (!_needsHours(c)) {
+                      start = null;
+                      end = null;
+                    }
+                  }),
                 ),
             ]),
+            if (code != null && _needsHours(code!)) ...[
+              const SizedBox(height: 12),
+              _hoursRow(ctx, start, end, (a, b) => setS(() {
+                    start = a;
+                    end = b;
+                  })),
+            ],
             if (_groups.isNotEmpty) ...[
               const SizedBox(height: 12),
               DropdownButtonFormField<String?>(
@@ -220,14 +321,17 @@ class _JuzzioShiftPlannerScreenState extends State<JuzzioShiftPlannerScreen> {
       if (res == 'delete' && existing != null) {
         await db.delete().eq('id', existing.id);
       } else if (res == 'save' && code != null) {
-        await db.upsert({
-          'user_id': uid,
-          'shift_date': _ymd(day),
-          'shift_code': code,
-          'room_id': room,
-          'note': note.text.trim(),
-          'updated_at': DateTime.now().toUtc().toIso8601String(),
-        }, onConflict: 'user_id,shift_date');
+        final rows = juzzioBuildShiftRows(
+          userId: uid,
+          from: day,
+          to: day,
+          code: code!,
+          start: _needsHours(code!) ? start : null,
+          end: _needsHours(code!) ? end : null,
+          roomId: room,
+          note: note.text.trim(),
+        );
+        await db.upsert(rows, onConflict: 'user_id,shift_date');
       } else {
         return;
       }
@@ -236,6 +340,224 @@ class _JuzzioShiftPlannerScreenState extends State<JuzzioShiftPlannerScreen> {
       if (mounted) ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(content: Text(SupabaseService.instance.friendlyError(e))));
     } finally {
       note.dispose();
+    }
+  }
+
+  static bool _needsHours(String code) => code != 'off_day' && code != 'annual_leave';
+
+  String _hm(TimeOfDay t) => '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+
+  /// Başlangıç–bitiş saati seçici (bitiş başlangıçtan önceyse ertesi gün biter)
+  Widget _hoursRow(BuildContext ctx, TimeOfDay? start, TimeOfDay? end, void Function(TimeOfDay?, TimeOfDay?) onChanged) {
+    Future<void> pick(bool isStart) async {
+      final t = await showTimePicker(
+        context: ctx,
+        initialTime: (isStart ? start : end) ?? (isStart ? const TimeOfDay(hour: 8, minute: 0) : const TimeOfDay(hour: 16, minute: 0)),
+        builder: (c, child) => MediaQuery(data: MediaQuery.of(c).copyWith(alwaysUse24HourFormat: true), child: child!),
+      );
+      if (t == null) return;
+      isStart ? onChanged(t, end) : onChanged(start, t);
+    }
+
+    final overnight = start != null && end != null && (end.hour * 60 + end.minute) <= (start.hour * 60 + start.minute);
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: () => pick(true),
+            icon: const Icon(Icons.login_rounded, size: 18),
+            label: Text(start == null ? _app.trEn('Başlangıç', 'Start', 'Beginn') : _hm(start)),
+          ),
+        ),
+        const Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Icon(Icons.arrow_forward_rounded, size: 18)),
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: () => pick(false),
+            icon: const Icon(Icons.logout_rounded, size: 18),
+            label: Text(end == null ? _app.trEn('Bitiş', 'End', 'Ende') : _hm(end)),
+          ),
+        ),
+      ]),
+      if (overnight)
+        Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Text(_app.trEn('Gece vardiyası: ertesi gün biter', 'Overnight: ends the next day', 'Nachtschicht: endet am Folgetag'),
+              style: TextStyle(color: JuzzioGlassTokens.glowText, fontWeight: FontWeight.w700, fontSize: 12)),
+        ),
+    ]);
+  }
+
+  /// v1.0.0: tarih aralığıyla toplu vardiya — "bir hafta boyunca 00:00–12:00" tek seferde
+  Future<void> _addRange() async {
+    final uid = SupabaseService.instance.currentUserId;
+    if (uid == null) return;
+    final now = DateTime.now();
+    DateTimeRange range = DateTimeRange(start: DateTime(now.year, now.month, now.day), end: DateTime(now.year, now.month, now.day + 6));
+    var code = 'custom';
+    TimeOfDay? start = const TimeOfDay(hour: 8, minute: 0);
+    TimeOfDay? end = const TimeOfDay(hour: 16, minute: 0);
+    final days = <int>{1, 2, 3, 4, 5, 6, 7};
+    String? room = _teamRoom;
+    var notify = true;
+    var busy = false;
+    String? error;
+    final note = TextEditingController();
+    final dayNames = [
+      _app.trEn('Pt', 'Mo', 'Mo'), _app.trEn('Sa', 'Tu', 'Di'), _app.trEn('Ça', 'We', 'Mi'), _app.trEn('Pe', 'Th', 'Do'),
+      _app.trEn('Cu', 'Fr', 'Fr'), _app.trEn('Ct', 'Sa', 'Sa'), _app.trEn('Pz', 'Su', 'So'),
+    ];
+    String dm(DateTime d) => '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}';
+    final saved = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: JuzzioPalette(_app.isDark).sheetBg,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) {
+          final rows = juzzioBuildShiftRows(
+            userId: uid,
+            from: range.start,
+            to: range.end,
+            code: code,
+            start: _needsHours(code) ? start : null,
+            end: _needsHours(code) ? end : null,
+            roomId: room,
+            note: note.text.trim(),
+            weekdays: days.length == 7 ? const {} : days,
+          );
+          return Padding(
+            padding: EdgeInsets.only(left: 18, right: 18, top: 18, bottom: MediaQuery.of(ctx).viewInsets.bottom + 18),
+            child: SingleChildScrollView(
+              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                Text(_app.trEn('Tarih aralığı planla', 'Plan a date range', 'Zeitraum planen'), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 19)),
+                const SizedBox(height: 4),
+                Text(_app.trEn('Aralığı ve saatleri seç; tüm günler tek seferde kaydedilir.', 'Pick the range and hours; every day is saved at once.',
+                    'Zeitraum und Uhrzeiten wählen; alle Tage werden auf einmal gespeichert.'), style: TextStyle(color: JuzzioGlassTokens.textSecondary)),
+                const SizedBox(height: 14),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final r = await showDateRangePicker(
+                      context: ctx,
+                      firstDate: DateTime(now.year - 1),
+                      lastDate: DateTime(now.year + 2),
+                      initialDateRange: range,
+                    );
+                    if (r != null) setS(() => range = r);
+                  },
+                  icon: const Icon(Icons.date_range_rounded),
+                  label: Text('${dm(range.start)} – ${dm(range.end)}.${range.end.year}  ·  ${range.duration.inDays + 1} ${_app.trEn('gün', 'days', 'Tage')}'),
+                ),
+                const SizedBox(height: 12),
+                Wrap(spacing: 8, runSpacing: 8, children: [
+                  for (final c in kJuzzioShiftCodes)
+                    ChoiceChip(
+                      avatar: CircleAvatar(backgroundColor: juzzioShiftColor(c), radius: 6),
+                      label: Text(juzzioShiftLabel(c, _app)),
+                      selected: code == c,
+                      onSelected: (_) => setS(() {
+                        code = c;
+                        final h = juzzioShiftDefaultHours(c);
+                        if (h != null) {
+                          start = h.$1;
+                          end = h.$2;
+                        }
+                      }),
+                    ),
+                ]),
+                if (_needsHours(code)) ...[
+                  const SizedBox(height: 12),
+                  _hoursRow(ctx, start, end, (a, b) => setS(() {
+                        start = a;
+                        end = b;
+                      })),
+                ],
+                const SizedBox(height: 12),
+                Text(_app.trEn('Günler', 'Days', 'Tage'), style: const TextStyle(fontWeight: FontWeight.w800)),
+                const SizedBox(height: 6),
+                Wrap(spacing: 6, children: [
+                  for (var w = 1; w <= 7; w++)
+                    FilterChip(
+                      label: Text(dayNames[w - 1]),
+                      selected: days.contains(w),
+                      onSelected: (v) => setS(() {
+                        if (v) {
+                          days.add(w);
+                        } else if (days.length > 1) {
+                          days.remove(w);
+                        }
+                      }),
+                    ),
+                ]),
+                if (_groups.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String?>(
+                    initialValue: room,
+                    decoration: InputDecoration(labelText: _app.trEn('Ekip grubuyla paylaş', 'Share with team group', 'Mit Teamgruppe teilen')),
+                    items: [
+                      DropdownMenuItem<String?>(value: null, child: Text(_app.trEn('Paylaşma (yalnız ben)', 'Don\'t share (only me)', 'Nicht teilen (nur ich)'))),
+                      for (final g in _groups) DropdownMenuItem<String?>(value: g.key, child: Text(g.value)),
+                    ],
+                    onChanged: (v) => setS(() => room = v),
+                  ),
+                  if (room != null)
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: notify,
+                      onChanged: (v) => setS(() => notify = v),
+                      title: Text(_app.trEn('Gruba bildir', 'Notify the group', 'Gruppe benachrichtigen')),
+                      subtitle: Text(_app.trEn('Grup sohbetine plan özeti gönderilir', 'A plan summary is posted to the group chat', 'Eine Planübersicht wird im Gruppenchat gepostet')),
+                    ),
+                ],
+                TextField(
+                  controller: note,
+                  maxLength: 500,
+                  onChanged: (_) => setS(() {}),
+                  decoration: InputDecoration(labelText: _app.trEn('Not (isteğe bağlı)', 'Note (optional)', 'Notiz (optional)')),
+                ),
+                if (error != null) Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(error!, style: const TextStyle(color: Colors.redAccent))),
+                FilledButton.icon(
+                  onPressed: busy || rows.isEmpty || (_needsHours(code) && code == 'custom' && (start == null || end == null))
+                      ? null
+                      : () async {
+                          setS(() {
+                            busy = true;
+                            error = null;
+                          });
+                          try {
+                            await SupabaseService.instance.client.from('user_shifts').upsert(rows, onConflict: 'user_id,shift_date');
+                            if (room != null && notify) {
+                              final hours = _needsHours(code) && start != null && end != null ? ' · ${_hm(start!)}–${_hm(end!)}' : '';
+                              await SupabaseService.instance.sendTextMessage(
+                                text: '📅 ${_app.trEn('Vardiya planı', 'Shift plan', 'Schichtplan')}: ${dm(range.start)}–${dm(range.end)} · '
+                                    '${juzzioShiftLabel(code, _app)}$hours (${rows.length} ${_app.trEn('gün', 'days', 'Tage')})'
+                                    '${note.text.trim().isEmpty ? '' : '\n${note.text.trim()}'}',
+                                targetRoomId: room,
+                              );
+                            }
+                            if (ctx.mounted) Navigator.pop(ctx, true);
+                          } catch (e) {
+                            setS(() {
+                              busy = false;
+                              error = SupabaseService.instance.friendlyError(e);
+                            });
+                          }
+                        },
+                  icon: busy ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.event_available_rounded),
+                  label: Text(_app.trEn('${rows.length} günü kaydet', 'Save ${rows.length} days', '${rows.length} Tage speichern')),
+                ),
+              ]),
+            ),
+          );
+        },
+      ),
+    );
+    note.dispose();
+    if (saved == true) {
+      if (room != null) setState(() => _teamRoom = room);
+      await _load();
+      if (mounted) {
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(content: Text(_app.trEn('Vardiya planı kaydedildi', 'Shift plan saved', 'Schichtplan gespeichert'))));
+      }
     }
   }
 
@@ -253,9 +575,14 @@ class _JuzzioShiftPlannerScreenState extends State<JuzzioShiftPlannerScreen> {
     return Scaffold(
       backgroundColor: p.bgPrimary,
       appBar: AppBar(title: Text(_app.trEn('Vardiya planım', 'My shifts', 'Meine Schichten'))),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _addRange,
+        icon: const Icon(Icons.date_range_rounded),
+        label: Text(_app.trEn('Aralık planla', 'Plan range', 'Zeitraum')),
+      ),
       body: JuzzioClothRefresh(
         onRefresh: _load,
-        child: ListView(padding: const EdgeInsets.all(16), children: [
+        child: ListView(padding: const EdgeInsets.fromLTRB(16, 16, 16, 96), children: [
           Row(children: [
             IconButton(icon: const Icon(Icons.chevron_left_rounded), onPressed: () {
               setState(() => _month = DateTime(_month.year, _month.month - 1));
@@ -295,7 +622,16 @@ class _JuzzioShiftPlannerScreenState extends State<JuzzioShiftPlannerScreen> {
                         border: isToday ? Border.all(color: JuzzioColors.blue600, width: 2) : null,
                       ),
                       alignment: Alignment.center,
-                      child: Text('$d', style: TextStyle(color: c != null ? Colors.white : p.textPrimary, fontWeight: FontWeight.w700)),
+                      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                        Text('$d', style: TextStyle(color: c != null ? Colors.white : p.textPrimary, fontWeight: FontWeight.w700)),
+                        if (s != null && s.startsAt != null)
+                          FittedBox(
+                            child: Text(
+                              '${s.startsAt!.hour.toString().padLeft(2, '0')}-${s.endsAt!.hour.toString().padLeft(2, '0')}',
+                              style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                      ]),
                     ),
                   );
                 }),
@@ -312,7 +648,7 @@ class _JuzzioShiftPlannerScreenState extends State<JuzzioShiftPlannerScreen> {
           ]),
           if (_groups.isNotEmpty) ...[
             const SizedBox(height: 20),
-            Text(_app.trEn('Ekip takvimi (7 gün)', 'Team calendar (7 days)', 'Teamkalender (7 Tage)'), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+            Text(_app.trEn('Ekip takvimi (14 gün)', 'Team calendar (14 days)', 'Teamkalender (14 Tage)'), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
             DropdownButton<String?>(
               value: _teamRoom,
               isExpanded: true,
@@ -329,7 +665,7 @@ class _JuzzioShiftPlannerScreenState extends State<JuzzioShiftPlannerScreen> {
               ListTile(
                 dense: true,
                 leading: CircleAvatar(radius: 8, backgroundColor: juzzioShiftColor(s.code)),
-                title: Text('${s.ownerName} · ${juzzioShiftLabel(s.code, _app)}'),
+                title: Text('${s.ownerName} · ${juzzioShiftLabel(s.code, _app)}${s.hoursLabel.isEmpty ? '' : ' · ${s.hoursLabel}'}'),
                 subtitle: Text('${s.date.day}.${s.date.month}${s.note.isNotEmpty ? ' · ${s.note}' : ''}'),
               ),
           ],

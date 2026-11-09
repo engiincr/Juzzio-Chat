@@ -266,7 +266,11 @@ class JuzzioMessage {
     this.viewOnceOpenedAt,
     this.editedAt,
     required this.createdAt,
+    this.clientMsgId,
   });
+
+  /// v1.0.0: henüz sunucuya ulaşmamış yerel (anında gösterilen) mesaj
+  bool get isLocalPending => metadata['local_pending'] == true;
 
   /// v0.7.0: uçtan uca şifreli mesaj — cihazda çözülen metinle kopya
   bool get isEncrypted => metadata['e2ee'] is Map;
@@ -301,6 +305,7 @@ class JuzzioMessage {
         viewOnceOpenedAt: viewOnceOpenedAt,
         editedAt: editedAt,
         createdAt: createdAt,
+        clientMsgId: clientMsgId,
       );
 
   factory JuzzioMessage.fromMap(Map<String, dynamic> map) {
@@ -391,6 +396,7 @@ class JuzzioMessage {
       viewOnceOpenedAt: DateTime.tryParse('${map['view_once_opened_at'] ?? ''}'),
       editedAt: DateTime.tryParse(map['edited_at']?.toString() ?? ''),
       createdAt: _parseDate(map['created_at']),
+      clientMsgId: nonEmpty(map['client_msg_id']),
     );
   }
 }
@@ -2578,9 +2584,9 @@ class SupabaseService {
     }
     // Grup sohbetleri bu sürümde E2EE değildir (belgelenmiş); birebirde çeviri yalnız onayla
     final mayTranslate = !isDirect || _app.e2eeTranslationOptIn;
-    final translated = mayTranslate
-        ? await translateText(text: clean, sourceLang: 'auto', targetLang: targetLang)
-        : '';
+    // v1.0.0: çeviri gönderimi BEKLETMEZ — mesaj yazıldığı gibi hemen iletilir; çeviri
+    // arka planda yapılır ve hazır olunca aynı mesajın altına eklenir (_translateAfterSend).
+    const translated = '';
 
     Map<String, dynamic>? e2ee;
     var plaintextConsented = false;
@@ -2631,6 +2637,45 @@ class SupabaseService {
     } catch (e) {
       throw JuzzioServiceException(_friendlyError(e));
     }
+    if (mayTranslate) {
+      unawaited(_translateAfterSend(
+        roomId: roomId,
+        uid: uid,
+        clientMsgId: msgId,
+        text: clean,
+        targetLang: targetLang,
+        e2ee: e2ee,
+      ));
+    }
+  }
+
+  /// v1.0.0: gönderimden SONRA çeviri. Şifresiz (grup) mesajda `translated_text` güncellenir;
+  /// uçtan uca şifreli mesajda çeviri AYRICA şifrelenip `metadata.e2ee_tr` olarak eklenir
+  /// (sunucu düz metni hiç görmez; içerik/`e2ee` değişmediği için düzenleme sayılmaz).
+  /// Hata sessizdir: alıcı cihaz gerekirse kendi çevirisini yapar.
+  Future<void> _translateAfterSend({
+    required String roomId,
+    required String uid,
+    required String clientMsgId,
+    required String text,
+    required String targetLang,
+    Map<String, dynamic>? e2ee,
+  }) async {
+    try {
+      final tr = (await translateText(text: text, sourceLang: 'auto', targetLang: targetLang)).trim();
+      if (tr.isEmpty || tr == text) return;
+      if (e2ee != null) {
+        final o = await JuzzioE2ee.instance.encryptForRoomStrict(roomId, text: tr, translated: '');
+        if (o.status != JuzzioE2eeStatus.encrypted || o.payload == null) return;
+        await client
+            .from('messages')
+            .update({'metadata': <String, dynamic>{'e2ee': e2ee, 'e2ee_tr': o.payload}})
+            .eq('client_msg_id', clientMsgId)
+            .eq('sender_id', uid);
+      } else {
+        await client.from('messages').update({'translated_text': tr}).eq('client_msg_id', clientMsgId).eq('sender_id', uid);
+      }
+    } catch (_) {}
   }
 
   /// v0.9.0 §4.5: kendi metin mesajını düzenler (sunucu kuralı: 15 dk, ≤10 kez, yalnız gönderen).

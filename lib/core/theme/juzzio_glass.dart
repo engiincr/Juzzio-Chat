@@ -93,6 +93,28 @@ class JuzzioGlassTokens {
     return accentPairResolver();
   }
   static JuzzioGlassCharacter get character => custom != null ? JuzzioGlassCharacter.standard : characterResolver();
+
+  /// v1.0.0 Juzzio Space: etkin temanın parlayan vurgusu ve derin zemini
+  static JuzzioSpaceSpec Function() spaceResolver = () => kJuzzioAuroraPalettes.first.space;
+  static JuzzioSpaceSpec get space => spaceResolver();
+  /// Parlayan vurgu dolgusu (rozet, aktif sekme, seçili filtre, oluştur düğmesi)
+  static Color get glow => _ct?.button ?? space.glow;
+  /// Vurgu rengindeki metin/ikon (aydınlık modda koyulaştırılmış, okunur)
+  static Color get glowText => _ct?.button ?? (_d ? space.glow : space.glowLight);
+  /// Vurgu dolgusunun üstündeki metin
+  static Color get onGlow => _ct?.buttonText ?? space.onGlow(_d);
+  /// Vurgunun yumuşak ışıması (gölge)
+  static List<BoxShadow> glowShadow([double strength = 1]) => [
+        BoxShadow(color: glow.withValues(alpha: (_d ? 0.38 : 0.30) * strength), blurRadius: 26 * strength, spreadRadius: -4),
+      ];
+  /// Space kartı: hafif aydınlık cam dolgu + vurgu tonlu ince kenar
+  static Color get spaceCard => _ct != null ? surface : (_d ? const Color(0x0FFFFFFF) : const Color(0xB3FFFFFF));
+  static Color get spaceCardBorder =>
+      _ct != null ? border : Color.alphaBlend(glow.withValues(alpha: _d ? 0.10 : 0.22), _d ? const Color(0x14FFFFFF) : const Color(0x14000000));
+  /// Arama alanı gibi gömük yüzeyler
+  static Color get spaceInset => _ct != null ? surfaceStrong : (_d ? const Color(0x38000000) : const Color(0x0F0B2016));
+  /// Yuvarlatılmış kare ikon düğmesi dolgusu
+  static Color get spaceButton => _ct != null ? surfaceStrong : (_d ? const Color(0x1AFFFFFF) : const Color(0xCCFFFFFF));
   static Color _scaled(Color c) =>
       c.withValues(alpha: (c.a * intensity * character.opacity * (_hc ? 2.2 : 1.0)).clamp(0.0, 1.0));
   static double get effectiveBlur => (blurSigma * intensity).clamp(6.0, 30.0);
@@ -127,7 +149,11 @@ class JuzzioGlassTokens {
   static Color get sheet {
     final t = _ct;
     if (t != null) return Color.alphaBlend(t.card.withValues(alpha: 0.35), t.background.withValues(alpha: 0.88));
-    return _d ? const Color(0xB80E1018) : const Color(0xD9F7F8FB);
+    // v1.0.0: menüler/sayfalar okunur — neredeyse opak, temanın derin tonunda
+    final sp = space;
+    return _d
+        ? Color.alphaBlend(const Color(0x0DFFFFFF), sp.depth[1]).withValues(alpha: 0.97)
+        : Color.alphaBlend(const Color(0xE6FFFFFF), sp.depthLight[1]).withValues(alpha: 0.98);
   }
 
   static Color get border {
@@ -161,8 +187,9 @@ class JuzzioGlassTokens {
   static Color get icon => _ct?.icon ?? textPrimary;
   static const Color accent = JuzzioColors.accent;
   /// Birincil buton dolgusu: koyu modda beyaz, aydınlık modda grafit (her temada okunur)
-  static Color get accentFill => _ct?.button ?? (_d ? JuzzioColors.accent : const Color(0xFF111113));
-  static Color get onAccent => _ct?.buttonText ?? (_d ? const Color(0xFF111113) : const Color(0xFFFFFFFF));
+  /// v1.0.0: birincil buton dolgusu temanın parlayan vurgusudur (Figma "Juzzio Space")
+  static Color get accentFill => glow;
+  static Color get onAccent => onGlow;
   static const double radius = 22;
 
   static List<BoxShadow> get shadow {
@@ -434,7 +461,7 @@ class JuzzioGlassIconButton extends StatelessWidget {
           height: size,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: active ? JuzzioGlassTokens.accent : JuzzioGlassTokens.surface,
+            color: active ? JuzzioGlassTokens.glow : JuzzioGlassTokens.surface,
             border: Border.all(color: active ? Colors.transparent : JuzzioGlassTokens.border),
           ),
           child: Icon(
@@ -891,20 +918,22 @@ Future<T?> showJuzzioGlassDialog<T>({
 /// otomatik olarak cam paletiyle çizilir.
 ThemeData buildJuzzioDarkTheme({required String fontFamily, required PageTransitionsTheme transitions, bool dark = true}) {
   // v0.8.1: aynı cam bileşen temaları aydınlık modda da (dark:false) uygulanır
-  final acc = dark ? JuzzioColors.accent : const Color(0xFF111113);
+  // v1.0.0 Juzzio Space: birincil renk temanın parlayan vurgusu (aydınlıkta okunur tonu)
+  final acc = dark ? JuzzioGlassTokens.glow : JuzzioGlassTokens.glowText;
+  final onAcc = dark ? JuzzioGlassTokens.onGlow : Colors.white;
   final scheme = ColorScheme(
     brightness: dark ? Brightness.dark : Brightness.light,
     primary: acc,
-    onPrimary: JuzzioGlassTokens.onAccent,
+    onPrimary: onAcc,
     primaryContainer: dark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
     onPrimaryContainer: dark ? JuzzioColors.accentLight : const Color(0xFF111113),
-    secondary: dark ? JuzzioColors.accentLight : const Color(0xFF2563EB),
-    onSecondary: JuzzioGlassTokens.onAccent,
+    secondary: acc,
+    onSecondary: onAcc,
     tertiary: dark ? const Color(0xFFC7C7CC) : const Color(0xFF3A3A3C),
     onTertiary: dark ? const Color(0xFF111113) : Colors.white,
     error: const Color(0xFFFF453A),
     onError: Colors.white,
-    surface: dark ? JuzzioColors.obsidianRaised : const Color(0xFFF7F8FB),
+    surface: JuzzioGlassTokens.sheet,
     onSurface: JuzzioGlassTokens.textPrimary,
     surfaceContainerHighest: dark ? JuzzioColors.obsidianElevated : const Color(0xFFE9EBF1),
     onSurfaceVariant: JuzzioGlassTokens.textSecondary,
@@ -918,7 +947,7 @@ ThemeData buildJuzzioDarkTheme({required String fontFamily, required PageTransit
     fontFamilyFallback: kJuzzioEmojiFallback,
     colorScheme: scheme,
     scaffoldBackgroundColor: Colors.transparent,
-    canvasColor: dark ? const Color(0xFF0C0D12) : const Color(0xFFF7F8FB),
+    canvasColor: JuzzioGlassTokens.sheet,
     pageTransitionsTheme: transitions,
   );
   final roundedInput = OutlineInputBorder(
@@ -1014,20 +1043,58 @@ ThemeData buildJuzzioDarkTheme({required String fontFamily, required PageTransit
       ),
     ),
     chipTheme: ChipThemeData(
-      backgroundColor: JuzzioGlassTokens.surface,
-      selectedColor: JuzzioGlassTokens.surfaceStrong,
+      backgroundColor: JuzzioGlassTokens.spaceCard,
+      selectedColor: JuzzioGlassTokens.glow,
       labelStyle: TextStyle(color: JuzzioGlassTokens.textPrimary, fontWeight: FontWeight.w700),
-      secondaryLabelStyle: TextStyle(color: JuzzioGlassTokens.textPrimary, fontWeight: FontWeight.w800),
-      side: BorderSide(color: JuzzioGlassTokens.border),
+      secondaryLabelStyle: TextStyle(color: JuzzioGlassTokens.onGlow, fontWeight: FontWeight.w800),
+      side: BorderSide(color: JuzzioGlassTokens.spaceCardBorder),
       shape: const StadiumBorder(),
-      checkmarkColor: JuzzioGlassTokens.textPrimary,
+      checkmarkColor: JuzzioGlassTokens.onGlow,
+    ),
+    cardTheme: CardThemeData(
+      color: JuzzioGlassTokens.spaceCard,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(22),
+        side: BorderSide(color: JuzzioGlassTokens.spaceCardBorder, width: 1.2),
+      ),
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: JuzzioGlassTokens.glow,
+        foregroundColor: JuzzioGlassTokens.onGlow,
+        elevation: 0,
+        shape: const StadiumBorder(),
+        textStyle: const TextStyle(fontWeight: FontWeight.w800),
+      ),
+    ),
+    floatingActionButtonTheme: FloatingActionButtonThemeData(
+      backgroundColor: JuzzioGlassTokens.glow,
+      foregroundColor: JuzzioGlassTokens.onGlow,
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+    ),
+    checkboxTheme: CheckboxThemeData(
+      fillColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? acc : Colors.transparent),
+      checkColor: WidgetStateProperty.all(onAcc),
+      side: BorderSide(color: JuzzioGlassTokens.borderStrong, width: 1.4),
+    ),
+    radioTheme: RadioThemeData(
+      fillColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? acc : JuzzioGlassTokens.textSecondary),
+    ),
+    sliderTheme: SliderThemeData(
+      activeTrackColor: acc,
+      thumbColor: acc,
+      inactiveTrackColor: JuzzioGlassTokens.surfaceStrong,
+      overlayColor: acc.withValues(alpha: 0.14),
     ),
     switchTheme: SwitchThemeData(
       thumbColor: WidgetStateProperty.resolveWith(
-        (s) => s.contains(WidgetState.selected) ? Colors.white : JuzzioGlassTokens.textSecondary,
+        (s) => s.contains(WidgetState.selected) ? onAcc : JuzzioGlassTokens.textSecondary,
       ),
       trackColor: WidgetStateProperty.resolveWith(
-        (s) => s.contains(WidgetState.selected) ? const Color(0xFF34C759) : JuzzioGlassTokens.surfaceStrong,
+        (s) => s.contains(WidgetState.selected) ? acc : JuzzioGlassTokens.surfaceStrong,
       ),
       trackOutlineColor: WidgetStateProperty.all(JuzzioGlassTokens.border),
     ),
@@ -1037,15 +1104,25 @@ ThemeData buildJuzzioDarkTheme({required String fontFamily, required PageTransit
       textColor: JuzzioGlassTokens.textPrimary,
     ),
     progressIndicatorTheme: ProgressIndicatorThemeData(color: acc),
+    // v1.0.0 Juzzio Space: seçili sekme parlayan vurgu tonlu kapsül (alt menüyle aynı dil)
     tabBarTheme: TabBarThemeData(
-      labelColor: JuzzioGlassTokens.textPrimary,
+      labelColor: JuzzioGlassTokens.glowText,
       unselectedLabelColor: JuzzioGlassTokens.textSecondary,
       indicatorColor: acc,
-      dividerColor: JuzzioGlassTokens.border,
+      indicatorSize: TabBarIndicatorSize.tab,
+      indicator: BoxDecoration(
+        color: JuzzioGlassTokens.glow.withValues(alpha: dark ? 0.12 : 0.22),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: JuzzioGlassTokens.glow.withValues(alpha: 0.28)),
+      ),
+      dividerColor: Colors.transparent,
+      labelStyle: const TextStyle(fontWeight: FontWeight.w800),
+      unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600),
+      splashBorderRadius: BorderRadius.circular(14),
     ),
     textSelectionTheme: TextSelectionThemeData(
       cursorColor: acc,
-      selectionColor: dark ? const Color(0x55FFFFFF) : const Color(0x332563EB),
+      selectionColor: acc.withValues(alpha: 0.32),
       selectionHandleColor: acc,
     ),
   );

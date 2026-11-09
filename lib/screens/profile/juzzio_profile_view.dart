@@ -31,6 +31,7 @@ import 'juzzio_profile_card_page.dart';
 import '../qa_box_screen.dart';
 import '../../widgets/juzzio_cloth_refresh.dart';
 import '../../widgets/juzzio_ui_kit.dart';
+import '../../widgets/juzzio_rich_text.dart';
 
 String _l(String tr, String en, String de) => JuzzioAppController.instance.trEn(tr, en, de);
 
@@ -771,7 +772,7 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
           if (prof.bio.trim().isNotEmpty) ...[
             const SizedBox(height: 3),
             const SizedBox(height: 8),
-            Text(prof.bio.trim(), textAlign: TextAlign.center, style: TextStyle(color: fg, fontSize: 14.5, height: 1.4)),
+            JuzzioLinkText(prof.bio.trim(), textAlign: TextAlign.center, style: TextStyle(color: fg, fontSize: 14.5, height: 1.4)),
           ],
           if (prof.websiteUrl.trim().isNotEmpty) ...[
             const SizedBox(height: 4),

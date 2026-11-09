@@ -97,6 +97,12 @@ const Color kJuzzioFoldDarkRidge = Color(0xFF222630);
 const Color kJuzzioFoldDarkValley = Color(0xFF07080B);
 const Color kJuzzioIslandColor = Color(0xFF000000);
 
+/// El gölgesi tonları (aydınlıkta soğuk gümüş gri; koyu/siyah leke yok)
+class JuzzioClothShadowTone {
+  JuzzioClothShadowTone._();
+  static const Color light = Color(0xFF8C93A3);
+}
+
 /// İki komşu poz karesi ve geçiş oranı: (i0, i1, f).
 (int, int, double) juzzioSwingFrame(double angleDeg) {
   final x = ((angleDeg - kJuzzioSwingAngles.first) / 5).clamp(0.0, (kJuzzioSwingAngles.length - 1).toDouble());
@@ -594,15 +600,32 @@ class _JuzzioClothRefreshState extends State<JuzzioClothRefresh> with TickerProv
 
   @override
   Widget build(BuildContext context) {
-    return NotificationListener<ScrollNotification>(
-      onNotification: _onScroll,
-      child: ValueListenableBuilder<double>(
-        valueListenable: _content,
-        child: widget.child,
-        builder: (context, dy, child) => Transform.translate(offset: Offset(0, dy), child: child),
+    // v1.0.0 mobil düzeltme: alt kaydırılabilirler her platformda aynı davranır —
+    //  • her zaman kaydırılabilir (içerik kısa olsa da çekilebilir),
+    //  • sıkıştırmalı (clamping) fizik: iOS esneme + bizim kaydırmamız iki kat hareket yapmaz,
+    //  • Android 12+ "stretch" taşma efekti kapalı: içerik hem esneyip hem kaymıyordu (görüntü bozulması).
+    return ScrollConfiguration(
+      behavior: const _JuzzioClothScrollBehavior(),
+      child: NotificationListener<ScrollNotification>(
+        onNotification: _onScroll,
+        child: ValueListenableBuilder<double>(
+          valueListenable: _content,
+          child: widget.child,
+          builder: (context, dy, child) => Transform.translate(offset: Offset(0, dy), child: child),
+        ),
       ),
     );
   }
+}
+
+class _JuzzioClothScrollBehavior extends MaterialScrollBehavior {
+  const _JuzzioClothScrollBehavior();
+
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) => const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics());
+
+  @override
+  Widget buildOverscrollIndicator(BuildContext context, Widget child, ScrollableDetails details) => child;
 }
 
 // ---------------------------------------------------------------------------
@@ -649,16 +672,28 @@ class _ClothScenePainter extends CustomPainter {
       // ---- El / kol ----
       if (s.reveal > -2) {
         final layers = _frames(a, s);
-        // zemin gölgesi: silüetten, ışık sol üstten; kalktıkça büyür ve söner (koyu gri/siyah
-        // değil — aydınlıkta soğuk gümüş gri)
-        final shadowColor = s.dark ? Colors.black.withValues(alpha: 0.45) : const Color(0xFF8C93A3).withValues(alpha: 0.30);
+        // v1.0.0: zemin gölgesi artık görüntü bulanıklığı (ImageFilter.blur) DEĞİL — bazı
+        // Android GPU'larında (Impeller/Vulkan) bulanık sprite dikdörtgen leke/titreme
+        // bırakıyordu. Yerine elin altına yumuşak radyal elips çizilir: sabit maliyet, artefakt yok.
         final rad = s.angleDeg * math.pi / 180;
-        final off = Offset(8 + 10 * math.sin(rad) + 16 * s.lift, 12 + 18 * s.lift) * g.scale;
-        final sp = Paint()
-          ..colorFilter = ColorFilter.mode(shadowColor.withValues(alpha: shadowColor.a * (1 - 0.8 * s.lift)), BlendMode.srcIn)
-          ..imageFilter = ui.ImageFilter.blur(sigmaX: 6 + 8 * s.lift, sigmaY: 6 + 8 * s.lift)
-          ..filterQuality = FilterQuality.low;
-        _drawSprite(canvas, layers.first.$1, root + off, layers.first.$2, sp);
+        final handLen = s.curl > 0.5 ? g.fistCenterY : g.openTip * 0.72;
+        final tip = root + Offset(math.sin(rad) * handLen, math.cos(rad) * handLen);
+        final shadowCenter = tip + Offset(10 + 18 * s.lift, 16 + 22 * s.lift) * g.scale;
+        final sw = (g.islandWidth * 0.62) * (1 + 0.5 * s.lift);
+        final sh = sw * 0.42;
+        final base = s.dark ? const Color(0xFF000000) : JuzzioClothShadowTone.light;
+        final strength = (s.dark ? 0.34 : 0.16) * (1 - 0.85 * s.lift);
+        if (strength > 0.01) {
+          final oval = Rect.fromCenter(center: shadowCenter, width: sw, height: sh);
+          canvas.drawOval(
+            oval,
+            Paint()
+              ..shader = RadialGradient(
+                colors: [base.withValues(alpha: strength), base.withValues(alpha: strength * 0.45), base.withValues(alpha: 0)],
+                stops: const [0.0, 0.55, 1.0],
+              ).createShader(oval),
+          );
+        }
         for (final (img, rot, alpha) in layers) {
           _drawSprite(canvas, img, root, rot, Paint()
             ..filterQuality = FilterQuality.medium

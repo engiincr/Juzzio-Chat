@@ -1838,16 +1838,22 @@ SELECT pg_temp.check('rol kısıtında dil kodu yok', pg_get_constraintdef((SELE
 
 -- Civciv gardırobu
 INSERT INTO chick_pets (owner_a, owner_b, stage) VALUES (:'A', :'B', 1) RETURNING id AS ck \gset
-INSERT INTO chick_feed_log (chick_id, fed_by) SELECT :'ck', :'A' FROM generate_series(1, 3);
+-- v1.0.0: 2026-11-10 öncesi besleme 10, sonrası 4 jeton; evre başına 30
+INSERT INTO chick_feed_log (chick_id, fed_by, fed_at) SELECT :'ck', :'A', TIMESTAMPTZ '2026-11-01 12:00:00+00' FROM generate_series(1, 3);
+INSERT INTO chick_feed_log (chick_id, fed_by, fed_at) SELECT :'ck', :'A', TIMESTAMPTZ '2026-12-01 12:00:00+00' FROM generate_series(1, 15);
 SET ROLE authenticated;
 SELECT pg_temp.as_user(:'A');
-SELECT pg_temp.check('jeton = 3 besleme*10 + evre 1*50', (chick_wardrobe() ->> 'coins')::int = 80);
+SELECT pg_temp.check('jeton = 3 eski*10 + 15 yeni*4 + evre 1*30', (chick_wardrobe() ->> 'coins')::int = 120);
 DO $$ BEGIN PERFORM chick_buy_accessory('crown'); RAISE NOTICE 'FAIL evre yetersizken taç alındı';
 EXCEPTION WHEN OTHERS THEN IF SQLERRM = 'chick_stage_too_low' THEN RAISE NOTICE 'PASS evre sınırı'; ELSE RAISE NOTICE 'FAIL %', SQLERRM; END IF; END $$;
 DO $$ BEGIN PERFORM chick_set_style('hat', 'party_hat'); RAISE NOTICE 'FAIL alınmamış aksesuar giyildi';
 EXCEPTION WHEN OTHERS THEN IF SQLERRM = 'accessory_not_owned' THEN RAISE NOTICE 'PASS alınmamış aksesuar giyilemez'; ELSE RAISE NOTICE 'FAIL %', SQLERRM; END IF; END $$;
-SELECT pg_temp.check('satın alma jetonu düşer', (chick_buy_accessory('party_hat') ->> 'coins')::int = 50);
-SELECT pg_temp.check('tekrar satın alma ücret almaz', (chick_buy_accessory('party_hat') ->> 'coins')::int = 50);
+SELECT pg_temp.check('satın alma jetonu düşer (parti şapkası 90)', (chick_buy_accessory('party_hat') ->> 'coins')::int = 30);
+SELECT pg_temp.check('tekrar satın alma ücret almaz', (chick_buy_accessory('party_hat') ->> 'coins')::int = 30);
+DO $$ BEGIN PERFORM chick_buy_accessory('flower_crown'); RAISE NOTICE 'FAIL jeton yetmezken alındı';
+EXCEPTION WHEN OTHERS THEN IF SQLERRM = 'chick_not_enough_coins' THEN RAISE NOTICE 'PASS pahalı ürün jeton ister'; ELSE RAISE NOTICE 'FAIL %', SQLERRM; END IF; END $$;
+SELECT pg_temp.check('yeni prenses ürünleri katalogda', (SELECT count(*) FROM jsonb_array_elements(chick_wardrobe() -> 'catalog') e
+    WHERE e ->> 'code' IN ('tiara', 'tutu', 'ballet_shoes', 'theme_castle')) = 4);
 DO $$ BEGIN PERFORM chick_buy_accessory('cape'); RAISE NOTICE 'FAIL';
 EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS evre/jeton sınırı (%)', SQLERRM; END $$;
 SELECT pg_temp.as_user(:'B');

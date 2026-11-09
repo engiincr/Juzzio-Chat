@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:juzzio/core/app_theme_and_locale.dart';
+import 'package:juzzio/core/theme/juzzio_glass.dart';
 import 'package:juzzio/core/config.dart';
 import 'package:juzzio/models/social_models.dart';
 import 'package:juzzio/services/fcm_push_service.dart';
@@ -30,8 +31,10 @@ void main() {
       final r = (c.r * 255).round(), g = (c.g * 255).round(), b = (c.b * 255).round();
       return (r - g).abs() <= 12 && (g - b).abs() <= 12 && (r - b).abs() <= 12;
     }
-    expect(isNeutral(lightPalette.amberPrimary), isTrue);
-    expect(isNeutral(darkPalette.amberPrimary), isTrue);
+    // v1.0.0 Juzzio Space: vurgu temanın parlayan rengidir (sabit hex yok) ve turuncu değildir
+    expect(darkPalette.amberPrimary, JuzzioGlassTokens.glowText);
+    final accentHue = HSLColor.fromColor(darkPalette.amberPrimary).hue;
+    expect(accentHue >= 12 && accentHue <= 48, isFalse);
     expect(isNeutral(darkPalette.headerDarkForest), isTrue);
     // v0.6 Glassmorphism: giden balon seçili cam temasının tonunu taşır; turuncu olamaz
     final bubble = HSLColor.fromColor(darkPalette.outgoingBubble.withValues(alpha: 1));

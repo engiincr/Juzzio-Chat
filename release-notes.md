@@ -1,45 +1,31 @@
-# Juzzio v0.9.9 — Cloth Refresh: Pixel-Faithful 3D Revision
+# Juzzio v1.0.0 — Juzzio Space: New Design & Instant Messaging
 
 ## 🎯 Why did this update come?
 
-The v0.9.8 cloth refresh preview was compared frame by frame with the reference video and 11 visual/timing deviations were found. This update fixes the 3D hand, fabric folds, notch layering and page sync to match all 11 points exactly.
+Juzzio moves to the "Juzzio Space" interface designed in Figma: deep theme gradients, frosted glass cards and a glowing accent in every theme. In the same update messages send without waiting, location/link/poll experiences were rebuilt, shifts can be planned by date range and admin logs became readable.
 
 ## ✨ What's new?
 
-- ⚫ The Dynamic Island is pure black (#000000) in both themes and always on the top layer; the hand is masked at the island's bottom edge, emerges from it and disappears back into it
-- 👀 On the first pull (0–35 px) only the 4 chubby fingertips and nails peek out from under the island; the hand and wrist come down as you keep pulling
-- 🖐️ A shorter, chubbier 3D clay arm (wrist ≈ 55% of the island width), glossy 3D nails on every finger including the thumb, knuckle creases and a warm matte peach skin (#F2C2B3 / #DF9F8E / #F9DCD3)
-- 🕰️ During the pendulum the root stays fixed at the island while the arm and wrist bend like a flexible bone; at the +25° peak the fingers fan out, then close again on the way back (9 separate 3D poses)
-- ✊ The fist clearly shows the 4 curled fingers' knuckles, vertical shadow grooves between them and the thumb clenched underneath
-- 🦋 When the fist closes, butterfly-wing pinch folds curl up toward the island on its left and right; the bottom stays smooth
-- 🧵 On the yank, 6 curved, asymmetric 3D drapery pleats cover the search icon, location title and avatar like a semi-transparent sheet and reach down to "Popular Food"
-- 📏 The content moves 140–155 px down while pulling and swinging, so the hand swings in clean empty space without touching any text or icon
-- 🔒 The page stays locked at the fully pulled position until the fist grabs the fabric; only during the yank does it rise, attached to the fist's lower edge at the same speed as the hand
-- 🧺 In the last 250 ms the folds stretch upward and flatten, and the page settles with no jitter
+- 🎨 Juzzio Space design: "Your space · Juzzio." header, search with a ⌘K shortcut, story rings, Inbox · Messages, filter pills with counters, glass chat cards and a floating glass bottom bar
+- 🌈 All 16 themes share the same design language; accent, background depth and glass opacity come from the selected theme (Emerald is the default for new users)
+- ⚡ Messages send instantly: the bubble appears right away, translation runs in the background and shows up under the message when ready (in end-to-end encrypted chats the translation is added encrypted too)
+- 📍 Shared locations appear as a card with a map preview and open in Google Maps on Android, Apple Maps on iOS, or Google Maps
+- 🔗 Links, e-mail addresses and phone numbers in messages, bios, posts and comments are tappable and open in the default browser/app
+- 📊 New poll card: options with share bars, percentages, winner highlight and a live status chip
+- 📅 Date ranges in the shift planner: pick start–end days and hours (overnight shifts included), filter weekdays/weekends, share with a group and post a plan summary automatically
+- 🐣 When petted, the chick twirls to the right like a princess, winks and flirts; the chick badge in chats does the same animation
+- 👑 New chick customizations: princess tiara, flower crown, wizard hat, star glasses, princess tutu, pearl necklace, ballet shoes, Castle/Space/Sakura scenes
+- 🧾 Admin logs are readable sentences in the admin's language: who did what, to whom and when (no raw codes or IDs)
 
 ## 🛠️ What was fixed?
 
-- Removed the black/dark grey "sunburst" lines in light mode: valleys are only silver grey (#DFE2E8–#C8CDD6), ridges pure white
-- Removed the white haze around the fist in dark mode: valleys #07080B, ridges #222630
-- The hand no longer paints over the notch; the grey notch in dark mode is fixed
-- Removed the rigid single-sprite arm rotation
-- Fixed the page jumping up early while the fist was still closing
-- The APK build failed on a dependency conflict (file_picker <12 needs win32 ^5, flutter_secure_storage ^11 needs win32 ^6); file_picker was upgraded to ^13 and the encrypted key store was left untouched
+- Cloth pull-to-refresh fixed on mobile: no more conflict with Android's stretch overscroll or iOS bouncing, and short lists can be pulled too
+- Removed the GPU blur artifact on the hand shadow (rectangular smudge/flicker); a soft radial shadow is used instead
+- Chat ⋯ menu cleaned up: no emojis, icons and an opaque (readable) background, destructive actions separated in red
+- Menus, bottom sheets and dialogs are now nearly opaque — text stays readable
 
 ## 🔒 Security & privacy
 
-- The new visuals are fully original 3D renders made by us; no extra permissions or data collection
+- The link opener only allows http/https/mailto/tel/geo (javascript:, file: etc. are rejected)
+- Background translation keeps end-to-end encryption: in encrypted chats the translation is attached as a separate encrypted payload
 
-## ⬇️ Download
-
-- Latest: [Juzzio-latest.apk](https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk)
-- This version: `juzzio-v0.9.9-release.apk` (109.66 MB)
-
-## ✅ Verify the APK
-
-```bash
-sha256sum Juzzio-latest.apk
-# f7430231486e23c28c47bab9eafa8991dd9310c07bd43e84e8a157699f1da552  Juzzio-latest.apk
-```
-
-Built: 2026-11-09 12:28 UTC — GitHub Actions

@@ -26,6 +26,7 @@ import 'admin_trust_tab.dart';
 import 'admin_theme_studio_page.dart';
 import '../widgets/juzzio_cloth_refresh.dart';
 import '../widgets/juzzio_ui_kit.dart';
+import 'admin_audit_format.dart';
 
 const List<String> kJuzzioBanReasons = [
   'spam',
@@ -2066,24 +2067,57 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> with Si
   }
 
   Widget _buildAudit(bool isDark) {
+    // v1.0.0: kayıtlar yöneticinin dilinde, okunur cümleler — kim, ne yaptı, kime, ne zaman
     if (_audit.isEmpty) return Center(child: Text(_al('Kayıt yok', 'No entries', 'Keine Einträge')));
-    return ListView.separated(
-      padding: const EdgeInsets.all(12),
+    final lang = JuzzioAppController.instance.uiLang;
+    const tones = [Color(0xFF7DB8FF), Color(0xFF4ADE80), Color(0xFFFBBF24), Color(0xFFF87171)];
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
       itemCount: _audit.length,
-      separatorBuilder: (_, __) => const Divider(height: 1),
       itemBuilder: (_, i) {
         final a = _audit[i];
-        final when = DateTime.tryParse((a['created_at'] ?? '').toString());
-        final details = a['details'];
-        return ListTile(
-          dense: true,
-          leading: const Icon(Icons.bolt_rounded, color: JuzzioColors.indigo500),
-          title: Text('${a['action']} • ${a['target'] ?? ''}', style: const TextStyle(fontWeight: FontWeight.w700)),
-          subtitle: Text(
-            '@${a['admin_username'] ?? '?'}${when != null ? ' • ${_fmtDate(when)}' : ''}'
-            '${details is Map && details.isNotEmpty ? '\n$details' : ''}',
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
+        final line = juzzioFormatAudit(a, lang);
+        final when = DateTime.tryParse((a['created_at'] ?? '').toString())?.toLocal();
+        final tone = tones[line.tone.clamp(0, 3)];
+        return Card(
+          margin: const EdgeInsets.symmetric(vertical: 5),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(22),
+            onLongPress: line.rawTarget.isEmpty
+                ? null
+                : () {
+                    Clipboard.setData(ClipboardData(text: line.rawTarget));
+                    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+                      SnackBar(content: Text(_al('Hedef kimliği kopyalandı', 'Target ID copied', 'Ziel-ID kopiert'))),
+                    );
+                  },
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(color: tone.withValues(alpha: 0.16), borderRadius: BorderRadius.circular(12)),
+                  child: Icon(line.icon, color: tone, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(line.sentence, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5, height: 1.3)),
+                    for (final d in line.details)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 3),
+                        child: Text(d, style: TextStyle(color: JuzzioGlassTokens.textSecondary, fontSize: 12.5)),
+                      ),
+                    if (when != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Text(_fmtDate(when), style: TextStyle(color: JuzzioGlassTokens.textMuted, fontSize: 11.5, fontWeight: FontWeight.w600)),
+                      ),
+                  ]),
+                ),
+              ]),
+            ),
           ),
         );
       },

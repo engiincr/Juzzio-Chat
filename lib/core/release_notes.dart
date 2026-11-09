@@ -157,6 +157,63 @@ class JuzzioReleaseNote {
 /// Uygulamaya gömülü sürüm geçmişi (yayınlanmış sürümlerin gerçek içeriği)
 final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
   JuzzioReleaseNote(
+    versionName: '1.0.0',
+    versionCode: 100,
+    publishedAt: DateTime(2026, 11, 9),
+    sections: const {
+      'tr': JuzzioReleaseSection(
+        reason: "Juzzio, Figma'da tasarlanan \"Juzzio Space\" arayüzüne taşındı: derin tema gradyanları, buzlu cam kartlar ve her temada parlayan vurgu rengi. Aynı güncellemede mesajlar beklemeden gönderiliyor, konum/bağlantı/anket deneyimi yenilendi, vardiyalar tarih aralığıyla planlanıyor ve yönetici kayıtları okunur hâle geldi.",
+        features: [
+          "🎨 Juzzio Space tasarımı: \"Senin alanın · Juzzio.\" başlığı, ⌘K kısayollu arama, hikâye halkaları, Gelen kutusu · Mesajlar, sayaçlı filtre hapları, cam sohbet kartları ve yüzen cam alt menü",
+          "🌈 16 temanın tamamı aynı tasarım dilini kullanır; vurgu rengi, zemin derinliği ve cam opaklığı seçili temadan gelir (yeni kullanıcılarda varsayılan Zümrüt)",
+          "⚡ Mesajlar anında gönderilir: balon hemen görünür, çeviri arka planda yapılır ve hazır olunca mesajın altında belirir (uçtan uca şifreli sohbetlerde çeviri de şifreli eklenir)",
+          "📍 Paylaşılan konum harita önizlemeli kart olarak görünür; Android'de Google Haritalar, iOS'ta Apple Haritalar ya da Google Maps ile açılır",
+          "🔗 Mesajlar, biyografi, gönderi ve yorumlardaki bağlantılar, e-postalar ve telefon numaraları tıklanabilir; varsayılan tarayıcıda/uygulamada açılır",
+          "📊 Yeni anket kartı: oran çubuklu seçenekler, yüzdeler, kazanan vurgusu ve canlı durum çipi",
+          "📅 Vardiya planlayıcıda tarih aralığı: başlangıç–bitiş günü ve saatleri seç (gece vardiyası dahil), hafta içi/sonu filtrele, grupla paylaş ve gruba otomatik plan özeti gönder",
+          "🐣 Civciv sevilince prenses gibi sağa dönüp göz kırpar ve cilve yapar; sohbetteki civciv rozeti de aynı animasyonu yapar",
+          "👑 Yeni civciv özelleştirmeleri: prenses tacı, çiçek taç, büyücü şapkası, yıldız gözlük, prenses tütüsü, inci kolye, bale pabucu, Şato/Uzay/Sakura sahneleri",
+          "🧾 Yönetici kayıtları yöneticinin dilinde okunur cümleler: kim, ne yaptı, kime, ne zaman (kod ve kimlik gösterilmez)",
+        ],
+        fixes: [
+          "Kumaş yenileme mobilde düzeltildi: Android taşma esnemesi ve iOS sekmesi ile çakışma giderildi, kısa listelerde de çekilebilir",
+          "El gölgesindeki GPU bulanıklık artefaktı (dikdörtgen leke/titreme) kaldırıldı; yumuşak radyal gölge kullanılıyor",
+          "Sohbet ⋯ menüsü sadeleşti: emojiler kaldırıldı, ikonlu ve opak (okunur) arka plan, tehlikeli işlemler ayrı ve kırmızı",
+          "Menü, alt sayfa ve diyalog arka planları artık neredeyse opak — yazılar okunur",
+        ],
+        security: [
+          "Bağlantı açıcı yalnız http/https/mailto/tel/geo şemalarına izin verir (javascript:, file: vb. reddedilir)",
+          "Arka plan çevirisi uçtan uca şifrelemeyi bozmaz: şifreli sohbette çeviri ayrı bir şifreli yük olarak eklenir",
+        ],
+      ),
+      'en': JuzzioReleaseSection(
+        reason: "Juzzio moves to the \"Juzzio Space\" interface designed in Figma: deep theme gradients, frosted glass cards and a glowing accent in every theme. In the same update messages send without waiting, location/link/poll experiences were rebuilt, shifts can be planned by date range and admin logs became readable.",
+        features: [
+          "🎨 Juzzio Space design: \"Your space · Juzzio.\" header, search with a ⌘K shortcut, story rings, Inbox · Messages, filter pills with counters, glass chat cards and a floating glass bottom bar",
+          "🌈 All 16 themes share the same design language; accent, background depth and glass opacity come from the selected theme (Emerald is the default for new users)",
+          "⚡ Messages send instantly: the bubble appears right away, translation runs in the background and shows up under the message when ready (in end-to-end encrypted chats the translation is added encrypted too)",
+          "📍 Shared locations appear as a card with a map preview and open in Google Maps on Android, Apple Maps on iOS, or Google Maps",
+          "🔗 Links, e-mail addresses and phone numbers in messages, bios, posts and comments are tappable and open in the default browser/app",
+          "📊 New poll card: options with share bars, percentages, winner highlight and a live status chip",
+          "📅 Date ranges in the shift planner: pick start–end days and hours (overnight shifts included), filter weekdays/weekends, share with a group and post a plan summary automatically",
+          "🐣 When petted, the chick twirls to the right like a princess, winks and flirts; the chick badge in chats does the same animation",
+          "👑 New chick customizations: princess tiara, flower crown, wizard hat, star glasses, princess tutu, pearl necklace, ballet shoes, Castle/Space/Sakura scenes",
+          "🧾 Admin logs are readable sentences in the admin's language: who did what, to whom and when (no raw codes or IDs)",
+        ],
+        fixes: [
+          "Cloth pull-to-refresh fixed on mobile: no more conflict with Android's stretch overscroll or iOS bouncing, and short lists can be pulled too",
+          "Removed the GPU blur artifact on the hand shadow (rectangular smudge/flicker); a soft radial shadow is used instead",
+          "Chat ⋯ menu cleaned up: no emojis, icons and an opaque (readable) background, destructive actions separated in red",
+          "Menus, bottom sheets and dialogs are now nearly opaque — text stays readable",
+        ],
+        security: [
+          "The link opener only allows http/https/mailto/tel/geo (javascript:, file: etc. are rejected)",
+          "Background translation keeps end-to-end encryption: in encrypted chats the translation is attached as a separate encrypted payload",
+        ],
+      ),
+    },
+  ),
+  JuzzioReleaseNote(
     versionName: '0.9.9',
     versionCode: 99,
     publishedAt: DateTime(2026, 11, 9),

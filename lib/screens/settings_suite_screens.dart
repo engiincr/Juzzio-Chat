@@ -183,7 +183,7 @@ class _JuzzioSettingsMainPageState extends State<JuzzioSettingsMainPage> {
                               children: [
                                 CircleAvatar(
                                   radius: 32,
-                                  backgroundColor: p.amberPrimary,
+                                  backgroundColor: p.accentDeep,
                                   backgroundImage: _profile?.avatarUrl != null &&
                                           _profile!.avatarUrl!.isNotEmpty
                                       ? JuzzioCachedImageProvider(_profile!.avatarUrl!)
@@ -1400,7 +1400,7 @@ class _JuzzioEditProfilePageState extends State<JuzzioEditProfilePage> {
                                   children: [
                                     CircleAvatar(
                                       radius: 50,
-                                      backgroundColor: p.amberPrimary,
+                                      backgroundColor: p.accentDeep,
                                       backgroundImage: _pickedAvatarFile != null
                                           ? FileImage(_pickedAvatarFile!) as ImageProvider
                                           : (currentAvatar != null && currentAvatar.isNotEmpty
@@ -2058,7 +2058,7 @@ class _JuzzioAccountSettingsPageState extends State<JuzzioAccountSettingsPage> {
             child: Text(_l3('İptal', 'Cancel', 'Abbrechen'), style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textMuted)),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: p.amberPrimary, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(backgroundColor: p.coolButtonBg, foregroundColor: p.coolButtonFg),
             onPressed: () {
               setState(() => _currentEmail = ctrl.text.trim());
               Navigator.of(ctx).pop();
@@ -2262,8 +2262,8 @@ class _JuzzioChangePasswordPageState extends State<JuzzioChangePasswordPage> {
                   height: 50,
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: p.amberPrimary,
-                      foregroundColor: Colors.white,
+                      backgroundColor: p.coolButtonBg,
+                      foregroundColor: p.coolButtonFg,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
                     ),
                     onPressed: _isSubmitting ? null : _handlePasswordChange,
@@ -2637,8 +2637,8 @@ class _JuzzioUsernameSettingsPageState extends State<JuzzioUsernameSettingsPage>
                     height: 50,
                     child: ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: p.amberPrimary,
-                        foregroundColor: Colors.white,
+                        backgroundColor: p.coolButtonBg,
+                        foregroundColor: p.coolButtonFg,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
                       ),
                       onPressed: (_isAvailable == true && !_isSaving)
@@ -3962,7 +3962,7 @@ class _JuzzioStrictAccountSettingsPageState extends State<JuzzioStrictAccountSet
                     shape: BoxShape.circle,
                     border: Border.all(color: p.bgPrimary, width: 2.5),
                   ),
-                  child: const Icon(Icons.check_rounded, color: Colors.white, size: 18),
+                  child: Icon(Icons.check_rounded, color: p.coolButtonFg, size: 18),
                 ),
               ),
             ],
@@ -4037,8 +4037,8 @@ class _JuzzioStrictAccountSettingsPageState extends State<JuzzioStrictAccountSet
               height: 52,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: p.amberPrimary,
-                  foregroundColor: Colors.white,
+                  backgroundColor: p.coolButtonBg,
+                  foregroundColor: p.coolButtonFg,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
                 ),
                 onPressed: () => setState(() => _step = 1),
@@ -4111,8 +4111,8 @@ class _JuzzioStrictAccountSettingsPageState extends State<JuzzioStrictAccountSet
                   height: 50,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: p.amberPrimary,
-                      foregroundColor: Colors.white,
+                      backgroundColor: p.coolButtonBg,
+                      foregroundColor: p.coolButtonFg,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
                     ),
                     onPressed: () {
@@ -5323,8 +5323,8 @@ class _JuzzioStorageSettingsPageState extends State<JuzzioStorageSettingsPage> {
                         trailing: ElevatedButton(
                           onPressed: _clearing ? null : _confirmAndClearCache,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: p.amberPrimary,
-                            foregroundColor: Colors.white,
+                            backgroundColor: p.coolButtonBg,
+                            foregroundColor: p.coolButtonFg,
                           ),
                           child: Text(app.trEn('Temizle', 'Clear', 'Löschen')),
                         ),
@@ -5869,7 +5869,7 @@ class JuzzioHelpAndSupportPage extends StatelessWidget {
                         Clipboard.setData(ClipboardData(text: inviteText));
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            backgroundColor: p.amberPrimary,
+                            backgroundColor: p.accentDeep,
                             content: Text(
                               appCtrl.trEn(
                                 'Davet bağlantınız panoya kopyalandı: @$username',
@@ -6979,8 +6979,8 @@ class _JuzzioPermissionsCenterPageState extends State<JuzzioPermissionsCenterPag
                   height: 48,
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: p.amberPrimary,
-                      foregroundColor: Colors.white,
+                      backgroundColor: p.coolButtonBg,
+                      foregroundColor: p.coolButtonFg,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
                     ),
                     onPressed: _requestAll,
@@ -7014,8 +7014,8 @@ class _JuzzioPermissionsCenterPageState extends State<JuzzioPermissionsCenterPag
       subtitle: Text(subtitle, style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textSecondary, fontSize: 12)),
       trailing: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          backgroundColor: isGranted ? p.onlineGreen : p.amberPrimary,
-          foregroundColor: Colors.white,
+          backgroundColor: isGranted ? JuzzioColors.emerald500 : p.coolButtonBg,
+          foregroundColor: isGranted ? Colors.white : p.coolButtonFg,
         ),
         onPressed: onTap,
         child: Text(isGranted ? _l3('Aktif', 'Active', 'Aktiv') : _l3('İzin Ver', 'Allow', 'Erlauben'), style: const TextStyle(fontFamily: JuzzioConfig.fontRegularBold, fontSize: 12, fontWeight: FontWeight.w800)),

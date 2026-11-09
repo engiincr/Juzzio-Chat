@@ -86,12 +86,18 @@ class _JuzzioChickWardrobeScreenState extends State<JuzzioChickWardrobeScreen> {
       'round_glasses': 'Yuvarlak gözlük', 'sunglasses': 'Güneş gözlüğü', 'heart_glasses': 'Kalp gözlük',
       'bow_tie': 'Papyon', 'scarf': 'Atkı', 'cape': 'Pelerin', 'sneakers': 'Spor ayakkabı', 'boots': 'Bot',
       'theme_meadow': 'Çayır', 'theme_night': 'Gece', 'theme_beach': 'Plaj', 'theme_snow': 'Kar',
+      'tiara': 'Prenses tacı', 'flower_crown': 'Çiçek taç', 'wizard_hat': 'Büyücü şapkası', 'star_glasses': 'Yıldız gözlük',
+      'tutu': 'Prenses tütüsü', 'necklace': 'İnci kolye', 'ballet_shoes': 'Bale pabucu',
+      'theme_castle': 'Şato', 'theme_space': 'Uzay', 'theme_sakura': 'Sakura',
     };
     const en = {
       'party_hat': 'Party hat', 'crown': 'Crown', 'beanie': 'Beanie', 'cowboy_hat': 'Cowboy hat',
       'round_glasses': 'Round glasses', 'sunglasses': 'Sunglasses', 'heart_glasses': 'Heart glasses',
       'bow_tie': 'Bow tie', 'scarf': 'Scarf', 'cape': 'Cape', 'sneakers': 'Sneakers', 'boots': 'Boots',
       'theme_meadow': 'Meadow', 'theme_night': 'Night', 'theme_beach': 'Beach', 'theme_snow': 'Snow',
+      'tiara': 'Princess tiara', 'flower_crown': 'Flower crown', 'wizard_hat': 'Wizard hat', 'star_glasses': 'Star glasses',
+      'tutu': 'Princess tutu', 'necklace': 'Pearl necklace', 'ballet_shoes': 'Ballet shoes',
+      'theme_castle': 'Castle', 'theme_space': 'Space', 'theme_sakura': 'Sakura',
     };
     return _app.uiLang.startsWith('tr') ? (tr[code] ?? code) : (en[code] ?? code);
   }
@@ -133,9 +139,9 @@ class _JuzzioChickWardrobeScreenState extends State<JuzzioChickWardrobeScreen> {
                   Center(child: _preview(st.style)),
                   const SizedBox(height: 8),
                   Text(
-                    _app.trEn('Civcivi besledikçe jeton kazanırsınız (her besleme 10, her evre 50). Ortak civcivin cüzdanı ikinizindir.',
-                        'Earn coins by feeding (10 per feed, 50 per stage). Both owners share the wallet.',
-                        'Münzen durch Füttern (10 pro Fütterung, 50 pro Stufe). Beide teilen die Geldbörse.'),
+                    _app.trEn('Civcivi besledikçe jeton kazanırsınız (her besleme 4, her evre 30). Ortak civcivin cüzdanı ikinizindir.',
+                        'Earn coins by feeding (4 per feed, 30 per stage). Both owners share the wallet.',
+                        'Münzen durch Füttern (4 pro Fütterung, 30 pro Stufe). Beide teilen die Geldbörse.'),
                     textAlign: TextAlign.center,
                     style: TextStyle(color: p.textSecondary, fontSize: 12.5),
                   ),

@@ -41,7 +41,11 @@ class JuzzioNestScene extends StatelessWidget {
     this.blink,
     this.flap,
     this.style = const {},
+    this.twirl,
   });
+
+  /// v1.0.0: sevme animasyonu (prenses dönüşü + cilve)
+  final Animation<double>? twirl;
 
   @override
   Widget build(BuildContext context) {
@@ -50,7 +54,7 @@ class JuzzioNestScene extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(28),
         child: AnimatedBuilder(
-          animation: Listenable.merge([wobble, idle, if (blink != null) blink!, if (flap != null) flap!]),
+          animation: Listenable.merge([wobble, idle, if (blink != null) blink!, if (flap != null) flap!, if (twirl != null) twirl!]),
           builder: (context, _) {
             return Stack(
               fit: StackFit.expand,
@@ -79,6 +83,7 @@ class JuzzioNestScene extends StatelessWidget {
                         breathe: idle.value,
                         flap: flap?.value ?? 0,
                         wobble: wobble.value,
+                        twirl: twirl?.value ?? 0,
                         style: style,
                       ),
                     ),
