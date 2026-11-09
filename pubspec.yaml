@@ -32,7 +32,9 @@ dependencies:
   # v0.9.3: hikâye fotoğraflarında ayarlanabilir güzelleştirme (çözme/kodlama, saf Dart)
   image: ^4.2.0
   # v0.9.4: sohbette belge gönderme (PDF/ZIP/DOCX…), belgeyi açma ve konum paylaşımı
-  file_picker: '>=8.1.2 <12.0.0'
+  # v0.9.9: ^13 — <12 sürümleri win32 ^5 ister; flutter_secure_storage ^11 (win32 ^6) ile çakışıyordu.
+  # flutter_secure_storage düşürülmedi: cihazlardaki E2EE anahtarları v11 formatında saklı.
+  file_picker: ^13.3.2
   open_filex: ^4.5.0
   geolocator: '>=13.0.1 <15.0.0'
   # v0.9.6: mobil veride aramada 'Veri Koruma' önerisi

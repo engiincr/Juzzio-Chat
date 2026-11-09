@@ -27,7 +27,7 @@ import 'dart:math';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:file_picker/file_picker.dart' show FilePicker, FileType, PlatformFile;
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:just_audio/just_audio.dart';
@@ -1373,15 +1373,36 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   Future<void> _sendDocument(String roomId) async {
     final app = JuzzioAppController.instance;
     try {
-      final res = await FilePicker.platform.pickFiles(type: FileType.any, allowMultiple: false, withData: false);
-      final f = res?.files.single;
-      if (f == null || f.path == null) return;
-      if (f.size > juzzioDocumentMaxBytes) {
+      // file_picker 13: statik API; iptalde null döner
+      final PlatformFile? f = await FilePicker.pickFile(type: FileType.any);
+      if (f == null) return;
+      final size = f.lengthSync() ?? await f.length() ?? 0;
+      if (size > juzzioDocumentMaxBytes) {
         _showSnack(app.trEn('Dosya en fazla 25 MB olabilir.', 'Files must be under 25 MB.', 'Dateien dürfen höchstens 25 MB groß sein.'), isError: true);
         return;
       }
       _showSnack(app.trEn('Gönderiliyor...', 'Sending...', 'Wird gesendet...'));
-      await SupabaseService.instance.sendDocumentMessage(roomId: roomId, file: File(f.path!), fileName: f.name);
+      // Android SAF bazen content:// URI döndürür (yerel yol yok) → baytları geçici dosyaya yaz
+      File file;
+      File? temp;
+      final localPath = f.path;
+      if (localPath != null) {
+        file = File(localPath);
+      } else {
+        final safeName = f.name.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
+        temp = File('${Directory.systemTemp.path}/juzzio_doc_${DateTime.now().microsecondsSinceEpoch}_$safeName');
+        await temp.writeAsBytes(await f.readAsBytes(), flush: true);
+        file = temp;
+      }
+      try {
+        await SupabaseService.instance.sendDocumentMessage(roomId: roomId, file: file, fileName: f.name);
+      } finally {
+        if (temp != null) {
+          try {
+            await temp.delete();
+          } catch (_) {}
+        }
+      }
       _scrollMessagesToBottom(force: true);
     } catch (e) {
       _showSnack(SupabaseService.instance.friendlyError(e), isError: true);

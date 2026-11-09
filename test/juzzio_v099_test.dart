@@ -1,4 +1,6 @@
 // JUZZIO v0.9.9 birim testleri — kumaş yenileme 11 maddelik revizyon
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:juzzio/core/release_notes.dart';
@@ -75,5 +77,12 @@ void main() {
     final n = kJuzzioBundledReleaseNotes.firstWhere((r) => r.versionName == '0.9.9');
     expect(n.versionCode, 99);
     expect(n.sections.keys, containsAll(['tr', 'en']));
+  });
+
+  test('Bağımlılıklar: file_picker ^13 (win32 ^6 uyumlu), şifreli depo ^11 korunur', () {
+    final p = File('pubspec.yaml').readAsStringSync();
+    expect(p, contains('file_picker: ^13.'));
+    expect(p, contains('flutter_secure_storage: ^11.'));
+    expect(File('lib/screens/chat_screen.dart').readAsStringSync(), isNot(contains('FilePicker.platform')));
   });
 }

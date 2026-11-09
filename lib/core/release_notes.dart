@@ -181,6 +181,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
           "El artık çentiğin üstüne binmiyor; koyu temada gri çentik düzeltildi",
           "Kolun tek parça döndürülmesi (katı sprite) kaldırıldı",
           "Sayfanın yumruk anında erken yukarı kaçması düzeltildi",
+          "APK derlemesi bağımlılık çakışması nedeniyle başarısız oluyordu (file_picker <12 → win32 ^5, flutter_secure_storage ^11 → win32 ^6); file_picker ^13'e yükseltildi, şifreli anahtar deposu değiştirilmedi",
         ],
         security: [
           "Yeni görseller tamamen özgün, kendi ürettiğimiz 3D render'lar; ek izin veya veri toplanmaz",
@@ -206,6 +207,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
           "The hand no longer paints over the notch; the grey notch in dark mode is fixed",
           "Removed the rigid single-sprite arm rotation",
           "Fixed the page jumping up early while the fist was still closing",
+          "The APK build failed on a dependency conflict (file_picker <12 needs win32 ^5, flutter_secure_storage ^11 needs win32 ^6); file_picker was upgraded to ^13 and the encrypted key store was left untouched",
         ],
         security: [
           "The new visuals are fully original 3D renders made by us; no extra permissions or data collection",

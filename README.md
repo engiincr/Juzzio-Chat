@@ -72,6 +72,7 @@ The v0.9.8 cloth refresh preview was compared frame by frame with the reference 
 - The hand no longer paints over the notch; the grey notch in dark mode is fixed
 - Removed the rigid single-sprite arm rotation
 - Fixed the page jumping up early while the fist was still closing
+- The APK build failed on a dependency conflict (file_picker <12 needs win32 ^5, flutter_secure_storage ^11 needs win32 ^6); file_picker was upgraded to ^13 and the encrypted key store was left untouched
 
 </details>
 
