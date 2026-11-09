@@ -20,6 +20,9 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
+import android.app.PictureInPictureParams
+import android.content.res.Configuration
+import android.util.Rational
 import android.provider.Settings
 import android.view.WindowManager
 import androidx.core.app.ActivityCompat
@@ -42,6 +45,10 @@ class MainActivity : FlutterActivity() {
         const val UPDATE_CHANNEL_ID = "juzzio_ota_update_v2"
         const val PREFS_NAME = "juzzio_fcm_push_prefs"
         const val PREF_NOTIF_PREVIEW = "notif_preview_mode"
+        const val PREF_UI_LANG = "ui_lang"
+        // v0.9.7: bildirim yığını (grup) anahtarı ve özet bildirim kimliği
+        const val JUZZIO_NOTIF_GROUP = "com.juzzio.app.STACK"
+        const val JUZZIO_NOTIF_SUMMARY_ID = 990001
 
         // v0.7.0: Uygulamaya özel bildirim tonları ve zil sesleri (res/raw). Android 8+
         // kanal sesi kanal oluşturulurken sabitlendiği için her ses ayrı bir kanaldır:
@@ -289,7 +296,7 @@ class MainActivity : FlutterActivity() {
                     isUpdate -> UPDATE_CHANNEL_ID
                     isCall -> CALL_CHANNEL_ID
                     eventType in listOf(
-                        "like", "comment", "reply", "follow", "follow_request",
+                        "like", "comment", "reply", "comment_like", "mention", "follow", "follow_request",
                         "follow_accepted", "friend_request", "friend_accepted",
                         "story_like", "story_reply"
                     ) -> SOCIAL_CHANNEL_ID
@@ -365,7 +372,7 @@ class MainActivity : FlutterActivity() {
                     when {
                         isUpdate -> NotificationCompat.CATEGORY_RECOMMENDATION
                         isCall -> NotificationCompat.CATEGORY_CALL
-                        eventType in listOf("like", "comment", "reply", "follow", "follow_request") -> NotificationCompat.CATEGORY_SOCIAL
+                        eventType in listOf("like", "comment", "reply", "comment_like", "mention", "follow", "follow_request") -> NotificationCompat.CATEGORY_SOCIAL
                         else -> NotificationCompat.CATEGORY_MESSAGE
                     }
                 )
@@ -375,8 +382,20 @@ class MainActivity : FlutterActivity() {
                 // v0.8.3: mesaj bildiriminde satır içi yanıt (uygulamayı açmadan gönder)
                 if ((eventType == "message" || eventType == "group_activity") && targetId.isNotBlank()) {
                     try {
+                        // v0.9.3: eylem metinleri uygulama/cihaz diline göre
+                        val lang = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                            .getString(PREF_UI_LANG, null) ?: java.util.Locale.getDefault().language
+                        val (hint, label) = when (lang.substringBefore('-')) {
+                            "tr" -> "Yanıt yaz…" to "Yanıtla"
+                            "de" -> "Antwort schreiben…" to "Antworten"
+                            "es" -> "Escribe una respuesta…" to "Responder"
+                            "fr" -> "Écrire une réponse…" to "Répondre"
+                            "ar" -> "اكتب ردًا…" to "رد"
+                            "ru" -> "Написать ответ…" to "Ответить"
+                            else -> "Write a reply…" to "Reply"
+                        }
                         val remoteInput = androidx.core.app.RemoteInput.Builder(JuzzioReplyReceiver.KEY_TEXT)
-                            .setLabel("Yanıt yaz…")
+                            .setLabel(hint)
                             .build()
                         val replyIntent = Intent(context, JuzzioReplyReceiver::class.java).apply {
                             action = JuzzioReplyReceiver.ACTION_REPLY
@@ -393,7 +412,7 @@ class MainActivity : FlutterActivity() {
                         }
                         val replyPending = PendingIntent.getBroadcast(context, id, replyIntent, replyFlags)
                         val action = NotificationCompat.Action.Builder(
-                            android.R.drawable.ic_menu_send, "Yanıtla", replyPending
+                            android.R.drawable.ic_menu_send, label, replyPending
                         )
                             .addRemoteInput(remoteInput)
                             .setAllowGeneratedReplies(true)
@@ -439,8 +458,30 @@ class MainActivity : FlutterActivity() {
                     builder.setFullScreenIntent(pendingIntent, true)
                 }
 
+                // v0.9.7: bildirim yığını — arama dışı bildirimler tek grupta üst üste toplanır
+                val stackable = !isCall && eventType != "incoming_call"
+                if (stackable) {
+                    builder.setGroup(JUZZIO_NOTIF_GROUP)
+                    builder.setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_CHILDREN)
+                }
+
                 val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                 nm.notify(id, builder.build())
+                if (stackable && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    try {
+                        val summary = NotificationCompat.Builder(context, resolvedChannelId)
+                            .setSmallIcon(smallIconRes)
+                            .setContentTitle("Juzzio")
+                            .setStyle(NotificationCompat.InboxStyle().setSummaryText("Juzzio"))
+                            .setGroup(JUZZIO_NOTIF_GROUP)
+                            .setGroupSummary(true)
+                            .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_CHILDREN)
+                            .setAutoCancel(true)
+                            .setContentIntent(pendingIntent)
+                            .build()
+                        nm.notify(JUZZIO_NOTIF_SUMMARY_ID, summary)
+                    } catch (_: Exception) {}
+                }
             } catch (_: Exception) {}
         }
     }
@@ -480,6 +521,51 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    // v0.9.3: süren arama — ekran içinde ekran (PiP) ve ön plan servisi
+    private var callActive = false
+    private var callVideo = false
+
+    private fun pipParams(): PictureInPictureParams? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return null
+        val b = PictureInPictureParams.Builder()
+            .setAspectRatio(if (callVideo) Rational(9, 16) else Rational(3, 4))
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            b.setAutoEnterEnabled(callActive)
+            b.setSeamlessResizeEnabled(true)
+        }
+        return b.build()
+    }
+
+    private fun applyPipParams() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        try {
+            pipParams()?.let { setPictureInPictureParams(it) }
+        } catch (_: Exception) {}
+    }
+
+    private fun enterCallPip(): Boolean {
+        if (!callActive || Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return false
+        if (!packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)) return false
+        return try {
+            enterPictureInPictureMode(pipParams()!!)
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        // Android 12+ otomatik girer (setAutoEnterEnabled); daha eskilerde elle
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) enterCallPip()
+    }
+
+    override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: Configuration) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        try {
+            activeMethodChannel?.invokeMethod("onPipChanged", mapOf("inPip" to isInPictureInPictureMode))
+        } catch (_: Exception) {}
+    }
+
     override fun onResume() {
         super.onResume()
         isAppInForeground = true
@@ -495,6 +581,14 @@ class MainActivity : FlutterActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        // v0.9.3: "Arama sürüyor" bildirimine dokunuldu → arama ekranını büyüt
+        if (intent.getStringExtra("juzzio_action") == "return_to_call") {
+            intent.removeExtra("juzzio_action")
+            Handler(Looper.getMainLooper()).post {
+                try { activeMethodChannel?.invokeMethod("onReturnToCall", null) } catch (_: Exception) {}
+            }
+            return
+        }
         captureWidgetActionIfNeeded(intent, dispatchImmediatelyIfReady = true)
         capturePushIntentIfNeeded(intent, dispatchImmediatelyIfReady = true)
     }
@@ -583,9 +677,50 @@ class MainActivity : FlutterActivity() {
                 "setNotificationPreviewMode" -> {
                     val mode = call.argument<String>("mode") ?: "full"
                     val safe = if (mode == "sender" || mode == "hidden") mode else "full"
-                    getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
-                        .putString(PREF_NOTIF_PREVIEW, safe).apply()
+                    val ui = call.argument<String>("uiLang")
+                    val ed = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+                        .putString(PREF_NOTIF_PREVIEW, safe)
+                    // v0.9.3: bildirim eylem metinleri için uygulama dili
+                    if (ui != null && Regex("^[a-z]{2,3}(-[A-Za-z0-9]{2,4})?$").matches(ui)) ed.putString(PREF_UI_LANG, ui)
+                    ed.apply()
                     result.success(true)
+                }
+                // v0.9.3: arama başladı/bitti → ön plan servisi + PiP
+                "setCallActive" -> {
+                    val active = call.argument<Boolean>("active") ?: false
+                    callVideo = call.argument<Boolean>("video") ?: false
+                    callActive = active
+                    if (active) {
+                        JuzzioCallService.start(this, call.argument<String>("title") ?: "Juzzio", callVideo)
+                    } else {
+                        JuzzioCallService.stop(this)
+                    }
+                    applyPipParams()
+                    result.success(true)
+                }
+                "enterCallPip" -> result.success(enterCallPip())
+                // v0.9.4: cihaz saati sunucudan saparsa Tarih ve Saat ayarları açılır
+                // v0.9.5: tek seferlik medya görüntülenirken ekran görüntüsü/kayıt engellenir
+                "setSecureScreen" -> {
+                    val on = call.argument<Boolean>("secure") ?: false
+                    if (on) window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+                    else window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+                    result.success(true)
+                }
+                "openDateSettings" -> {
+                    try {
+                        startActivity(android.content.Intent(android.provider.Settings.ACTION_DATE_SETTINGS)
+                            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+                        result.success(true)
+                    } catch (_: Exception) {
+                        result.success(false)
+                    }
+                }
+                "isAutoTimeEnabled" -> {
+                    val auto = try {
+                        android.provider.Settings.Global.getInt(contentResolver, android.provider.Settings.Global.AUTO_TIME, 1) == 1
+                    } catch (_: Exception) { true }
+                    result.success(auto)
                 }
                 "showSystemNotification" -> {
                     val title = call.argument<String>("title") ?: "Juzzio"
@@ -602,11 +737,14 @@ class MainActivity : FlutterActivity() {
                         isUpdate = isUpdate,
                         isCall = isCall,
                         channelOverride = channelArg,
-                        eventType = if (isUpdate) "system" else (if (isCall) "missed_call" else "message"),
-                        notificationId = "",
-                        targetId = "",
-                        targetSecondaryId = "",
-                        actorId = ""
+                        // v0.9.3: uygulama açıkken gelen mesaj bildirimi de sohbete gider ve yanıtlanabilir
+                        eventType = call.argument<String>("eventType")
+                            ?: (if (isUpdate) "system" else (if (isCall) "missed_call" else "message")),
+                        notificationId = call.argument<String>("notificationId") ?: "",
+                        targetId = call.argument<String>("targetId") ?: "",
+                        targetSecondaryId = call.argument<String>("targetSecondaryId") ?: "",
+                        actorId = call.argument<String>("actorId") ?: "",
+                        lockScreenBody = call.argument<String>("lockScreenBody")
                     )
                     result.success(true)
                 }
@@ -1014,6 +1152,7 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun onDestroy() {
+        if (callActive) JuzzioCallService.stop(this)
         isAppInForeground = false
         if (activeMethodChannel != null) {
             activeMethodChannel = null

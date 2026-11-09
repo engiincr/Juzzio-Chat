@@ -16,7 +16,8 @@ import kotlin.math.min
  *    Böylece gözler, kaşlar, saç ve yüz hatları tamamen keskin kalır.
  *  • Yarıçap 2 piksel ile sınırlıdır; görüntü "flu" görünmez.
  *  • Gölgelerde çok hafif aydınlatma ve doğal sıcak ton.
- * Kamera iş parçacığında çalışır; 0 = kapalı, >0 = açık (eski 1-3 seviyeleri aynı doğal moda eşlenir).
+ * Kamera iş parçacığında çalışır.
+ * v0.9.3: yoğunluk 0..100 (0 = kapalı); parametre eşlemesi lib/services/juzzio_beauty.dart ile birebir aynı.
  */
 object JuzzioBeautyProcessor : LocalVideoTrack.ExternalVideoFrameProcessing {
 
@@ -35,7 +36,7 @@ object JuzzioBeautyProcessor : LocalVideoTrack.ExternalVideoFrameProcessing {
     /** Seviyeyi ayarlar ve verilen yerel video izine bağlanır. Başarılıysa true. */
     @Synchronized
     fun apply(trackId: String?, newLevel: Int): Boolean {
-        level = newLevel.coerceIn(0, 3)
+        level = newLevel.coerceIn(0, 100)
         if (trackId.isNullOrBlank()) return false
         if (attachedTrackId != trackId) {
             detach()
@@ -60,7 +61,7 @@ object JuzzioBeautyProcessor : LocalVideoTrack.ExternalVideoFrameProcessing {
 
     private fun buildLut(lv: Int) {
         if (lutLevel == lv) return
-        val lift = 7
+        val lift = (lv * 12) / 100
         for (i in 0..255) {
             // Gölgeleri biraz aydınlat, parlak alanları patlatma
             val boost = lift * (255 - i) / 255
@@ -83,10 +84,11 @@ object JuzzioBeautyProcessor : LocalVideoTrack.ExternalVideoFrameProcessing {
             val h = i420.height
             if (w < 16 || h < 16) return frame
             // Doğal mod: küçük yarıçap, orta güç, düşük eşik (bulanıklık yok)
-            val radius = 2
-            val alpha = 120 // en fazla ~%47 yumuşatma, yalnızca çok küçük farklarda
-            val threshold = 12
-            buildLut(1)
+            // v0.9.3: kullanıcı yoğunluğu (Dart JuzzioBeautyParams.forLevel ile aynı formül)
+            val radius = if (lv > 65) 3 else 2
+            val alpha = min(240, 40 + lv * 2)
+            val threshold = 6 + (lv * 16) / 100
+            buildLut(lv)
 
             val size = w * h
             if (yIn.size < size) {
@@ -160,8 +162,8 @@ object JuzzioBeautyProcessor : LocalVideoTrack.ExternalVideoFrameProcessing {
             // Renk düzlemleri: hafif sıcak ton (cilt rengini canlandırır)
             val cw = (w + 1) / 2
             val ch = (h + 1) / 2
-            val warmU = -1
-            val warmV = 1
+            val warmU = if (lv >= 30) -1 else 0
+            val warmV = if (lv >= 30) 1 else 0
             copyPlane(i420.dataU.duplicate(), i420.strideU, out.dataU, out.strideU, cw, ch, warmU)
             copyPlane(i420.dataV.duplicate(), i420.strideV, out.dataV, out.strideV, cw, ch, warmV)
 

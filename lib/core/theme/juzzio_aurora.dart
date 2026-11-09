@@ -60,7 +60,7 @@ class JuzzioAuroraPalette {
   }
 }
 
-/// v0.8.4 Tasarım ailesi: 12 temanın hepsi aynı Liquid Glass bileşenlerini kullanır;
+/// v0.8.4 Tasarım ailesi (v0.9.7: 16 tema): temaların hepsi aynı Liquid Glass bileşenlerini kullanır;
 /// yalnızca camın rengi, ışığı, derinliği ve atmosferi (bu "karakter") değişir.
 class JuzzioGlassCharacter {
   final String tr;
@@ -124,7 +124,95 @@ const Map<String, JuzzioGlassCharacter> kJuzzioGlassCharacters = {
       blur: 1.2, sheen: 1.0, rim: Color(0xFF22D3EE), glow: 0.35),
   'high_contrast': JuzzioGlassCharacter(tr: 'Erişilebilirlik odaklı, belirgin yüzeyler', en: 'Accessible, distinct surfaces', de: 'Barrierefreie, klare Flächen',
       blur: 0.6, opacity: 1.8, sheen: 0.5),
+  // v0.9.7: 2026 Liquid Glass yönelimleri — renkli kenar ışığı (koyu), tek ışık yönü, yumuşak gradyan zemin
+  'aurora_borealis': JuzzioGlassCharacter(tr: 'Kuzey ışıkları, derin cam', en: 'Northern lights, deep glass', de: 'Nordlicht, tiefes Glas',
+      blur: 1.25, opacity: 1.0, sheen: 1.2, depth: 1.15, rim: Color(0xFF5EEAD4), glow: 0.12),
+  'frosted_pearl': JuzzioGlassCharacter(tr: 'Buzlu inci, yanardöner açık cam', en: 'Frosted pearl, iridescent light glass', de: 'Frostperle, schillerndes Glas',
+      blur: 1.35, opacity: 0.85, sheen: 1.6, depth: 0.75, rim: Color(0xFFF5F3FF)),
+  'midnight_sapphire': JuzzioGlassCharacter(tr: 'Lacivert safir, mor kenar ışığı', en: 'Navy sapphire, violet rim light', de: 'Saphir, violettes Randlicht',
+      blur: 1.2, opacity: 1.1, sheen: 1.3, depth: 1.25, rim: Color(0xFFA78BFA), glow: 0.08),
+  'nordic_frost': JuzzioGlassCharacter(tr: 'Kuzey buzu, gümüş-mavi kristal', en: 'Nordic frost, silver-blue crystal', de: 'Nordischer Frost, Silberblau',
+      blur: 1.3, opacity: 0.9, sheen: 1.5, depth: 0.9, rim: Color(0xFFBAE6FD)),
 };
+
+/// v1.0.0 "Juzzio Space" tasarım dili (Figma): her temanın parlayan vurgu rengi
+/// (okunmamış rozeti, aktif sekme, hikâye halkası, oluştur düğmesi, seçili filtre) ve
+/// derin dikey zemin gradyanı. Renkler YALNIZ burada tanımlıdır; bileşenler
+/// [JuzzioSpaceSpec] üzerinden okur — sayfalarda sabit hex yoktur.
+class JuzzioSpaceSpec {
+  /// Koyu modda parlayan vurgu (neon lime, cyan, ametist …)
+  final Color glow;
+  /// Aydınlık modda okunur vurgu (metin/ikon); dolgu yine [glow]
+  final Color glowLight;
+  /// Koyu zemin gradyanı: üst → orta → alt
+  final List<Color> depth;
+  /// Aydınlık zemin gradyanı: üst → orta → alt
+  final List<Color> depthLight;
+
+  const JuzzioSpaceSpec({required this.glow, required this.glowLight, required this.depth, required this.depthLight});
+
+  /// Vurgu dolgusunun üstündeki metin/ikon rengi (her zaman okunur, ≥ 4.5:1)
+  Color onGlow(bool dark) {
+    final l = glow.computeLuminance();
+    if (l < 0.35) return const Color(0xFFFFFFFF);
+    // vurgunun koyu, aynı tonlu karşılığı (lime → koyu orman yeşili)
+    return Color.lerp(glow, const Color(0xFF000000), 0.84)!;
+  }
+}
+
+Color _mix(Color a, Color b, double t) => Color.lerp(a, b, t)!;
+
+JuzzioSpaceSpec _autoSpec(JuzzioAuroraPalette p, Color glow, {Color? glowLight}) => JuzzioSpaceSpec(
+      glow: glow,
+      glowLight: glowLight ?? _mix(glow, const Color(0xFF000000), 0.45),
+      depth: [_mix(p.base, p.swatchA, 0.16), _mix(p.base, p.swatchB, 0.10), p.base],
+      depthLight: [_mix(p.baseLight, p.swatchA, 0.10), p.baseLight, _mix(p.baseLight, p.swatchB, 0.08)],
+    );
+
+/// Temaya özel parlak vurgular. Zümrüt (Figma referansı) zemini birebir örneklenmiştir.
+const Map<String, Color> kJuzzioSpaceGlow = {
+  'juzzio_liquid': Color(0xFF5CE6F7),
+  'ocean': Color(0xFF7DB8FF),
+  'glass_white': Color(0xFFF2F4FA),
+  'amethyst': Color(0xFFD4A8FF),
+  'emerald': Color(0xFFC9FD7F),
+  'lagoon': Color(0xFF63F2DA),
+  'chrome': Color(0xFFE6E9EF),
+  'obsidian_oled': Color(0xFFEDEDED),
+  'lavender_mist': Color(0xFFDCCBFF),
+  'rose_quartz': Color(0xFFFFB5D7),
+  'cyber_neon': Color(0xFF3CF6FF),
+  'aurora_borealis': Color(0xFF7FF6C6),
+  'frosted_pearl': Color(0xFFF1E6FF),
+  'midnight_sapphire': Color(0xFFA2BBFF),
+  'nordic_frost': Color(0xFFC2EAFF),
+  'high_contrast': Color(0xFFFFE14D),
+};
+
+extension JuzzioAuroraPaletteSpace on JuzzioAuroraPalette {
+  JuzzioSpaceSpec get space {
+    if (id == 'emerald') {
+      return const JuzzioSpaceSpec(
+        glow: Color(0xFFC9FD7F),
+        glowLight: Color(0xFF2F7A1F),
+        depth: [Color(0xFF16362B), Color(0xFF102A21), Color(0xFF071714)],
+        depthLight: [Color(0xFFEAF6E4), Color(0xFFF2F8EE), Color(0xFFE3F0DC)],
+      );
+    }
+    if (id == 'high_contrast') {
+      return const JuzzioSpaceSpec(
+        glow: Color(0xFFFFE14D),
+        glowLight: Color(0xFF5C4A00),
+        depth: [Color(0xFF000000), Color(0xFF000000), Color(0xFF000000)],
+        depthLight: [Color(0xFFFFFFFF), Color(0xFFFFFFFF), Color(0xFFFFFFFF)],
+      );
+    }
+    final g = kJuzzioSpaceGlow[id];
+    if (g != null) return _autoSpec(this, g);
+    // özel tema (Tema Stüdyosu): vurgu = buton rengi
+    return _autoSpec(this, swatchA);
+  }
+}
 
 extension JuzzioAuroraPaletteCharacter on JuzzioAuroraPalette {
   JuzzioGlassCharacter get character => kJuzzioGlassCharacters[id] ?? JuzzioGlassCharacter.standard;
@@ -228,15 +316,14 @@ const List<JuzzioAuroraPalette> kJuzzioAuroraPalettes = [
     nameTr: 'Zümrüt',
     nameEn: 'Emerald',
     nameDe: 'Smaragd',
-    base: Color(0xFF020805),
+    base: Color(0xFF071714),
     baseLight: Color(0xFFEAF6EF),
     swatchA: Color(0xFF16A34A),
     swatchB: Color(0xFF065F46),
     orbs: [
-      JuzzioAuroraOrb(Alignment(0.9, -0.85), 0.90, Color(0x9916A34A)),
-      JuzzioAuroraOrb(Alignment(-1.0, 0.1), 0.85, Color(0x80065F46)),
-      JuzzioAuroraOrb(Alignment(0.3, 1.0), 0.80, Color(0x7722C55E)),
-      JuzzioAuroraOrb(Alignment(-0.6, -1.0), 0.45, Color(0x55047857)),
+      JuzzioAuroraOrb(Alignment(0.95, -0.9), 0.85, Color(0x5530704F)),
+      JuzzioAuroraOrb(Alignment(-1.0, 0.35), 0.80, Color(0x44245C40)),
+      JuzzioAuroraOrb(Alignment(0.6, 0.85), 0.70, Color(0x332E6B3A)),
     ],
     orbsLight: [
       JuzzioAuroraOrb(Alignment(0.9, -0.85), 0.90, Color(0x5586EFAC)),
@@ -364,6 +451,91 @@ const List<JuzzioAuroraPalette> kJuzzioAuroraPalettes = [
       JuzzioAuroraOrb(Alignment(-0.2, 1.05), 0.75, Color(0x4093C5FD)),
     ],
   ),
+  // v0.9.7 yeni cam temaları
+  JuzzioAuroraPalette(
+    id: 'aurora_borealis',
+    nameTr: 'Kuzey Işıkları',
+    nameEn: 'Aurora Borealis',
+    nameDe: 'Nordlicht',
+    base: Color(0xFF020B0E),
+    baseLight: Color(0xFFE8F8F4),
+    swatchA: Color(0xFF2DD4BF),
+    swatchB: Color(0xFF8B5CF6),
+    orbs: [
+      JuzzioAuroraOrb(Alignment(-1.0, -0.9), 0.95, Color(0x6610B981)),
+      JuzzioAuroraOrb(Alignment(0.9, -0.55), 0.80, Color(0x5C2DD4BF)),
+      JuzzioAuroraOrb(Alignment(-0.3, 0.6), 0.85, Color(0x4D8B5CF6)),
+      JuzzioAuroraOrb(Alignment(0.95, 1.0), 0.55, Color(0x40EC4899)),
+    ],
+    orbsLight: [
+      JuzzioAuroraOrb(Alignment(-1.0, -0.9), 0.95, Color(0x4D6EE7B7)),
+      JuzzioAuroraOrb(Alignment(0.9, -0.55), 0.80, Color(0x405EEAD4)),
+      JuzzioAuroraOrb(Alignment(-0.3, 0.6), 0.85, Color(0x33C4B5FD)),
+    ],
+  ),
+  JuzzioAuroraPalette(
+    id: 'frosted_pearl',
+    nameTr: 'Buzlu İnci',
+    nameEn: 'Frosted Pearl',
+    nameDe: 'Frostperle',
+    base: Color(0xFF14121A),
+    baseLight: Color(0xFFF7F5FB),
+    swatchA: Color(0xFFF5F3FF),
+    swatchB: Color(0xFFBFDBFE),
+    orbs: [
+      JuzzioAuroraOrb(Alignment(-0.9, -0.8), 0.90, Color(0x40E9D5FF)),
+      JuzzioAuroraOrb(Alignment(1.0, -0.2), 0.80, Color(0x3DBFDBFE)),
+      JuzzioAuroraOrb(Alignment(-0.5, 1.0), 0.80, Color(0x33FBCFE8)),
+      JuzzioAuroraOrb(Alignment(0.8, 0.9), 0.50, Color(0x2EA7F3D0)),
+    ],
+    orbsLight: [
+      JuzzioAuroraOrb(Alignment(-0.9, -0.8), 0.95, Color(0x59E9D5FF)),
+      JuzzioAuroraOrb(Alignment(1.0, -0.2), 0.85, Color(0x4DBFDBFE)),
+      JuzzioAuroraOrb(Alignment(-0.5, 1.0), 0.85, Color(0x4DFBCFE8)),
+      JuzzioAuroraOrb(Alignment(0.8, 0.9), 0.55, Color(0x40A7F3D0)),
+    ],
+  ),
+  JuzzioAuroraPalette(
+    id: 'midnight_sapphire',
+    nameTr: 'Gece Safiri',
+    nameEn: 'Midnight Sapphire',
+    nameDe: 'Mitternachtssaphir',
+    base: Color(0xFF040616),
+    baseLight: Color(0xFFECEEFB),
+    swatchA: Color(0xFF1E3A8A),
+    swatchB: Color(0xFFA78BFA),
+    orbs: [
+      JuzzioAuroraOrb(Alignment(-0.95, -0.7), 0.95, Color(0x991E3A8A)),
+      JuzzioAuroraOrb(Alignment(1.0, -0.3), 0.75, Color(0x667C3AED)),
+      JuzzioAuroraOrb(Alignment(-0.2, 1.05), 0.85, Color(0x660F172A)),
+      JuzzioAuroraOrb(Alignment(0.8, 0.85), 0.50, Color(0x4D3B82F6)),
+    ],
+    orbsLight: [
+      JuzzioAuroraOrb(Alignment(-0.95, -0.7), 0.95, Color(0x4D93C5FD)),
+      JuzzioAuroraOrb(Alignment(1.0, -0.3), 0.75, Color(0x40C4B5FD)),
+      JuzzioAuroraOrb(Alignment(0.8, 0.85), 0.50, Color(0x3360A5FA)),
+    ],
+  ),
+  JuzzioAuroraPalette(
+    id: 'nordic_frost',
+    nameTr: 'Kuzey Buzu',
+    nameEn: 'Nordic Frost',
+    nameDe: 'Nordischer Frost',
+    base: Color(0xFF070C12),
+    baseLight: Color(0xFFF0F6FA),
+    swatchA: Color(0xFFBAE6FD),
+    swatchB: Color(0xFF94A3B8),
+    orbs: [
+      JuzzioAuroraOrb(Alignment(-0.9, -0.85), 0.90, Color(0x4D7DD3FC)),
+      JuzzioAuroraOrb(Alignment(1.0, 0.0), 0.80, Color(0x40CBD5E1)),
+      JuzzioAuroraOrb(Alignment(-0.4, 1.0), 0.85, Color(0x4D0C4A6E)),
+    ],
+    orbsLight: [
+      JuzzioAuroraOrb(Alignment(-0.9, -0.85), 0.95, Color(0x59BAE6FD)),
+      JuzzioAuroraOrb(Alignment(1.0, 0.0), 0.80, Color(0x40E2E8F0)),
+      JuzzioAuroraOrb(Alignment(-0.4, 1.0), 0.85, Color(0x407DD3FC)),
+    ],
+  ),
   JuzzioAuroraPalette(
     id: 'high_contrast',
     nameTr: 'Yüksek Kontrast',
@@ -420,10 +592,22 @@ class _JuzzioAuroraPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final rect = Offset.zero & size;
-    canvas.drawRect(rect, Paint()..color = dark ? palette.base : palette.baseLight);
+    // v1.0.0 Juzzio Space: derin dikey gradyan zemin + yumuşatılmış radyal ışımalar
+    final spec = palette.space;
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: dark ? spec.depth : spec.depthLight,
+          stops: const [0.0, 0.42, 1.0],
+        ).createShader(rect),
+    );
     final shortest = math.min(size.width, size.height);
     final longest = math.max(size.width, size.height);
-    for (final orb in dark ? palette.orbs : palette.orbsLight) {
+    for (final o in dark ? palette.orbs : palette.orbsLight) {
+      final orb = JuzzioAuroraOrb(o.center, o.radius, o.color.withValues(alpha: o.color.a * 0.42));
       final c = orb.center.alongSize(size);
       final r = orb.radius * (shortest * 0.55 + longest * 0.30);
       final transparent = orb.color.withValues(alpha: 0);

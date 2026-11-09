@@ -13,6 +13,9 @@
     <!-- Mikrofon ve Kamera İzinleri -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- v0.9.4: sohbette konum paylaşımı (yalnız kullanıcı "Konum"a dokunduğunda istenir) -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 
     <!-- Galeri ve Medya İzinleri (Android 13+ ve Öncesi) -->
@@ -57,6 +60,19 @@
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="http" />
         </intent>
+        <!-- v1.0.0: konum kartı haritalar uygulamasında, e-posta/telefon bağlantıları -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="geo" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SENDTO" />
+            <data android:scheme="mailto" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.DIAL" />
+            <data android:scheme="tel" />
+        </intent>
     </queries>
 
     <application
@@ -79,6 +95,8 @@
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
+            android:supportsPictureInPicture="true"
+            android:resizeableActivity="true"
             android:windowSoftInputMode="adjustResize">
             <meta-data
                 android:name="io.flutter.embedding.android.NormalTheme"
@@ -92,6 +110,12 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
+
+        <!-- v0.9.3: süren arama ön plan servisi (arka planda mikrofon/kamera korunur) -->
+        <service
+            android:name=".JuzzioCallService"
+            android:exported="false"
+            android:foregroundServiceType="microphone|camera" />
 
         <!-- Gerçek Firebase Cloud Messaging (FCM) Servisi -->
         <service

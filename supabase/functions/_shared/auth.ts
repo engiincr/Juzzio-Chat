@@ -105,6 +105,28 @@ export async function rateLimit(
   }
 }
 
+/**
+ * v0.9.6: Kullanıcı başına günlük AI (çeviri/döküm) kotası. Kota yönetici panelinden
+ * `ai_daily_quota_per_user` ayarıyla belirlenir (0 = sınırsız). Maliyet koruması olduğu
+ * için veritabanı hatasında AÇIK kalır (çeviri kesilmez); güvenlik sınırı değildir.
+ */
+export async function aiQuotaTake(userId: string, kind: string, units = 1): Promise<boolean> {
+  try {
+    const { data, error } = await adminClient().rpc("juzzio_ai_quota_take", {
+      p_user: userId,
+      p_kind: kind,
+      p_units: units,
+    });
+    if (error) {
+      console.error("ai_quota_check_failed", error.code ?? "unknown");
+      return true;
+    }
+    return data !== false;
+  } catch (_) {
+    return true;
+  }
+}
+
 export function clientIp(req: Request): string {
   const fwd = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim();
   return fwd || (req.headers.get("cf-connecting-ip") ?? "").trim() || "unknown";

@@ -8,10 +8,15 @@ import '../core/app_theme_and_locale.dart';
 import '../core/config.dart';
 import '../core/theme/juzzio_colors.dart';
 import '../services/juzzio_features_service.dart';
+import '../widgets/juzzio_motion.dart';
 
 class JuzzioMaintenanceScreen extends StatefulWidget {
   final String message;
-  const JuzzioMaintenanceScreen({super.key, this.message = ''});
+
+  /// v0.9.6: yönetici "minimum desteklenen sürüm"ü bu derlemenin üstüne çıkardıysa
+  /// bakım yerine "güncelleme gerekli" ekranı gösterilir.
+  final bool updateRequired;
+  const JuzzioMaintenanceScreen({super.key, this.message = '', this.updateRequired = false});
 
   @override
   State<JuzzioMaintenanceScreen> createState() => _JuzzioMaintenanceScreenState();
@@ -29,6 +34,14 @@ class _JuzzioMaintenanceScreenState extends State<JuzzioMaintenanceScreen> {
       _checking = false;
       _message = cfg.maintenanceMessage;
     });
+    if (widget.updateRequired) {
+      if (cfg.minSupportedBuild <= JuzzioConfig.appVersionCode) {
+        Navigator.of(context).pop();
+      } else {
+        await JuzzioAppController.instance.checkForOtaUpdate(manualCheck: true);
+      }
+      return;
+    }
     if (!cfg.maintenanceMode) Navigator.of(context).pop();
   }
 
@@ -53,10 +66,12 @@ class _JuzzioMaintenanceScreenState extends State<JuzzioMaintenanceScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.construction_rounded, color: Colors.white, size: 76),
+                  Icon(widget.updateRequired ? Icons.system_update_rounded : Icons.construction_rounded, color: Colors.white, size: 76),
                   const SizedBox(height: 20),
                   Text(
-                    app.trEn('Kısa bir bakımdayız', 'We are under maintenance', 'Wir führen gerade Wartungsarbeiten durch'),
+                    widget.updateRequired
+                        ? app.trEn('Güncelleme gerekli', 'Update required', 'Update erforderlich')
+                        : app.trEn('Kısa bir bakımdayız', 'We are under maintenance', 'Wir führen gerade Wartungsarbeiten durch'),
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontFamily: JuzzioConfig.fontRegularBold,
@@ -67,7 +82,11 @@ class _JuzzioMaintenanceScreenState extends State<JuzzioMaintenanceScreen> {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    _message.trim().isNotEmpty
+                    widget.updateRequired
+                        ? app.trEn('Bu Juzzio sürümü artık desteklenmiyor. Güvenliğin için lütfen en yeni sürüme güncelle.',
+                            'This Juzzio version is no longer supported. Please update to the latest version for your security.',
+                            'Diese Juzzio-Version wird nicht mehr unterstützt. Bitte aktualisiere.')
+                        : _message.trim().isNotEmpty
                         ? _message.trim()
                         : app.trEn(
                             'Juzzio\'yu daha iyi hâle getiriyoruz. Lütfen birazdan tekrar deneyin.',
@@ -87,9 +106,9 @@ class _JuzzioMaintenanceScreenState extends State<JuzzioMaintenanceScreen> {
                     ),
                     onPressed: _checking ? null : _recheck,
                     icon: _checking
-                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.refresh_rounded),
-                    label: Text(app.t('common_retry')),
+                        ? const SizedBox(width: 18, height: 18, child: JuzzioOrbitLoader(strokeWidth: 2))
+                        : Icon(widget.updateRequired ? Icons.download_rounded : Icons.refresh_rounded),
+                    label: Text(widget.updateRequired ? app.trEn('Güncelle', 'Update', 'Aktualisieren') : app.t('common_retry')),
                   ),
                 ],
               ),

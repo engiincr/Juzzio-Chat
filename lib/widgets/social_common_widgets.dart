@@ -13,7 +13,10 @@ import '../models/social_models.dart';
 import '../services/social_service.dart';
 import '../services/supabase_service.dart';
 import '../core/theme/juzzio_colors.dart';
+import '../core/theme/juzzio_glass.dart';
 import 'juzzio_video_kit.dart';
+import 'juzzio_space_kit.dart';
+import 'juzzio_motion.dart';
 
 class JuzzioSocialTokens {
   JuzzioSocialTokens._();
@@ -27,16 +30,12 @@ class JuzzioSocialTokens {
 
   // v0.6 Glassmorphism: sayfa zemini saydam (aurora görünür), kartlar buzlu cam
   static Color pageBg(bool isDark) => Colors.transparent;
-  static Color cardBg(bool isDark) =>
-      isDark ? const Color(0xD914151A) : const Color(0xEBFFFFFF);
-  static Color subtleSurface(bool isDark) =>
-      isDark ? const Color(0x1FFFFFFF) : const Color(0x99FFFFFF);
-  static Color textPrimary(bool isDark) =>
-      isDark ? JuzzioColors.slate50 : JuzzioColors.surface141519;
-  static Color textSecondary(bool isDark) =>
-      isDark ? JuzzioColors.slate400 : JuzzioColors.surface686D78;
-  static Color borderSubtle(bool isDark) =>
-      isDark ? JuzzioColors.slate800 : JuzzioColors.surfaceE7E9F0;
+  // v1.0.0 Juzzio Space: tüm sosyal sayfalar aynı cam belirteçlerini kullanır
+  static Color cardBg(bool isDark) => JuzzioGlassTokens.spaceCard;
+  static Color subtleSurface(bool isDark) => JuzzioGlassTokens.spaceButton;
+  static Color textPrimary(bool isDark) => JuzzioGlassTokens.textPrimary;
+  static Color textSecondary(bool isDark) => JuzzioGlassTokens.textSecondary;
+  static Color borderSubtle(bool isDark) => JuzzioGlassTokens.spaceCardBorder;
 
   static String formatRelativeTime(DateTime dt, JuzzioAppController app) {
     final diff = DateTime.now().difference(dt.toLocal());
@@ -75,76 +74,57 @@ class JuzzioDarkHeaderBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = JuzzioAppController.instance.isDark;
+    // v1.0.0 Juzzio Space: zeminle bütünleşik başlık — kare cam geri düğmesi, büyük başlık,
+    // altında ince ayırıcı. Eski çağıranlar eylemleri beyaz çizdiği için aydınlık modda
+    // eylemler tema metin rengine boyanır (okunur kalır).
+    Widget acts = Row(mainAxisSize: MainAxisSize.min, children: actions);
+    if (!dark && actions.isNotEmpty) {
+      acts = ColorFiltered(colorFilter: ColorFilter.mode(JuzzioGlassTokens.textPrimary, BlendMode.srcIn), child: acts);
+    }
     return Container(
-      // v0.6 Glassmorphism: buzlu cam başlık (gündüz modunda beyaz yazı için koyu cam)
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: dark
-              ? const [Color(0x29FFFFFF), Color(0x0FFFFFFF)]
-              : const [Color(0xD91C1D24), Color(0xBF111216)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        border: const Border(bottom: BorderSide(color: Color(0x2EFFFFFF))),
-      ),
+      decoration: BoxDecoration(border: Border(bottom: BorderSide(color: JuzzioGlassTokens.spaceCardBorder))),
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 14),
+          padding: const EdgeInsets.fromLTRB(16, 10, 12, 14),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Row(
                 children: [
-                  if (onBack != null)
-                    Semantics(
-                      button: true,
-                      label: JuzzioAppController.instance.trEn('Geri', 'Back', 'Zurück'),
-                      child: IconButton(
-                        onPressed: onBack,
-                        constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-                        icon: const Icon(
-                          Icons.arrow_back_ios_new_rounded,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                        tooltip: JuzzioAppController.instance.trEn('Geri', 'Back', 'Zurück'),
-                      ),
-                    )
-                  else
-                    const SizedBox(width: 6),
+                  if (onBack != null) ...[
+                    JuzzioSpaceIconButton(
+                      icon: Icons.arrow_back_rounded,
+                      size: 42,
+                      tooltip: JuzzioAppController.instance.trEn('Geri', 'Back', 'Zurück'),
+                      onTap: onBack,
+                    ),
+                    const SizedBox(width: 12),
+                  ] else
+                    const SizedBox(width: 4),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        if (subtitle != null && subtitle!.trim().isNotEmpty) ...[
+                          JuzzioSpaceEyebrow(subtitle!),
+                          const SizedBox(height: 4),
+                        ],
                         Text(
                           title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.3,
+                          style: TextStyle(
+                            color: JuzzioGlassTokens.heading,
+                            fontSize: 24,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.6,
                           ),
                         ),
-                        if (subtitle != null && subtitle!.trim().isNotEmpty) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            subtitle!,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.74),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
                       ],
                     ),
                   ),
-                  ...actions,
+                  acts,
                 ],
               ),
               if (bottomChild != null) ...[
@@ -158,7 +138,6 @@ class JuzzioDarkHeaderBar extends StatelessWidget {
     );
   }
 }
-
 /// Yükleniyor/Hata/Baş Harf Fallback'li Ortak Avatar ve Hikâye Halkası (Bölüm 4.3, 18.1)
 class JuzzioUserAvatar extends StatelessWidget {
   final String? imageUrl;
@@ -211,7 +190,7 @@ class JuzzioUserAvatar extends StatelessWidget {
               errorBuilder: (_, __, ___) => _buildFallbackText(isDark),
             )
           : (url.startsWith('http')
-              ? Image.network(
+              ? JuzzioStorageImage(
                   url,
                   fit: BoxFit.cover,
                   loadingBuilder: (ctx, child, progress) {
@@ -220,7 +199,7 @@ class JuzzioUserAvatar extends StatelessWidget {
                       child: SizedBox(
                         width: radius * 0.7,
                         height: radius * 0.7,
-                        child: const CircularProgressIndicator(
+                        child: const JuzzioOrbitLoader(
                           strokeWidth: 2,
                           color: JuzzioSocialTokens.royalBlue,
                         ),
@@ -326,7 +305,6 @@ class JuzzioUserAvatar extends StatelessWidget {
   }
 }
 
-/// Yatay Filtre Hapları Çubuğu (Bölüm 4.3, 23.1)
 class JuzzioFilterPillBar extends StatelessWidget {
   final List<MapEntry<String, String>> items;
   final String selectedKey;
@@ -341,9 +319,9 @@ class JuzzioFilterPillBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = JuzzioAppController.instance.isDark;
+    // v1.0.0 Juzzio Space filtre hapları (seçili: parlayan vurgu)
     return SizedBox(
-      height: 40,
+      height: JuzzioSpaceMetrics.pillHeight + 4,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -352,43 +330,13 @@ class JuzzioFilterPillBar extends StatelessWidget {
         itemBuilder: (ctx, idx) {
           final entry = items[idx];
           final active = entry.key == selectedKey;
-          return Semantics(
-            button: true,
-            selected: active,
-            label: entry.value,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(20),
+          return Center(
+            child: JuzzioSpaceFilterPill(
+              label: entry.value,
+              selected: active,
               onTap: () {
                 if (!active) onSelected(entry.key);
               },
-              child: AnimatedContainer(
-                duration: JuzzioAppController.instance.reduceMotion
-                    ? Duration.zero
-                    : const Duration(milliseconds: 160),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: active
-                      ? JuzzioSocialTokens.royalBlue
-                      : JuzzioSocialTokens.cardBg(isDark),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: active
-                        ? JuzzioSocialTokens.royalBlue
-                        : JuzzioSocialTokens.borderSubtle(isDark),
-                  ),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  entry.value,
-                  style: TextStyle(
-                    color: active
-                        ? Colors.white
-                        : JuzzioSocialTokens.textPrimary(isDark),
-                    fontSize: 13,
-                    fontWeight: active ? FontWeight.w700 : FontWeight.w600,
-                  ),
-                ),
-              ),
             ),
           );
         },
@@ -602,7 +550,7 @@ Future<bool?> showJuzzioReportModalSheet({
     MapEntry('other', app.loc('Diğer', 'Other', 'Sonstiges')),
   ];
 
-  return showModalBottomSheet<bool>(
+  return showJuzzioSheet<bool>(
     context: context,
     isScrollControlled: true,
     backgroundColor: JuzzioSocialTokens.cardBg(isDark),
@@ -759,7 +707,7 @@ Future<bool?> showJuzzioReportModalSheet({
                             ? const SizedBox(
                                 width: 20,
                                 height: 20,
-                                child: CircularProgressIndicator(
+                                child: JuzzioOrbitLoader(
                                   strokeWidth: 2,
                                   color: Colors.white,
                                 ),
@@ -811,7 +759,7 @@ Future<void> showJuzzioSharePostModalSheet({
   String? errorMsg;
 
   if (!context.mounted) return;
-  await showModalBottomSheet<void>(
+  await showJuzzioSheet<void>(
     context: context,
     isScrollControlled: true,
     backgroundColor: JuzzioSocialTokens.cardBg(isDark),
@@ -1029,7 +977,7 @@ Future<void> showJuzzioSharePostModalSheet({
                               ? const SizedBox(
                                   width: 20,
                                   height: 20,
-                                  child: CircularProgressIndicator(
+                                  child: JuzzioOrbitLoader(
                                     strokeWidth: 2,
                                     color: Colors.white,
                                   ),
@@ -1192,7 +1140,7 @@ class _JuzzioPostCardWidgetState extends State<JuzzioPostCardWidget> {
     final isDark = app.isDark;
     final isMine = widget.post.authorId == widget.currentUser.id;
 
-    await showModalBottomSheet<void>(
+    await showJuzzioSheet<void>(
       context: context,
       backgroundColor: JuzzioSocialTokens.cardBg(isDark),
       shape: const RoundedRectangleBorder(
@@ -1441,7 +1389,7 @@ class _JuzzioPostCardWidgetState extends State<JuzzioPostCardWidget> {
                     if (v != null) setDlgState(() => vis = v);
                   },
                 ),
-                SwitchListTile(
+                JuzzioSwitchListTile(style: JuzzioToggleStyle.check,
                   contentPadding: EdgeInsets.zero,
                   value: commentsOn,
                   title: Text(
@@ -1728,7 +1676,7 @@ class _JuzzioPostCardWidgetState extends State<JuzzioPostCardWidget> {
                           loadingBuilder: (ctx, child, progress) {
                             if (progress == null) return child;
                             return const Center(
-                              child: CircularProgressIndicator(
+                              child: JuzzioOrbitLoader(
                                 strokeWidth: 2.2,
                                 color: JuzzioSocialTokens.royalBlue,
                               ),

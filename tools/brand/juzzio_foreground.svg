@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+<defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2B1677"/>
+      <stop offset="0.55" stop-color="#170D49"/>
+      <stop offset="1" stop-color="#0B1A4A"/>
+    </linearGradient>
+    <radialGradient id="blobA" cx="0.22" cy="0.18" r="0.55">
+      <stop offset="0" stop-color="#5B33D6" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#5B33D6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="blobB" cx="0.85" cy="0.88" r="0.5">
+      <stop offset="0" stop-color="#2546B8" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#2546B8" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="halo" cx="0.52" cy="0.52" r="0.42">
+      <stop offset="0" stop-color="#D6FF4A" stop-opacity="0.30"/>
+      <stop offset="1" stop-color="#D6FF4A" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="body" x1="300" y1="230" x2="760" y2="820" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#E9FF6A"/>
+      <stop offset="0.55" stop-color="#CFFB45"/>
+      <stop offset="1" stop-color="#9FE02E"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#9A6BFF"/>
+      <stop offset="1" stop-color="#5B3BFF"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2A3466" stop-opacity="0.92"/>
+      <stop offset="1" stop-color="#141A3C" stop-opacity="0.96"/>
+    </linearGradient>
+    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.30"/>
+      <stop offset="0.5" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="18"/></filter>
+    <filter id="glow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="14"/></filter>
+    <clipPath id="tile"><rect width="1024" height="1024" rx="232"/></clipPath>
+  </defs>
+<g transform="translate(512 512) scale(0.80) translate(-508 -480)">
+<g id="mark">
+    <!-- yörünge halkası (iki yay) + kıvılcım başı -->
+    <g fill="none" stroke="url(#ring)" stroke-width="22" stroke-linecap="round">
+      <path d="M173.7 416.9 A360 360 0 0 1 823.8 360"/>
+      <path d="M850.3 663.1 A360 360 0 0 1 200.2 720"/>
+    </g>
+    <circle cx="823.8" cy="360" r="30" fill="#D6FF4A" opacity="0.55" filter="url(#glow)"/>
+    <circle cx="823.8" cy="360" r="15" fill="#F6FFD0"/>
+
+    <!-- gölge -->
+    <ellipse cx="505" cy="812" rx="210" ry="28" fill="#000" opacity="0.35" filter="url(#soft)"/>
+
+    <!-- kuyruk tüyleri -->
+    <g fill="url(#body)">
+      <path d="M340 566 C 290 516, 226 504, 176 520 C 206 556, 258 600, 316 640 Z"/>
+      <path d="M322 624 C 260 610, 204 624, 164 662 C 212 680, 266 696, 322 708 Z"/>
+      <path d="M332 688 C 280 700, 238 728, 214 766 C 264 762, 314 760, 364 756 Z"/>
+    </g>
+    <!-- tepe tüyleri -->
+    <g fill="url(#body)">
+      <path d="M548 248 C 556 200, 568 160, 586 126 C 600 168, 612 206, 620 244 Z"/>
+      <path d="M516 262 C 500 220, 480 190, 462 168 C 512 186, 548 210, 570 242 Z"/>
+    </g>
+    <!-- gövde + baş -->
+    <ellipse cx="510" cy="616" rx="222" ry="190" fill="url(#body)"/>
+    <circle cx="578" cy="388" r="152" fill="url(#body)"/>
+    <path d="M410 470 C 430 420, 640 420, 690 470 L 700 560 L 400 560 Z" fill="url(#body)"/>
+
+    <!-- gaga -->
+    <path d="M716 370 L 808 400 L 716 432 Z" fill="#FFE27A"/>
+    <path d="M716 401 L 790 401" stroke="#C9A43A" stroke-width="6" stroke-linecap="round"/>
+    <!-- göz -->
+    <circle cx="642" cy="352" r="36" fill="#0B0E1F"/>
+    <circle cx="655" cy="339" r="12" fill="#FFFFFF"/>
+    <circle cx="630" cy="366" r="5" fill="#FFFFFF" opacity="0.7"/>
+    <!-- yanak -->
+    <ellipse cx="660" cy="434" rx="28" ry="15" fill="#FF7FB2" opacity="0.6"/>
+
+    <!-- kanat = cam sohbet balonu (içinde yazıyor noktaları) -->
+    <g>
+      <path d="M392 506 h 176 a 70 70 0 0 1 70 70 v 40 a 70 70 0 0 1 -70 70 h -96 l -78 58 l 20 -62 a 70 70 0 0 1 -42 -66 v -40 a 70 70 0 0 1 70 -70 Z"
+            fill="url(#glass)" stroke="#E9FF6A" stroke-opacity="0.55" stroke-width="5"/>
+      <path d="M392 512 h 176 a 64 64 0 0 1 64 64 v 6 h -304 v -6 a 64 64 0 0 1 64 -64 Z" fill="url(#sheen)"/>
+      <circle cx="420" cy="596" r="19" fill="#D6FF4A"/>
+      <circle cx="480" cy="596" r="19" fill="#D6FF4A" opacity="0.8"/>
+      <circle cx="540" cy="596" r="19" fill="#D6FF4A" opacity="0.6"/>
+    </g>
+  </g>
+
+</g>
+</svg>

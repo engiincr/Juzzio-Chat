@@ -17,7 +17,8 @@ import '../core/theme/juzzio_colors.dart';
 import '../core/theme/juzzio_glass.dart';
 import '../services/juzzio_features_service.dart';
 import '../services/supabase_service.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' show Supabase;
+import '../widgets/juzzio_cloth_refresh.dart';
+import '../widgets/juzzio_motion.dart';
 
 String _t(String tr, String en, String de) => JuzzioAppController.instance.trEn(tr, en, de);
 
@@ -671,7 +672,7 @@ class _JuzzioAdminModerationTabState extends State<JuzzioAdminModerationTab> {
       default:
         body = _strikesList();
     }
-    return RefreshIndicator(
+    return JuzzioClothRefresh(
       onRefresh: _load,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(14, 14, 14, 40),
@@ -692,7 +693,7 @@ class _JuzzioAdminModerationTabState extends State<JuzzioAdminModerationTab> {
           const SizedBox(height: 12),
           _segment(),
           const SizedBox(height: 12),
-          if (_loading) const LinearProgressIndicator(minHeight: 2),
+          if (_loading) const JuzzioSparklerBar(minHeight: 2),
           ...body,
         ],
       ),
@@ -802,7 +803,7 @@ class _JuzzioAdminGroupsTabState extends State<JuzzioAdminGroupsTab> {
 
   @override
   Widget build(BuildContext context) {
-    return RefreshIndicator(
+    return JuzzioClothRefresh(
       onRefresh: _load,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(14, 14, 14, 40),
@@ -819,7 +820,7 @@ class _JuzzioAdminGroupsTabState extends State<JuzzioAdminGroupsTab> {
             },
           ),
           const SizedBox(height: 10),
-          if (_loading) const LinearProgressIndicator(minHeight: 2),
+          if (_loading) const JuzzioSparklerBar(minHeight: 2),
           if (!_loading && _groups.isEmpty) _empty(_t('Grup bulunamadı.', 'No groups found.', 'Keine Gruppen gefunden.')),
           for (final g in _groups)
             JuzzioAdminGlassCard(
@@ -940,13 +941,13 @@ class _JuzzioAdminLiveTabState extends State<JuzzioAdminLiveTab> {
 
   @override
   Widget build(BuildContext context) {
-    return RefreshIndicator(
+    return JuzzioClothRefresh(
       onRefresh: _load,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(14, 14, 14, 40),
         children: [
           _sectionHeader(_t('Süren aramalar', 'Active calls', 'Aktive Anrufe'), Icons.call_rounded, trailing: _pill('${_calls.length}')),
-          if (_loading) const LinearProgressIndicator(minHeight: 2),
+          if (_loading) const JuzzioSparklerBar(minHeight: 2),
           if (!_loading && _calls.isEmpty) _empty(_t('Şu an süren arama yok.', 'No active calls right now.', 'Derzeit keine Anrufe.')),
           for (final c in _calls)
             JuzzioAdminGlassCard(
@@ -1175,7 +1176,7 @@ class _AdminUserPowerSheetState extends State<_AdminUserPowerSheet> {
           Text('@${widget.username}', style: const TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.w900)),
           const SizedBox(height: 4),
           Text(_t('Yönetici güç araçları', 'Admin power tools', 'Admin-Werkzeuge'), style: const TextStyle(color: Colors.white60)),
-          if (_busy) const Padding(padding: EdgeInsets.only(top: 8), child: LinearProgressIndicator(minHeight: 2)),
+          if (_busy) const Padding(padding: EdgeInsets.only(top: 8), child: JuzzioSparklerBar(minHeight: 2)),
           const SizedBox(height: 14),
           TextField(controller: _name, decoration: _deco(_t('Ad Soyad', 'Full name', 'Name'), Icons.badge_rounded)),
           const SizedBox(height: 8),
@@ -1349,7 +1350,7 @@ class _JuzzioAdminFeedbackTabState extends State<JuzzioAdminFeedbackTab> {
   Widget build(BuildContext context) {
     String kindLabel(String k) =>
         k == 'idea' ? _t('Öneri', 'Idea', 'Idee') : (k == 'feedback' ? _t('Geri bildirim', 'Feedback', 'Feedback') : _t('Hata', 'Bug', 'Fehler'));
-    return RefreshIndicator(
+    return JuzzioClothRefresh(
       onRefresh: _load,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(14, 14, 14, 40),
@@ -1377,7 +1378,7 @@ class _JuzzioAdminFeedbackTabState extends State<JuzzioAdminFeedbackTab> {
             ],
           ),
           const SizedBox(height: 8),
-          if (_loading) const LinearProgressIndicator(minHeight: 2),
+          if (_loading) const JuzzioSparklerBar(minHeight: 2),
           if (!_loading && _items.isEmpty) _empty(_t('Bildirim yok.', 'No reports.', 'Keine Meldungen.')),
           for (final f in _items)
             JuzzioAdminGlassCard(
@@ -1424,112 +1425,5 @@ class _JuzzioAdminFeedbackTabState extends State<JuzzioAdminFeedbackTab> {
         ],
       ),
     );
-  }
-}
-
-
-// =============================================================================
-// v0.9.0 — Yönetim > Business (Business eki §19): başvurular, durum, askıya alma, doğrulama.
-// Yetki sunucuda: listeleme business.read, değişiklik business.manage (gerekçe zorunlu, denetimli).
-// =============================================================================
-class JuzzioAdminBusinessTab extends StatefulWidget {
-  const JuzzioAdminBusinessTab({super.key, required this.token, required this.canManage});
-  final String token;
-  final bool canManage;
-
-  @override
-  State<JuzzioAdminBusinessTab> createState() => _JuzzioAdminBusinessTabState();
-}
-
-class _JuzzioAdminBusinessTabState extends State<JuzzioAdminBusinessTab> {
-  String? _status;
-  late Future<List<Map<String, dynamic>>> _f = _load();
-
-  Future<List<Map<String, dynamic>>> _load() async {
-    final res = await Supabase.instance.client.rpc('admin_list_business_accounts', params: {'p_token': widget.token, 'p_status': _status, 'p_limit': 200});
-    return [for (final e in (res as List? ?? const []).whereType<Map>()) Map<String, dynamic>.from(e)];
-  }
-
-  String _l(String tr, String en, String de) => JuzzioAppController.instance.trEn(tr, en, de);
-
-  Future<void> _act(Map<String, dynamic> b, String action) async {
-    final reason = TextEditingController();
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('${b['display_name']} → $action'),
-        content: TextField(controller: reason, decoration: InputDecoration(labelText: _l('Gerekçe (zorunlu)', 'Reason (required)', 'Grund (Pflicht)'))),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(_l('Vazgeç', 'Cancel', 'Abbrechen'))),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(_l('Uygula', 'Apply', 'Anwenden'))),
-        ],
-      ),
-    );
-    if (ok != true) return;
-    try {
-      final c = Supabase.instance.client;
-      if (action == 'verify' || action == 'unverify') {
-        await c.rpc('admin_set_business_verified', params: {'p_token': widget.token, 'p_business': b['id'], 'p_verified': action == 'verify', 'p_reason': reason.text});
-      } else {
-        await c.rpc('admin_business_set_status', params: {'p_token': widget.token, 'p_business': b['id'], 'p_status': action, 'p_reason': reason.text});
-      }
-      setState(() => _f = _load());
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(content: Text(SupabaseService.instance.friendlyError(e))));
-    }
-    reason.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(children: [
-      SizedBox(
-        height: 48,
-        child: ListView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.all(6), children: [
-          for (final s in <String?>[null, 'business_terms_pending', 'business_preparing', 'business_active', 'business_suspended', 'business_rejected', 'business_cancelled'])
-            Padding(
-              padding: const EdgeInsets.only(right: 6),
-              child: ChoiceChip(
-                label: Text(s ?? _l('Tümü', 'All', 'Alle')),
-                selected: _status == s,
-                onSelected: (_) => setState(() {
-                  _status = s;
-                  _f = _load();
-                }),
-              ),
-            ),
-        ]),
-      ),
-      Expanded(
-        child: FutureBuilder<List<Map<String, dynamic>>>(
-          future: _f,
-          builder: (ctx, snap) {
-            if (snap.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
-            if (snap.hasError) return Center(child: Text(SupabaseService.instance.friendlyError(snap.error!)));
-            final list = snap.data ?? const [];
-            if (list.isEmpty) return Center(child: Text(_l('Kayıt yok', 'No records', 'Keine Einträge')));
-            return ListView(children: [
-              for (final b in list)
-                ListTile(
-                  title: Text('${b['display_name']}${b['is_verified'] == true ? ' ✔' : ''}'),
-                  subtitle: Text('${b['status']} · ${b['profile_type']} · ${b['updated_at']}'),
-                  trailing: widget.canManage
-                      ? PopupMenuButton<String>(
-                          onSelected: (v) => _act(b, v),
-                          itemBuilder: (_) => [
-                            if (b['status'] == 'business_active') const PopupMenuItem(value: 'business_suspended', child: Text('Askıya al / Suspend')),
-                            if (b['status'] == 'business_suspended') const PopupMenuItem(value: 'business_active', child: Text('Yeniden aç / Reinstate')),
-                            if (b['status'] == 'business_preparing' || b['status'] == 'business_terms_pending')
-                              const PopupMenuItem(value: 'business_rejected', child: Text('Reddet / Reject')),
-                            PopupMenuItem(value: b['is_verified'] == true ? 'unverify' : 'verify', child: Text(b['is_verified'] == true ? 'Doğrulamayı kaldır' : 'Doğrula / Verify')),
-                          ],
-                        )
-                      : null,
-                ),
-            ]);
-          },
-        ),
-      ),
-    ]);
   }
 }

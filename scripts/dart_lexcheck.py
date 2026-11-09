@@ -10,6 +10,7 @@ Kullanım: python3 scripts/dart_lexcheck.py [dosya ...]   (varsayılan: lib/ ve 
 """
 import glob
 import os
+import re
 import sys
 
 PAIRS = {')': '(', ']': '[', '}': '{'}
@@ -126,7 +127,14 @@ def main(argv):
     bad = 0
     for f in files:
         with open(f, encoding='utf-8') as fh:
-            problem = check(fh.read())
+            text = fh.read()
+        problem = check(text)
+        # v0.9.0: `whenComplete(() => map.remove(k))` haritadaki future'ı döndürür; whenComplete onu
+        # bekler → future kendini bekler ve HİÇ bitmez (özel medya imzası bu yüzden kilitlenmişti).
+        if not problem:
+            m = re.search(r'whenComplete\(\s*\(\)\s*=>\s*[\w.]+\.remove\(', text)
+            if m:
+                problem = f"{text.count(chr(10), 0, m.start()) + 1}. satır: whenComplete(() => ...remove(...)) kendini bekler; blok gövde kullanın"
         if problem:
             bad += 1
             print(f"::error file={os.path.relpath(f, root)}::{problem}")

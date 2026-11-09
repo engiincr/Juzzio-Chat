@@ -21,6 +21,7 @@ import '../../core/theme/juzzio_colors.dart';
 import '../../services/juzzio_features_service.dart';
 import '../../services/supabase_service.dart';
 import '../../widgets/profile_extras.dart';
+import '../../widgets/juzzio_motion.dart';
 
 String _l(String tr, String en, String de) => JuzzioAppController.instance.trEn(tr, en, de);
 
@@ -112,7 +113,7 @@ class _JuzzioProfileCardPageState extends State<JuzzioProfileCardPage> with Sing
   }
 
   Future<void> _pickColor() async {
-    final chosen = await showModalBottomSheet<String>(
+    final chosen = await showJuzzioSheet<String>(
       context: context,
       backgroundColor: JuzzioAppController.instance.isDark ? JuzzioColors.surface141519 : Colors.white,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
@@ -227,7 +228,7 @@ class _JuzzioProfileCardPageState extends State<JuzzioProfileCardPage> with Sing
       _snack(_l('Önce bir arkadaş ekleyin.', 'Add a friend first.', 'Füge zuerst einen Freund hinzu.'));
       return;
     }
-    final target = await showModalBottomSheet<JuzzioUserProfile>(
+    final target = await showJuzzioSheet<JuzzioUserProfile>(
       context: context,
       isScrollControlled: true,
       backgroundColor: JuzzioAppController.instance.isDark ? JuzzioColors.surface141519 : Colors.white,
@@ -304,7 +305,7 @@ class _JuzzioProfileCardPageState extends State<JuzzioProfileCardPage> with Sing
                   if (_busy)
                     const Padding(
                       padding: EdgeInsets.only(right: 12),
-                      child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+                      child: SizedBox(width: 18, height: 18, child: JuzzioOrbitLoader(strokeWidth: 2, color: Colors.white)),
                     ),
                   if (widget.isOwn)
                     IconButton(

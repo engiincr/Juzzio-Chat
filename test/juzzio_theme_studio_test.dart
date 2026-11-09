@@ -109,8 +109,8 @@ void main() {
   });
 
   group('Tema motoru', () {
-    test('12 hazır temanın tamamı geçerli ve metin okunaklı', () {
-      expect(kJuzzioAuroraPalettes.length, 12);
+    test('16 hazır temanın (v0.9.7: +4 cam teması) tamamı geçerli ve metin okunaklı', () {
+      expect(kJuzzioAuroraPalettes.length, 16);
       for (final p in kJuzzioAuroraPalettes) {
         expect(juzzioAuroraPaletteById(p.id).id, p.id);
         // koyu metin açık zeminde, açık metin koyu zeminde en az 4.5:1

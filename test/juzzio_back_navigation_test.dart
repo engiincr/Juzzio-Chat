@@ -20,9 +20,15 @@ void main() {
     expect(press(inside: true), JuzzioBackAction.leaveConversation);
   });
 
-  test('sohbet filtresi önce Tümü\'ne, diğer sekmeler Ana Sayfa\'ya döner', () {
+  test('kök sekme Sohbetler', () {
+    expect(JuzzioBackNavigator.homeTab, JuzzioBackNavigator.chatsTab);
+  });
+
+  test('sohbet filtresi önce Tümü\'ne, diğer sekmeler Sohbetler\'e döner', () {
     expect(press(tab: 0, filter: 2), JuzzioBackAction.resetChatFilter);
-    expect(press(tab: 0), JuzzioBackAction.goToHomeTab);
+    expect(press(tab: 0), JuzzioBackAction.showExitHint);
+    nav.reset();
+    expect(press(tab: 1), JuzzioBackAction.goToHomeTab);
     expect(press(tab: 4), JuzzioBackAction.goToHomeTab);
     expect(press(tab: 6), JuzzioBackAction.goToHomeTab);
     expect(press(tab: 3, filter: 2), JuzzioBackAction.goToHomeTab);

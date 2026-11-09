@@ -17,10 +17,14 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'juzzio_e2ee.dart';
+import 'juzzio_local_db.dart';
 import '../core/app_theme_and_locale.dart';
+import 'juzzio_beauty.dart';
+import 'juzzio_time_sync.dart';
 import '../core/config.dart';
 import 'juzzio_features_service.dart';
 import 'juzzio_media_crypto.dart';
+import 'juzzio_media_cache.dart';
 import 'juzzio_media_url.dart';
 
 // -----------------------------------------------------------------------------
@@ -216,6 +220,7 @@ class JuzzioMessage {
   final String? videoUrl;
   final String? documentUrl;
   final String? documentName;
+  final int documentSize;
   final String? storyId;
   final String? replyToId;
   final Map<String, dynamic>? storyReplyMeta;
@@ -225,8 +230,14 @@ class JuzzioMessage {
   final Map<String, String> reactions;
   final bool isPinned;
   final bool isDeleted;
+  /// v0.9.5: tek seferlik medya
+  final bool isViewOnce;
+  final DateTime? viewOnceOpenedAt;
   final DateTime? editedAt;
   final DateTime createdAt;
+
+  /// v1.0.0: istemci gönderim kimliği (anında görünen yerel balonu sunucu kaydıyla eşler)
+  final String? clientMsgId;
 
   const JuzzioMessage({
     required this.id,
@@ -244,6 +255,7 @@ class JuzzioMessage {
     this.videoUrl,
     this.documentUrl,
     this.documentName,
+    this.documentSize = 0,
     this.storyId,
     this.replyToId,
     this.storyReplyMeta,
@@ -253,9 +265,15 @@ class JuzzioMessage {
     this.reactions = const {},
     this.isPinned = false,
     this.isDeleted = false,
+    this.isViewOnce = false,
+    this.viewOnceOpenedAt,
     this.editedAt,
     required this.createdAt,
+    this.clientMsgId,
   });
+
+  /// v1.0.0: henüz sunucuya ulaşmamış yerel (anında gösterilen) mesaj
+  bool get isLocalPending => metadata['local_pending'] == true;
 
   /// v0.7.0: uçtan uca şifreli mesaj — cihazda çözülen metinle kopya
   bool get isEncrypted => metadata['e2ee'] is Map;
@@ -276,6 +294,7 @@ class JuzzioMessage {
         videoUrl: videoUrl,
         documentUrl: documentUrl,
         documentName: documentName,
+        documentSize: documentSize,
         storyId: storyId,
         replyToId: replyToId,
         storyReplyMeta: storyReplyMeta,
@@ -285,8 +304,11 @@ class JuzzioMessage {
         reactions: reactions,
         isPinned: isPinned,
         isDeleted: isDeleted,
+        isViewOnce: isViewOnce,
+        viewOnceOpenedAt: viewOnceOpenedAt,
         editedAt: editedAt,
         createdAt: createdAt,
+        clientMsgId: clientMsgId,
       );
 
   factory JuzzioMessage.fromMap(Map<String, dynamic> map) {
@@ -356,12 +378,14 @@ class JuzzioMessage {
       sourceLang: (map['source_lang'] ?? 'auto').toString(),
       targetLang: (map['target_lang'] ?? 'tr').toString(),
       originalText: (map['original_text'] ?? '').toString(),
-      translatedText: (map['translated_text'] ?? '').toString(),
+      // v0.9.3: eski kayıtlarda çeviri yerine saklanmış servis hata metni gösterilmez (yeniden çevrilir)
+      translatedText: isTranslationProviderError((map['translated_text'] ?? '').toString()) ? '' : (map['translated_text'] ?? '').toString(),
       audioUrl: nonEmpty(rawAudioUrl),
       imageUrl: nonEmpty(map['image_url']) ?? nonEmpty(storyMeta?['replyImageUrl']),
       videoUrl: nonEmpty(map['video_url']),
       documentUrl: nonEmpty(map['document_url']),
       documentName: nonEmpty(map['document_name']),
+      documentSize: int.tryParse('${map['document_size'] ?? 0}') ?? 0,
       storyId: nonEmpty(map['story_id']) ?? nonEmpty(storyMeta?['storyId']),
       replyToId: nonEmpty(map['reply_to_id']),
       storyReplyMeta: storyMeta,
@@ -371,8 +395,11 @@ class JuzzioMessage {
       reactions: parsedReactions,
       isPinned: map['is_pinned'] == true,
       isDeleted: map['is_deleted'] == true,
+      isViewOnce: map['is_view_once'] == true,
+      viewOnceOpenedAt: DateTime.tryParse('${map['view_once_opened_at'] ?? ''}'),
       editedAt: DateTime.tryParse(map['edited_at']?.toString() ?? ''),
       createdAt: _parseDate(map['created_at']),
+      clientMsgId: nonEmpty(map['client_msg_id']),
     );
   }
 }
@@ -460,6 +487,8 @@ class JuzzioStory {
   final String overlayColor;
   // v0.5 hikâye stüdyosu: emoji çıkartmaları (x/y 0..1 oransal konum, scale çarpanı)
   final List<JuzzioStorySticker> stickers;
+  /// v0.9.3: Admin → Juzzio Story panelinden paylaşılan "Juzzio Official" hikâyesi
+  final bool isOfficial;
 
   const JuzzioStory({
     required this.id,
@@ -493,11 +522,13 @@ class JuzzioStory {
     this.overlayStyle = 'classic',
     this.overlayColor = '#FFFFFF',
     this.stickers = const <JuzzioStorySticker>[],
+    this.isOfficial = false,
   });
 
   bool get hasTrim => trimEndMs > trimStartMs && trimEndMs > 0;
 
-  bool get isExpired => DateTime.now().toUtc().isAfter(expiresAt.toUtc());
+  // v0.9.4: sunucu saatine göre (cihaz saati değiştirilse de doğru)
+  bool get isExpired => JuzzioClock.nowUtc().isAfter(expiresAt.toUtc());
 
   factory JuzzioStory.fromMap(Map<String, dynamic> map) {
     final created = _parseDate(map['created_at']);
@@ -535,6 +566,7 @@ class JuzzioStory {
       overlayStyle: (map['overlay_style'] ?? 'classic').toString(),
       overlayColor: (map['overlay_color'] ?? '#FFFFFF').toString(),
       stickers: JuzzioStorySticker.listFrom(map['stickers_json']),
+      isOfficial: map['is_official'] == true,
     );
   }
 }
@@ -1050,6 +1082,28 @@ class SupabaseService {
       'ClientException': 'err_offline',
       'TimeoutException': 'err_offline',
     };
+    // v0.9.4: anket / etkinlik / civciv gardırobu hata kodları anlaşılır metne çevrilir
+    final featureMsg = <String, String>{
+      'poll_group_only': _app.trEn('Anket yalnızca grup sohbetlerinde oluşturulabilir.', 'Polls can only be created in group chats.', 'Umfragen gibt es nur in Gruppenchats.'),
+      'poll_options_invalid': _app.trEn('Anket 2 ile 10 arasında seçenek içermeli.', 'A poll needs 2 to 10 options.', 'Eine Umfrage braucht 2 bis 10 Optionen.'),
+      'poll_options_duplicate': _app.trEn('Aynı seçenek iki kez yazılmış.', 'An option is duplicated.', 'Eine Option ist doppelt.'),
+      'poll_closed': _app.trEn('Bu anket kapandı.', 'This poll is closed.', 'Diese Umfrage ist geschlossen.'),
+      'poll_single_choice': _app.trEn('Bu ankette yalnız bir seçenek seçilebilir.', 'Only one option can be chosen.', 'Nur eine Option wählbar.'),
+      'event_group_only': _app.trEn('Etkinlik yalnızca grup sohbetlerinde planlanabilir.', 'Events can only be planned in group chats.', 'Termine gibt es nur in Gruppenchats.'),
+      'event_in_past': _app.trEn('Etkinlik zamanı geçmişte olamaz.', 'The event time cannot be in the past.', 'Der Termin darf nicht in der Vergangenheit liegen.'),
+      'chick_not_enough_coins': _app.trEn('Yeterli jetonunuz yok. Civcivi besleyerek jeton kazanın.', 'Not enough coins. Feed your chick to earn coins.', 'Nicht genug Münzen. Füttere dein Küken.'),
+      'chick_stage_too_low': _app.trEn('Bu aksesuar için civcivin biraz daha büyümesi gerekiyor.', 'Your chick needs to grow a bit more for this item.', 'Dein Küken muss dafür noch wachsen.'),
+      'low_trust_limited': _app.trEn('Hesabın hakkında yakın zamanda şikâyet olduğu için bugün daha fazla gönderi paylaşamazsın.', 'Due to recent reports you cannot post more today.', 'Wegen Meldungen heute keine weiteren Beiträge.'),
+      'view_once_already_opened': _app.trEn('Bu medya zaten açıldı.', 'This media was already opened.', 'Bereits geöffnet.'),
+      'watch_party_invalid_url': _app.trEn('Geçerli bir https:// bağlantısı girin.', 'Enter a valid https:// link.', 'Gültigen https://-Link eingeben.'),
+      'safety_invalid_duration': _app.trEn('Süre 5 dakika ile 12 saat arasında olmalı.', 'Duration must be between 5 minutes and 12 hours.', 'Dauer 5 Min.–12 Std.'),
+      'poll_deadline_past': _app.trEn('Bitiş zamanı gelecekte olmalı.', 'The deadline must be in the future.', 'Frist muss in der Zukunft liegen.'),
+      'qa_invalid_text': _app.trEn('Metin 1-500 karakter olmalı.', 'Text must be 1-500 characters.', 'Text 1–500 Zeichen.'),
+      'accessory_not_owned': _app.trEn('Önce bu aksesuarı satın alın.', 'Buy this item first.', 'Kaufe diesen Artikel zuerst.'),
+    };
+    for (final entry in featureMsg.entries) {
+      if (raw.contains(entry.key)) return entry.value;
+    }
     for (final entry in codeToKey.entries) {
       if (raw.contains(entry.key)) return _app.t(entry.value);
     }
@@ -1239,6 +1293,7 @@ class SupabaseService {
     } catch (_) {}
     await clearLocalCacheForCurrentUser();
     JuzzioMediaUrl.clearCache();
+    await JuzzioMediaDiskCache.instance.init(null);
     await client.auth.signOut();
   }
 
@@ -1305,7 +1360,10 @@ class SupabaseService {
       throw AuthException(_app.t('err_password_wrong'));
     }
     await client.rpc('delete_my_juzzio_account');
+    // Hesap silinince bu cihazdaki önbellek (sohbetler, mesajlar, medya) de silinir
+    await clearLocalCacheForCurrentUser();
     JuzzioMediaUrl.clearCache();
+    await JuzzioMediaDiskCache.instance.init(null);
     await client.auth.signOut();
   }
 
@@ -1338,7 +1396,125 @@ class SupabaseService {
     return const <String, String>{};
   }
 
+  // ---------------------------------------------------------------------------
+  // v0.9.3: ÇEVRİMDIŞI AYAR KUYRUĞU
+  // İnternet yokken yapılan ayar değişiklikleri kaybolmaz: işlem cihazda (hesaba özel dosyada)
+  // sıraya alınır ve bağlantı gelince (30 sn'de bir deneme + uygulama öne gelince) sunucuya
+  // yazılır. Aynı anahtardaki yeni değer eskisinin yerine geçer (son yazan kazanır); profil
+  // alanları birleştirilir. Sunucu işlemi REDDEDERSE (yetki/doğrulama) kuyruktan atılır.
+  // ---------------------------------------------------------------------------
+  Map<String, Map<String, dynamic>>? _pendingOps;
+  Timer? _pendingFlushTimer;
+  bool _flushingPending = false;
+
+  /// Ağ kaynaklı (yeniden denenebilir) hata mı?
+  static bool isNetworkError(Object e) {
+    if (e is SocketException || e is TimeoutException || e is HttpException) return true;
+    final s = e.toString().toLowerCase();
+    return s.contains('socketexception') ||
+        s.contains('failed host lookup') ||
+        s.contains('network is unreachable') ||
+        s.contains('connection refused') ||
+        s.contains('connection reset') ||
+        s.contains('connection closed') ||
+        s.contains('clientexception') ||
+        s.contains('handshakeexception') ||
+        s.contains('timed out') ||
+        s.contains('timeoutexception');
+  }
+
+  Future<Map<String, Map<String, dynamic>>> _loadPendingOps() async {
+    if (_pendingOps != null) return _pendingOps!;
+    final out = <String, Map<String, dynamic>>{};
+    try {
+      final raw = await _readCache('pending_ops');
+      if (raw is Map) {
+        raw.forEach((k, v) {
+          if (v is Map) out[k.toString()] = Map<String, dynamic>.from(v);
+        });
+      }
+    } catch (_) {}
+    return _pendingOps = out;
+  }
+
+  Future<void> _savePendingOps() async {
+    final ops = _pendingOps ?? const {};
+    try {
+      await _writeCache('pending_ops', ops);
+    } catch (_) {}
+    if (ops.isEmpty) {
+      _pendingFlushTimer?.cancel();
+      _pendingFlushTimer = null;
+    } else {
+      _pendingFlushTimer ??= Timer.periodic(const Duration(seconds: 30), (_) => flushPendingOps());
+    }
+  }
+
+  /// Bekleyen ayar işlemi sayısı (arayüzde "bağlantı gelince kaydedilecek" bilgisi için).
+  int get pendingOpCount => _pendingOps?.length ?? 0;
+
+  Future<void> _runOp(Map<String, dynamic> op) async {
+    final uid = currentUserId;
+    if (uid == null) throw const JuzzioServiceException('not_authenticated');
+    switch (op['t']) {
+      case 'profile':
+        final fields = Map<String, dynamic>.from(op['fields'] as Map);
+        fields['updated_at'] = DateTime.now().toUtc().toIso8601String();
+        await client.from('profiles').update(fields).eq('id', uid);
+        return;
+      case 'rpc':
+        await client.rpc(op['fn'].toString(), params: op['params'] is Map ? Map<String, dynamic>.from(op['params'] as Map) : null);
+        return;
+    }
+  }
+
+  /// İşlemi hemen dener; ağ yoksa sıraya alır ve false döner (değişiklik KAYBOLMAZ).
+  /// Sunucu reddederse istisnayı aynen fırlatır.
+  Future<bool> writeOrQueue(String key, Map<String, dynamic> op) async {
+    final ops = await _loadPendingOps();
+    // Profil alanları: bekleyen değerlerle birleştir (sıra dışı yazımda eski alan kaybolmasın)
+    var effective = op;
+    if (op['t'] == 'profile' && ops[key]?['t'] == 'profile') {
+      effective = {
+        't': 'profile',
+        'fields': {...Map<String, dynamic>.from(ops[key]!['fields'] as Map), ...Map<String, dynamic>.from(op['fields'] as Map)},
+      };
+    }
+    try {
+      await _runOp(effective);
+      if (ops.remove(key) != null) await _savePendingOps();
+      return true;
+    } catch (e) {
+      if (!isNetworkError(e)) rethrow;
+      ops[key] = effective;
+      await _savePendingOps();
+      return false;
+    }
+  }
+
+  /// Bekleyen ayarları sunucuya yazar (bağlantı yoksa sonraki denemeye bırakır).
+  Future<void> flushPendingOps() async {
+    if (_flushingPending || currentUserId == null) return;
+    _flushingPending = true;
+    try {
+      final ops = await _loadPendingOps();
+      for (final key in ops.keys.toList()) {
+        try {
+          await _runOp(ops[key]!);
+          ops.remove(key);
+        } catch (e) {
+          if (isNetworkError(e)) break; // hâlâ çevrimdışı
+          ops.remove(key); // sunucu reddetti: tekrar denemenin anlamı yok
+        }
+      }
+      await _savePendingOps();
+    } finally {
+      _flushingPending = false;
+    }
+  }
+
   void attachPreferenceSync() {
+    unawaited(flushPendingOps());
     JuzzioAppController.serverUiTranslator = translateUiBatch;
     _prefsSyncBaseline = _profileFieldsFromPrefs(_app.preferencesSnapshot());
     JuzzioAppController.remotePreferenceSync = (prefs) {
@@ -1364,9 +1540,9 @@ class SupabaseService {
       if (baseline[k] != v) changed[k] = v;
     });
     if (changed.isEmpty) return;
-    changed['updated_at'] = DateTime.now().toUtc().toIso8601String();
     try {
-      await client.from('profiles').update(changed).eq('id', uid);
+      // v0.9.3: çevrimdışıysa sıraya alınır, bağlantı gelince yazılır
+      await writeOrQueue('profile', {'t': 'profile', 'fields': changed});
       _prefsSyncBaseline = {...baseline, ...fields};
     } catch (_) {}
   }
@@ -1485,8 +1661,25 @@ class SupabaseService {
     try {
       final row = await client.from('profiles').select().eq('id', userId).maybeSingle();
       if (row != null) {
-        if (userId == currentUserId) unawaited(_writeCache('my_profile', row));
+        unawaited(_writeCache(userId == currentUserId ? 'my_profile' : profileCacheName(userId), row));
         return JuzzioUserProfile.fromMap(row);
+      }
+      return null; // sunucu "yok" dedi: önbellek kullanılmaz (silinmiş/engelli hesap)
+    } catch (_) {
+      // v0.9.2: çevrimdışı → en son görülen profil
+      return cachedUserProfile(userId);
+    }
+  }
+
+  static String profileCacheName(String userId) => 'profile_${userId.replaceAll(RegExp(r'[^A-Za-z0-9-]'), '')}';
+
+  /// Cihazda kayıtlı son profil (ağ kullanmaz). Yoksa toplu profil önbelleğine bakar.
+  Future<JuzzioUserProfile?> cachedUserProfile(String userId) async {
+    try {
+      final raw = await _readCache(userId == currentUserId ? 'my_profile' : profileCacheName(userId));
+      if (raw is Map) return JuzzioUserProfile.fromMap(Map<String, dynamic>.from(raw));
+      for (final p in await loadCachedProfiles()) {
+        if (p.id == userId) return p;
       }
     } catch (_) {}
     return null;
@@ -1510,7 +1703,35 @@ class SupabaseService {
     }
   }
 
+  /// v0.9.3: diğer servislerin hesaba özel çevrimdışı önbelleği (ad yalnız güvenli karakter).
+  static String safeCacheName(String s) => s.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '');
+  Future<void> writeLocalCache(String name, Object data) => _writeCache(safeCacheName(name), data);
+  Future<Object?> readLocalCache(String name) => _readCache(safeCacheName(name));
+
+  /// v0.9.7: hesaba özel Drift (SQLite) veritabanı; açılamazsa null (JSON dosyalara düşülür).
+  Future<JuzzioLocalDb?> _localDb() async {
+    final f = await _cacheFile('conversations');
+    if (f == null) return null;
+    return JuzzioLocalStore.instance.open(f.parent);
+  }
+
+  static bool _isMessageCache(String name) => name.startsWith('msgs_');
+  static String _roomFromCacheName(String name) => name.substring(5);
+
   Future<void> _writeCache(String name, Object data) async {
+    // v0.9.7: önce Drift (SQLite); başarılıysa JSON dosyası yazılmaz
+    try {
+      final db = await _localDb();
+      if (db != null) {
+        if (_isMessageCache(name) && data is List) {
+          await db.upsertRoomWindow(_roomFromCacheName(name), data.whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList(),
+              keep: offlineMessageLimit);
+        } else {
+          await db.putJson(name, data);
+        }
+        return;
+      }
+    } catch (_) {}
     try {
       final f = await _cacheFile(name);
       if (f == null) return;
@@ -1520,11 +1741,32 @@ class SupabaseService {
     } catch (_) {}
   }
 
-  Future<Object?> _readCache(String name) async {
+  Future<Object?> _readCache(String name, {int messageLimit = offlineMessageLimit}) async {
+    JuzzioLocalDb? db;
+    try {
+      db = await _localDb();
+      if (db != null) {
+        final Object? v = _isMessageCache(name) ? await db.roomMessages(_roomFromCacheName(name), limit: messageLimit) : await db.getJson(name);
+        if (v != null && !(v is List && v.isEmpty)) return v;
+      }
+    } catch (_) {}
+    // JSON yedeği / eski sürümden geçiş: dosya varsa okunur, Drift'e taşınır ve silinir
     try {
       final f = await _cacheFile(name);
       if (f == null || !f.existsSync()) return null;
-      return jsonDecode(await f.readAsString());
+      final v = jsonDecode(await f.readAsString());
+      if (db != null && v != null) {
+        try {
+          if (_isMessageCache(name) && v is List) {
+            await db.upsertRoomWindow(_roomFromCacheName(name), v.whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList(),
+                keep: offlineMessageLimit);
+          } else {
+            await db.putJson(name, v as Object);
+          }
+          await f.delete();
+        } catch (_) {}
+      }
+      return v;
     } catch (_) {
       return null;
     }
@@ -1562,6 +1804,7 @@ class SupabaseService {
 
   /// Çıkışta bu hesaba ait yerel önbelleği siler (hesaplar arası veri sızmaz).
   Future<void> clearLocalCacheForCurrentUser() async {
+    await JuzzioLocalStore.instance.closeAndDelete();
     try {
       final f = await _cacheFile('conversations');
       final dir = f?.parent;
@@ -1692,6 +1935,8 @@ class SupabaseService {
     String? finalAvatarUrl = existingAvatarUrl;
 
     if (newAvatarFile != null && newAvatarFile.existsSync()) {
+      // v0.9.4: avatars kovası 5 MB — yüklemeden önce sıkıştır
+      newAvatarFile = await juzzioCompressImageForUpload(newAvatarFile, maxSide: 1080);
       final ext = newAvatarFile.path.split('.').last.toLowerCase();
       final mime = ext == 'png' ? 'image/png' : (ext == 'webp' ? 'image/webp' : 'image/jpeg');
       final path = '$userId/avatar_${DateTime.now().millisecondsSinceEpoch}.$ext';
@@ -1830,10 +2075,24 @@ class SupabaseService {
     final cached = _translationCache[cacheKey];
     if (cached != null && cached.isNotEmpty) return cached;
 
+    // v0.9.3: uzun metin (sesli mesaj dökümü vb.) parçalara bölünür — tek uzun istek hem
+    // adres sınırına takılıyor hem de yedek servisin "500 karakter" hata metnini döndürüyordu
+    if (clean.length > translationChunkMax) {
+      final parts = splitForTranslation(clean);
+      final out = <String>[];
+      for (final part in parts) {
+        out.add(await translateText(text: part, sourceLang: sl, targetLang: tl));
+      }
+      final joined = out.join(' ').trim();
+      if (_translationCache.length > 500) _translationCache.clear();
+      _translationCache[cacheKey] = joined;
+      return joined;
+    }
+
     try {
       final uri = Uri.parse(
         'https://translate.googleapis.com/translate_a/single'
-        '?client=gtx&sl=auto&tl=${Uri.encodeComponent(tl)}&dt=t&q=${Uri.encodeComponent(clean)}',
+        '?client=gtx&sl=auto&tl=${Uri.encodeComponent(juzzioGoogleLangCode(tl))}&dt=t&q=${Uri.encodeComponent(clean)}',
       );
       final response = await _httpClient.get(uri).timeout(const Duration(seconds: 3));
       if (response.statusCode == 200) {
@@ -1844,7 +2103,7 @@ class SupabaseService {
             if (seg is List && seg.isNotEmpty && seg[0] != null) buffer.write(seg[0].toString());
           }
           final result = buffer.toString().trim();
-          if (result.isNotEmpty) {
+          if (result.isNotEmpty && !isTranslationProviderError(result)) {
             if (_translationCache.length > 500) _translationCache.clear();
             _translationCache[cacheKey] = result;
             return result;
@@ -1862,7 +2121,7 @@ class SupabaseService {
       });
       final data = res.data is String ? jsonDecode(res.data as String) : res.data;
       final translated = (data is Map) ? data['translatedText']?.toString() : null;
-      if (translated != null && translated.isNotEmpty) {
+      if (translated != null && translated.isNotEmpty && !isTranslationProviderError(translated)) {
         _translationCache[cacheKey] = translated;
         return translated;
       }
@@ -1904,7 +2163,14 @@ class SupabaseService {
   /// (RLS sayesinde yalnızca kullanıcının kendi sohbetleri) listeyi yeniler.
   Stream<List<JuzzioConversation>> watchMyConversations() {
     final uid = currentUserId;
-    if (uid == null) return Stream.value(const []);
+    // v0.9.3: ilk açılışta oturum henüz geri yüklenmemişse BOŞ liste yayınlanmaz (aksi hâlde tüm
+    // arkadaşlar "Sohbet başlatmak için dokun" olarak görünüyordu); oturum gelince izleme başlar.
+    if (uid == null) {
+      return client.auth.onAuthStateChange
+          .where((e) => e.session != null)
+          .take(1)
+          .asyncExpand((_) => watchMyConversations());
+    }
     late StreamController<List<JuzzioConversation>> controller;
     RealtimeChannel? channel;
     Timer? debounce;
@@ -2115,8 +2381,19 @@ class SupabaseService {
   }
 
   Future<bool> setSaveNotifications(bool enabled) async {
-    final r = await client.rpc('set_my_save_notifications', params: {'p_enabled': enabled});
-    return r == true;
+    try {
+      final r = await client.rpc('set_my_save_notifications', params: {'p_enabled': enabled});
+      return r == true;
+    } catch (e) {
+      if (!isNetworkError(e)) rethrow;
+      // v0.9.3: çevrimdışı → bağlantı gelince uygulanır
+      await writeOrQueue('rpc:set_my_save_notifications', {
+        't': 'rpc',
+        'fn': 'set_my_save_notifications',
+        'params': {'p_enabled': enabled},
+      });
+      return true;
+    }
   }
 
   /// v0.9.0 §6.4: sohbet bazlı bildirim ayarları (yalnız kendi katılım satırı; sunucu doğrular).
@@ -2153,22 +2430,112 @@ class SupabaseService {
   // ---------------------------------------------------------------------------
   // MESAJLAR
   // ---------------------------------------------------------------------------
-  Stream<List<JuzzioMessage>> watchRoomMessages(String roomId) {
-    return client
-        .from('messages')
-        .stream(primaryKey: ['id'])
-        .eq('room_id', roomId)
-        .order('created_at', ascending: true)
-        .map((rows) {
-      final now = DateTime.now().toUtc();
-      return rows
-          .where((r) {
-            final exp = DateTime.tryParse(r['expires_at']?.toString() ?? '');
-            return exp == null || exp.toUtc().isAfter(now);
-          })
-          .map(JuzzioMessage.fromMap)
-          .toList();
-    }).asyncMap(JuzzioE2ee.instance.decryptAll);
+  /// v0.9.3: sohbet listesi önizlemesi için odanın son mesajı (çözülmüş). Önce cihazdaki
+  /// önbellek (ağsız, anında), yoksa sunucudan tek satır (RLS) okunur.
+  Future<JuzzioMessage?> lastMessageForPreview(String roomId, {DateTime? lastMessageAt}) async {
+    Map<String, dynamic>? row;
+    try {
+      final cached = await _readCache(messageCacheName(roomId), messageLimit: 1);
+      if (cached is List && cached.isNotEmpty && cached.last is Map) {
+        final r = Map<String, dynamic>.from(cached.last as Map);
+        final at = DateTime.tryParse((r['created_at'] ?? '').toString());
+        // önbellek eskiyse (sonrasında yeni mesaj gelmişse) sunucudan oku
+        final stale = lastMessageAt != null && (at == null || at.isBefore(lastMessageAt.subtract(const Duration(seconds: 1))));
+        if (!stale) row = r;
+      }
+    } catch (_) {}
+    if (row == null) {
+      try {
+        final r = await client.from('messages').select().eq('room_id', roomId).order('created_at', ascending: false).limit(1);
+        if (r.isNotEmpty) row = Map<String, dynamic>.from(r.first);
+      } catch (_) {}
+    }
+    if (row == null) return null;
+    final list = await JuzzioE2ee.instance.decryptAll(visibleMessagesFromRows([row]));
+    return list.isEmpty ? null : list.first;
+  }
+
+  /// v0.9.2: çevrimdışı okuma için oda başına saklanan son mesaj sayısı.
+  static const int offlineMessageLimit = 300;
+
+  /// Önbellek dosya adı (oda kimliği dışındaki karakterler atılır).
+  static String messageCacheName(String roomId) => 'msgs_${roomId.replaceAll(RegExp(r'[^A-Za-z0-9-]'), '')}';
+
+  /// Sunucu satırlarından ekrana uygun liste (süresi dolan mesajlar atılır).
+  static List<JuzzioMessage> visibleMessagesFromRows(Iterable<Map<String, dynamic>> rows, {DateTime? now}) {
+    final t = (now ?? DateTime.now()).toUtc();
+    return rows
+        .where((r) {
+          final exp = DateTime.tryParse(r['expires_at']?.toString() ?? '');
+          return exp == null || exp.toUtc().isAfter(t);
+        })
+        .map(JuzzioMessage.fromMap)
+        .toList();
+  }
+
+  /// v0.9.2 (WhatsApp benzeri çevrimdışı okuma): önce cihazdaki son mesajlar ANINDA gösterilir,
+  /// sonra canlı akış bağlanır ve her güncellemede önbellek yenilenir. Bağlantı koparsa hata
+  /// ekrana yansımaz; son liste kalır ve 5 sn arayla yeniden bağlanılır.
+  /// Şifreli mesajlar diske SUNUCUDAKİ şifreli hâliyle yazılır; çözme her açılışta cihazda yapılır.
+  ///
+  /// v0.9.6 sayfalama: yalnız EN YENİ [limit] mesaj canlı izlenir (varsayılan 50). Kullanıcı
+  /// "Daha eski mesajlar"a dokundukça pencere 50'şer büyür. Realtime yalnız açık sohbet için açılır.
+  Stream<List<JuzzioMessage>> watchRoomMessages(String roomId, {int limit = 50}) {
+    final cacheName = messageCacheName(roomId);
+    return Stream<List<JuzzioMessage>>.multi((out) {
+      StreamSubscription<List<Map<String, dynamic>>>? sub;
+      Timer? retry;
+      var closed = false;
+      var gotNetwork = false;
+      Future<void> chain = Future<void>.value();
+
+      void emitRows(List<Map<String, dynamic>> rows) {
+        chain = chain.then((_) async {
+          final list = await JuzzioE2ee.instance.decryptAll(visibleMessagesFromRows(rows));
+          if (!closed) out.add(list);
+        }).catchError((_) {});
+      }
+
+      void connect() {
+        if (closed) return;
+        sub = client
+            .from('messages')
+            .stream(primaryKey: ['id'])
+            .eq('room_id', roomId)
+            .order('created_at', ascending: false)
+            .limit(limit.clamp(20, 2000))
+            .listen((desc) {
+          gotNetwork = true;
+          final rows = List<Map<String, dynamic>>.from(desc)
+            ..sort((a, b) => '${a['created_at'] ?? ''}'.compareTo('${b['created_at'] ?? ''}'));
+          final tail = rows.length > offlineMessageLimit ? rows.sublist(rows.length - offlineMessageLimit) : rows;
+          unawaited(_writeCache(cacheName, tail));
+          emitRows(rows);
+        }, onError: (Object _) {
+          sub?.cancel();
+          sub = null;
+          if (closed) return;
+          retry?.cancel();
+          retry = Timer(const Duration(seconds: 5), connect);
+        }, cancelOnError: true);
+      }
+
+      chain = chain.then((_) async {
+        final cached = await _readCache(cacheName, messageLimit: limit);
+        if (closed || gotNetwork || cached is! List) return;
+        final rows = cached.whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList();
+        if (rows.isEmpty) return;
+        final list = await JuzzioE2ee.instance.decryptAll(visibleMessagesFromRows(rows));
+        if (!closed && !gotNetwork) out.add(list);
+      }).catchError((_) {});
+      connect();
+
+      out.onCancel = () {
+        closed = true;
+        retry?.cancel();
+        sub?.cancel();
+      };
+    });
   }
 
   /// v0.9.0: Benzersiz istemci mesaj kimliği (idempotency anahtarı).
@@ -2220,9 +2587,9 @@ class SupabaseService {
     }
     // Grup sohbetleri bu sürümde E2EE değildir (belgelenmiş); birebirde çeviri yalnız onayla
     final mayTranslate = !isDirect || _app.e2eeTranslationOptIn;
-    final translated = mayTranslate
-        ? await translateText(text: clean, sourceLang: 'auto', targetLang: targetLang)
-        : '';
+    // v1.0.0: çeviri gönderimi BEKLETMEZ — mesaj yazıldığı gibi hemen iletilir; çeviri
+    // arka planda yapılır ve hazır olunca aynı mesajın altına eklenir (_translateAfterSend).
+    const translated = '';
 
     Map<String, dynamic>? e2ee;
     var plaintextConsented = false;
@@ -2273,11 +2640,66 @@ class SupabaseService {
     } catch (e) {
       throw JuzzioServiceException(_friendlyError(e));
     }
+    if (mayTranslate) {
+      unawaited(_translateAfterSend(
+        roomId: roomId,
+        uid: uid,
+        clientMsgId: msgId,
+        text: clean,
+        targetLang: targetLang,
+        e2ee: e2ee,
+      ));
+    }
+  }
+
+  /// v1.0.0: gönderimden SONRA çeviri. Şifresiz (grup) mesajda `translated_text` güncellenir;
+  /// uçtan uca şifreli mesajda çeviri AYRICA şifrelenip `metadata.e2ee_tr` olarak eklenir
+  /// (sunucu düz metni hiç görmez; içerik/`e2ee` değişmediği için düzenleme sayılmaz).
+  /// Hata sessizdir: alıcı cihaz gerekirse kendi çevirisini yapar.
+  Future<void> _translateAfterSend({
+    required String roomId,
+    required String uid,
+    required String clientMsgId,
+    required String text,
+    required String targetLang,
+    Map<String, dynamic>? e2ee,
+  }) async {
+    try {
+      final tr = (await translateText(text: text, sourceLang: 'auto', targetLang: targetLang)).trim();
+      if (tr.isEmpty || tr == text) return;
+      if (e2ee != null) {
+        final o = await JuzzioE2ee.instance.encryptForRoomStrict(roomId, text: tr, translated: '');
+        if (o.status != JuzzioE2eeStatus.encrypted || o.payload == null) return;
+        await client
+            .from('messages')
+            .update({'metadata': <String, dynamic>{'e2ee': e2ee, 'e2ee_tr': o.payload}})
+            .eq('client_msg_id', clientMsgId)
+            .eq('sender_id', uid);
+      } else {
+        await client.from('messages').update({'translated_text': tr}).eq('client_msg_id', clientMsgId).eq('sender_id', uid);
+      }
+    } catch (_) {}
   }
 
   /// v0.9.0 §4.5: kendi metin mesajını düzenler (sunucu kuralı: 15 dk, ≤10 kez, yalnız gönderen).
   /// Birebir sohbette yeni metin YENİDEN uçtan uca şifrelenir; şifrelenemezse düzenleme yapılmaz
   /// (fail-closed, düz metne düşüş yok). Eski sürüm sunucuda geçmişe olduğu gibi (şifreli) taşınır.
+  /// v0.9.6: mesajı sabitle / kaldır (sunucu yetkiyi denetler; sohbet başına en fazla 5).
+  Future<void> pinMessage(String messageId, bool pinned) async {
+    await client.rpc('pin_message', params: {'p_message': messageId, 'p_pinned': pinned});
+  }
+
+  /// v0.9.6: sohbetin sabit mesajları (en yeni sabitlenen önce), cihazda çözülmüş.
+  Future<List<JuzzioMessage>> fetchPinnedMessages(String roomId) async {
+    try {
+      final res = await client.rpc('room_pinned_messages', params: {'p_room': roomId});
+      final rows = [for (final r in (res is List ? res : const [])) Map<String, dynamic>.from(r as Map)];
+      return await JuzzioE2ee.instance.decryptAll(visibleMessagesFromRows(rows));
+    } catch (_) {
+      return const [];
+    }
+  }
+
   Future<void> editTextMessage({required JuzzioMessage message, required String newText}) async {
     final uid = currentUserId;
     final clean = newText.trim();
@@ -2296,7 +2718,13 @@ class SupabaseService {
         'metadata': {...message.metadata, 'e2ee': outcome.payload},
       };
     } else {
-      patch = {'original_text': clean};
+      // v0.9.6: grup mesajı düzenlenince eski çeviri geçersiz olur → yeni metin hemen yeniden çevrilir
+      final tl = message.targetLang.isNotEmpty ? message.targetLang : _defaultTargetLang;
+      var translated = '';
+      try {
+        translated = await translateText(text: clean, sourceLang: 'auto', targetLang: tl);
+      } catch (_) {}
+      patch = {'original_text': clean, 'translated_text': translated == clean ? '' : translated};
     }
     try {
       final rows = await client.from('messages').update(patch).eq('id', message.id).eq('sender_id', uid).select('id');
@@ -2378,6 +2806,7 @@ class SupabaseService {
     required File file,
     required bool isVideo,
     String caption = '',
+    bool viewOnce = false,
   }) async {
     final uid = currentUserId;
     if (uid == null) return;
@@ -2395,8 +2824,36 @@ class SupabaseService {
     final ext = _storageExt(file.path, isVideo: isVideo);
     // G23/G24: birebir sohbette fotoğraf uçtan uca şifrelenir (fail-closed). Grup sohbetleri metinle
     // aynı kuralı izler (E2EE yok). Video şimdilik bellek sınırı nedeniyle şifresiz kalır (belgelendi).
-    if (!isVideo && await JuzzioE2ee.instance.isDirectRoom(roomId) == true) {
-      await _sendEncryptedImage(uid: uid, roomId: roomId, file: file, ext: ext, caption: caption.trim());
+    final direct = await JuzzioE2ee.instance.isDirectRoom(roomId);
+    if (direct == null) throw const JuzzioE2eeRequiredException(JuzzioE2eeStatus.unavailable);
+    if (!isVideo && direct) {
+      await _sendEncryptedImage(uid: uid, roomId: roomId, file: file, ext: ext, caption: caption.trim(), viewOnce: viewOnce);
+      return;
+    }
+    // v0.9.6: birebir sohbette video da uçtan uca şifrelenir (önceden şifresiz gidiyordu)
+    if (isVideo && direct) {
+      if (size > juzzioEncryptedVideoMaxBytes) {
+        throw JuzzioServiceException(_app.trEn('Birebir sohbette video en fazla 40 MB olabilir (uçtan uca şifreleme için).',
+            'In 1:1 chats videos must be under 40 MB (for end-to-end encryption).', 'In Einzelchats max. 40 MB (Verschlüsselung).'));
+      }
+      final (url, path, payload) = await _sealAndUpload(uid: uid, roomId: roomId, bytes: await file.readAsBytes(), mime: _mimeFor(ext, isVideo: true), text: caption.trim());
+      try {
+        await client.from('messages').insert({
+          'room_id': roomId,
+          'sender_id': uid,
+          'message_type': 'video',
+          'source_lang': _app.subtitleLang,
+          'target_lang': _defaultTargetLang,
+          'original_text': '',
+          'translated_text': '',
+          'video_url': url,
+          'metadata': <String, dynamic>{'e2ee': payload, 'media_e2ee': 1},
+          if (viewOnce) 'is_view_once': true,
+        });
+      } catch (e) {
+        await _removeChatMedia(path);
+        rethrow;
+      }
       return;
     }
     final path = '$uid/$roomId/${DateTime.now().millisecondsSinceEpoch}.$ext';
@@ -2423,7 +2880,126 @@ class SupabaseService {
       'original_text': cleanCaption,
       'translated_text': translated,
       if (isVideo) 'video_url': url else 'image_url': url,
+      if (viewOnce) 'is_view_once': true,
     });
+  }
+
+  DateTime? _streakTouchedAt;
+
+  /// v0.9.5: günlük seriyi günde bir kez işaretler (sunucu tarihi, kullanıcının saat dilimi).
+  Future<void> touchDailyStreak() async {
+    if (currentUserId == null) return;
+    final last = _streakTouchedAt;
+    if (last != null && DateTime.now().difference(last) < const Duration(hours: 3)) return;
+    _streakTouchedAt = DateTime.now();
+    try {
+      await client.rpc('touch_daily_streak', params: {'p_tz': DateTime.now().timeZoneName.contains('/') ? DateTime.now().timeZoneName : 'Europe/Istanbul'});
+    } catch (_) {}
+  }
+
+  /// v0.9.4: sohbete belge/dosya gönderir (PDF, ZIP, DOCX …, en fazla 25 MB).
+  ///  Birebir sohbette dosya ve DOSYA ADI uçtan uca şifrelenir (fail-closed; şifresiz yedek yok).
+  ///  Grup sohbetlerinde dosya chat-media kovasına özel olarak yüklenir.
+  Future<void> sendDocumentMessage({required String roomId, required File file, required String fileName}) async {
+    final uid = currentUserId;
+    if (uid == null) return;
+    if (!file.existsSync()) {
+      throw JuzzioServiceException(_app.trEn('Dosya okunamadı.', 'File could not be read.', 'Datei konnte nicht gelesen werden.'));
+    }
+    final size = file.lengthSync();
+    if (size <= 0 || size > juzzioDocumentMaxBytes) {
+      throw JuzzioServiceException(_app.trEn('Dosya en fazla 25 MB olabilir.', 'Files must be under 25 MB.', 'Dateien dürfen höchstens 25 MB groß sein.'));
+    }
+    final name = juzzioSafeFileName(fileName);
+    final mime = juzzioDocumentMime(name);
+    final isDirect = await JuzzioE2ee.instance.isDirectRoom(roomId);
+    if (isDirect == null) throw const JuzzioE2eeRequiredException(JuzzioE2eeStatus.unavailable);
+    final bucket = client.storage.from(JuzzioConfig.chatMediaBucket);
+    if (isDirect) {
+      final sealed = await JuzzioMediaCrypto.seal(await file.readAsBytes(), mime: mime);
+      final outcome = await JuzzioE2ee.instance.encryptForRoomStrict(roomId, text: name, translated: '', media: sealed.key.toJson());
+      if (outcome.status != JuzzioE2eeStatus.encrypted || outcome.payload == null) {
+        throw JuzzioE2eeRequiredException(
+            outcome.status == JuzzioE2eeStatus.peerKeyMissing ? JuzzioE2eeStatus.peerKeyMissing : JuzzioE2eeStatus.unavailable);
+      }
+      final path = '$uid/$roomId/${DateTime.now().millisecondsSinceEpoch}.jenc';
+      try {
+        await bucket.uploadBinary(path, sealed.cipher, fileOptions: const FileOptions(contentType: 'application/octet-stream', upsert: false));
+      } catch (e) {
+        throw JuzzioServiceException(_app.trEn('Dosya yüklenemedi: ${_friendlyError(e)}', 'Upload failed: ${_friendlyError(e)}', 'Hochladen fehlgeschlagen: ${_friendlyError(e)}'));
+      }
+      try {
+        await client.from('messages').insert({
+          'room_id': roomId,
+          'sender_id': uid,
+          'message_type': 'document',
+          'source_lang': _app.subtitleLang,
+          'target_lang': _defaultTargetLang,
+          'original_text': '',
+          'translated_text': '',
+          'document_url': bucket.getPublicUrl(path),
+          'document_name': '', // ad şifreli yükte; sunucuda düz metin tutulmaz
+          'document_size': size,
+          'metadata': <String, dynamic>{'e2ee': outcome.payload, 'media_e2ee': 1},
+        });
+      } catch (e) {
+        try {
+          await bucket.remove([path]);
+        } catch (_) {}
+        rethrow;
+      }
+      return;
+    }
+    final ext = name.contains('.') ? name.split('.').last.toLowerCase() : 'bin';
+    final path = '$uid/$roomId/${DateTime.now().millisecondsSinceEpoch}.$ext';
+    try {
+      await bucket.upload(path, file, fileOptions: FileOptions(contentType: mime, upsert: false));
+    } catch (e) {
+      throw JuzzioServiceException(_app.trEn('Dosya yüklenemedi: ${_friendlyError(e)}', 'Upload failed: ${_friendlyError(e)}', 'Hochladen fehlgeschlagen: ${_friendlyError(e)}'));
+    }
+    await client.from('messages').insert({
+      'room_id': roomId,
+      'sender_id': uid,
+      'message_type': 'document',
+      'source_lang': _app.subtitleLang,
+      'target_lang': _defaultTargetLang,
+      'original_text': '',
+      'translated_text': '',
+      'document_url': bucket.getPublicUrl(path),
+      'document_name': name,
+      'document_size': size,
+    });
+  }
+
+  /// v0.9.6: birebir sohbet medyasını uçtan uca şifreleyip chat-media'ya .jenc olarak yükler.
+  /// Dönen: (adres, yol, e2ee yükü). Şifreleme yapılamazsa JuzzioE2eeRequiredException (fail-closed).
+  Future<(String, String, Map<String, dynamic>)> _sealAndUpload({
+    required String uid,
+    required String roomId,
+    required List<int> bytes,
+    required String mime,
+    String text = '',
+  }) async {
+    final sealed = await JuzzioMediaCrypto.seal(bytes, mime: mime);
+    final outcome = await JuzzioE2ee.instance.encryptForRoomStrict(roomId, text: text, translated: '', media: sealed.key.toJson());
+    if (outcome.status != JuzzioE2eeStatus.encrypted || outcome.payload == null) {
+      throw JuzzioE2eeRequiredException(
+          outcome.status == JuzzioE2eeStatus.peerKeyMissing ? JuzzioE2eeStatus.peerKeyMissing : JuzzioE2eeStatus.unavailable);
+    }
+    final path = '$uid/$roomId/${DateTime.now().millisecondsSinceEpoch}.jenc';
+    final bucket = client.storage.from(JuzzioConfig.chatMediaBucket);
+    try {
+      await bucket.uploadBinary(path, sealed.cipher, fileOptions: const FileOptions(contentType: 'application/octet-stream', upsert: false));
+    } catch (e) {
+      throw JuzzioServiceException(_app.trEn('Medya yüklenemedi: ${_friendlyError(e)}', 'Upload failed: ${_friendlyError(e)}', 'Hochladen fehlgeschlagen: ${_friendlyError(e)}'));
+    }
+    return (bucket.getPublicUrl(path), path, Map<String, dynamic>.from(outcome.payload!));
+  }
+
+  Future<void> _removeChatMedia(String path) async {
+    try {
+      await client.storage.from(JuzzioConfig.chatMediaBucket).remove([path]);
+    } catch (_) {}
   }
 
   Future<void> _sendEncryptedImage({
@@ -2432,6 +3008,7 @@ class SupabaseService {
     required File file,
     required String ext,
     required String caption,
+    bool viewOnce = false,
   }) async {
     final sealed = await JuzzioMediaCrypto.seal(await file.readAsBytes(), mime: _mimeFor(ext, isVideo: false));
     final outcome = await JuzzioE2ee.instance.encryptForRoomStrict(roomId, text: caption, translated: '', media: sealed.key.toJson());
@@ -2459,6 +3036,7 @@ class SupabaseService {
         'translated_text': '',
         'image_url': bucket.getPublicUrl(path),
         'metadata': <String, dynamic>{'e2ee': outcome.payload, 'media_e2ee': 1},
+        if (viewOnce) 'is_view_once': true,
       });
     } catch (e) {
       try {
@@ -2483,6 +3061,15 @@ class SupabaseService {
     final targetLang = _defaultTargetLang;
     final storagePath = '$uid/$roomId/${DateTime.now().millisecondsSinceEpoch}.m4a';
 
+    // v0.9.6: birebir sohbette sesli mesaj uçtan uca şifrelenir (önceden ses ve döküm şifresizdi)
+    final direct = await JuzzioE2ee.instance.isDirectRoom(roomId);
+    if (direct == null) throw const JuzzioE2eeRequiredException(JuzzioE2eeStatus.unavailable);
+    if (direct) {
+      await _sendEncryptedVoice(uid: uid, roomId: roomId, audioFile: audioFile, durationMs: durationMs,
+          waveformPeaks: waveformPeaks, plainPath: storagePath, sourceLang: mySubLang, targetLang: targetLang);
+      return;
+    }
+
     await client.storage.from(JuzzioConfig.voiceNoteBucket).upload(
           storagePath,
           audioFile,
@@ -2506,6 +3093,7 @@ class SupabaseService {
       if (data is Map) {
         transcriptOriginal = (data['originalText'] ?? '').toString().trim();
         transcriptTranslated = (data['translatedText'] ?? '').toString().trim();
+        if (isTranslationProviderError(transcriptTranslated)) transcriptTranslated = '';
         confidence = (data['confidence'] as num?)?.toDouble() ?? 0.0;
       }
     } catch (_) {}
@@ -2552,6 +3140,61 @@ class SupabaseService {
         'deepgram_confidence': confidence,
       });
     } catch (_) {}
+  }
+
+  Future<void> _sendEncryptedVoice({
+    required String uid,
+    required String roomId,
+    required File audioFile,
+    required int durationMs,
+    required List<double> waveformPeaks,
+    required String plainPath,
+    required String sourceLang,
+    required String targetLang,
+  }) async {
+    // Döküm (yazıya çevirme) yalnız kullanıcı birebir çeviriye izin verdiyse yapılır: ses GEÇİCİ
+    // olarak yüklenir, döküm alınır ve geçici dosya hemen silinir. Döküm şifreli yükün içindedir.
+    var transcript = '';
+    if (_app.e2eeTranslationOptIn) {
+      final voice = client.storage.from(JuzzioConfig.voiceNoteBucket);
+      try {
+        await voice.upload(plainPath, audioFile, fileOptions: const FileOptions(contentType: 'audio/mp4', upsert: false));
+        final res = await client.functions.invoke('translate-bridge', body: {
+          'mode': 'voice_note',
+          'storagePath': plainPath,
+          'audioUrl': voice.getPublicUrl(plainPath),
+          'sourceLang': sourceLang,
+          'targetLang': targetLang,
+        });
+        final data = res.data is String ? jsonDecode(res.data as String) : res.data;
+        if (data is Map) transcript = (data['originalText'] ?? '').toString().trim();
+        if (isTranslationProviderError(transcript)) transcript = '';
+      } catch (_) {
+      } finally {
+        try {
+          await voice.remove([plainPath]);
+        } catch (_) {}
+      }
+    }
+    final (url, path, payload) = await _sealAndUpload(uid: uid, roomId: roomId, bytes: await audioFile.readAsBytes(), mime: 'audio/mp4', text: transcript);
+    try {
+      await client.from('messages').insert({
+        'room_id': roomId,
+        'sender_id': uid,
+        'message_type': 'voice',
+        'source_lang': sourceLang,
+        'target_lang': targetLang,
+        'original_text': '',
+        'translated_text': '',
+        'audio_url': url,
+        'audio_duration_ms': durationMs,
+        'waveform_peaks': waveformPeaks,
+        'metadata': <String, dynamic>{'e2ee': payload, 'media_e2ee': 1},
+      });
+    } catch (e) {
+      await _removeChatMedia(path);
+      rethrow;
+    }
   }
 
   /// Tepki ekler/kaldırır; sunucudaki güncel tepki haritasını döndürür (hata: null).
@@ -2673,8 +3316,9 @@ class SupabaseService {
   Future<String> uploadFeedbackImage(File file) async {
     final uid = currentUserId;
     if (uid == null) throw JuzzioServiceException(_app.t('err_session'));
-    if (!file.existsSync() || file.lengthSync() > 15 * 1024 * 1024) {
-      throw JuzzioServiceException(_app.trEn('Görsel 15 MB\'tan küçük olmalı.', 'The image must be under 15 MB.', 'Das Bild muss kleiner als 15 MB sein.'));
+    if (file.existsSync()) file = await juzzioCompressImageForUpload(file);
+    if (!file.existsSync() || file.lengthSync() > 5 * 1024 * 1024) {
+      throw JuzzioServiceException(_app.trEn('Görsel 5 MB\'tan küçük olmalı.', 'The image must be under 5 MB.', 'Das Bild muss kleiner als 5 MB sein.'));
     }
     final ext = file.path.split('.').last.toLowerCase();
     final safeExt = const ['png', 'webp', 'jpg', 'jpeg'].contains(ext) ? ext : 'jpg';
@@ -2696,8 +3340,10 @@ class SupabaseService {
   Future<String> uploadPublicImage(File file, {String prefix = 'img'}) async {
     final uid = currentUserId;
     if (uid == null) throw JuzzioServiceException(_app.t('err_session'));
-    if (!file.existsSync() || file.lengthSync() > 15 * 1024 * 1024) {
-      throw JuzzioServiceException(_app.trEn('Görsel 15 MB\'tan küçük olmalı.', 'The image must be under 15 MB.', 'Das Bild muss kleiner als 15 MB sein.'));
+    // v0.9.4: avatars kovası 5 MB — yüklemeden önce ≤1600 px JPEG'e sıkıştır
+    if (file.existsSync()) file = await juzzioCompressImageForUpload(file);
+    if (!file.existsSync() || file.lengthSync() > 5 * 1024 * 1024) {
+      throw JuzzioServiceException(_app.trEn('Görsel 5 MB\'tan küçük olmalı.', 'The image must be under 5 MB.', 'Das Bild muss kleiner als 5 MB sein.'));
     }
     final ext = file.path.split('.').last.toLowerCase();
     final safeExt = const ['png', 'webp', 'jpg', 'jpeg'].contains(ext) ? ext : 'jpg';
@@ -2842,6 +3488,43 @@ class SupabaseService {
     }
   }
 
+  /// v0.9.3: Admin → Juzzio Story: "Juzzio Official" adına herkese görünen hikâye paylaşır.
+  Future<String> postOfficialStory({required File mediaFile, required bool isVideo, String caption = '', int videoDurationSec = 15, int hours = 24}) async {
+    final uid = currentUserId;
+    if (uid == null) throw JuzzioServiceException(_app.trEn('Oturum açık değil.', 'Not signed in.', 'Nicht angemeldet.'));
+    if (!mediaFile.existsSync()) {
+      throw JuzzioServiceException(_app.trEn('Seçilen dosya okunamadı.', 'Selected file could not be read.', 'Die ausgewählte Datei konnte nicht gelesen werden.'));
+    }
+    final ext = _storageExt(mediaFile.path, isVideo: isVideo);
+    final path = '$uid/official_${DateTime.now().millisecondsSinceEpoch}.$ext';
+    try {
+      await client.storage.from(JuzzioConfig.storiesBucket).upload(
+            path,
+            mediaFile,
+            fileOptions: FileOptions(contentType: _mimeFor(ext, isVideo: isVideo), upsert: false),
+          );
+      final url = client.storage.from(JuzzioConfig.storiesBucket).getPublicUrl(path);
+      final id = await client.rpc('admin_post_official_story', params: {
+        'p_media_type': isVideo ? 'video' : 'image',
+        'p_media_url': url,
+        'p_caption': caption.trim(),
+        'p_video_duration_sec': videoDurationSec.clamp(3, 60),
+        'p_hours': hours.clamp(1, 168),
+      });
+      return id.toString();
+    } catch (e) {
+      throw JuzzioServiceException(_app.trEn('Resmi hikâye paylaşılamadı: ${_friendlyError(e)}', 'Could not post official story: ${_friendlyError(e)}', 'Offizielle Story konnte nicht geteilt werden: ${_friendlyError(e)}'));
+    }
+  }
+
+  Future<void> deleteOfficialStory(String storyId) async {
+    try {
+      await client.rpc('admin_delete_official_story', params: {'p_story': storyId});
+    } catch (e) {
+      throw JuzzioServiceException(_friendlyError(e));
+    }
+  }
+
   /// Kullanıcının görebildiği (RLS: arkadaş / herkes / kendi) aktif hikâyeler
   Stream<List<JuzzioStory>> watchActiveStories() {
     return client
@@ -2889,8 +3572,14 @@ class SupabaseService {
     if (uid == null || story.userId == uid) return null;
 
     final roomId = await ensureDirectRoomWithFriend(friendId: story.userId, friendName: story.displayName);
+    // v0.9.6: hikâye yanıtı birebir sohbete gider → yazı ve görsel uçtan uca şifrelenir
+    final directRoom = await JuzzioE2ee.instance.isDirectRoom(roomId);
+    if (directRoom == null) throw const JuzzioE2eeRequiredException(JuzzioE2eeStatus.unavailable);
 
     String? uploadedImgUrl;
+    if (directRoom) {
+      return _replyToStoryEncrypted(uid: uid, roomId: roomId, story: story, replyText: replyText.trim(), replyImageFile: replyImageFile);
+    }
     if (replyImageFile != null && replyImageFile.existsSync()) {
       final ext = _storageExt(replyImageFile.path, isVideo: false);
       final path = '$uid/$roomId/story_reply_${DateTime.now().millisecondsSinceEpoch}.$ext';
@@ -2939,6 +3628,73 @@ class SupabaseService {
       'story_id': story.id,
       if (uploadedImgUrl != null) 'image_url': uploadedImgUrl,
       'metadata': {'story': storyMeta},
+    });
+    return roomId;
+  }
+
+  Map<String, dynamic> _storyMetaFor(JuzzioStory story, String uid, JuzzioUserProfile? me) => <String, dynamic>{
+        'storyId': story.id,
+        'storyUserId': story.userId,
+        'storyUsername': story.username,
+        'storyDisplayName': story.displayName,
+        'storyUserAvatar': story.userAvatar,
+        'storyMediaUrl': story.mediaUrl,
+        'storyMediaType': story.mediaType,
+        'storyVideoDurationSec': story.videoDurationSec,
+        'replierId': uid,
+        'replierUsername': me?.username ?? '',
+        'replierName': me?.displayName ?? '',
+        'createdAt': story.createdAt.toIso8601String(),
+      };
+
+  Future<String?> _replyToStoryEncrypted({
+    required String uid,
+    required String roomId,
+    required JuzzioStory story,
+    required String replyText,
+    File? replyImageFile,
+  }) async {
+    final me = await fetchUserProfile(uid);
+    // Hikâye kartı (kime ait, hangi medya) sunucuda zaten bilinen bilgidir; YANIT metni ve görseli şifrelidir.
+    // Hikâye açıklaması gibi içerik metinleri karta konmaz.
+    final meta = <String, dynamic>{'story': _storyMetaFor(story, uid, me)};
+    if (replyImageFile != null && replyImageFile.existsSync()) {
+      final ext = _storageExt(replyImageFile.path, isVideo: false);
+      final (url, path, payload) = await _sealAndUpload(uid: uid, roomId: roomId, bytes: await replyImageFile.readAsBytes(), mime: _mimeFor(ext, isVideo: false), text: replyText);
+      try {
+        await client.from('messages').insert({
+          'room_id': roomId,
+          'sender_id': uid,
+          'message_type': 'image',
+          'source_lang': _app.subtitleLang,
+          'target_lang': _defaultTargetLang,
+          'original_text': '',
+          'translated_text': '',
+          'story_id': story.id,
+          'image_url': url,
+          'metadata': {...meta, 'e2ee': payload, 'media_e2ee': 1},
+        });
+      } catch (e) {
+        await _removeChatMedia(path);
+        rethrow;
+      }
+      return roomId;
+    }
+    final outcome = await JuzzioE2ee.instance.encryptForRoomStrict(roomId, text: replyText, translated: '');
+    if (outcome.status != JuzzioE2eeStatus.encrypted || outcome.payload == null) {
+      throw JuzzioE2eeRequiredException(
+          outcome.status == JuzzioE2eeStatus.peerKeyMissing ? JuzzioE2eeStatus.peerKeyMissing : JuzzioE2eeStatus.unavailable);
+    }
+    await client.from('messages').insert({
+      'room_id': roomId,
+      'sender_id': uid,
+      'message_type': 'text',
+      'source_lang': _app.subtitleLang,
+      'target_lang': _defaultTargetLang,
+      'original_text': '',
+      'translated_text': '',
+      'story_id': story.id,
+      'metadata': {...meta, 'e2ee': outcome.payload},
     });
     return roomId;
   }
@@ -3166,3 +3922,108 @@ class SupabaseService {
         .limit(1);
   }
 }
+
+/// v0.9.3: tek çeviri isteğinin en fazla karakter sayısı (sağlayıcı sınırlarının altında).
+const int translationChunkMax = 450;
+
+/// Metni cümle → kelime sınırlarından en fazla [max] karakterlik parçalara böler.
+List<String> splitForTranslation(String text, {int max = translationChunkMax}) {
+  final clean = text.trim();
+  if (clean.isEmpty) return const [];
+  if (clean.length <= max) return [clean];
+  final out = <String>[];
+  final sentences = RegExp(r'[^.!?。！？\n]+[.!?。！？]*[\s\n]*').allMatches(clean).map((m) => m.group(0)!).toList();
+  if (sentences.isEmpty) sentences.add(clean);
+  var buf = '';
+  void flush() {
+    if (buf.trim().isNotEmpty) out.add(buf.trim());
+    buf = '';
+  }
+
+  for (final sentence in sentences) {
+    if ((buf + sentence).length <= max) {
+      buf += sentence;
+      continue;
+    }
+    flush();
+    if (sentence.length <= max) {
+      buf = sentence;
+      continue;
+    }
+    var rest = sentence;
+    while (rest.length > max) {
+      var cut = rest.lastIndexOf(' ', max);
+      if (cut < max * 0.5) cut = max;
+      out.add(rest.substring(0, cut).trim());
+      rest = rest.substring(cut);
+    }
+    buf = rest;
+  }
+  flush();
+  return out.where((p) => p.isNotEmpty).toList();
+}
+
+/// Çeviri servislerinin çeviri yerine döndürdüğü hata/uyarı metinleri (asla gösterilmez).
+bool isTranslationProviderError(String s) {
+  final u = s.trim().toUpperCase();
+  return u.startsWith('QUERY LENGTH LIMIT') ||
+      u.contains('MAX ALLOWED QUERY') ||
+      u.startsWith('MYMEMORY WARNING') ||
+      u.contains('YOU USED ALL AVAILABLE FREE TRANSLATIONS') ||
+      u.startsWith('INVALID LANGUAGE PAIR') ||
+      u.startsWith('PLEASE SELECT TWO DISTINCT LANGUAGES') ||
+      u.startsWith('NO QUERY SPECIFIED');
+}
+
+/// v0.9.4: belge sınırları ve yardımcıları
+const int juzzioDocumentMaxBytes = 25 * 1024 * 1024;
+
+/// Dosya adını güvenli hâle getirir (yol ayırıcıları ve denetim karakterleri atılır, en fazla 120 karakter).
+String juzzioSafeFileName(String raw) {
+  var n = raw.split(RegExp(r'[\\/]')).last.replaceAll(RegExp(r'[\x00-\x1F<>:"|?*]'), '_').trim();
+  if (n.isEmpty || n == '.' || n == '..') n = 'dosya';
+  if (n.length > 120) {
+    final dot = n.lastIndexOf('.');
+    final ext = dot > 0 && n.length - dot <= 10 ? n.substring(dot) : '';
+    n = n.substring(0, 120 - ext.length) + ext;
+  }
+  return n;
+}
+
+String juzzioDocumentMime(String name) {
+  final ext = name.contains('.') ? name.split('.').last.toLowerCase() : '';
+  const m = {
+    'pdf': 'application/pdf',
+    'zip': 'application/zip',
+    'rar': 'application/vnd.rar',
+    '7z': 'application/x-7z-compressed',
+    'doc': 'application/msword',
+    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'xls': 'application/vnd.ms-excel',
+    'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'ppt': 'application/vnd.ms-powerpoint',
+    'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'txt': 'text/plain',
+    'csv': 'text/csv',
+    'rtf': 'application/rtf',
+    'odt': 'application/vnd.oasis.opendocument.text',
+    'mp3': 'audio/mpeg',
+    'm4a': 'audio/mp4',
+    'jpg': 'image/jpeg',
+    'jpeg': 'image/jpeg',
+    'png': 'image/png',
+    'dwg': 'application/acad',
+    'dxf': 'application/dxf',
+    'nc': 'text/plain',
+  };
+  return m[ext] ?? 'application/octet-stream';
+}
+
+String juzzioFormatBytes(int bytes) {
+  if (bytes < 1024) return '$bytes B';
+  if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(0)} KB';
+  return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+}
+
+/// v0.9.6: birebir sohbette şifreli video sınırı (şifreleme bellekte yapılır)
+const int juzzioEncryptedVideoMaxBytes = 40 * 1024 * 1024;

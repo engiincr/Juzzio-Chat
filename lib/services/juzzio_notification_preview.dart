@@ -74,14 +74,52 @@ class JuzzioNotificationPreview {
       if (exp != null && exp.toUtc().isBefore(DateTime.now().toUtc())) return null;
       final msg = JuzzioMessage.fromMap(row);
       if (msg.isDeleted) return null;
+      // v0.9.3: sesli mesajda yazıya dökülmüş içerik varsa uygulama dilinde gösterilir
+      if (msg.messageType == 'voice') {
+        final t = msg.originalText.trim();
+        if (t.isNotEmpty && !t.startsWith('🎤') && !msg.metadata.containsKey('e2ee')) {
+          return clip('🎤 ${await translateForNotification(t, msg)}');
+        }
+      }
       final label = _typeLabel(msg.messageType);
       if (label != null) return label;
       final dec = decryptOverride;
       final text = dec != null ? await dec(msg) : await JuzzioE2ee.instance.decryptPreviewText(msg);
       if (text == null || text.trim().isEmpty) return null;
-      return clip(text);
+      // v0.9.3: mesaj UYGULAMA DİLİNE çevrilerek gösterilir (çeviri açıksa). Çeviri 3 sn'de
+      // gelmezse veya başarısızsa orijinal metin gösterilir — bildirim asla gecikip kaybolmaz.
+      final shown = await translateForNotification(text, msg);
+      // v0.9.6: düzenlenen mesajın bildirimi "(Düzenlendi)" önekiyle gelir
+      if (msg.editedAt != null) {
+        return clip('✏️ (${JuzzioAppController.instance.trEn('Düzenlendi', 'Edited', 'Bearbeitet')}) $shown');
+      }
+      return clip(shown);
     } catch (_) {
       return null;
+    }
+  }
+
+  /// Test için: çeviri fonksiyonu (varsayılan: SupabaseService.translateText).
+  static Future<String> Function(String text, String targetLang)? translateOverride;
+
+  /// Bildirim metnini uygulama diline çevirir; gerekmiyorsa / başarısızsa orijinali döndürür.
+  static Future<String> translateForNotification(String text, JuzzioMessage msg) async {
+    final app = JuzzioAppController.instance;
+    if (!app.e2eeTranslationOptIn) return text;
+    final target = app.uiLang.trim().toLowerCase();
+    if (target.isEmpty) return text;
+    final src = msg.sourceLang.trim().toLowerCase();
+    if (src.isNotEmpty && src != 'auto' && src.split('-').first == target.split('-').first) return text;
+    // Gönderenin hedef dili zaten benim dilimse hazır çeviriyi kullan (yalnız şifresiz mesajlarda dolu)
+    if (msg.targetLang.toLowerCase() == target && msg.translatedText.trim().isNotEmpty) return msg.translatedText;
+    try {
+      final f = translateOverride;
+      final out = await (f != null ? f(text, target) : SupabaseService.instance.translateText(text: text, targetLang: target))
+          .timeout(const Duration(seconds: 3));
+      final t = out.trim();
+      return t.isEmpty || isTranslationProviderError(t) ? text : t;
+    } catch (_) {
+      return text;
     }
   }
 

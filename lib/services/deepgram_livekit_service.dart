@@ -12,7 +12,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show MethodChannel;
@@ -22,6 +21,7 @@ import 'package:web_socket_channel/io.dart';
 import '../core/app_theme_and_locale.dart';
 import '../core/config.dart';
 import 'juzzio_features_service.dart';
+import 'juzzio_speech_gate.dart';
 import 'supabase_service.dart';
 
 enum NetworkHealthLevel {
@@ -112,6 +112,15 @@ class DeepgramLiveKitController extends ChangeNotifier {
 
   final AudioRecorder _sharedAudioTap = AudioRecorder();
 
+  /// v1.1.0: yalnız gerçekten konuşurken tanıyıcıya gerçek ses gider (hayalet metin yok)
+  final JuzzioSpeechGate _speechGate = JuzzioSpeechGate();
+
+  /// Açık bölütün ara metni ekranda/karşıda gösterildi mi (reddedilirse geri çekilir)
+  bool _myOpenSegmentShown = false;
+
+  /// LiveKit'in (yankısı temizlenmiş izde) beni son konuşur gördüğü an
+  DateTime _lastLocalSpeakAt = DateTime.fromMillisecondsSinceEpoch(0);
+
   bool isConnected = false;
   bool isMicEnabled = true;
   bool isCameraEnabled = true;
@@ -129,6 +138,25 @@ class DeepgramLiveKitController extends ChangeNotifier {
 
   /// Bir katılımcının bağlantı kalitesi değişti (ağ hızı uyarısı için).
   void Function(String identity, String displayName, ConnectionQuality quality, bool isLocal)? onParticipantQualityChanged;
+
+  /// v1.1.0 (#04 Floating hearts): bir katılımcı anlık tepki gönderdi
+  void Function(String identity, String emoji)? onCallReaction;
+
+  /// Aramada gönderilebilen tepkiler (beyaz liste: rastgele metin yayınlanamaz)
+  static const List<String> kCallReactions = ['❤️', '😂', '👏', '🔥', '😮', '👍', '🎉', '😢'];
+
+  /// Anlık tepkiyi herkese yayınlar ve kendi ekranımda da gösterir
+  Future<void> sendCallReaction(String emoji) async {
+    if (!kCallReactions.contains(emoji)) return;
+    onCallReaction?.call(_myIdentity, emoji);
+    try {
+      await _room?.localParticipant?.publishData(
+        utf8.encode(jsonEncode({'type': 'juzzio_reaction', 'emoji': emoji})),
+        reliable: false,
+        topic: 'juzzio_fx',
+      );
+    } catch (_) {}
+  }
 
   /// Başka bir katılımcının pil seviyesi kritik eşiğe indi (%10 / %5).
   void Function(String identity, String displayName, int level)? onRemoteBatteryLow;
@@ -291,6 +319,10 @@ class DeepgramLiveKitController extends ChangeNotifier {
   }
 
   void _onActiveSpeakersChanged() {
+    // v1.1.0: yankı süzgeci için yerel konuşmanın son anı (sonuçlar gecikmeli gelir)
+    try {
+      if (localParticipant?.isSpeaking ?? false) _lastLocalSpeakAt = DateTime.now();
+    } catch (_) {}
     notifyListeners();
     // Bırakma süresi dolunca halkanın kapanması için bir kez daha çiz
     _speakingReleaseTimer?.cancel();
@@ -434,25 +466,32 @@ class DeepgramLiveKitController extends ChangeNotifier {
       lang: _myLang,
     );
 
+    // v0.9.5: düşük veri modu (≈360p, 15 fps, sessizlikte ses paketi gönderilmez) ve
+    // ses izolasyonu (gürültü engelleme + alçak frekans filtresi; ayarlardan kapatılabilir)
+    final app = JuzzioAppController.instance;
+    final saver = app.dataSaverEnabled;
+    final denoise = app.callNoiseFilterEnabled;
     _room = Room(
-      roomOptions: const RoomOptions(
+      roomOptions: RoomOptions(
         adaptiveStream: true,
         dynacast: true,
+        defaultCameraCaptureOptions: saver ? const CameraCaptureOptions(params: VideoParametersPresets.h360_169) : const CameraCaptureOptions(),
         defaultAudioCaptureOptions: AudioCaptureOptions(
           autoGainControl: true,
           echoCancellation: true,
-          noiseSuppression: false,
-          voiceIsolation: false,
-          highPassFilter: false,
-          typingNoiseDetection: false,
+          noiseSuppression: denoise,
+          voiceIsolation: denoise,
+          highPassFilter: denoise,
+          typingNoiseDetection: denoise,
         ),
         defaultAudioPublishOptions: AudioPublishOptions(
           name: 'juzzio_voice_track',
-          dtx: false,
+          dtx: saver,
         ),
         defaultVideoPublishOptions: VideoPublishOptions(
           name: 'juzzio_video_track',
-          simulcast: true,
+          simulcast: !saver,
+          videoEncoding: saver ? const VideoEncoding(maxBitrate: 350 * 1000, maxFramerate: 15) : null,
         ),
       ),
     );
@@ -632,6 +671,9 @@ class DeepgramLiveKitController extends ChangeNotifier {
         notifyListeners();
       })
       ..on<TrackUnpublishedEvent>((_) => notifyListeners())
+      // v0.9.6: karşı tarafın mikrofon/kamera kapatması anında gösterilir
+      ..on<TrackMutedEvent>((_) => notifyListeners())
+      ..on<TrackUnmutedEvent>((_) => notifyListeners())
       ..on<ActiveSpeakersChangedEvent>((_) => _onActiveSpeakersChanged())
       ..on<ParticipantNameUpdatedEvent>((_) => notifyListeners())
       ..on<ParticipantMetadataUpdatedEvent>((event) {
@@ -642,6 +684,10 @@ class DeepgramLiveKitController extends ChangeNotifier {
       })
       ..on<ParticipantConnectionQualityUpdatedEvent>((event) {
         final isLocal = event.participant.sid == _room?.localParticipant?.sid;
+        if (isLocal) {
+          // v0.9.7: zayıf ağda geçici düşük güç/bant profili
+          setLowPowerReason('network', event.connectionQuality == ConnectionQuality.poor || event.connectionQuality == ConnectionQuality.lost);
+        }
         if (isLocal || remoteParticipants.isEmpty) {
           liveKitQuality = event.connectionQuality;
           _recalculateHealthLevel();
@@ -682,6 +728,22 @@ class DeepgramLiveKitController extends ChangeNotifier {
                     : (sender?.identity ?? '');
             if (level >= 0 && level <= 100) {
               onRemoteBatteryLow?.call(sender?.identity ?? '', senderName, level);
+            }
+            return;
+          }
+
+          if (packetType == 'juzzio_reaction') {
+            final emoji = map['emoji']?.toString() ?? '';
+            if (kCallReactions.contains(emoji)) onCallReaction?.call(event.participant?.identity ?? '', emoji);
+            return;
+          }
+
+          if (packetType == 'juzzio_subtitle_retract') {
+            final id = map['id']?.toString() ?? '';
+            final speaker = map['speakerId']?.toString() ?? '';
+            // yalnız gönderen kendi bölütünü geri çekebilir
+            if (id.isNotEmpty && speaker.isNotEmpty && speaker == event.participant?.identity) {
+              retractSubtitleSegment(id, speaker);
             }
             return;
           }
@@ -903,21 +965,28 @@ class DeepgramLiveKitController extends ChangeNotifier {
       if (!hasPerm) return;
 
       final pcmStream = await _sharedAudioTap.startStream(
+        // v1.1.0: yankı engelleme + gürültü bastırma AÇIK, otomatik kazanç KAPALI.
+        // (Önceden kazanç sessizliği yükseltiyor, hoparlördeki karşı ses de mikrofona
+        // geri giriyordu → kullanıcının söylemediği "Tamam aşkım" vb. satırlar.)
         const RecordConfig(
           encoder: AudioEncoder.pcm16bits,
           sampleRate: 16000,
           numChannels: 1,
-          autoGain: true,
-          echoCancel: false,
-          noiseSuppress: false,
+          autoGain: false,
+          echoCancel: true,
+          noiseSuppress: true,
         ),
       );
 
+      _speechGate.reset();
       _audioStreamSub = pcmStream.listen((Uint8List pcmChunk) {
-        if (isMicEnabled && _deepgramChannel != null) {
-          _updateVoiceFingerprintFromPcm(pcmChunk);
-          _deepgramChannel!.sink.add(pcmChunk);
+        final ch = _deepgramChannel;
+        if (!isMicEnabled || ch == null) return;
+        // Konuşma kapısı: konuşulmuyorsa gerçek ses yerine dijital sessizlik gider
+        for (final out in _speechGate.process(pcmChunk, DateTime.now())) {
+          ch.sink.add(out);
         }
+        if (_speechGate.isOpen) _updateVoiceFingerprintFromPcm(pcmChunk);
       });
     } catch (e) {
       debugPrint('Deepgram pipeline warning: $e');
@@ -927,19 +996,119 @@ class DeepgramLiveKitController extends ChangeNotifier {
   Future<void> _handleDeepgramTranscript(String rawJson) async {
     try {
       final decoded = jsonDecode(rawJson) as Map<String, dynamic>;
-      if (decoded['type'] != 'Results') return;
+      final type = decoded['type'];
+      // v0.9.4: konuşma bitti (sessizlik) → bekleyen kesin parçalar tek cümle olarak kapatılır
+      if (type == 'UtteranceEnd') {
+        final pending = _mySegmentBuffer.trim();
+        if (pending.isNotEmpty && _myOpenSegmentId != null) {
+          _mySegmentBuffer = '';
+          await _emitOwnSegment(_myOpenSegmentId!, pending, isFinal: true);
+          _myOpenSegmentId = null;
+          _myOpenSegmentShown = false;
+        } else if (pending.isEmpty) {
+          _retractMyOpenSegment();
+        }
+        return;
+      }
+      if (type != 'Results') return;
 
-      final isFinal = decoded['is_final'] == true;
+      final chunkFinal = decoded['is_final'] == true;
+      final speechFinal = decoded['speech_final'] == true;
       final channel = decoded['channel'] as Map<String, dynamic>?;
       final alternatives = channel?['alternatives'] as List?;
       if (alternatives == null || alternatives.isEmpty) return;
 
-      final transcript = (alternatives.first['transcript'] ?? '').toString().trim();
-      if (transcript.isEmpty) return;
+      var piece = (alternatives.first['transcript'] ?? '').toString().trim();
+      final confidence = (alternatives.first['confidence'] as num?)?.toDouble();
+      // v1.1.0: hayalet/yankı süzgeci — gerçekten konuşmadıysam bu parça benim değil
+      if (piece.isNotEmpty && !_acceptOwnPiece(piece, confidence)) {
+        piece = '';
+      }
+      if (piece.isEmpty && !(chunkFinal && speechFinal && _mySegmentBuffer.trim().isNotEmpty)) {
+        // Kesin sonuç reddedildi ve biriken metin yok → ekranda kalan ara satırı geri çek
+        if (chunkFinal && _mySegmentBuffer.trim().isEmpty) _retractMyOpenSegment();
+        return;
+      }
 
-      // Her Deepgram "is_final" sonucu bir bölütü kapatır; sonraki sözler yeni bölüttür.
+      // v0.9.4: Deepgram "is_final" yalnız bir ses parçasını kesinleştirir; cümle bitmemiş olabilir.
+      // Kesin parçalar biriktirilir, ara sonuçlar tek satırda güncellenir; bölüt yalnız
+      // speech_final (konuşmacı durdu) veya UtteranceEnd ile kapanır → cümle ikiye bölünmez.
       final segmentId = _myOpenSegmentId ??= '${_myIdentity}_${DateTime.now().millisecondsSinceEpoch}_${_mySegmentSeq++}';
-      if (isFinal) _myOpenSegmentId = null;
+      final transcript = juzzioJoinTranscript(_mySegmentBuffer, piece);
+      if (chunkFinal && !speechFinal) {
+        _mySegmentBuffer = transcript;
+      }
+      final isFinal = chunkFinal && speechFinal;
+      if (isFinal) {
+        _mySegmentBuffer = '';
+        _myOpenSegmentId = null;
+        _myOpenSegmentShown = false;
+      } else {
+        _myOpenSegmentShown = true;
+      }
+      await _emitOwnSegment(segmentId, transcript, isFinal: isFinal);
+    } catch (_) {}
+  }
+
+  /// v1.1.0: bu tanıma parçası gerçekten benim konuşmam mı?
+  bool _acceptOwnPiece(String piece, double? confidence) {
+    final now = DateTime.now();
+    final local = localParticipant;
+    var remoteSpeaking = false;
+    for (final p in remoteParticipants) {
+      if (isParticipantSpeaking(p)) {
+        remoteSpeaking = true;
+        break;
+      }
+    }
+    // Kesin sonuçlar konuşma bittikten 1–2 sn sonra gelebilir → pencereler buna göre geniş
+    return juzzioAcceptOwnTranscript(
+      text: piece,
+      confidence: confidence,
+      localVoiceRecent: _speechGate.voicedWithin(const Duration(milliseconds: 3500), now),
+      remoteSpeaking: remoteSpeaking,
+      localSpeaking: local == null || isParticipantSpeaking(local) || now.difference(_lastLocalSpeakAt) < const Duration(seconds: 3),
+    );
+  }
+
+  /// Ekranda görünmüş ama sonradan reddedilen ara satırı yerelde ve karşıda kaldırır.
+  void _retractMyOpenSegment() {
+    final id = _myOpenSegmentId;
+    final wasShown = _myOpenSegmentShown;
+    _myOpenSegmentId = null;
+    _myOpenSegmentShown = false;
+    _mySegmentBuffer = '';
+    _interimTranslateTicket++;
+    if (id == null || !wasShown) return;
+    retractSubtitleSegment(id, _myIdentity);
+    try {
+      _room?.localParticipant?.publishData(
+        utf8.encode(jsonEncode({'type': 'juzzio_subtitle_retract', 'id': id, 'speakerId': _myIdentity})),
+        reliable: true,
+        topic: 'juzzio_subtitles',
+      );
+    } catch (_) {}
+  }
+
+  /// Kesinleşmemiş bir bölütü ekrandan kaldırır (hayalet/yankı olduğu anlaşıldı).
+  void retractSubtitleSegment(String id, String speakerId) {
+    if (_finalizedSegmentIds.contains(id)) return;
+    final cur = interimBySpeaker[speakerId];
+    if (cur == null || cur.id != id) return;
+    interimBySpeaker.remove(speakerId);
+    if (speakerId == _myIdentity) {
+      myInterimText = null;
+    } else {
+      remoteInterimText = null;
+    }
+    activeInterimSpeakerHandle = interimBySpeaker.isEmpty ? null : interimBySpeaker.values.last.formattedHandle;
+    notifyListeners();
+  }
+
+  String _mySegmentBuffer = '';
+
+  Future<void> _emitOwnSegment(String segmentId, String transcript, {required bool isFinal}) async {
+    try {
 
       final mySubLang = JuzzioAppController.instance.subtitleLang.toLowerCase();
       final partnerTarget = targetLang;
@@ -992,6 +1161,75 @@ class DeepgramLiveKitController extends ChangeNotifier {
     } catch (_) {}
   }
 
+  // ---------------------------------------------------------------------------
+  // v0.9.7 Güç profili (şarj tüketimi ve ısınma karşıtı)
+  //  Arka planda / PiP'te veya zayıf ağda: yerel kamera 360p·15 fps·350 kbps kodlanır,
+  //  uzak videolar düşük katman + 15 fps istenir. Ön plana dönünce / ağ düzelince 8 sn
+  //  kararlılık beklenip normal profile dönülür (sürekli gidip gelme → yeniden ısınma yok).
+  //  Bu, kullanıcı ayarı olan Veri Koruma modundan bağımsız, geçici bir uyarlamadır.
+  // ---------------------------------------------------------------------------
+  static const VideoParameters kLowPowerVideo = VideoParameters(
+    dimensions: VideoDimensionsPresets.h360_169,
+    encoding: VideoEncoding(maxBitrate: 350 * 1000, maxFramerate: 15),
+  );
+  bool _lowPower = false;
+  bool get lowPowerActive => _lowPower;
+  final Set<String> _lowPowerReasons = {};
+  Timer? _powerRestoreTimer;
+
+  /// [reason]: 'background' | 'pip' | 'network'. Herhangi biri etkinse düşük profil.
+  void setLowPowerReason(String reason, bool active) {
+    if (active) {
+      _lowPowerReasons.add(reason);
+    } else {
+      _lowPowerReasons.remove(reason);
+    }
+    _powerRestoreTimer?.cancel();
+    if (_lowPowerReasons.isNotEmpty) {
+      unawaited(_applyPowerProfile(true));
+    } else {
+      _powerRestoreTimer = Timer(const Duration(seconds: 8), () => unawaited(_applyPowerProfile(false)));
+    }
+  }
+
+  Future<void> _applyPowerProfile(bool low) async {
+    if (_lowPower == low) return;
+    _lowPower = low;
+    final room = _room;
+    if (room == null) return;
+    for (final p in room.remoteParticipants.values) {
+      for (final pub in p.videoTrackPublications) {
+        try {
+          await pub.setVideoQuality(low ? VideoQuality.LOW : VideoQuality.HIGH);
+          await pub.setVideoFPS(low ? 15 : 30);
+        } catch (_) {}
+      }
+    }
+    final lp = room.localParticipant;
+    // Veri Koruma zaten 360p kodluyorsa kamerayı yeniden başlatmaya gerek yok
+    if (lp != null && isCameraEnabled && !JuzzioAppController.instance.dataSaverEnabled) {
+      try {
+        await lp.setCameraEnabled(false);
+        await lp.setCameraEnabled(true,
+            cameraCaptureOptions: low ? const CameraCaptureOptions(params: kLowPowerVideo) : const CameraCaptureOptions());
+      } catch (_) {}
+    }
+    notifyListeners();
+  }
+
+  /// v0.9.6: arama sürerken Veri Koruma'yı uygular (kamera ≈360p'ye düşer; kullanıcı onayıyla).
+  Future<void> applyDataSaverLive() async {
+    final lp = _room?.localParticipant;
+    if (lp == null) return;
+    if (isCameraEnabled) {
+      try {
+        await lp.setCameraEnabled(false);
+        await lp.setCameraEnabled(true, cameraCaptureOptions: const CameraCaptureOptions(params: VideoParametersPresets.h360_169));
+      } catch (_) {}
+    }
+    notifyListeners();
+  }
+
   Future<void> toggleMicrophone() async {
     isMicEnabled = !isMicEnabled;
     await _room?.localParticipant?.setMicrophoneEnabled(isMicEnabled);
@@ -1010,19 +1248,19 @@ class DeepgramLiveKitController extends ChangeNotifier {
   // ---------------------------------------------------------------------------
   static const MethodChannel _nativeChannel = MethodChannel('juzzio/notifications');
 
-  /// 0 = kapalı, 1 = açık (doğal, bulanıklaştırmayan mod)
-  int beautyLevel = JuzzioAppController.instance.cameraBeautyEnabled ? 1 : 0;
+  /// v0.9.3: 0 = kapalı, 1..100 = yoğunluk (kullanıcı ayarı; kaydırıcıyla değişir)
+  int beautyLevel = JuzzioAppController.instance.cameraBeautyEnabled ? JuzzioAppController.instance.beautyLevel : 0;
 
   bool get isBeautyOn => beautyLevel > 0;
 
   Future<bool> setBeautyLevel(int level) async {
-    beautyLevel = level > 0 ? 1 : 0;
+    beautyLevel = level.clamp(0, 100);
     notifyListeners();
     return _applyBeautyFilter();
   }
 
-  /// Tek dokunuşla güzelleştirmeyi aç/kapat
-  Future<bool> toggleBeauty() => setBeautyLevel(isBeautyOn ? 0 : 1);
+  /// Tek dokunuşla güzelleştirmeyi aç/kapat (açılırken son seçilen yoğunluk kullanılır)
+  Future<bool> toggleBeauty() => setBeautyLevel(isBeautyOn ? 0 : JuzzioAppController.instance.beautyLevel);
 
   Future<bool> _applyBeautyFilter() async {
     String? trackId;
@@ -1056,6 +1294,9 @@ class DeepgramLiveKitController extends ChangeNotifier {
   Future<void> disconnectCall() async {
     if (_isDisconnecting) return;
     _isDisconnecting = true;
+    _powerRestoreTimer?.cancel();
+    _lowPowerReasons.clear();
+    _lowPower = false;
     _moderationTimer?.cancel();
     _moderationTimer = null;
     try {
@@ -1115,6 +1356,7 @@ class DeepgramLiveKitController extends ChangeNotifier {
   @override
   void dispose() {
     _isDisposed = true;
+    _powerRestoreTimer?.cancel();
     _moderationTimer?.cancel();
     onModerationViolation = null;
     onRemoteCallEnded = null;
@@ -1129,4 +1371,13 @@ class DeepgramLiveKitController extends ChangeNotifier {
     }();
     super.dispose();
   }
+}
+
+/// v0.9.4: biriken kesin parçaya yeni parçayı tek boşlukla ekler (canlı altyazı bölütü).
+String juzzioJoinTranscript(String buffer, String piece) {
+  final a = buffer.trim();
+  final b = piece.trim();
+  if (a.isEmpty) return b;
+  if (b.isEmpty) return a;
+  return '$a $b';
 }

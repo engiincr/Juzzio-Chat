@@ -25,7 +25,8 @@ import java.util.concurrent.atomic.AtomicReference
  * plan iş parçacığında çalışır; burada beklenir, motor işleri ana iş parçacığına gönderilir).
  */
 object JuzzioNotificationDecryptor {
-    private const val TIMEOUT_MS = 7_000L
+    // v0.9.3: çözme + uygulama diline çeviri için 9 sn (FCM işleyici sınırının altında)
+    private const val TIMEOUT_MS = 9_000L
     private val UUID_RE = Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
 
     fun resolve(ctx: Context, roomId: String, messageId: String): String? {

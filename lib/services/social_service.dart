@@ -5,6 +5,7 @@
 // Sahte kullanıcı veya sabit demo verisi içermez!
 // =============================================================================
 
+import 'juzzio_media_cache.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -51,7 +52,15 @@ class JuzzioSocialService {
   Set<String> get mutedUserIds => Set.unmodifiable(_mutedUserIdsCache);
 
   /// Kullanıcının beğendiği, kaydettiği, engellediği ve sessize aldığı kimlikleri senkronize eder
-  Future<void> refreshMyInteractionSets() async {
+  /// v1.1.1 performans: 4 sorgu artık PARALEL (önceden sırayla, ap-south-1'e 4 tur gecikme),
+  /// eşzamanlı çağrılar tek isteği paylaşır ve sonuç 20 sn taze sayılır. Beğeni/kaydet/engel/
+  /// sessize alma işlemleri önbelleği zaten yerel olarak günceller. [force] → her zaman ağdan.
+  Future<void>? _interactionInFlight;
+  DateTime _interactionFetchedAt = DateTime.fromMillisecondsSinceEpoch(0);
+  String? _interactionUid;
+  static const Duration _interactionTtl = Duration(seconds: 20);
+
+  Future<void> refreshMyInteractionSets({bool force = false}) {
     final uid = currentUserId;
     if (uid == null || uid.isEmpty) {
       _likedPostIdsCache.clear();
@@ -59,54 +68,62 @@ class JuzzioSocialService {
       _likedCommentIdsCache.clear();
       _blockedUserIdsCache.clear();
       _mutedUserIdsCache.clear();
-      return;
+      _interactionUid = null;
+      return Future<void>.value();
+    }
+    final fresh = _interactionUid == uid && DateTime.now().difference(_interactionFetchedAt) < _interactionTtl;
+    if (!force && fresh) return Future<void>.value();
+    final running = _interactionInFlight;
+    if (running != null) return running;
+    final f = _fetchInteractionSets(uid).whenComplete(() => _interactionInFlight = null);
+    _interactionInFlight = f;
+    return f;
+  }
+
+  Future<void> _fetchInteractionSets(String uid) async {
+    Set<String> col(Object? rows, String key) =>
+        rows is List ? rows.map((r) => ((r as Map)[key] ?? '').toString()).where((s) => s.isNotEmpty).toSet() : <String>{};
+    Future<Object?> q(Future<Object?> f) async {
+      try {
+        return await f;
+      } catch (_) {
+        return null;
+      }
     }
 
-    try {
-      final likesRows = await _client
-          .from('post_likes')
-          .select('post_id')
-          .eq('user_id', uid)
-          .limit(500);
+    final r = await Future.wait<Object?>([
+      q(_client.from('post_likes').select('post_id').eq('user_id', uid).limit(500)),
+      q(_client.from('saved_posts').select('post_id').eq('user_id', uid).limit(500)),
+      // v0.9.4: engellenen kişi engelleyenin satırını (ve sebebini) okuyamaz; iki yönlü engel
+      // listesi yalnız kimlik olarak güvenli RPC'den gelir
+      q(_client.rpc('my_block_peer_ids')),
+      q(_client.from('muted_users').select('muted_id').eq('muter_id', uid)),
+    ]);
+    if (r[0] != null) {
       _likedPostIdsCache
         ..clear()
-        ..addAll((likesRows as List).map((r) => (r['post_id'] ?? '').toString()).where((s) => s.isNotEmpty));
-    } catch (_) {}
-
-    try {
-      final savedRows = await _client
-          .from('saved_posts')
-          .select('post_id')
-          .eq('user_id', uid)
-          .limit(500);
+        ..addAll(col(r[0], 'post_id'));
+    }
+    if (r[1] != null) {
       _savedPostIdsCache
         ..clear()
-        ..addAll((savedRows as List).map((r) => (r['post_id'] ?? '').toString()).where((s) => s.isNotEmpty));
-    } catch (_) {}
-
-    try {
-      final blocksRows = await _client
-          .from('blocked_users')
-          .select('blocker_id, blocked_id')
-          .or('blocker_id.eq.$uid,blocked_id.eq.$uid');
+        ..addAll(col(r[1], 'post_id'));
+    }
+    final peers = r[2];
+    if (peers is List) {
       _blockedUserIdsCache.clear();
-      for (final r in (blocksRows as List)) {
-        final blocker = (r['blocker_id'] ?? '').toString();
-        final blocked = (r['blocked_id'] ?? '').toString();
-        if (blocker == uid && blocked.isNotEmpty) _blockedUserIdsCache.add(blocked);
-        if (blocked == uid && blocker.isNotEmpty) _blockedUserIdsCache.add(blocker);
+      for (final row in peers) {
+        final id = (row is Map ? (row['my_block_peer_ids'] ?? row.values.first) : row)?.toString() ?? '';
+        if (id.isNotEmpty && id != uid) _blockedUserIdsCache.add(id);
       }
-    } catch (_) {}
-
-    try {
-      final mutedRows = await _client
-          .from('muted_users')
-          .select('muted_id')
-          .eq('muter_id', uid);
+    }
+    if (r[3] != null) {
       _mutedUserIdsCache
         ..clear()
-        ..addAll((mutedRows as List).map((r) => (r['muted_id'] ?? '').toString()).where((s) => s.isNotEmpty));
-    } catch (_) {}
+        ..addAll(col(r[3], 'muted_id'));
+    }
+    _interactionUid = uid;
+    _interactionFetchedAt = DateTime.now();
   }
 
   // ---------------------------------------------------------------------------
@@ -150,16 +167,26 @@ class JuzzioSocialService {
       query = query.eq('topic', topic);
     }
 
-    final rows = await query
-        .order('created_at', ascending: false)
-        .order('id', ascending: false)
-        .limit(limit);
+    // v0.9.3: profil gönderileri çevrimdışı da görünsün — son başarılı liste cihazda saklanır
+    final cacheName = (authorId != null && authorId.isNotEmpty && beforeCreatedAt == null) ? 'posts_$authorId' : null;
+    List rows;
+    try {
+      rows = await query
+          .order('created_at', ascending: false)
+          .order('id', ascending: false)
+          .limit(limit) as List;
+      if (cacheName != null) unawaited(SupabaseService.instance.writeLocalCache(cacheName, rows));
+    } catch (e) {
+      final cached = cacheName == null ? null : await SupabaseService.instance.readLocalCache(cacheName);
+      if (cached is! List) rethrow;
+      rows = cached.whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList();
+    }
 
     final result = <JuzzioPost>[];
     final seenIds = <String>{};
 
-    for (final raw in (rows as List)) {
-      final map = raw as Map<String, dynamic>;
+    for (final raw in rows) {
+      final map = Map<String, dynamic>.from(raw as Map);
       final post = JuzzioPost.fromMap(
         map,
         isLikedByMe: _likedPostIdsCache.contains(map['id']?.toString()),
@@ -741,50 +768,33 @@ class JuzzioSocialService {
       );
     }
 
-    try {
-      final postRows = await _client
-          .from('posts')
-          .select('id')
-          .eq('author_id', targetUserId)
-          .eq('is_deleted', false);
-      postsCount = (postRows as List).length;
-    } catch (_) {}
-
-    try {
-      final followerRows = await _client
-          .from('follows')
-          .select('id')
-          .eq('following_id', targetUserId)
-          .eq('status', 'following');
-      followersCount = (followerRows as List).length;
-    } catch (_) {}
-
-    try {
-      final followingRows = await _client
-          .from('follows')
-          .select('id')
-          .eq('follower_id', targetUserId)
-          .eq('status', 'following');
-      followingCount = (followingRows as List).length;
-    } catch (_) {}
-
-    if (uid != null && uid.isNotEmpty && uid != targetUserId) {
+    // v1.1.1 performans: 4 sorgu paralel (önceden sırayla, profil sayaçları geç geliyordu)
+    Future<Object?> q(Future<Object?> f) async {
       try {
-        final myRow = await _client
-            .from('follows')
-            .select('status')
-            .eq('follower_id', uid)
-            .eq('following_id', targetUserId)
-            .maybeSingle();
-        if (myRow != null) {
-          final st = (myRow['status'] ?? '').toString();
-          if (st == 'following') {
-            relation = JuzzioFollowRelationState.following;
-          } else if (st == 'pending') {
-            relation = JuzzioFollowRelationState.pending;
-          }
-        }
-      } catch (_) {}
+        return await f;
+      } catch (_) {
+        return null;
+      }
+    }
+
+    final mine = uid != null && uid.isNotEmpty && uid != targetUserId;
+    final r = await Future.wait<Object?>([
+      q(_client.from('posts').select('id').eq('author_id', targetUserId).eq('is_deleted', false)),
+      q(_client.from('follows').select('id').eq('following_id', targetUserId).eq('status', 'following')),
+      q(_client.from('follows').select('id').eq('follower_id', targetUserId).eq('status', 'following')),
+      if (mine)
+        q(_client.from('follows').select('status').eq('follower_id', uid ?? '').eq('following_id', targetUserId).maybeSingle()),
+    ]);
+    if (r[0] is List) postsCount = (r[0] as List).length;
+    if (r[1] is List) followersCount = (r[1] as List).length;
+    if (r[2] is List) followingCount = (r[2] as List).length;
+    if (mine && r.length > 3 && r[3] is Map) {
+      final st = ((r[3] as Map)['status'] ?? '').toString();
+      if (st == 'following') {
+        relation = JuzzioFollowRelationState.following;
+      } else if (st == 'pending') {
+        relation = JuzzioFollowRelationState.pending;
+      }
     }
 
     return JuzzioProfileSocialCounts(
@@ -1381,6 +1391,14 @@ class JuzzioSocialService {
       supportBytes = await folderBytes(supDir);
     } catch (_) {}
 
+    // v0.9.2: çevrimdışı medya önbelleği "geçici" sayılır (silinince yeniden indirilir)
+    var mediaBytes = 0;
+    try {
+      mediaBytes = await JuzzioMediaDiskCache.instance.sizeBytes();
+    } catch (_) {}
+    tempBytes += mediaBytes;
+    supportBytes -= mediaBytes;
+    if (supportBytes < 0) supportBytes = 0;
     return {
       'cacheBytes': tempBytes,
       'appDataBytes': supportBytes,
@@ -1390,6 +1408,9 @@ class JuzzioSocialService {
 
   Future<int> clearSafeTemporaryCache() async {
     int freed = 0;
+    try {
+      freed += await JuzzioMediaDiskCache.instance.clear();
+    } catch (_) {}
     try {
       final tempDir = await getTemporaryDirectory();
       if (tempDir.existsSync()) {

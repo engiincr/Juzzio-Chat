@@ -22,6 +22,7 @@ import '../core/native_bridge.dart';
 import '../core/theme/juzzio_colors.dart';
 import 'media_viewer.dart';
 import 'profile_extras.dart';
+import 'juzzio_motion.dart';
 
 String _l(String tr, String en, String de) => JuzzioAppController.instance.trEn(tr, en, de);
 
@@ -687,7 +688,7 @@ class _JuzzioVideoTrimmerPageState extends State<JuzzioVideoTrimmerPage> {
                         ? const SizedBox(
                             width: 18,
                             height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            child: JuzzioOrbitLoader(strokeWidth: 2, color: Colors.white),
                           )
                         : Text(_l('Bitti', 'Done', 'Fertig'), style: const TextStyle(fontWeight: FontWeight.w800)),
                   ),
@@ -708,7 +709,7 @@ class _JuzzioVideoTrimmerPageState extends State<JuzzioVideoTrimmerPage> {
                       ),
                     )
                   : !_ready
-                      ? const Center(child: CircularProgressIndicator(color: Colors.white))
+                      ? const Center(child: JuzzioOrbitLoader(color: Colors.white))
                       : GestureDetector(
                           onTap: _togglePlay,
                           child: Stack(
@@ -1208,7 +1209,7 @@ class _JuzzioInlineVideoState extends State<JuzzioInlineVideo> {
           if (video == null)
             Center(
               child: _loading
-                  ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 2.4)
+                  ? const JuzzioOrbitLoader(color: Colors.white, strokeWidth: 2.4)
                   : Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(

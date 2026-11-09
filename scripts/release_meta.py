@@ -35,7 +35,7 @@ import tempfile
 REPO = os.environ.get("GITHUB_REPOSITORY", "engiincr/Juzzio-Chat")
 VERSION_FILE = "version.json"
 PUBSPEC = "pubspec.yaml"
-DEFAULT_TITLE = "Juzzio güncellemesi"
+DEFAULT_TITLE = "Juzzio update"
 
 
 def _decode_text(raw: bytes) -> str:
@@ -137,9 +137,14 @@ def dump(data: dict) -> str:
     return json.dumps(data, ensure_ascii=False, indent=2) + "\n"
 
 
+def _title_en(data: dict) -> str:
+    """v0.9.7: GitHub sayfaları tamamen İngilizce — önce releaseTitleEn, yoksa releaseTitle."""
+    return (str(data.get("releaseTitleEn") or "").strip() or str(data.get("releaseTitle") or "").strip() or DEFAULT_TITLE)
+
+
 def cmd_title() -> None:
     data = read_json_lenient(VERSION_FILE)
-    title = str(data.get("releaseTitle") or DEFAULT_TITLE).strip() or DEFAULT_TITLE
+    title = _title_en(data)
     print(title.replace("\n", " "))
 
 
@@ -197,7 +202,7 @@ def cmd_update(sha256: str, size: str, build_date: str) -> None:
             readme = _decode_text(f.read())
         block = (
             "<!-- JUZZIO_VERIFIED_APK_START -->\n"
-            "| Sürüm | APK | Boyut | SHA-256 | Derleme |\n"
+            "| Version | APK | Size | SHA-256 | Built |\n"
             "| :-- | :-- | :-- | :-- | :-- |\n"
             f"| v{ver} (+{build}) | [Juzzio-latest.apk](https://github.com/{REPO}/releases/latest/download/Juzzio-latest.apk) "
             f"| {size} | `{sha256}` | {build_date} |\n"
@@ -212,21 +217,22 @@ def cmd_update(sha256: str, size: str, build_date: str) -> None:
 
     notes = (
         render_notes_body(data) +
-        "## İndirme\n\n"
-        f"- Son sürüm: [Juzzio-latest.apk](https://github.com/{REPO}/releases/latest/download/Juzzio-latest.apk)\n"
-        f"- Bu sürüm: `juzzio-v{ver}-release.apk` ({size})\n\n"
-        "## APK doğrulama\n\n"
+        "## ⬇️ Download\n\n"
+        f"- Latest: [Juzzio-latest.apk](https://github.com/{REPO}/releases/latest/download/Juzzio-latest.apk)\n"
+        f"- This version: `juzzio-v{ver}-release.apk` ({size})\n\n"
+        "## ✅ Verify the APK\n\n"
         "```bash\nsha256sum Juzzio-latest.apk\n"
         f"# {sha256}  Juzzio-latest.apk\n```\n\n"
-        f"Derleme zamanı: {build_date} — GitHub Actions\n"
+        f"Built: {build_date} — GitHub Actions\n"
     )
     write_text_atomic("release-notes.md", notes)
     print(f"Metadata güncellendi → v{ver} (+{build})")
 
 
+# v0.9.7: uygulamadaki "Yenilikler" penceresiyle AYNI emojili başlıklar
 SECTION_TITLES = {
-    "tr": ("Neden bu güncelleme?", "✨ Yeni özellikler", "🛠️ Düzeltilen hatalar", "🔒 Güvenlik ve gizlilik"),
-    "en": ("Why this update?", "✨ New features", "🛠️ Fixed bugs", "🔒 Security and privacy"),
+    "tr": ("🎯 Bu güncelleme neden geldi?", "✨ Neler eklendi?", "🛠️ Neler düzeltildi?", "🔒 Güvenlik ve gizlilik"),
+    "en": ("🎯 Why did this update come?", "✨ What's new?", "🛠️ What was fixed?", "🔒 Security & privacy"),
 }
 
 
@@ -239,17 +245,13 @@ def _lines(v) -> list:
 
 
 def render_notes_body(data: dict) -> str:
-    ver, title = data.get("version", ""), data.get("releaseTitle", DEFAULT_TITLE)
+    """v0.9.7: GitHub sürüm sayfası TAMAMEN İngilizce; başlıklar uygulamadaki emojilerle aynı."""
+    ver, title = data.get("version", ""), _title_en(data)
     details = data.get("details") if isinstance(data.get("details"), dict) else {}
     out = [f"# Juzzio v{ver} — {title}\n"]
-    rendered = False
-    for lang in ("tr", "en"):
-        sec = details.get(lang)
-        if not isinstance(sec, dict):
-            continue
-        t = SECTION_TITLES[lang]
-        if lang == "en":
-            out.append("\n---\n\n<details><summary>English</summary>\n")
+    sec = details.get("en")
+    t = SECTION_TITLES["en"]
+    if isinstance(sec, dict):
         reason = str(sec.get("reason", "")).strip()
         if reason:
             out.append(f"\n## {t[0]}\n\n{reason}\n")
@@ -257,11 +259,8 @@ def render_notes_body(data: dict) -> str:
             items = _lines(sec.get(key))
             if items:
                 out.append(f"\n## {head}\n\n" + "\n".join(f"- {i}" for i in items) + "\n")
-        if lang == "en":
-            out.append("\n</details>\n")
-        rendered = True
-    if not rendered:
-        out.append("\n" + str((data.get("changelog") or {}).get("tr", "")) + "\n")
+    else:
+        out.append("\n" + str((data.get("changelog") or {}).get("en", "")) + "\n")
     return "".join(out) + "\n"
 
 

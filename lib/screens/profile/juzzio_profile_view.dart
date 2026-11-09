@@ -11,6 +11,8 @@
 
 import 'dart:ui' as ui;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -28,6 +30,12 @@ import '../../widgets/profile_extras.dart';
 import '../../widgets/social_common_widgets.dart';
 import '../social/social_screens.dart';
 import 'juzzio_profile_card_page.dart';
+import '../qa_box_screen.dart';
+import '../../widgets/juzzio_cloth_refresh.dart';
+import '../../widgets/juzzio_ui_kit.dart';
+import '../../widgets/juzzio_rich_text.dart';
+import '../../widgets/juzzio_space_kit.dart';
+import '../../widgets/juzzio_motion.dart';
 
 String _l(String tr, String en, String de) => JuzzioAppController.instance.trEn(tr, en, de);
 
@@ -95,39 +103,84 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
     }
   }
 
+  /// v1.1.1 performans: son görülen profil bellekte tutulur → sekmeye dönüşte ANINDA görünür,
+  /// ağdan gelen her parça (profil, sayaçlar, ilişki, gönderiler) hazır olduğu an ekrana
+  /// yansır (önceden 5 isteğin hepsi bitene kadar sayaçlar 0'da bekliyordu). Kaydedilenler
+  /// en son, arka planda yüklenir.
+  static final Map<String, _ProfileSnapshot> _memo = <String, _ProfileSnapshot>{};
+  int _loadGen = 0;
+
+  void _remember() {
+    final p = _profile;
+    if (p == null) return;
+    _memo[widget.userId] = _ProfileSnapshot(p, _counts, _relation, _posts, _saved);
+    if (_memo.length > 24) _memo.remove(_memo.keys.first);
+  }
+
+  void _restoreFromMemo() {
+    final m = _memo[widget.userId];
+    if (m == null) return;
+    _profile = m.profile;
+    _counts = m.counts;
+    _relation = m.relation;
+    _posts = m.posts;
+    _saved = m.saved;
+    _loading = false;
+  }
+
+  /// v0.9.3: ağdan bağımsız, her parça ayrı ayrı ve süre sınırlı yüklenir. İnternet yokken
+  /// cihazdaki son profil + gönderiler HEMEN gösterilir (dönen yükleme simgesinde kalınmaz);
+  /// bağlantı gelince ağ verisi üzerine yazar.
   Future<void> _load() async {
+    final gen = ++_loadGen;
     final social = JuzzioSocialService.instance;
-    try {
-      final results = await Future.wait<Object?>([
-        SupabaseService.instance.fetchUserProfile(widget.userId),
-        social.fetchProfileSocialCounts(widget.userId),
-        social.fetchFeedPosts(authorId: widget.userId, limit: 90),
-        _isOwn ? social.fetchMySavedPosts(limit: 90) : Future<List<JuzzioPost>>.value(const []),
-        _isOwn
-            ? Future<JuzzioRelationship>.value(const JuzzioRelationship())
-            : JuzzioFeaturesService.instance.fetchRelationship(widget.userId),
-      ]);
-      if (!mounted) return;
-      setState(() {
-        _profile = (results[0] as JuzzioUserProfile?) ?? (_isOwn ? widget.currentUser : null);
-        _counts = results[1] as JuzzioProfileSocialCounts;
-        _posts = results[2] as List<JuzzioPost>;
-        _saved = results[3] as List<JuzzioPost>;
-        _relation = results[4] as JuzzioRelationship;
-        _loading = false;
-      });
+    final svc = SupabaseService.instance;
+    bool live() => mounted && gen == _loadGen;
+    if (_profile == null) _restoreFromMemo();
+    // 1) Anında: cihazdaki son hâl
+    if (_profile == null) {
       if (_isOwn) {
-        // Arkadaş sayısı kendi profilde de gösterilir
-        final rel = await JuzzioFeaturesService.instance.fetchRelationship(widget.userId);
-        if (mounted) setState(() => _relation = rel);
+        setState(() {
+          _profile = widget.currentUser;
+          _loading = false;
+        });
       }
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _profile ??= _isOwn ? widget.currentUser : null;
-        _loading = false;
-      });
+      unawaited(svc.cachedUserProfile(widget.userId).then((cached) {
+        if (live() && cached != null && _profile == null) {
+          setState(() {
+            _profile = cached;
+            _loading = false;
+          });
+        }
+      }));
     }
+    const limit = Duration(seconds: 12);
+    // 2) Ağ: her parça bağımsız ve geldiği an uygulanır; biri başarısız olursa diğerleri yine görünür
+    Future<void> part<T>(Future<T> f, void Function(T v) apply) async {
+      try {
+        final v = await f.timeout(limit);
+        if (!live()) return;
+        setState(() => apply(v));
+        _remember();
+      } catch (_) {}
+    }
+
+    await Future.wait<void>([
+      part<JuzzioUserProfile?>(svc.fetchUserProfile(widget.userId), (v) {
+        _profile = v ?? _profile ?? (_isOwn ? widget.currentUser : null);
+        _loading = false;
+      }),
+      part<JuzzioProfileSocialCounts?>(social.fetchProfileSocialCounts(widget.userId), (v) {
+        if (v != null) _counts = v;
+      }),
+      part<JuzzioRelationship?>(JuzzioFeaturesService.instance.fetchRelationship(widget.userId), (v) {
+        if (v != null) _relation = v;
+      }),
+      part<List<JuzzioPost>>(social.fetchFeedPosts(authorId: widget.userId, limit: 60), (v) => _posts = v),
+    ]);
+    if (!live()) return;
+    if (_loading) setState(() => _loading = false);
+    if (_isOwn) await part<List<JuzzioPost>>(social.fetchMySavedPosts(limit: 90), (v) => _saved = v);
   }
 
   // ---------------------------------------------------------------------------
@@ -182,7 +235,7 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
 
   Future<bool?> _confirmSheet({required String title, required String actionLabel}) {
     final isDark = JuzzioAppController.instance.isDark;
-    return showModalBottomSheet<bool>(
+    return showJuzzioSheet<bool>(
       context: context,
       backgroundColor: JuzzioGlassTokens.sheet,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
@@ -213,7 +266,7 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
   Future<void> _openMoreMenu() async {
     final prof = _profile;
     if (prof == null) return;
-    final choice = await showModalBottomSheet<String>(
+    final choice = await showJuzzioSheet<String>(
       context: context,
       backgroundColor: JuzzioGlassTokens.sheet,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
@@ -444,7 +497,7 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
   Widget _avatarImage(JuzzioUserProfile prof, double radius) {
     final url = prof.avatarUrl ?? '';
     if (url.startsWith('http')) {
-      return Image.network(url, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _initialsAvatar(prof, radius));
+      return JuzzioStorageImage(url, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _initialsAvatar(prof, radius));
     }
     return _initialsAvatar(prof, radius);
   }
@@ -516,7 +569,8 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
           _buildTopBar(fg, prof),
           Expanded(
             child: _loading && prof == null
-                ? const Center(child: CircularProgressIndicator(strokeWidth: 2.4))
+                // v0.9.7: parıldayan profil iskeleti
+                ? const JuzzioProfileSkeleton()
                 : prof == null || _relation.blocked || _counts.isBlockedBetween
                     ? JuzzioEmptyStateView(
                         icon: Icons.person_off_outlined,
@@ -524,7 +578,7 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
                         subtitle: _l('Bu kullanıcıya şu anda ulaşılamıyor.', 'This user is currently unavailable.',
                             'Dieser Nutzer ist derzeit nicht verfügbar.'),
                       )
-                    : RefreshIndicator(
+                    : JuzzioClothRefresh(
                         onRefresh: _load,
                         child: CustomScrollView(
                           physics: const AlwaysScrollableScrollPhysics(),
@@ -548,63 +602,48 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
   }
 
   Widget _buildTopBar(Color fg, JuzzioUserProfile? prof) {
-    // Kullanıcı adı artık kimlik kartında tam görünür; üst çubuk yalnızca eylemleri taşır.
+    // v1.0.0 Juzzio Space başlığı: eyebrow + büyük başlık + kare cam eylemler
+    final name = prof == null ? '' : (prof.displayName.trim().isEmpty ? prof.username : prof.displayName.trim());
+    final actions = <Widget>[
+      if (_isOwn) ...[
+        if (widget.onOpenNotifications != null)
+          JuzzioSpaceIconButton(
+            icon: Icons.notifications_none_rounded,
+            tooltip: _l('Bildirimler', 'Notifications', 'Benachrichtigungen'),
+            onTap: widget.onOpenNotifications,
+          ),
+        if (widget.onOpenSettings != null)
+          JuzzioSpaceIconButton(
+            icon: Icons.settings_outlined,
+            tooltip: _l('Ayarlar', 'Settings', 'Einstellungen'),
+            onTap: widget.onOpenSettings,
+          ),
+        if (widget.onCreate != null)
+          JuzzioSpaceComposeButton(
+            icon: Icons.add_rounded,
+            tooltip: _l('Oluştur', 'Create', 'Erstellen'),
+            onTap: widget.onCreate,
+          ),
+      ] else
+        JuzzioSpaceIconButton(icon: Icons.more_horiz_rounded, tooltip: _l('Diğer', 'More', 'Mehr'), onTap: _openMoreMenu),
+    ];
+    if (!widget.asHomeTab) {
+      return SafeArea(
+        bottom: false,
+        child: JuzzioSpacePageHeader(
+          eyebrow: prof == null ? null : '@${prof.username}',
+          title: name.isEmpty ? _l('Profil', 'Profile', 'Profil') : name,
+          onBack: widget.onBack ?? () => Navigator.of(context).maybePop(),
+          actions: actions,
+        ),
+      );
+    }
     return SafeArea(
       bottom: false,
-      child: SizedBox(
-        height: 56,
-        child: Row(
-          children: [
-            const SizedBox(width: 12),
-            if (!widget.asHomeTab)
-              JuzzioGlassIconButton(
-                icon: Icons.arrow_back_ios_new_rounded,
-                size: 40,
-                onTap: widget.onBack ?? () => Navigator.of(context).maybePop(),
-              )
-            else
-              Text(
-                _l('Profil', 'Profile', 'Profil'),
-                style: TextStyle(
-                  fontFamily: JuzzioConfig.fontRegularBold,
-                  fontSize: 24,
-                  fontWeight: FontWeight.w900,
-                  color: fg,
-                  letterSpacing: -0.4,
-                ),
-              ),
-            const Spacer(),
-            if (_isOwn) ...[
-              if (widget.onCreate != null) ...[
-                JuzzioGlassIconButton(
-                  icon: Icons.add_rounded,
-                  size: 40,
-                  tooltip: _l('Oluştur', 'Create', 'Erstellen'),
-                  onTap: widget.onCreate,
-                ),
-                const SizedBox(width: 8),
-              ],
-              if (widget.onOpenNotifications != null) ...[
-                JuzzioGlassIconButton(
-                  icon: Icons.notifications_none_rounded,
-                  size: 40,
-                  tooltip: _l('Bildirimler', 'Notifications', 'Benachrichtigungen'),
-                  onTap: widget.onOpenNotifications,
-                ),
-                const SizedBox(width: 8),
-              ],
-              if (widget.onOpenSettings != null)
-                JuzzioGlassIconButton(
-                  icon: Icons.settings_outlined,
-                  size: 40,
-                  tooltip: _l('Ayarlar', 'Settings', 'Einstellungen'),
-                  onTap: widget.onOpenSettings,
-                ),
-            ] else
-              JuzzioGlassIconButton(icon: Icons.more_horiz_rounded, size: 40, onTap: _openMoreMenu),
-            const SizedBox(width: 12),
-          ],
-        ),
+      child: JuzzioSpaceHeader(
+        eyebrow: _l('Senin profilin', 'Your profile', 'Dein Profil'),
+        title: JuzzioSpaceBrand(text: _l('Profil', 'Profile', 'Profil'), size: 32),
+        actions: actions,
       ),
     );
   }
@@ -613,9 +652,13 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
     final secondary = isDark ? JuzzioGlassTokens.textSecondary : JuzzioColors.slate600;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-      child: JuzzioGlass(
-        radius: 30,
+      child: Container(
         padding: const EdgeInsets.fromLTRB(18, 22, 18, 16),
+        decoration: BoxDecoration(
+          color: JuzzioGlassTokens.spaceCard,
+          borderRadius: BorderRadius.circular(30),
+          border: Border.all(color: JuzzioGlassTokens.spaceCardBorder, width: 1.2),
+        ),
         child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -627,16 +670,18 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
                     await _load();
                   }
                 : null,
+            // v1.0.0: parlayan vurgu halkalı yuvarlatılmış kare avatar
             child: Container(
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white.withValues(alpha: 0.35), width: 1.5),
-                boxShadow: const [BoxShadow(color: Color(0x66000000), blurRadius: 24, offset: Offset(0, 10))],
+                borderRadius: BorderRadius.circular(40),
+                border: Border.all(color: JuzzioGlassTokens.glow.withValues(alpha: 0.75), width: 2.4),
+                boxShadow: JuzzioGlassTokens.glowShadow(0.6),
               ),
               child: Hero(
                 tag: 'juzzio_avatar_${prof.id}',
-                child: ClipOval(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(34),
                   child: SizedBox(width: 108, height: 108, child: _avatarImage(prof, 54)),
                 ),
               ),
@@ -702,9 +747,9 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: isDark ? 0.08 : 0.6),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: isDark ? JuzzioGlassTokens.border : JuzzioColors.slate200),
+                  color: JuzzioGlassTokens.spaceButton,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -718,40 +763,29 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
             );
           }),
           const SizedBox(height: 14),
-          // Sayaçlar: tek cam kapsül
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: isDark ? 0.06 : 0.5),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: isDark ? JuzzioGlassTokens.border : JuzzioColors.slate200),
-            ),
-            child: IntrinsicHeight(
-              child: Row(
-                children: [
-                  Expanded(child: _stat(fg, secondary, _counts.postsCount, _l('gönderi', 'posts', 'Beiträge'))),
-                  VerticalDivider(width: 1, color: isDark ? JuzzioGlassTokens.border : JuzzioColors.slate200),
-                  Expanded(
-                    child: _stat(fg, secondary, _relation.friendCount, _l('arkadaş', 'friends', 'Freunde'),
-                        onTap: _openFriends),
-                  ),
-                  if (_isOwn) ...[
-                    VerticalDivider(width: 1, color: isDark ? JuzzioGlassTokens.border : JuzzioColors.slate200),
-                    Expanded(child: _stat(fg, secondary, _counts.followersCount, _l('ekleyen', 'added you', 'hinzugefügt'))),
-                  ],
-                ],
-              ),
-            ),
+          // v1.0.0: sayaçlar ayrı cam karolarda (Juzzio Space)
+          Row(
+            children: [
+              Expanded(child: _statTile(fg, secondary, _counts.postsCount, _l('gönderi', 'posts', 'Beiträge'))),
+              const SizedBox(width: 8),
+              Expanded(child: _statTile(fg, secondary, _relation.friendCount, _l('arkadaş', 'friends', 'Freunde'), onTap: _openFriends)),
+              if (_isOwn) ...[
+                const SizedBox(width: 8),
+                Expanded(child: _statTile(fg, secondary, _counts.followersCount, _l('ekleyen', 'added you', 'hinzugefügt'))),
+              ],
+            ],
           ),
           if (prof.bio.trim().isNotEmpty) ...[
             const SizedBox(height: 3),
             const SizedBox(height: 8),
-            Text(prof.bio.trim(), textAlign: TextAlign.center, style: TextStyle(color: fg, fontSize: 14.5, height: 1.4)),
+            JuzzioLinkText(prof.bio.trim(), textAlign: TextAlign.center, style: TextStyle(color: fg, fontSize: 14.5, height: 1.4)),
           ],
           if (prof.websiteUrl.trim().isNotEmpty) ...[
             const SizedBox(height: 4),
             JuzzioWebsiteChip(url: prof.websiteUrl, isDark: isDark),
           ],
+          // v0.9.5: anonim soru kutusu (yalnız başkasının profilinde, kutu açıksa görünür)
+          if (!_isOwn) JuzzioQaProfileSection(key: ValueKey('qa_${widget.userId}'), ownerId: widget.userId),
           if (prof.hasProfileMusic) ...[
             const SizedBox(height: 8),
             JuzzioMusicPill(
@@ -813,21 +847,23 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
     if (changed == true) await _load();
   }
 
-  Widget _stat(Color fg, Color secondary, int value, String label, {VoidCallback? onTap}) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-        child: Column(
-          children: [
-            Text(
-              _compact(value),
-              style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, fontSize: 18, fontWeight: FontWeight.w800, color: fg),
-            ),
-            const SizedBox(height: 1),
-            Text(label, style: TextStyle(fontSize: 13, color: secondary)),
-          ],
+  Widget _statTile(Color fg, Color secondary, int value, String label, {VoidCallback? onTap}) {
+    return Material(
+      color: JuzzioGlassTokens.spaceInset,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Column(
+            children: [
+              Text(_compact(value),
+                  style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, fontSize: 20, fontWeight: FontWeight.w900, color: fg, letterSpacing: -0.4)),
+              const SizedBox(height: 2),
+              Text(label, style: TextStyle(fontSize: 12.5, color: secondary, fontWeight: FontWeight.w600)),
+            ],
+          ),
         ),
       ),
     );
@@ -840,7 +876,8 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
   }
 
   Widget _buildActionButtons(JuzzioUserProfile prof, Color fg, bool isDark) {
-    final grey = isDark ? Colors.white.withValues(alpha: 0.10) : JuzzioColors.surfaceECEFF5;
+    // v1.0.0: ikincil düğmeler kare cam, birincil düğme parlayan vurgu
+    final grey = JuzzioGlassTokens.spaceButton;
     Widget pill(String label, VoidCallback? onTap, {Color? bg, Color? color, IconData? icon}) {
       return Expanded(
         child: SizedBox(
@@ -849,7 +886,10 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
             style: TextButton.styleFrom(
               backgroundColor: bg ?? grey,
               foregroundColor: color ?? fg,
-              shape: const StadiumBorder(),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+                side: bg == null ? BorderSide(color: JuzzioGlassTokens.spaceCardBorder) : BorderSide.none,
+              ),
               padding: const EdgeInsets.symmetric(horizontal: 8),
             ),
             onPressed: onTap,
@@ -875,12 +915,17 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
     if (_isOwn) {
       return Row(
         children: [
-          pill(_l('Profili düzenle', 'Edit profile', 'Profil bearbeiten'), widget.onEditProfile == null
-              ? null
-              : () async {
-                  final updated = await widget.onEditProfile!();
-                  if (updated != null) await _load();
-                }),
+          pill(
+              _l('Profili düzenle', 'Edit profile', 'Profil bearbeiten'),
+              widget.onEditProfile == null
+                  ? null
+                  : () async {
+                      final updated = await widget.onEditProfile!();
+                      if (updated != null) await _load();
+                    },
+              bg: JuzzioGlassTokens.glow,
+              color: JuzzioGlassTokens.onGlow,
+              icon: Icons.edit_outlined),
           const SizedBox(width: 6),
           pill(_l('Profili paylaş', 'Share profile', 'Profil teilen'), _openProfileCard),
           const SizedBox(width: 6),
@@ -890,7 +935,7 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
             child: IconButton(
               style: IconButton.styleFrom(
                 backgroundColor: grey,
-                shape: const CircleBorder(),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               ),
               padding: EdgeInsets.zero,
               tooltip: _l('Arkadaşlar', 'Friends', 'Freunde'),
@@ -920,14 +965,14 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
         break;
       case 'incoming':
         friendLabel = _l('Geri ekle', 'Add back', 'Zurück hinzufügen');
-        friendBg = Colors.white;
-        friendFg = const Color(0xFF111113);
+        friendBg = JuzzioGlassTokens.glow;
+        friendFg = JuzzioGlassTokens.onGlow;
         break;
       default:
         friendLabel = _l('Arkadaş ekle', 'Add friend', 'Freund hinzufügen');
         friendIcon = Icons.person_add_alt_1_rounded;
-        friendBg = Colors.white;
-        friendFg = const Color(0xFF111113);
+        friendBg = JuzzioGlassTokens.glow;
+        friendFg = JuzzioGlassTokens.onGlow;
     }
     return Row(
       children: [
@@ -944,7 +989,7 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
           child: IconButton(
             style: IconButton.styleFrom(
               backgroundColor: grey,
-              shape: const CircleBorder(),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             ),
             padding: EdgeInsets.zero,
             tooltip: _l('Profil kartı', 'Profile card', 'Profilkarte'),
@@ -957,49 +1002,34 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
   }
 
   Widget _buildTabs(Color fg, bool isDark, Color bg) {
-    final labels = <String>[
-      _l('Gönderiler', 'Posts', 'Beiträge'),
-      if (_isOwn) _l('Kaydedilenler', 'Saved', 'Gespeichert'),
+    final tabs = <(String, IconData)>[
+      (_l('Gönderiler', 'Posts', 'Beiträge'), Icons.grid_view_rounded),
+      if (_isOwn) (_l('Kaydedilenler', 'Saved', 'Gespeichert'), Icons.bookmark_border_rounded),
     ];
-    // v0.8.0: siyah şerit kaldırıldı — sekmeler zemin üstünde cam
+    // v1.0.0: Juzzio Space filtre hapları (sabitlenen başlıkta buzlu cam şerit)
     return ClipRect(
       child: BackdropFilter(
-        filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        filter: ui.ImageFilter.blur(sigmaX: 14, sigmaY: 14),
         child: Container(
-      color: bg,
-      padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
-      child: Row(
-        children: List.generate(labels.length, (i) {
-          final active = _tab == i;
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: GestureDetector(
-              onTap: () {
-                HapticFeedback.selectionClick();
-                setState(() => _tab = i);
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: active ? JuzzioGlassTokens.surfaceStrong : JuzzioGlassTokens.surface,
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: active ? JuzzioGlassTokens.borderStrong : JuzzioGlassTokens.border),
+          color: JuzzioGlassTokens.space.depth[1].withValues(alpha: isDark ? 0.55 : 0.0),
+          padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
+          alignment: Alignment.centerLeft,
+          child: Row(
+            children: [
+              for (var i = 0; i < tabs.length; i++) ...[
+                if (i > 0) const SizedBox(width: 10),
+                JuzzioSpaceFilterPill(
+                  label: tabs[i].$1,
+                  icon: tabs[i].$2,
+                  selected: _tab == i,
+                  onTap: () => setState(() => _tab = i),
                 ),
-                child: Text(
-                  labels[i],
-                  style: TextStyle(
-                    color: active ? fg : fg.withValues(alpha: 0.7),
-                    fontWeight: FontWeight.w800,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-            ),
-          );
-        }),
+              ],
+            ],
+          ),
+        ),
       ),
-    )));
+    );
   }
 
   List<Widget> _buildGrid(JuzzioUserProfile prof, bool isDark) {
@@ -1119,13 +1149,23 @@ class _TabsHeader extends SliverPersistentHeaderDelegate {
   _TabsHeader({required this.child});
 
   @override
-  double get minExtent => 46;
+  double get minExtent => 56;
   @override
-  double get maxExtent => 46;
+  double get maxExtent => 56;
 
   @override
   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) => child;
 
   @override
   bool shouldRebuild(covariant _TabsHeader oldDelegate) => true;
+}
+
+/// v1.1.1: profil sayfasının bellekteki son görünümü (sekmeye dönüşte anında gösterim)
+class _ProfileSnapshot {
+  const _ProfileSnapshot(this.profile, this.counts, this.relation, this.posts, this.saved);
+  final JuzzioUserProfile profile;
+  final JuzzioProfileSocialCounts counts;
+  final JuzzioRelationship relation;
+  final List<JuzzioPost> posts;
+  final List<JuzzioPost> saved;
 }

@@ -10,7 +10,6 @@
 // =============================================================================
 
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -21,6 +20,8 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../core/app_theme_and_locale.dart';
+import '../../services/juzzio_beauty.dart';
+import '../../widgets/juzzio_beauty_sheet.dart';
 import '../../core/config.dart';
 import '../../core/native_bridge.dart';
 import '../../core/theme/juzzio_colors.dart';
@@ -36,6 +37,7 @@ import '../../widgets/juzzio_story_stickers.dart';
 import '../../widgets/profile_extras.dart';
 import '../../widgets/juzzio_mentions.dart';
 import '../close_friends_page.dart';
+import '../../widgets/juzzio_motion.dart';
 
 String _l(String tr, String en, String de) => JuzzioAppController.instance.trEn(tr, en, de);
 
@@ -147,6 +149,44 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
   int _textBgIndex = 0;
 
   String _filter = 'none';
+  // v0.9.3: hikâye fotoğraflarında ayarlanabilir güzelleştirme (aramadakiyle aynı motor)
+  bool _beautyOn = false;
+  int _beautyLevel = JuzzioAppController.instance.beautyLevel;
+  final Map<String, File> _beautyPreview = {};
+  int _beautyJob = 0;
+
+  Future<void> _refreshBeautyPreviews() async {
+    final job = ++_beautyJob;
+    _beautyPreview.clear();
+    if (!_beautyOn) {
+      if (mounted) setState(() {});
+      return;
+    }
+    for (final m in List<JuzzioStudioMedia>.from(_media)) {
+      if (m.isVideo) continue;
+      final out = await juzzioBeautifyImageFile(m.file, _beautyLevel, maxSide: 1280);
+      if (!mounted || job != _beautyJob) return;
+      if (out.path != m.file.path) setState(() => _beautyPreview[m.file.path] = out);
+    }
+  }
+
+  Future<void> _openBeauty() async {
+    await showJuzzioBeautySheet(
+      context,
+      enabled: _beautyOn,
+      level: _beautyLevel,
+      note: _l('Fotoğraflara uygulanır; paylaşırken tam çözünürlükte işlenir.', 'Applied to photos; processed in full resolution when shared.',
+          'Wird auf Fotos angewendet; beim Teilen in voller Auflösung verarbeitet.'),
+      onChanged: (on, level) {
+        setState(() {
+          _beautyOn = on;
+          _beautyLevel = level;
+        });
+        JuzzioAppController.instance.setBeautyLevel(level);
+        _refreshBeautyPreviews();
+      },
+    );
+  }
   double _speed = 1.0;
   bool _muted = false;
   JuzzioMusicSelection? _music;
@@ -847,7 +887,7 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
         _captionCtrl.text.trim().isNotEmpty ||
         _overlayText.isNotEmpty;
     if (!hasDraft) return true;
-    final res = await showModalBottomSheet<bool>(
+    final res = await showJuzzioSheet<bool>(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (ctx) => _GlassSheet(
@@ -971,10 +1011,12 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
       } else {
         for (var i = 0; i < _media.length; i++) {
           final m = _media[i];
+          // v0.9.3: güzelleştirme tam çözünürlükte, yükleme öncesi uygulanır
+          final upload = (!m.isVideo && _beautyOn) ? await juzzioBeautifyImageFile(m.file, _beautyLevel) : m.file;
           final st = await SupabaseService.instance.uploadAndCreateStory(
             author: widget.currentUser,
             mediaType: m.isVideo ? 'video' : 'image',
-            mediaFile: m.file,
+            mediaFile: upload,
             caption: caption,
             overlayText: _overlayText,
             videoDurationSec: m.isVideo ? (m.lengthMs / 1000 / _speed).ceil().clamp(3, 60) : 7,
@@ -1124,7 +1166,7 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
             Container(
               color: Colors.black54,
               alignment: Alignment.center,
-              child: const CircularProgressIndicator(color: Colors.white),
+              child: const JuzzioOrbitLoader(color: Colors.white),
             ),
           if (_publishing) _buildPublishingOverlay(),
         ],
@@ -1566,12 +1608,12 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
               fit: StackFit.expand,
               children: [
                 if (thumb != null) Image.file(File(thumb), fit: BoxFit.cover) else const ColoredBox(color: Colors.black),
-                const Center(child: CircularProgressIndicator(color: Colors.white54, strokeWidth: 2)),
+                const Center(child: JuzzioOrbitLoader(color: Colors.white54, strokeWidth: 2)),
               ],
             );
           }
         } else {
-          content = Image.file(m.file, fit: BoxFit.cover, gaplessPlayback: true);
+          content = Image.file(_beautyPreview[m.file.path] ?? m.file, fit: BoxFit.cover, gaplessPlayback: true);
         }
         return JuzzioMediaFilters.apply(_filter, content);
       },
@@ -1650,6 +1692,13 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
           onTap: _toggleMute,
         ),
       ],
+      if (_isStory && cur != null && !cur.isVideo)
+        _RailButton(
+          icon: Icons.auto_awesome_rounded,
+          label: _beautyOn ? '$_beautyLevel%' : _l('Güzelleştir', 'Beauty', 'Beauty'),
+          active: _beautyOn,
+          onTap: _openBeauty,
+        ),
       if (cur != null && !cur.isVideo)
         _RailButton(icon: Icons.crop_rotate_rounded, label: _l('Kırp', 'Crop', 'Zuschnitt'), onTap: _cropCurrentPhoto),
       if (_media.isNotEmpty)
@@ -1811,7 +1860,7 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
 
   Future<void> _showAddMoreSheet() async {
     _preview?.pause();
-    final choice = await showModalBottomSheet<String>(
+    final choice = await showJuzzioSheet<String>(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (ctx) => _GlassSheet(
@@ -2177,7 +2226,7 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
                 alignment: Alignment.center,
                 children: [
                   SizedBox.expand(
-                    child: CircularProgressIndicator(
+                    child: JuzzioOrbitLoader(
                       value: _progress <= 0.06 ? null : _progress.clamp(0.0, 1.0),
                       strokeWidth: 5,
                       color: Colors.white,
@@ -2397,7 +2446,7 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
               const SizedBox(height: 10),
               Container(
                 decoration: BoxDecoration(color: card, borderRadius: BorderRadius.circular(16)),
-                child: SwitchListTile.adaptive(
+                child: JuzzioSwitchListTile(style: JuzzioToggleStyle.check,
                   value: _commentsEnabled,
                   onChanged: (v) => setState(() => _commentsEnabled = v),
                   title: Text(
@@ -2469,7 +2518,7 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
                         const SizedBox(height: 10),
                         ClipRRect(
                           borderRadius: BorderRadius.circular(99),
-                          child: LinearProgressIndicator(
+                          child: JuzzioSparklerBar(
                             value: _progress.clamp(0.0, 1.0),
                             minHeight: 6,
                             color: isDark ? Colors.white : JuzzioColors.ink,

@@ -6,6 +6,7 @@ import '../../core/app_theme_and_locale.dart';
 import '../../core/theme/juzzio_colors.dart';
 import '../../core/theme/juzzio_glass.dart';
 import '../glass/glass_surface.dart';
+import '../juzzio_motion.dart';
 
 class LiveCaptionPanel extends StatelessWidget {
   final String originalText;
@@ -46,7 +47,7 @@ class LiveCaptionPanel extends StatelessWidget {
                   style: TextStyle(color: t, fontWeight: FontWeight.w700)),
             ),
             if (isProcessing)
-              const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: JuzzioColors.cyan)),
+              const SizedBox(width: 16, height: 16, child: JuzzioOrbitLoader(strokeWidth: 2, color: JuzzioColors.cyan)),
           ]),
           if (originalText.trim().isNotEmpty) ...[
             const SizedBox(height: 16),

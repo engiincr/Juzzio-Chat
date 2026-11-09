@@ -1,7 +1,7 @@
 // =============================================================================
 // JUZZIO v0.7.0 — Gizlilik, KVKK, kullanım koşulları ve lisans (uygulama içi)
-//  Metinler depodaki PRIVACY.md / TERMS.md / LICENSE dosyalarından üretilir
-//  (scripts/gen_legal.py); GitHub'daki metinle birebir aynıdır.
+//  Metinler depodaki yasal dosyalardan üretilir (scripts/gen_legal.py): Türkçe (KVKK)
+//  docs/legal/tr/, İngilizce depo kökündeki PRIVACY.md / TERMS.md / LICENSE.
 // =============================================================================
 
 import 'package:flutter/material.dart';
@@ -22,6 +22,7 @@ class JuzzioLegalPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final app = JuzzioAppController.instance;
     final p = JuzzioPalette(app.isDark);
+    final tr = app.uiLang.toLowerCase().startsWith('tr');
     return DefaultTabController(
       length: 3,
       initialIndex: initialTab.clamp(0, 2),
@@ -51,9 +52,10 @@ class JuzzioLegalPage extends StatelessWidget {
         ),
         body: TabBarView(
           children: [
-            _MarkdownView(source: kJuzzioPrivacyMd, p: p),
-            _MarkdownView(source: kJuzzioTermsMd, p: p),
-            _MarkdownView(source: kJuzzioLicenseText, p: p, plain: true),
+            // v0.9.7: uygulama dili Türkçe ise KVKK metni (Türkçe), değilse İngilizce
+            _MarkdownView(source: tr ? kJuzzioPrivacyMd : kJuzzioPrivacyMdEn, p: p),
+            _MarkdownView(source: tr ? kJuzzioTermsMd : kJuzzioTermsMdEn, p: p),
+            _MarkdownView(source: tr ? kJuzzioLicenseText : kJuzzioLicenseTextEn, p: p, plain: true),
           ],
         ),
       ),

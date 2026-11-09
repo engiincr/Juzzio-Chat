@@ -10,6 +10,7 @@ import '../core/config.dart';
 import '../core/theme/juzzio_colors.dart';
 import '../main.dart' show JuzzioRootFlow;
 import '../services/juzzio_features_service.dart';
+import '../widgets/juzzio_motion.dart';
 
 class JuzzioBannedScreen extends StatefulWidget {
   final String reasonCode;
@@ -123,7 +124,7 @@ class _JuzzioBannedScreenState extends State<JuzzioBannedScreen> {
                   onPressed: _checking ? null : _recheck,
                   style: OutlinedButton.styleFrom(foregroundColor: Colors.white, side: const BorderSide(color: Colors.white38)),
                   child: _checking
-                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                      ? const SizedBox(width: 18, height: 18, child: JuzzioOrbitLoader(strokeWidth: 2))
                       : Text(app.t('common_retry')),
                 ),
               ],

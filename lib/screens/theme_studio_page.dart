@@ -17,6 +17,7 @@ import '../core/theme/juzzio_glass.dart';
 import '../core/widgets/glass_components.dart';
 import '../widgets/glass/juzzio_color_picker.dart';
 import 'theme_preview_page.dart';
+import '../widgets/juzzio_motion.dart';
 
 String _tr(String tr, String en, [String? de]) => JuzzioAppController.instance.trEn(tr, en, de);
 
@@ -530,7 +531,7 @@ class _JuzzioThemeEditorPageState extends State<JuzzioThemeEditorPage> {
                 decoration: InputDecoration(labelText: _tr('Tema adı', 'Theme name')),
                 onChanged: (_) => _dirty = true,
               ),
-              SwitchListTile(
+              JuzzioSwitchListTile(style: JuzzioToggleStyle.dayNight,
                 contentPadding: EdgeInsets.zero,
                 value: _draft.dark,
                 onChanged: (v) => _update(_draft.copyWith(dark: v)),
@@ -541,7 +542,7 @@ class _JuzzioThemeEditorPageState extends State<JuzzioThemeEditorPage> {
             ]),
             section(_tr('Arka plan ve gradyan', 'Background & gradient'), [
               colorRow('background'),
-              SwitchListTile(
+              JuzzioSwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 value: _draft.gradient,
                 onChanged: (v) => _update(_draft.copyWith(gradient: v)),

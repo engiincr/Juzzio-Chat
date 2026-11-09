@@ -14,6 +14,7 @@ import '../core/theme/juzzio_glass.dart';
 import '../services/juzzio_e2ee.dart';
 import '../services/juzzio_life_service.dart';
 import '../services/supabase_service.dart';
+import '../widgets/juzzio_ui_kit.dart';
 
 const int kScanLimit = 400;
 
@@ -259,7 +260,7 @@ class _JuzzioMessageSearchPageState extends State<JuzzioMessageSearchPage> {
           ),
           Expanded(
             child: _loading && _scanned.isEmpty
-                ? const Center(child: CircularProgressIndicator())
+                ? const JuzzioListSkeleton()
                 : _error != null
                     ? Center(
                         child: Column(mainAxisSize: MainAxisSize.min, children: [

@@ -17,8 +17,11 @@ import '../../core/theme/juzzio_glass.dart';
 import '../../models/social_models.dart';
 import '../../services/social_service.dart';
 import '../../services/supabase_service.dart';
+import '../../widgets/juzzio_space_kit.dart';
 import '../../widgets/social_common_widgets.dart';
 import '../../widgets/juzzio_mentions.dart';
+import '../../widgets/juzzio_cloth_refresh.dart';
+import '../../widgets/juzzio_ui_kit.dart';
 
 class JuzzioGlobalFeedView extends StatefulWidget {
   final JuzzioUserProfile currentUser;
@@ -341,7 +344,7 @@ class _JuzzioGlobalFeedViewState extends State<JuzzioGlobalFeedView> {
   }
 
   Widget _feedScroll() {
-    return RefreshIndicator(
+    return JuzzioClothRefresh(
         onRefresh: _load,
         child: CustomScrollView(
           controller: _scroll,
@@ -352,10 +355,7 @@ class _JuzzioGlobalFeedViewState extends State<JuzzioGlobalFeedView> {
             SliverToBoxAdapter(child: _tabs()),
             SliverToBoxAdapter(child: _topicChips()),
             if (_loading && _posts.isEmpty)
-              const SliverFillRemaining(
-                hasScrollBody: false,
-                child: Center(child: CircularProgressIndicator()),
-              )
+              const SliverToBoxAdapter(child: SizedBox(height: 520, child: JuzzioListSkeleton(count: 5)))
             else if (_error != null && _posts.isEmpty)
               SliverFillRemaining(
                 hasScrollBody: false,
@@ -479,46 +479,29 @@ class _JuzzioGlobalFeedViewState extends State<JuzzioGlobalFeedView> {
   }
 
   Widget _header() {
+    // v1.0.0 Juzzio Space başlığı
     return SafeArea(
       bottom: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 10, 14, 6),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _app.trEn('Küresel', 'Global', 'Global'),
-                    style: TextStyle(
-                      color: JuzzioGlassTokens.textPrimary,
-                      fontSize: 30,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -0.6,
-                    ),
-                  ),
-                  Text(
-                    _app.trEn('Dünyadan paylaşımlar, senin dilinde', 'Posts from the world, in your language',
-                        'Beiträge aus aller Welt, in deiner Sprache'),
-                    style: TextStyle(color: JuzzioGlassTokens.textSecondary, fontSize: 13),
-                  ),
-                ],
-              ),
-            ),
-            JuzzioGlassIconButton(
-              icon: Icons.person_add_alt_1_rounded,
-              tooltip: _app.trEn('Arkadaş ekle', 'Add friend', 'Freund hinzufügen'),
-              onTap: widget.onAddFriend,
-            ),
-            const SizedBox(width: 8),
-            JuzzioGlassIconButton(
-              icon: Icons.search_rounded,
-              tooltip: _app.trEn('Ara', 'Search', 'Suchen'),
-              onTap: widget.onOpenSearch,
-            ),
-          ],
-        ),
+      child: JuzzioSpaceHeader(
+        eyebrow: _app.trEn('Dünyadan, senin dilinde', 'The world, in your language', 'Die Welt, in deiner Sprache'),
+        title: JuzzioSpaceBrand(text: _app.trEn('Küresel', 'Global', 'Global'), size: 32),
+        actions: [
+          JuzzioSpaceIconButton(
+            icon: Icons.person_add_alt_1_outlined,
+            tooltip: _app.trEn('Arkadaş ekle', 'Add friend', 'Freund hinzufügen'),
+            onTap: widget.onAddFriend,
+          ),
+          JuzzioSpaceIconButton(
+            icon: Icons.search_rounded,
+            tooltip: _app.trEn('Ara', 'Search', 'Suchen'),
+            onTap: widget.onOpenSearch,
+          ),
+          JuzzioSpaceComposeButton(
+            icon: Icons.add_rounded,
+            tooltip: _app.trEn('Paylaş', 'Post', 'Posten'),
+            onTap: widget.onCreateMedia,
+          ),
+        ],
       ),
     );
   }
@@ -624,42 +607,24 @@ class _JuzzioGlobalFeedViewState extends State<JuzzioGlobalFeedView> {
   }
 
   Widget _tabs() {
-    Widget tab(String key, String label) {
-      final sel = _tab == key;
-      return GestureDetector(
-        onTap: () {
-          if (sel) return;
-          HapticFeedback.selectionClick();
-          setState(() => _tab = key);
-          _load();
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: sel ? JuzzioGlassTokens.accent : JuzzioGlassTokens.surface,
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: sel ? Colors.transparent : JuzzioGlassTokens.border),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              color: sel ? JuzzioGlassTokens.onAccent : JuzzioGlassTokens.textSecondary,
-              fontWeight: FontWeight.w800,
-              fontSize: 13,
-            ),
-          ),
-        ),
-      );
-    }
+    Widget tab(String key, String label, IconData icon) => JuzzioSpaceFilterPill(
+          label: label,
+          icon: icon,
+          selected: _tab == key,
+          onTap: () {
+            if (_tab == key) return;
+            setState(() => _tab = key);
+            _load();
+          },
+        );
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 2, 14, 10),
+      padding: const EdgeInsets.fromLTRB(16, 2, 16, 12),
       child: Row(
         children: [
-          tab('all', _app.trEn('Dünya', 'World', 'Welt')),
-          const SizedBox(width: 8),
-          tab('following', _app.trEn('Takip ettiklerim', 'Following', 'Gefolgt')),
+          tab('all', _app.trEn('Dünya', 'World', 'Welt'), Icons.public_rounded),
+          const SizedBox(width: 10),
+          tab('following', _app.trEn('Takip ettiklerim', 'Following', 'Gefolgt'), Icons.people_alt_outlined),
         ],
       ),
     );

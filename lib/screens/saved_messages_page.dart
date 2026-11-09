@@ -12,6 +12,8 @@ import '../core/theme/juzzio_glass.dart';
 import '../services/juzzio_e2ee.dart';
 import '../services/juzzio_life_service.dart';
 import '../services/supabase_service.dart';
+import '../widgets/juzzio_cloth_refresh.dart';
+import '../widgets/juzzio_motion.dart';
 
 class JuzzioSavedMessagesPage extends StatefulWidget {
   const JuzzioSavedMessagesPage({super.key, required this.roomId, required this.title});
@@ -38,8 +40,9 @@ class _JuzzioSavedMessagesPageState extends State<JuzzioSavedMessagesPage> {
   }
 
   Future<void> _load() async {
+    // v1.1.1: yenilemede içerik sökülmez (aşağı çek animasyonu kesilmez, boş iskelet yanıp sönmez)
     setState(() {
-      _loading = true;
+      _loading = _items.isEmpty;
       _error = null;
     });
     try {
@@ -89,7 +92,7 @@ class _JuzzioSavedMessagesPageState extends State<JuzzioSavedMessagesPage> {
     final p = JuzzioPalette(_app.isDark);
     Widget body;
     if (_loading) {
-      body = const Center(child: CircularProgressIndicator());
+      body = const Center(child: JuzzioOrbitLoader());
     } else if (_error != null) {
       body = Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -146,7 +149,7 @@ class _JuzzioSavedMessagesPageState extends State<JuzzioSavedMessagesPage> {
         elevation: 0,
         title: Text(_app.trEn('Kayıtlı mesajlar', 'Saved messages', 'Gespeicherte Nachrichten')),
       ),
-      body: RefreshIndicator(onRefresh: _load, child: body),
+      body: JuzzioClothRefresh(onRefresh: _load, child: body),
     );
   }
 }

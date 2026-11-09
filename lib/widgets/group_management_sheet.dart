@@ -16,6 +16,7 @@ import '../services/supabase_service.dart';
 import 'chat_notification_prefs.dart';
 import 'chat_lock_ui.dart';
 import '../screens/saved_messages_page.dart';
+import 'juzzio_motion.dart';
 
 Future<void> showJuzzioGroupManagementSheet(
   BuildContext context, {
@@ -25,7 +26,7 @@ Future<void> showJuzzioGroupManagementSheet(
   String groupPurpose = '',
   VoidCallback? onChanged,
 }) {
-  return showModalBottomSheet<void>(
+  return showJuzzioSheet<void>(
     context: context,
     isScrollControlled: true,
     backgroundColor: JuzzioAppController.instance.isDark ? JuzzioColors.surface141519 : Colors.white,
@@ -114,7 +115,7 @@ class _GroupManagementSheetState extends State<_GroupManagementSheet> {
 
   Future<void> _muteFlow(JuzzioGroupMember m) async {
     final app = JuzzioAppController.instance;
-    final minutes = await showModalBottomSheet<int>(
+    final minutes = await showJuzzioSheet<int>(
       context: context,
       builder: (ctx) => SafeArea(
         child: Column(
@@ -164,7 +165,7 @@ class _GroupManagementSheetState extends State<_GroupManagementSheet> {
     final app = JuzzioAppController.instance;
     if (m.userId == _myId) return;
     final canMute = _iAmOwner ? !m.isOwner : (_myRole == 'moderator' && m.role == 'member');
-    showModalBottomSheet<void>(
+    showJuzzioSheet<void>(
       context: context,
       builder: (ctx) => SafeArea(
         child: Column(
@@ -356,7 +357,7 @@ class _GroupManagementSheetState extends State<_GroupManagementSheet> {
                 ),
               ),
             ),
-            if (_loading) const Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator()),
+            if (_loading) const Padding(padding: EdgeInsets.all(24), child: JuzzioOrbitLoader()),
             if (_error != null) Padding(padding: const EdgeInsets.all(16), child: Text(_error!)),
             if (!_loading)
               Flexible(

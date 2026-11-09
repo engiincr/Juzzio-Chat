@@ -15,6 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/app_theme_and_locale.dart';
+import 'juzzio_rich_text.dart';
 
 class JuzzioMentionSegment {
   const JuzzioMentionSegment(this.text, [this.username]);
@@ -112,11 +113,27 @@ class _JuzzioMentionTextState extends State<JuzzioMentionText> {
     final color = widget.mentionColor ?? Theme.of(context).colorScheme.primary;
     final spans = <InlineSpan>[];
     for (final seg in JuzzioMentionParser.segments(widget.text)) {
-      if (!seg.isMention || widget.onTapUsername == null) {
-        spans.add(TextSpan(
-          text: seg.text,
-          style: seg.isMention ? TextStyle(color: color, fontWeight: FontWeight.w700) : null,
-        ));
+      if (!seg.isMention) {
+        // v1.0.0: düz metindeki bağlantılar tıklanabilir (varsayılan tarayıcı/uygulama)
+        final links = juzzioFindLinks(seg.text);
+        var i = 0;
+        for (final l in links) {
+          if (l.start > i) spans.add(TextSpan(text: seg.text.substring(i, l.start)));
+          final r = TapGestureRecognizer()..onTap = () => juzzioOpenLink(l.uri);
+          _recognizers.add(r);
+          spans.add(TextSpan(
+            text: l.text,
+            recognizer: r,
+            style: TextStyle(color: color, fontWeight: FontWeight.w700, decoration: TextDecoration.underline, decorationColor: color.withValues(alpha: 0.6)),
+            semanticsLabel: l.text,
+          ));
+          i = l.end;
+        }
+        if (i < seg.text.length) spans.add(TextSpan(text: seg.text.substring(i)));
+        continue;
+      }
+      if (widget.onTapUsername == null) {
+        spans.add(TextSpan(text: seg.text, style: TextStyle(color: color, fontWeight: FontWeight.w700)));
         continue;
       }
       final r = TapGestureRecognizer()..onTap = () => widget.onTapUsername!(seg.username!);

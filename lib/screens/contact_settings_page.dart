@@ -15,6 +15,7 @@ import '../widgets/chat_notification_prefs.dart';
 import 'saved_messages_page.dart';
 import '../widgets/chat_lock_ui.dart';
 import 'sound_settings_page.dart';
+import '../widgets/juzzio_motion.dart';
 
 class JuzzioContactSettingsPage extends StatefulWidget {
   final String roomId;
@@ -75,7 +76,7 @@ class _JuzzioContactSettingsPageState extends State<JuzzioContactSettingsPage> {
 
   Future<void> _pickTimer() async {
     final p = JuzzioPalette(_app.isDark);
-    final v = await showModalBottomSheet<String>(
+    final v = await showJuzzioSheet<String>(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (ctx) => SafeArea(
@@ -279,7 +280,7 @@ class _JuzzioContactSettingsPageState extends State<JuzzioContactSettingsPage> {
                   children: [
                     row(Icons.timer_rounded, _app.trEn('Süreli mesajlar', 'Disappearing messages', 'Selbstlöschend'),
                         _timerLabel(_timer), _pickTimer),
-                    SwitchListTile(
+                    JuzzioSwitchListTile(style: JuzzioToggleStyle.check,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 14),
                       secondary: Icon(Icons.notifications_off_rounded, color: p.textPrimary),
                       title: Text(_app.trEn('Bildirimleri sessize al', 'Mute notifications', 'Stummschalten'),

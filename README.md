@@ -1,321 +1,440 @@
 <div align="center">
 
-# 🌍 Juzzio — Canlı Çevirili Sesli ve Görüntülü Arama, Uçtan Uca Şifreli Mesajlaşma
+# 🌍 Juzzio — Live-Translated Voice & Video Calls, End-to-End Encrypted Messaging
 
-**Dünyayla kendi dilinde konuş.** Juzzio; **canlı sesli arama çevirisi**, **canlı görüntülü çeviri araması**, **çeviri destekli mesajlaşma**, hikâye, gönderi ve 4 kişilik konferans görüşmelerini tek bir modern, cam (glassmorphism) tasarımlı Android uygulamasında birleştirir.
+**Talk to the world in your own language.** Juzzio brings **live voice call translation**, **live video call translation**, **translated messaging**, stories, posts and 4-person conference calls together in one modern Android app with a Liquid Glass (glassmorphism) design.
 
-[![Son Sürüm](https://img.shields.io/github/v/release/engiincr/Juzzio-Chat?style=for-the-badge&label=S%C3%BCr%C3%BCm&color=111113)](https://github.com/engiincr/Juzzio-Chat/releases/latest)
-[![APK indir](https://img.shields.io/badge/Android-APK%20%C4%B0ndir-25D366?style=for-the-badge&logo=android&logoColor=white)](https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk)
-[![BETA](https://img.shields.io/badge/Durum-BETA%20%C2%B7%20Erken%20Eri%C5%9Fim-6366F1?style=for-the-badge)](#-beta--erken-erişim)
-[![E2EE](https://img.shields.io/badge/1'e%201%20mesajlar-U%C3%A7tan%20uca%20%C5%9Fifreli-0EA5E9?style=for-the-badge)](#-gizlilik-ve-güvenlik)
-[![PQ](https://img.shields.io/badge/Kuantum%20sonras%C4%B1-ML--KEM--768%20%2B%20X25519-7C3AED?style=for-the-badge)](#-gizlilik-ve-güvenlik)
-[![Lisans](https://img.shields.io/badge/Lisans-T%C3%BCm%20haklar%C4%B1%20sakl%C4%B1d%C4%B1r-EF4444?style=for-the-badge)](LICENSE)
+[![Latest release](https://img.shields.io/github/v/release/engiincr/Juzzio-Chat?style=for-the-badge&label=Release&color=111113)](https://github.com/engiincr/Juzzio-Chat/releases/latest)
+[![Download APK](https://img.shields.io/badge/Android-Download%20APK-25D366?style=for-the-badge&logo=android&logoColor=white)](https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk)
+[![BETA](https://img.shields.io/badge/Status-BETA%20%C2%B7%20Early%20Access-6366F1?style=for-the-badge)](#-beta--early-access)
+[![E2EE](https://img.shields.io/badge/1%3A1%20chats-End--to--end%20encrypted-0EA5E9?style=for-the-badge)](#-privacy--security)
+[![PQ](https://img.shields.io/badge/Post--quantum-ML--KEM--768%20%2B%20X25519-7C3AED?style=for-the-badge)](#-privacy--security)
+[![License](https://img.shields.io/badge/License-All%20rights%20reserved-EF4444?style=for-the-badge)](LICENSE)
 
-🇹🇷 Türkçe · 🇬🇧 English · 🇩🇪 Deutsch · ve 100+ dilde çeviri
+🇬🇧 English · 🇹🇷 Türkçe · 🇩🇪 Deutsch · and translation into 220+ languages
+
+🌐 **Website:** [engiincr.github.io/Juzzio-Chat](https://engiincr.github.io/Juzzio-Chat/) · **Juzzio** — live translation video call app, translated voice calls, end-to-end encrypted messenger
 
 </div>
 
 <!-- JUZZIO_DYNAMIC_TITLE_START -->
-### 🚀 Son güncelleme: **v0.9.0 — Ürün Konsolidasyonu, Business ve Güvenlik Merkezi**
+### 🚀 Latest update: **v1.1.1 — New Refresh Hand & Faster Profile**
 <!-- JUZZIO_DYNAMIC_TITLE_END -->
 
 <!-- JUZZIO_VERIFIED_APK_START -->
-| Sürüm | APK | Boyut | SHA-256 | Derleme |
+| Version | APK | Size | SHA-256 | Built |
 | :-- | :-- | :-- | :-- | :-- |
-| v0.9.0 (+90) | GitHub Actions derlemesi bekleniyor | – | – | – |
+| v1.1.1 (+111) | Waiting for the GitHub Actions build | – | – | – |
 <!-- JUZZIO_VERIFIED_APK_END -->
 
 ---
 
-## 📑 İçindekiler
+## 📑 Contents
 
-- [✨ Neler yapabilirsin?](#-neler-yapabilirsin)
-- [🔐 Gizlilik ve güvenlik](#-gizlilik-ve-güvenlik)
-- [📦 İndir ve kur](#-indir-ve-kur)
-- [🆕 Sürüm geçmişi](#-sürüm-geçmişi)
-- [🗄️ Veritabanı şeması](#️-veritabanı-şeması)
-- [🏗️ Mimari](#️-mimari)
-- [🛠️ Geliştirici kurulumu](#️-geliştirici-kurulumu)
-- [🧪 BETA / Erken erişim](#-beta--erken-erişim)
-- [⚖️ Lisans ve yasal](#️-lisans-ve-yasal)
-
----
-
-## ✨ Neler yapabilirsin?
-
-| | Özellik | Açıklama |
-| :-: | :-- | :-- |
-| 🎙️ | **Canlı çevirili sesli arama** | Farklı dil konuşan biri aramaya katıldığında konuşmalar anlık altyazıya ve senin diline çevrilir. Aynı dili konuşanlar arasında çeviri paneli açılmaz. |
-| 🎥 | **Canlı çevirili görüntülü arama** | Yüzleri kapatmayan alt altyazı şeridi, cam kontrol rafı, ön/arka kamera, doğal güzellik modu. |
-| 👥 | **Konferans (4 kişi)** | Süren aramaya kişi ekle, grup aramasına sonradan katıl, katılımcı yönetimi. |
-| 💬 | **Çeviri destekli mesajlaşma** | Yazdığın her mesaj karşı tarafın dilinde görünür; "Orijinali gör" her zaman bir dokunuş uzakta. |
-| 🔒 | **Uçtan uca şifreli mesajlar** | 1'e 1 yazılı mesajlar X25519 + AES-256-GCM ile cihazda şifrelenir. |
-| 📞 | **Ayrıntılı arama geçmişi** | Başlangıç, cevaplanma ve bitiş saati, süre, **ilk kim kapattı**; arama kayıtları sohbette de görünür. |
-| 🔔 | **Zil sesleri ve tonlar** | Juzzio'ya özel zil sesleri ve bildirim tonları; **kişiye özel** zil sesi ve ton. |
-| 📸 | **Hikâye ve gönderi** | Kamera öncelikli stüdyo, filtreler, çıkartmalar, yazı stilleri; **yakın arkadaşlar** listesi. |
-| 🎵 | **Müzik** | Şarkı adını yaz, listeden tek dokunuşla ekle; profilde oynat/durdur, hikâyede otomatik çalar. |
-| 🧩 | **6 Android widget'ı** | Sohbet, hızlı eylemler, okunmamış, kamera, son arama, son sohbetler — temana ve diline uyar. |
-| 🎨 | **Cam temalar** | Gece Mavisi, **Cam Beyaz**, Ametist, Zümrüt, Lagün, Krom · Gündüz / Gece / Sistem. |
-| 🐣 | **Civciv oyunu** | Arkadaşınla saman yuvasındaki yumurtayı besle; beslendikçe titrer, çatlar ve büyür. |
-| 🆕 | **Şeffaf güncellemeler** | Her sürümün neden geldiği, yenilikleri, düzeltmeleri ve güvenlik değişiklikleri uygulama içinde. |
+- [🆕 Today's updates (November 9, 2026)](#-todays-updates-november-9-2026)
+- [✨ What can you do?](#-what-can-you-do)
+- [🔐 Privacy & security](#-privacy--security)
+- [📦 Download & install](#-download--install)
+- [🗂️ Release history](#️-release-history)
+- [🗄️ Database schema](#️-database-schema)
+- [🏗️ Architecture](#️-architecture)
+- [🛠️ Developer setup](#️-developer-setup)
+- [🧪 BETA / Early access](#-beta--early-access)
+- [⚖️ License & legal](#️-license--legal)
 
 ---
 
-## 🔐 Gizlilik ve güvenlik
+## 🆕 Today's updates (November 9, 2026)
 
-> Ayrıntılar: **[PRIVACY.md](PRIVACY.md)** (Gizlilik Politikası ve KVKK Aydınlatma Metni) · **[TERMS.md](TERMS.md)** (Kullanım Koşulları). Aynı metinler uygulamada **Ayarlar → Yardım → Gizlilik, KVKK ve yasal haklar** altındadır.
-
-- ❌ **Kişisel veri satılmaz**; reklam veya izleme (analitik) kütüphanesi yoktur.
-- ❌ **Kart / banka bilgisi yoktur**; uygulamada ödeme kodu bulunmaz.
-- ❌ **Kamera ve mikrofon izinsiz kullanılmaz**; yalnızca arama, hikâye kamerası ve sesli mesajda, Android izni verildikten sonra. Aramalar kaydedilmez.
-- ❌ **Rehber, SMS ve konum okunmaz** (konum izni tamamen kaldırıldı).
-- ✅ **1'e 1 yazılı mesajlar uçtan uca şifreli**; sunucu ve yöneticiler içeriği göremez.
-- ✅ Satır düzeyi güvenlik (RLS): herkes yalnızca üyesi olduğu sohbetleri görür.
-- ✅ Depoda gizli anahtar yoktur; her gönderimde **otomatik gizli bilgi taraması** (`scripts/check_secrets.py`) çalışır.
-- ✅ Güncellemeler yalnızca resmi GitHub sürümünden; farklı imzalı APK üzerine kurulamaz.
-- ℹ️ Sınırlar açıkça: grup mesajları ve medya henüz uçtan uca şifreli değildir; otomatik çeviri açıkken metin çeviri hizmetine gider.
-
-🛡️ Bir güvenlik açığı bulursan lütfen herkese açık yazmadan **engiincr@pm.me** adresine bildir. Kapatılan açıklar sürüm notlarının **Güvenlik ve gizlilik** bölümünde duyurulur.
-
----
-
-## 📦 İndir ve kur
-
-1. 📥 [**Juzzio-latest.apk**](https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk) dosyasını indir.
-2. 📲 Android, "bilinmeyen kaynaklar" izni isterse bu kurulum için izin ver.
-3. 🔄 Sonraki güncellemeler uygulama içinden gelir: yeni sürüm yayınlandığı anda bildirim alırsın, **Ertele** dersen seçtiğin süre boyunca rahatsız edilmezsin.
-
----
-
-## 🆕 Sürüm geçmişi
+Eight releases shipped today — **v0.9.4, v0.9.5, v0.9.6, v0.9.7, v0.9.8, v0.9.9, v1.0.0 and v1.1.0**. Every update below is also shown inside the app on the first launch after updating ("What's new?"), with the same sections and emojis. Full notes: [release-notes.md](release-notes.md) · [GitHub Releases](https://github.com/engiincr/Juzzio-Chat/releases).
 
 <details open>
-<summary><b>v0.8.0 — Kuantum sonrası şifreleme, şifreli Google Drive yedeği ve yumuşak cam arayüz</b></summary>
+<summary><b>v1.1.1 — New Refresh Hand & Faster Profile</b></summary>
 
-**Neden?** Mesajlaşmayı kuantum bilgisayarlara karşı bile güvenli hâle getirmek, telefon değiştirince hiçbir şeyin kaybolmamasını sağlamak ve arayüzü yumuşak, okunaklı cam tasarıma taşımak için.
+### 🎯 Why did this update come?
+The chubby pull-to-refresh hand was redrawn as vector art; the notifications list no longer disappears while refreshing, and the profile page opens much faster.
 
-- 🔐 **Kuantum sonrası uçtan uca şifreleme:** X25519 + **ML-KEM-768 (NIST FIPS 203)** hibrit anahtar değişimi, HKDF-SHA256, AES-256-GCM; "şimdi topla, sonra çöz" (HNDL) saldırılarına karşı koruma.
-- 🔁 **Anahtar yenileme:** 50 mesajda / 24 saatte bir yeni oturum anahtarı, 30 günde bir yeni kimlik anahtarı.
-- ☁️ **Şifreli Google Drive yedeği:** Argon2id + AES-256-GCM; yeni telefonda "Yedeği geri yükle".
-- ✍️ **ML-DSA-65 (FIPS 204)** ile imzalanmış güncelleme bildirimi doğrulama altyapısı.
-- 🎨 Yumuşatılmış cam tema, yeni Hakkında/yapımcı sayfası, ayrı yönetici giriş sayfası, hikâye halkası ve klavye düzeltmeleri.
-- ⚖️ İzinsiz erişim ve saldırılara karşı yasal maddeler (TCK 132-136, 243-245, KVKK, FSEK, 5651).
+### ✨ What's new?
+- ✋ Redrawn refresh hand: a chubby, clean-lined hand comes out of the notch with a sleeve in your theme colour, swings, makes a fist and pulls the page up — crisp on every screen
+- 🧺 The cloth is now a light surface in your theme colour that gathers up with soft folds
+
+### 🛠️ What was fixed?
+- Fixed the refresh hand looking like a foot and ghosting between poses
+- Fixed the cloth looking like a black smear over the content in dark themes
+- Notifications: refreshing or switching filters no longer flashes empty placeholder cards; stale requests can't overwrite the new list; empty/error states can be pulled to refresh; swipe-to-delete removes by id
+- Profile: counts, posts and relationship appear as soon as each arrives and reopen instantly; background requests run in parallel instead of one after another
+- Friends, files, saved messages, security and post comments no longer lose their content while refreshing
 
 </details>
 
 <details>
-<summary><b>v0.7.0 — Şeffaflık, uçtan uca şifreleme, zil sesleri, 6 widget ve yenilenen arayüz</b></summary>
+<summary><b>v1.1.0 — Live Motion, New Logo & Clean Captions</b></summary>
 
-**Neden?** Kullanıcı geri bildirimlerindeki tüm sorunları tek pakette çözmek, gizliliği güçlendirmek ve uygulamadaki her şeyi açıkça anlatmak için.
+### 🎯 Why did this update come?
+Juzzio now feels alive at every touch: page transitions, switches, loaders, message sending, likes and icon morphs were redesigned, and there is a new logo. Phantom captions like "Okay my love" that users never said are gone from calls, and tapping a quote jumps to the quoted message.
 
-**✨ Yeni özellikler**
-- 1'e 1 yazılı mesajlarda uçtan uca şifreleme (🔒 simgesi)
-- Zil sesleri ve uyarı tonları: Juzzio'ya özel sesler, varsayılan ve **kişiye özel** zil sesi/bildirim tonu
-- Kişi bilgisi sayfası: profil, sesli/görüntülü arama, süreli mesajlar, sessize al, özel tonlar, engelle
-- Arama ayrıntısı sayfası (başlangıç/cevap/bitiş saati, süre, ilk kim kapattı), arama filtreleri; arama kayıtları sohbette görünür
-- Müzik: YouTube kaldırıldı; isimle arama, tek dokunuşla ekleme, profilde oynat/durdur, hikâyede otomatik çalma
-- Yakın arkadaşlar: hikâyeyi yalnızca seçtiğin favori arkadaşlar görür
-- 6 farklı Android widget'ı (tema ve dil uyumlu)
-- "Yenilikler: Sürüm X ile neler geldi?" penceresi — notlar GitHub'dan otomatik gelir
-- Yeni sürüm yayınlanınca tüm kullanıcılara anında güncelleme bildirimi
-- Cam Beyaz teması, modern üçlü tema seçici, yeniden tasarlanan güncelleme merkezi
-- Ekran görüntüsüyle hata bildirme; uygulama içi Gizlilik / KVKK / Kullanım koşulları / Lisans
-- Saman yuvası civciv sahnesi: beslendikçe titreyen ve çatlayan yumurta
-- Yaylı ve dirençli "kaydır → yanıtla" animasyonu
+### ✨ What's new?
+- 🐣 New logo: a chick with a glass chat-bubble wing and an orbit ring; Android adaptive and themed (monochrome) icon, new launch screen
+- 🚀 Launch/loading screen: a glowing orbit around the logo, a sparkler progress bar and "Connecting → Verifying encryption → Syncing messages"
+- 💬 Sending: the text in the composer breaks off like a droplet, turns into a bubble and slides up; the paper plane on the send button flies off with a swoosh
+- ✓✓ Read receipts draw themselves: clock → ✓ sent → ✓✓ delivered → glowing ✓✓ read
+- 😀 Emoji-only messages arrive big with a pop; messages like "Happy Birthday", "Congrats" or "İyi ki doğdun" burst into confetti
+- ❤️ Reactions: the heart draws itself and fills with a ring and particle burst; new reaction badges spring in; double-tap a photo for a heart
+- ⭐ Starring a message spins the star with sparkles
+- 🔘 New switches: a gooey neon switch for general settings; ✕→✓ switches for privacy, encryption, read receipts and permissions; a Day/Night switch where the sun turns into the moon
+- ⏻ Live translation and Do Not Disturb get a one-tap neon Power button
+- 🧭 Transitions: bottom sheets blur the background and spring open; photos and videos zoom to full screen from where you tapped; the profile photo flies seamlessly into the profile page
+- ➕ Icon morphs: attach (+) turns into × while the menu is open, ⋮ turns into ×, the inbox menu becomes × inside a ring, the back button morphs from menu to arrow
+- 🏝️ Dynamic Island–style live activity: ongoing calls, voice recording and uploads appear at the top with a timer/progress
+- 🫧 Copied, microphone on/off and live translation states show as a glass HUD that doesn't cover the screen; deleting a message is confirmed with an action sheet
+- 🎉 Live reactions in calls: tap the heart (hold to pick another reaction) and it floats up on everyone's screen
+- ⌛ Three glowing dots bounce at the bottom of the chat while the other person types; sparkler bars for uploads and an orbit ring while connecting
+- 📳 Haptic feedback on send, switches, swipe thresholds and long presses
 
-**🛠️ Düzeltilen hatalar**
-- Ertelenen güncelleme bildirimi uygulama her açıldığında tekrar çıkıyordu → erteleme kalıcı
-- İki aynı dili konuşan arasında çeviri paneli açılıyordu → yalnızca farklı dil olunca açılır
-- Görüntülü aramada yeşil konuşma halkası/çerçevesi kaldırıldı; sesli aramada "Ben" kartı kaldırıldı
-- Aramalar sayfasında herkes çevrimiçi görünüyordu → yeşil nokta yalnızca gerçekten çevrimiçiyken
-- Hikâye kamerasında ön/arka geçiş çalışmıyordu → kamera yeniden açılarak kalıcı çözüm
-- Hikâye yazı boyutu paylaşınca değişiyordu → ekranda görüldüğü oranda paylaşılır
-- Çekilen fotoğraf kayıyor/aynalanıyordu → vizördeki görüntüyle birebir, kayıpsız
-- Sohbete girince ortadan rastgele bir mesaj açılıyordu → her zaman son mesaj
-- Gönderilerde "çevrilemedi" hatası ve yazı kayması giderildi
-- Yönetici teması herkese uygulanıyor ve değiştirmeyi engelliyordu → yalnızca yeni kullanıcılara bir kez
-- Aydınlık temada beyaz üstüne beyaz yazılar, + düğmesi ve buton ton uyumsuzlukları
-- Ekran görüşme sırasında kararıp sönüyordu → uygulama açıkken ekran açık kalır
+### 🛠️ What was fixed?
+- Fixed made-up captions such as "Okay my love" appearing in voice/video calls while nobody was speaking: the caption microphone now uses echo cancellation and noise suppression with auto-gain off, and the recognizer only receives silence unless you are actually speaking
+- The other person's voice leaking from the speaker into your microphone is no longer written as a "You: …" line (echo filter); low-confidence and phantom-phrase results are dropped and a stale interim line is retracted
+- Tapping a quote (the replied message) scrolls the chat to the quoted message and highlights it briefly; older history loads automatically
+- Image quotes show a thumbnail instead of caption text; video, voice and document quotes show their type
 
-**🔒 Güvenlik ve gizlilik**
-- Aramalarda argo/küfür artık ceza sebebi değil ve konuşma sesi gereksiz yere üçüncü tarafa gönderilmiyor (altyazı yalnızca farklı dil varsa)
-- Göstermelik "bulut yedekleme" ve "QR aktarım" ekranları kaldırıldı; verilerin gerçekte nasıl saklandığı açıklandı
-- Sahip olunmayan bir alan adına giden paylaşım bağlantıları resmi indirme sayfasına çevrildi
-- Gizli bilgi taraması README dahil tüm dosyalara genişletildi; push öncesi de çalışır
-- Arka plandaki 24 saatlik uyanık kalma kilidi 10 dakikaya indirildi (pil)
-- MIT lisansı yerine tescilli lisans: kopyalama, çoğaltma ve satış yasak
+### 🔐 Security
+- Live captions only send audio to the speech recognizer while you are actually speaking; silence and room sound are not sent
+- Call reactions are limited to an allow-list of emojis (no arbitrary text can be broadcast)
+
 </details>
 
 <details>
-<summary><b>v0.6.1 — Şeffaf güncelleme notları ve gizlilik sıkılaştırması</b></summary>
+<summary><b>v1.0.0 — Juzzio Space: New Design & Instant Messaging</b></summary>
 
-- Uygulama içi **Güncelleme notları** sayfası (neden, yenilikler, düzeltmeler, güvenlik)
-- Medya depolarında tüm dosyaların listelenebilmesi kapatıldı
-- Kullanılmayan konum izni kaldırıldı
+### 🎯 Why did this update come?
+Juzzio moves to the "Juzzio Space" interface designed in Figma: deep theme gradients, frosted glass cards and a glowing accent in every theme. In the same update messages send without waiting, location/link/poll experiences were rebuilt, shifts can be planned by date range and admin logs became readable.
+
+### ✨ What's new?
+- 🎨 Juzzio Space design: "Your space · Juzzio." header, search with a ⌘K shortcut, story rings, Inbox · Messages, filter pills with counters, glass chat cards and a floating glass bottom bar
+- 🌈 All 16 themes share the same design language; accent, background depth and glass opacity come from the selected theme (Emerald is the default for new users)
+- ⚡ Messages send instantly: the bubble appears right away, translation runs in the background and shows up under the message when ready (in end-to-end encrypted chats the translation is added encrypted too)
+- 📍 Shared locations appear as a card with a map preview and open in Google Maps on Android, Apple Maps on iOS, or Google Maps
+- 🔗 Links, e-mail addresses and phone numbers in messages, bios, posts and comments are tappable and open in the default browser/app
+- 🪪 Profile and admin panel use the Juzzio Space layout too: large header, square avatar with a glowing ring, glass counter tiles, accent primary button, capsule tabs and glass stat cards
+- 📊 New poll card: options with share bars, percentages, winner highlight and a live status chip
+- 📅 Date ranges in the shift planner: pick start–end days and hours (overnight shifts included), filter weekdays/weekends, share with a group and post a plan summary automatically
+- 🐣 When petted, the chick twirls to the right like a princess, winks and flirts; the chick badge in chats does the same animation
+- 👑 New chick customizations: princess tiara, flower crown, wizard hat, star glasses, princess tutu, pearl necklace, ballet shoes, Castle/Space/Sakura scenes
+- 🧾 Admin logs are readable sentences in the admin's language: who did what, to whom and when (no raw codes or IDs)
+
+### 🛠️ What was fixed?
+- Cloth pull-to-refresh fixed on mobile: no more conflict with Android's stretch overscroll or iOS bouncing, and short lists can be pulled too
+- Removed the GPU blur artifact on the hand shadow (rectangular smudge/flicker); a soft radial shadow is used instead
+- Chat ⋯ menu cleaned up: no emojis, icons and an opaque (readable) background, destructive actions separated in red
+- Menus, bottom sheets and dialogs are now nearly opaque — text stays readable
+
+### 🔒 Security
+- The link opener only allows http/https/mailto/tel/geo (javascript:, file: etc. are rejected)
+- Background translation keeps end-to-end encryption: in encrypted chats the translation is attached as a separate encrypted payload
+
 </details>
 
 <details>
-<summary><b>v0.6.0 — Glassmorphism tasarım, içerik denetimi, widget, yönetici paneli</b></summary>
+<summary><b>v0.9.9 — Cloth Refresh: Pixel-Faithful 3D Revision</b></summary>
 
-- Uygulama genelinde aurora zemin + buzlu cam tasarım, 5 cam teması
-- Ad, kullanıcı adı, grup adı ve profil fotoğrafında uygunsuz içerik denetimi
-- Görüntülü aramada müstehcen görüntü denetimi ve ceza basamağı (1 saat → 4 saat → kalıcı)
-- Android cam widget'ı; yönetici panelinde denetim, gruplar ve canlı aramalar
+### 🎯 Why did this update come?
+The v0.9.8 cloth refresh preview was compared frame by frame with the reference video and 11 visual/timing deviations were found. This update fixes the 3D hand, fabric folds, notch layering and page sync to match all 11 points exactly.
+
+### ✨ What's new?
+- ⚫ The Dynamic Island is pure black (#000000) in both themes and always on the top layer; the hand is masked at the island's bottom edge, emerges from it and disappears back into it
+- 👀 On the first pull (0–35 px) only the 4 chubby fingertips and nails peek out from under the island; the hand and wrist come down as you keep pulling
+- 🖐️ A shorter, chubbier 3D clay arm (wrist ≈ 55% of the island width), glossy 3D nails on every finger including the thumb, knuckle creases and a warm matte peach skin (#F2C2B3 / #DF9F8E / #F9DCD3)
+- 🕰️ During the pendulum the root stays fixed at the island while the arm and wrist bend like a flexible bone; at the +25° peak the fingers fan out, then close again on the way back (9 separate 3D poses)
+- ✊ The fist clearly shows the 4 curled fingers' knuckles, vertical shadow grooves between them and the thumb clenched underneath
+- 🦋 When the fist closes, butterfly-wing pinch folds curl up toward the island on its left and right; the bottom stays smooth
+- 🧵 On the yank, 6 curved, asymmetric 3D drapery pleats cover the search icon, location title and avatar like a semi-transparent sheet and reach down to "Popular Food"
+- 📏 The content moves 140–155 px down while pulling and swinging, so the hand swings in clean empty space without touching any text or icon
+- 🔒 The page stays locked at the fully pulled position until the fist grabs the fabric; only during the yank does it rise, attached to the fist's lower edge at the same speed as the hand
+- 🧺 In the last 250 ms the folds stretch upward and flatten, and the page settles with no jitter
+
+### 🛠️ What was fixed?
+- Removed the black/dark grey "sunburst" lines in light mode: valleys are only silver grey (#DFE2E8–#C8CDD6), ridges pure white
+- Removed the white haze around the fist in dark mode: valleys #07080B, ridges #222630
+- The hand no longer paints over the notch; the grey notch in dark mode is fixed
+- Removed the rigid single-sprite arm rotation
+- Fixed the page jumping up early while the fist was still closing
+- The APK build failed on a dependency conflict (file_picker <12 needs win32 ^5, flutter_secure_storage ^11 needs win32 ^6); file_picker was upgraded to ^13 and the encrypted key store was left untouched
+
 </details>
 
 <details>
-<summary><b>v0.5.x — Konferans yönetimi, nötr cam tasarım, tepkiler</b></summary>
+<summary><b>v0.9.8 — 3D Clay Hand Cloth Refresh</b></summary>
 
-- Katılımcıyı görüşmeden çıkarma (sunucuda doğrulanır), hikâye flaşı ve emoji çıkartmaları
-- Bölüt tabanlı canlı çeviri, çift dokunuş tepkisi, mesaj yıldızlama, okunmamış sayısı
-- Tüm veritabanı tek dosyada: `supabase/juzzio_database.sql`
+### 🎯 Why did this update come?
+The 2D cloth effect in v0.9.7 did not match the reference animation. Pull-to-refresh was rewritten from scratch as a 5-phase 3D experience.
+
+### ✨ What's new?
+- 🖐️ **3D clay hand & arm** (real 3D render: subsurface scattering, ambient occlusion, matte sheen) emerging from the Dynamic Island, with a soft drop shadow that follows the light
+- ⬇️ **Pull** → 🕰️ **pendulum swing** while loading (−15°, +25°, center) → ✊ **fist grabs the screen** → 🧵 **yank up with deep 3D drapery folds** while the page springs back → 🧺 **folds smooth out** in ~250 ms
+- 🎨 Fabric shading follows your theme (white/silver in light mode, frosted ridges + matte shadows in dark/glass themes)
+- ⚡ One RepaintBoundary, no page rebuilds, 60/120 fps on every main page
+
+### 🛠️ What was fixed?
+- The 2D drop drawing from v0.9.7 did not match the reference video and was removed
+
 </details>
 
 <details>
-<summary><b>v0.4.0 – v0.2.0 — Profil, arkadaşlık, içerik stüdyosu, gizli sohbetler</b></summary>
+<summary><b>v0.9.7 — Cloth Refresh, Instant Launch & Elite Glass UI</b></summary>
 
-- Instagram tarzı profil ve profil kartı, arkadaş ekleme ve mesaj istekleri
-- İçerik stüdyosu, video kırpıcı, filtreler; uygulama içi OTA güncelleme
-- Her sohbet kendi odasında (RLS), kişiye özel arama sinyali, gizli anahtarlar depodan kaldırıldı
+### 🎯 Why did this update come?
+Chats now open instantly from a local SQLite cache, scroll jitter is gone, calls save battery and keep live translation visible in picture-in-picture, and the whole interface moves to a more modern, fluid and elite Liquid Glass experience.
+
+### ✨ What's new?
+- ⚡ **Instant launch:** the chat list and messages appear on the first frame from a **Drift (SQLite)** local cache (stale-while-revalidate); syncing never blocks you
+- 🧵 **Cloth pull-to-refresh** on every main page (rebuilt in 3D in v0.9.8)
+- 💬 Chats always open at the **latest message**; older messages load automatically as you scroll up, with no jitter
+- 🔴 Modern **pill-shaped unread badge** in your theme colors with a springy animation
+- 🫧 **Shimmer skeleton loaders** instead of empty grey screens
+- 🌗 **Circular reveal** animation when switching dark/light mode
+- 🔔 **Stacked notifications:** in-app cards slide over each other; grouped in the Android notification shade too
+- 🎨 **4 new glass themes** — Aurora Borealis, Frosted Pearl, Midnight Sapphire, Nordic Frost (16 total) — plus a subtle frosted texture
+- 👤 Avatars and online dots now follow your theme colors instead of grey
+- 📺 **Live translation stays visible in PiP** (picture-in-picture)
+- 🔋 **Call power profile:** 360p·15 fps in the background/PiP or on weak networks; no more full-screen redraw every second
+- 🧹 **Smart media cache cleanup** with an admin-controlled size limit and maximum age
+
+### 🛠️ What was fixed?
+- Chats opening scrolled up, jitter while scrolling up and the list jumping to the bottom
+- "Tap to start chatting" showing on chats that already have messages at launch
+- The call timer redrawing the whole call screen every second (battery and heat)
+
+### 🔒 Security & privacy
+- The strictest `.gitignore` yet: env files, signing keys, certificates, local databases and build outputs can never be committed
+- The secret scanner now also blocks forbidden tracked files and webhook secrets
+- The local SQLite cache is per account, deleted on sign-out, and keeps E2EE messages encrypted on disk
+
 </details>
 
-Tüm sürümler: [GitHub Releases](https://github.com/engiincr/Juzzio-Chat/releases)
+<details>
+<summary><b>v0.9.6 — God Mode Admin, Eye Comfort & Pinned Messages</b></summary>
+
+- 🛡️ **Admin → System (god mode):** system health, crash center, storage maintenance and orphan media scan, multi-account detection, per-user AI quota, voice/video limits, minimum supported build, brute-force thresholds, legal export, sign everyone out
+- 👁️ **Eye Comfort:** amber blue-light filter — manual, scheduled (e.g. 20:00–07:00) or sunset to sunrise, with intensity control
+- 📌 **Pinned messages** in groups and 1:1 chats (up to 5, shown at the top)
+- ✏️ Edits show an **"Edited"** label, are re-translated and notify the other side with **"(Edited)"**
+- 🐞 **Automatic crash reporting** with masked stack traces (can be turned off)
+- 📶 On mobile data, calls offer a **"Data saver" prompt with an "Apply" button** instead of switching on automatically
+- 🎙️ Call badges when the other side's microphone or camera is off
+- 🔐 Voice messages, videos and story replies in 1:1 chats are now **end-to-end encrypted**
+
+</details>
+
+<details>
+<summary><b>v0.9.5 — Watch Party, Safety Check & View-Once Media</b></summary>
+
+- 🎬 **Watch party:** .mp4/.m3u8 videos play at the same second for everyone
+- 🆘 **Safety check (SOS):** alert with location if arrival time passes, no movement, or battery drops to 5%
+- 1️⃣ **View-once photos:** deleted permanently after opening; screenshots blocked
+- ❓ **Anonymous question box**, 🏅 **badges & streaks**, 🔐 **safety number** (QR + 60 digits)
+- 📞 "Ringing…" / "Calling…" status with a ringback tone; polls close automatically
+- 🛠️ Fixed the admin panel "invalid setting" error when choosing a theme
+
+</details>
+
+<details>
+<summary><b>v0.9.4 — Documents, Events & Security Audit</b></summary>
+
+- 📎 **Attachment menu:** documents (E2EE in 1:1), gallery, video, location, contact card, poll, event, schedule
+- 🗓️ **Group events** with RSVP and reminders; **shift planner** with a shared team calendar
+- 🐥 **Chick wardrobe:** hats, glasses, outfits, themes
+- ⏰ Warning when the device clock is more than 2 minutes off
+- 🔒 Fixes from a live database security & performance audit
+
+</details>
 
 ---
 
-## 🗄️ Veritabanı şeması
+## ✨ What can you do?
 
-Tüm şema, fonksiyonlar, RLS politikaları ve tetikleyiciler **tek dosyadadır**: [`supabase/juzzio_database.sql`](supabase/juzzio_database.sql). Dosya tekrar çalıştırılabilir (idempotent) ve veri silmez.
+| | Feature | Description |
+| :-: | :-- | :-- |
+| 🎙️ | **Live-translated voice calls** | When someone speaking a different language joins, speech becomes live captions in your language. No translation panel between people who speak the same language. |
+| 🎥 | **Live-translated video calls** | A caption strip that never covers faces, a glass control rail, front/back camera, natural beauty mode; captions keep flowing in PiP. |
+| 👥 | **Conferences (4 people)** | Add people to an ongoing call, join group calls later, manage participants. |
+| 💬 | **Translated messaging** | Every message appears in the other person's language; "See original" is always one tap away. |
+| 🔒 | **End-to-end encryption** | 1:1 messages, photos, videos, voice messages, documents and locations are encrypted on the device (X25519 + ML-KEM-768, AES-256-GCM). |
+| ⚡ | **Instant & offline** | Drift (SQLite) local cache: chats open on the first frame and stay readable without internet. |
+| 🎬 | **Watch party** | Watch videos together, perfectly in sync. |
+| 🆘 | **Safety check** | Share your live location with a chat until you arrive safely. |
+| 📌 | **Pinned messages & events** | Pin important messages; plan group events with RSVP. |
+| 👁️ | **Eye Comfort** | Amber blue-light filter, scheduled or from sunset to sunrise. |
+| 🎨 | **16 glass themes** | Liquid Glass design family + Theme Studio for your own palette; day / night / system. |
+| 🧩 | **6 Android widgets** | Chat, quick actions, unread, camera, last call, recent chats — match your theme and language. |
+| 🐣 | **Chick game** | Feed the egg in the straw nest with a friend; it shakes, hatches and grows. |
+| 🆕 | **Transparent updates** | Why each release came, what's new, what was fixed and security changes — inside the app and on GitHub. |
+
+---
+
+## 🔐 Privacy & security
+
+> Details: **[PRIVACY.md](PRIVACY.md)** · **[TERMS.md](TERMS.md)** · legally binding Turkish versions in [docs/legal/tr](docs/legal/tr). The same texts are in the app under **Settings → Help → Privacy & legal**.
+
+- ❌ **Personal data is never sold**; no advertising or analytics/tracking libraries.
+- ❌ **No card or bank details**; the app contains no payment code.
+- ❌ **Camera and microphone are never used without permission**; calls are not recorded.
+- ❌ **Contacts and SMS are never read**; location is read only for actions you start (send location, safety check, Eye Comfort sunset mode) and never in the background.
+- ✅ **1:1 chats are end-to-end encrypted with post-quantum hybrid keys**; the server and administrators cannot see the content.
+- ✅ Row-level security (RLS): everyone only sees chats they are a member of.
+- ✅ No secret keys in the repository; an **automatic secret scan** (`scripts/check_secrets.py`) and a strict `.gitignore` guard every push.
+- ✅ Updates come only from the official GitHub release; an APK with a different signature cannot be installed over the app.
+- ℹ️ Limits, stated openly: group messages and group media are not end-to-end encrypted yet; while automatic translation is on, text is sent to the translation service.
+
+🛡️ Found a vulnerability? Please report it privately to **engiincr@pm.me** before publishing. Fixed issues are announced in the **🔒 Security & privacy** section of the release notes.
+
+---
+
+## 📦 Download & install
+
+1. 📥 Download [**Juzzio-latest.apk**](https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk).
+2. 📲 If Android asks for the "install unknown apps" permission, allow it for this install.
+3. 🔄 Future updates arrive inside the app: you are notified as soon as a release is published, and **Snooze** keeps you undisturbed for the time you choose.
+
+---
+
+## 🗂️ Release history
+
+<details>
+<summary><b>v0.9.0 – v0.9.3 — Security hardening, offline mode, PiP calls, notification translation</b></summary>
+
+- Fail-closed E2EE, encrypted photos and scheduled messages, Security Center with devices and security events
+- WhatsApp-style offline reading and media cache; calls continue in a mini window / PiP
+- Notifications translated into your language and answerable from the notification
+</details>
+
+<details>
+<summary><b>v0.8.0 — Post-quantum encryption, encrypted Google Drive backup, soft glass UI</b></summary>
+
+- 🔐 X25519 + **ML-KEM-768 (NIST FIPS 203)** hybrid key exchange, HKDF-SHA256, AES-256-GCM; protection against "harvest now, decrypt later"
+- 🔁 New session key every 50 messages / 24 hours, new identity key every 30 days
+- ☁️ Encrypted Google Drive backup (Argon2id + AES-256-GCM)
+- ✍️ Update notice verification signed with **ML-DSA-65 (FIPS 204)**
+</details>
+
+<details>
+<summary><b>v0.7.0 — Transparency, end-to-end encryption, ringtones, 6 widgets</b></summary>
+
+- End-to-end encryption for 1:1 text messages, Juzzio ringtones and per-contact tones
+- Contact info and call detail pages, music on profiles and stories, close friends
+- 6 Android widgets, "What's new in version X?" window, proprietary license
+</details>
+
+<details>
+<summary><b>v0.2.0 – v0.6.1 — Glassmorphism design, moderation, profiles, studio</b></summary>
+
+- Aurora + frosted glass design, content moderation and penalty ladder, admin panel
+- Instagram-style profiles, friends and message requests, content studio, in-app OTA updates
+- Every chat in its own room (RLS); secrets removed from the repository
+</details>
+
+All releases: [GitHub Releases](https://github.com/engiincr/Juzzio-Chat/releases)
+
+---
+
+## 🗄️ Database schema
+
+The whole schema, functions, RLS policies and triggers live in **one file**: [`supabase/juzzio_database.sql`](supabase/juzzio_database.sql). It is idempotent (safe to run again) and never deletes data. Tests: [`supabase/tests/juzzio_database_tests.sql`](supabase/tests/juzzio_database_tests.sql).
 
 ```mermaid
 erDiagram
-    profiles ||--o{ room_participants : "üyedir"
-    rooms ||--o{ room_participants : "içerir"
-    rooms ||--o{ messages : "içerir"
-    profiles ||--o{ messages : "gönderir"
-    rooms ||--o{ call_logs : "arama"
-    profiles ||--o{ call_logs : "arar / aranır"
-    profiles ||--o{ friendships : "arkadaşlık"
-    profiles ||--o{ stories : "paylaşır"
-    stories ||--o{ story_views : "görüntülenir"
-    profiles ||--o{ close_friends : "yakın arkadaş listesi"
-    profiles ||--o{ posts : "paylaşır"
-    posts ||--o{ comments : "yorum"
-    profiles ||--o{ notifications : "alır"
-    profiles ||--o| user_sound_prefs : "zil sesleri"
-    profiles ||--o{ app_feedback : "hata bildirir"
-    profiles ||--o{ moderation_strikes : "ihlal"
-    app_releases ||--o{ app_releases : "sürümler"
+    profiles ||--o{ room_participants : "member of"
+    rooms ||--o{ room_participants : "contains"
+    rooms ||--o{ messages : "contains"
+    profiles ||--o{ messages : "sends"
+    rooms ||--o{ call_logs : "calls"
+    profiles ||--o{ friendships : "friends"
+    profiles ||--o{ stories : "shares"
+    profiles ||--o{ posts : "shares"
+    profiles ||--o{ notifications : "receives"
+    profiles ||--o{ app_error_reports : "crash reports"
+    app_releases ||--o{ app_releases : "releases"
 
     profiles {
         uuid id PK
-        text username "benzersiz"
+        text username "unique"
         text display_name
-        text avatar_url
-        text e2ee_public_key "yalnızca AÇIK anahtar"
-        text music_url "30 sn önizleme"
+        text e2ee_public_key "PUBLIC key only"
         bool is_online
-    }
-    rooms {
-        uuid id PK
-        bool is_group
-        text title
-        text disappearing_timer "off / 24h / 7d / 30d"
     }
     messages {
         uuid id PK
         uuid room_id FK
         uuid sender_id FK
         text message_type "text / voice / image / call ..."
-        text original_text "şifreliyse boş"
-        jsonb metadata "e2ee yükü, arama kaydı"
-    }
-    call_logs {
-        uuid id PK
-        uuid session_id
-        text status "ringing / answered / missed / rejected"
-        timestamptz answered_at
-        timestamptz ended_at
-        uuid ended_by "ilk kapatan"
-    }
-    close_friends {
-        uuid owner_id PK
-        uuid friend_id PK
-    }
-    user_sound_prefs {
-        uuid user_id PK
-        text message_tone
-        text ringtone
-        jsonb contact_prefs "kişiye özel"
+        text original_text "empty if encrypted"
+        jsonb metadata "e2ee payload, call log"
+        bool is_pinned
     }
     app_releases {
         text version_name PK
         int version_code
-        jsonb details "neden / yenilikler / düzeltmeler / güvenlik"
-    }
-    app_feedback {
-        uuid id PK
-        text kind "bug / feedback / idea"
-        text message
-        text status
+        jsonb details "why / new / fixed / security"
     }
 ```
 
-> Not: Şema yalnızca tablo yapısını gösterir; anahtar, şifre veya bağlantı bilgisi içermez.
+> The diagram only shows table structure; it contains no keys, passwords or connection details.
 
 ---
 
-## 🏗️ Mimari
+## 🏗️ Architecture
 
 ```mermaid
 flowchart LR
     A[📱 Juzzio Android<br/>Flutter] -->|TLS| B[(Supabase<br/>Postgres + RLS)]
-    A -->|WebRTC| C[LiveKit<br/>arama sunucusu]
-    A -->|yalnızca farklı dil varsa| D[Deepgram<br/>altyazı]
-    A -->|çeviri| E[Google Çeviri]
-    B -->|Edge Functions| F[FCM bildirim]
-    G[GitHub Actions] -->|APK + sürüm notu| H[GitHub Releases]
-    G -->|anında bildirim| B
+    A -->|local cache| L[(Drift<br/>SQLite)]
+    A -->|WebRTC| C[LiveKit<br/>call server]
+    A -->|only if languages differ| D[Deepgram<br/>captions]
+    A -->|translation| E[Google Translate]
+    B -->|Edge Functions| F[FCM notifications]
+    G[GitHub Actions] -->|APK + release notes| H[GitHub Releases]
+    G -->|instant update notice| B
     A -->|OTA| H
 ```
 
 ```
 lib/
-  core/            tema, cam bileşenleri, sesler, sürüm notları, yasal metinler
-  services/        Supabase veri katmanı, uçtan uca şifreleme, LiveKit, sosyal
-  screens/         sohbetler, aramalar, ayarlar, yönetici paneli, stüdyo, profil
-  widgets/         müzik, video, yaylı yanıt hareketi, civciv yuvası
-android/           widget'lar, bildirim kanalları, zil sesleri (res/raw)
+  core/            theme, glass components, sounds, release notes, legal texts
+  services/        Supabase data layer, Drift local DB, E2EE, LiveKit, social
+  screens/         chats, calls, settings, admin panel, studio, profile
+  widgets/         cloth refresh, skeletons, notification stack, eye comfort, video
+android/           widgets, notification channels, ringtones (res/raw)
 supabase/          juzzio_database.sql · tests/ · functions/
-scripts/           güvenli push, sürüm notları, gizli bilgi taraması
+scripts/           safe push, release notes, secret scan, legal text generator
+docs/legal/tr/     legally binding Turkish privacy policy, terms and license
 ```
 
 ---
 
-## 🛠️ Geliştirici kurulumu
+## 🛠️ Developer setup
 
-1. **Veritabanı:** `supabase/juzzio_database.sql` dosyasını Supabase SQL Editor'de bir kez çalıştırın veya CI'ın uygulaması için GitHub Secrets'a `SUPABASE_DB_URL` ekleyin.
-2. **Edge Function gizli değerleri** (Supabase → Edge Functions → Secrets): `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `DEEPGRAM_API_KEY`, `FCM_SERVICE_ACCOUNT_JSON`, `PUSH_WEBHOOK_SECRET`, isteğe bağlı `GOOGLE_VISION_API_KEY`.
+1. **Database:** run `supabase/juzzio_database.sql` once in the Supabase SQL Editor, or add `SUPABASE_DB_URL` to GitHub Secrets so CI applies it.
+2. **Edge Function secrets** (Supabase → Edge Functions → Secrets): `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `DEEPGRAM_API_KEY`, `FCM_SERVICE_ACCOUNT_JSON`, `PUSH_WEBHOOK_SECRET`, optional `GOOGLE_VISION_API_KEY`.
 3. **GitHub Secrets:** `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_PASSWORD`, `ANDROID_KEY_ALIAS`, `GOOGLE_SERVICES_JSON_BASE64`, `SUPABASE_DB_URL`, `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`.
-4. **Gönderim:** `push.bat "mesaj"` (Windows) veya `bash scripts/push.sh "mesaj"`. Betik önce gizli bilgi taraması yapar.
-5. **Yeni sürüm notu:** `version.json` içindeki `details` alanını doldurun; GitHub sürüm sayfası, uygulamadaki "Yenilikler" penceresi ve anlık bildirim buradan otomatik üretilir.
+4. **Push:** `push.bat "message"` (Windows) or `bash scripts/push.sh "message"`. The script runs the secret scan first.
+5. **Release notes:** fill in `details` in `version.json` (`tr` + `en`, plus `releaseTitleEn`). The GitHub release page (English), the in-app "What's new?" window and the instant update notification are generated from it.
+6. **Legal texts:** edit `PRIVACY.md` / `TERMS.md` / `LICENSE` (English) and `docs/legal/tr/*` (Turkish), then run `python3 scripts/gen_legal.py`.
 
-> ⚠️ **Asla** gerçek anahtar, şifre, bağlantı adresi veya kişisel bilgi README'ye, koda ya da sürüm notlarına yazmayın. Tarama bulursa CI ve push betiği durur.
-
----
-
-## 🧪 BETA / Erken erişim
-
-Juzzio bir **BETA (Erken Erişim)** uygulamasıdır. Özellikler gelişmeye devam ediyor. Hata görürsen uygulamada **Ayarlar → Yardım → Hata bildir** bölümünden ekran görüntüsüyle bildirebilirsin.
+> ⚠️ **Never** write real keys, passwords, connection strings or personal data into the README, code or release notes. If the scan finds any, CI and the push script stop.
 
 ---
 
-## ⚖️ Lisans ve yasal
+## 🧪 BETA / Early access
 
-**Tüm hakları saklıdır.** Juzzio tescilli bir yazılımdır; kaynak kodu yalnızca şeffaflık ve güvenlik incelemesi için görüntülenebilir. **Kopyalanması, çoğaltılması, dağıtılması, satılması ve türev uygulama yapılması yazılı izin olmadan yasaktır.** Ayrıntılar: [LICENSE](LICENSE) · [PRIVACY.md](PRIVACY.md) · [TERMS.md](TERMS.md).
+Juzzio is a **BETA (Early Access)** app and keeps evolving. If you see a bug, report it with a screenshot from **Settings → Help → Report a bug** — crashes are also reported automatically (you can turn this off).
+
+---
+
+## ⚖️ License & legal
+
+**All rights reserved.** Juzzio is proprietary software; the source code may be viewed only for transparency and security review. **Copying, reproducing, distributing, selling or creating derivative apps without written permission is prohibited.** Details: [LICENSE](LICENSE) · [PRIVACY.md](PRIVACY.md) · [TERMS.md](TERMS.md).
 
 <div align="center">
 
-**Juzzio** · canlı çeviri · sesli arama çevirisi · görüntülü arama çevirisi · çok dilli sohbet · uçtan uca şifreli mesajlaşma · Android
+**Juzzio** · live translation · voice call translation · video call translation · multilingual chat · end-to-end encrypted messaging · Android
 
 </div>

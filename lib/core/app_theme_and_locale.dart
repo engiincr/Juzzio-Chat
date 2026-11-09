@@ -24,6 +24,7 @@ import 'theme/juzzio_custom_theme.dart';
 import 'theme/juzzio_colors.dart';
 import '../l10n/juzzio_inline_catalog.dart';
 import '../l10n/juzzio_strings_v030.dart';
+import '../widgets/juzzio_motion.dart';
 
 class JuzzioLanguageOption {
   final String code;
@@ -40,6 +41,17 @@ class JuzzioLanguageOption {
 }
 
 /// 142 Farklı Dünya Dili (139+ Dil Altyapısı)
+/// v0.9.3: uygulama kodunu Google Çeviri biçimine çevirir (zh-tw → zh-TW, pa-arab → pa-Arab, pt-pt → pt-PT).
+String juzzioGoogleLangCode(String code) {
+  final c = code.trim();
+  final i = c.indexOf('-');
+  if (i < 0) return c.toLowerCase();
+  final base = c.substring(0, i).toLowerCase();
+  final sub = c.substring(i + 1);
+  if (sub.length == 4) return '$base-${sub[0].toUpperCase()}${sub.substring(1).toLowerCase()}';
+  return '$base-${sub.toUpperCase()}';
+}
+
 const List<JuzzioLanguageOption> kJuzzioSupportedLanguages = [
   JuzzioLanguageOption(code: 'tr', nativeName: 'Türkçe', turkishName: 'Türkçe', flag: '🇹🇷'),
   JuzzioLanguageOption(code: 'en', nativeName: 'English', turkishName: 'İngilizce', flag: '🇬🇧'),
@@ -120,7 +132,7 @@ const List<JuzzioLanguageOption> kJuzzioSupportedLanguages = [
   JuzzioLanguageOption(code: 'so', nativeName: 'Soomaali', turkishName: 'Somalice', flag: '🇸🇴'),
   JuzzioLanguageOption(code: 'rw', nativeName: 'Kinyarwanda', turkishName: 'Kinyarwanda', flag: '🇷🇼'),
   JuzzioLanguageOption(code: 'mg', nativeName: 'Malagasy', turkishName: 'Malgaşça', flag: '🇲🇬'),
-  JuzzioLanguageOption(code: 'SN', nativeName: 'ChiShona', turkishName: 'Şonaca', flag: '🇿🇼'),
+  JuzzioLanguageOption(code: 'sn', nativeName: 'ChiShona', turkishName: 'Şonaca', flag: '🇿🇼'),
   JuzzioLanguageOption(code: 'ny', nativeName: 'Chichewa', turkishName: 'Çiçevaca', flag: '🇲🇼'),
   JuzzioLanguageOption(code: 'st', nativeName: 'Sesotho', turkishName: 'Sothoca', flag: '🇱🇸'),
   JuzzioLanguageOption(code: 'tn', nativeName: 'Setswana', turkishName: 'Tsvanaca', flag: '🇧🇼'),
@@ -133,7 +145,7 @@ const List<JuzzioLanguageOption> kJuzzioSupportedLanguages = [
   JuzzioLanguageOption(code: 'ff', nativeName: 'Fulfulde', turkishName: 'Fulani', flag: '🇸🇳'),
   JuzzioLanguageOption(code: 'ln', nativeName: 'Lingála', turkishName: 'Lingala', flag: '🇨🇩'),
   JuzzioLanguageOption(code: 'kg', nativeName: 'Kikongo', turkishName: 'Kongoca', flag: '🇨🇬'),
-  JuzzioLanguageOption(code: 'RN', nativeName: 'Ikirundi', turkishName: 'Kirundi', flag: '🇧🇮'),
+  JuzzioLanguageOption(code: 'rn', nativeName: 'Ikirundi', turkishName: 'Kirundi', flag: '🇧🇮'),
   JuzzioLanguageOption(code: 'om', nativeName: 'Afaan Oromoo', turkishName: 'Oromca', flag: '🇪🇹'),
   JuzzioLanguageOption(code: 'ti', nativeName: 'ትግርኛ', turkishName: 'Tigrinya', flag: '🇪🇷'),
   JuzzioLanguageOption(code: 'ku', nativeName: 'Kurdî (Kurmancî)', turkishName: 'Kürtçe (Kurmanci)', flag: '🌐'),
@@ -147,7 +159,7 @@ const List<JuzzioLanguageOption> kJuzzioSupportedLanguages = [
   JuzzioLanguageOption(code: 'gl', nativeName: 'Galego', turkishName: 'Galiçyaca', flag: '🇪🇸'),
   JuzzioLanguageOption(code: 'cy', nativeName: 'Cymraeg', turkishName: 'Galce', flag: '🏴󠁧󠁢󠁷󠁬󠁳󠁿'),
   JuzzioLanguageOption(code: 'ga', nativeName: 'Gaeilge', turkishName: 'İrlandaca', flag: '🇮🇪'),
-  JuzzioLanguageOption(code: 'gd', nativeName: 'Gàidhlig', turkishName: 'İskoç گالcesi', flag: '🏴󠁧󠁢󠁳󠁣󠁴󠁿'),
+  JuzzioLanguageOption(code: 'gd', nativeName: 'Gàidhlig', turkishName: 'İskoç Galcesi', flag: '🏴󠁧󠁢󠁳󠁣󠁴󠁿'),
   JuzzioLanguageOption(code: 'mt', nativeName: 'Malti', turkishName: 'Maltaca', flag: '🇲🇹'),
   JuzzioLanguageOption(code: 'lb', nativeName: 'Lëtzebuergesch', turkishName: 'Lüksemburgca', flag: '🇱🇺'),
   JuzzioLanguageOption(code: 'fy', nativeName: 'Frysk', turkishName: 'Frizce', flag: '🇳🇱'),
@@ -185,6 +197,87 @@ const List<JuzzioLanguageOption> kJuzzioSupportedLanguages = [
   JuzzioLanguageOption(code: 'ba', nativeName: 'Башҡортса', turkishName: 'Başkurtça', flag: '🌐'),
   JuzzioLanguageOption(code: 'cv', nativeName: 'Чӑвашла', turkishName: 'Çuvaşça', flag: '🌐'),
   JuzzioLanguageOption(code: 'ce', nativeName: 'Нохчийн', turkishName: 'Çeçence', flag: '🌐'),
+  // v0.9.3: Google Çeviri'nin desteklediği ek diller (toplam 220+)
+  JuzzioLanguageOption(code: 'yue', nativeName: '粵語', turkishName: 'Kantonca', flag: '🇭🇰'),
+  JuzzioLanguageOption(code: 'pt-pt', nativeName: 'Português (Portugal)', turkishName: 'Portekizce (Portekiz)', flag: '🇵🇹'),
+  JuzzioLanguageOption(code: 'fa-af', nativeName: 'دری', turkishName: 'Darice', flag: '🇦🇫'),
+  JuzzioLanguageOption(code: 'pa-arab', nativeName: 'پنجابی (شاہ مکھی)', turkishName: 'Pencapça (Şahmukhi)', flag: '🇵🇰'),
+  JuzzioLanguageOption(code: 'bal', nativeName: 'بلوچی', turkishName: 'Beluçça', flag: '🇵🇰'),
+  JuzzioLanguageOption(code: 'hmn', nativeName: 'Hmoob', turkishName: 'Hmongca', flag: '🌐'),
+  JuzzioLanguageOption(code: 'gom', nativeName: 'कोंकणी', turkishName: 'Konkanice', flag: '🇮🇳'),
+  JuzzioLanguageOption(code: 'doi', nativeName: 'डोगरी', turkishName: 'Dogrice', flag: '🇮🇳'),
+  JuzzioLanguageOption(code: 'bho', nativeName: 'भोजपुरी', turkishName: 'Bhojpurice', flag: '🇮🇳'),
+  JuzzioLanguageOption(code: 'awa', nativeName: 'अवधी', turkishName: 'Avadhice', flag: '🇮🇳'),
+  JuzzioLanguageOption(code: 'mwr', nativeName: 'मारवाड़ी', turkishName: 'Marvarice', flag: '🇮🇳'),
+  JuzzioLanguageOption(code: 'tcy', nativeName: 'ತುಳು', turkishName: 'Tuluca', flag: '🇮🇳'),
+  JuzzioLanguageOption(code: 'lus', nativeName: 'Mizo ṭawng', turkishName: 'Mizoca', flag: '🇮🇳'),
+  JuzzioLanguageOption(code: 'kri', nativeName: 'Krio', turkishName: 'Krio', flag: '🇸🇱'),
+  JuzzioLanguageOption(code: 'nso', nativeName: 'Sesotho sa Leboa', turkishName: 'Kuzey Sotho', flag: '🇿🇦'),
+  JuzzioLanguageOption(code: 'ee', nativeName: 'Eʋegbe', turkishName: 'Ewece', flag: '🇬🇭'),
+  JuzzioLanguageOption(code: 'ak', nativeName: 'Twi', turkishName: 'Twi (Akan)', flag: '🇬🇭'),
+  JuzzioLanguageOption(code: 'gaa', nativeName: 'Gã', turkishName: 'Ga dili', flag: '🇬🇭'),
+  JuzzioLanguageOption(code: 'lg', nativeName: 'Luganda', turkishName: 'Luganda', flag: '🇺🇬'),
+  JuzzioLanguageOption(code: 'ach', nativeName: 'Acholi', turkishName: 'Açolice', flag: '🇺🇬'),
+  JuzzioLanguageOption(code: 'cgg', nativeName: 'Rukiga', turkishName: 'Kigaca', flag: '🇺🇬'),
+  JuzzioLanguageOption(code: 'luo', nativeName: 'Dholuo', turkishName: 'Luoca', flag: '🇰🇪'),
+  JuzzioLanguageOption(code: 'tum', nativeName: 'ChiTumbuka', turkishName: 'Tumbukaca', flag: '🇲🇼'),
+  JuzzioLanguageOption(code: 'bem', nativeName: 'Ichibemba', turkishName: 'Bembaca', flag: '🇿🇲'),
+  JuzzioLanguageOption(code: 'fon', nativeName: 'Fɔ̀ngbè', turkishName: 'Fon dili', flag: '🇧🇯'),
+  JuzzioLanguageOption(code: 'din', nativeName: 'Thuɔŋjäŋ', turkishName: 'Dinkaca', flag: '🇸🇸'),
+  JuzzioLanguageOption(code: 'nus', nativeName: 'Thok Naath', turkishName: 'Nuerce', flag: '🇸🇸'),
+  JuzzioLanguageOption(code: 'tiv', nativeName: 'Tiv', turkishName: 'Tiv dili', flag: '🇳🇬'),
+  JuzzioLanguageOption(code: 'efi', nativeName: 'Efik', turkishName: 'Efikçe', flag: '🇳🇬'),
+  JuzzioLanguageOption(code: 'kr', nativeName: 'Kanuri', turkishName: 'Kanurice', flag: '🇳🇬'),
+  JuzzioLanguageOption(code: 'dyu', nativeName: 'Jula', turkishName: 'Diyulaca', flag: '🇨🇮'),
+  JuzzioLanguageOption(code: 'crs', nativeName: 'Kreol Seselwa', turkishName: 'Seyşel Kreolü', flag: '🇸🇨'),
+  JuzzioLanguageOption(code: 'mfe', nativeName: 'Kreol Morisien', turkishName: 'Morisyen', flag: '🇲🇺'),
+  JuzzioLanguageOption(code: 'pap', nativeName: 'Papiamentu', turkishName: 'Papiamento', flag: '🇨🇼'),
+  JuzzioLanguageOption(code: 'jam', nativeName: 'Patwa', turkishName: 'Jamaika Kreolü', flag: '🇯🇲'),
+  JuzzioLanguageOption(code: 'tpi', nativeName: 'Tok Pisin', turkishName: 'Tok Pisin', flag: '🇵🇬'),
+  JuzzioLanguageOption(code: 'tet', nativeName: 'Tetun', turkishName: 'Tetumca', flag: '🇹🇱'),
+  JuzzioLanguageOption(code: 'ty', nativeName: 'Reo Tahiti', turkishName: 'Tahitice', flag: '🇵🇫'),
+  JuzzioLanguageOption(code: 'mh', nativeName: 'Kajin M̧ajeļ', turkishName: 'Marşalca', flag: '🇲🇭'),
+  JuzzioLanguageOption(code: 'ch', nativeName: 'Chamoru', turkishName: 'Çamorro', flag: '🇬🇺'),
+  JuzzioLanguageOption(code: 'war', nativeName: 'Winaray', turkishName: 'Varayca', flag: '🇵🇭'),
+  JuzzioLanguageOption(code: 'hil', nativeName: 'Ilonggo', turkishName: 'Hiligaynonca', flag: '🇵🇭'),
+  JuzzioLanguageOption(code: 'pam', nativeName: 'Kapampangan', turkishName: 'Kapampanganca', flag: '🇵🇭'),
+  JuzzioLanguageOption(code: 'bik', nativeName: 'Bikol', turkishName: 'Bikolca', flag: '🇵🇭'),
+  JuzzioLanguageOption(code: 'pag', nativeName: 'Pangasinan', turkishName: 'Pangasinanca', flag: '🇵🇭'),
+  JuzzioLanguageOption(code: 'ace', nativeName: 'Bahsa Acèh', turkishName: 'Açece', flag: '🇮🇩'),
+  JuzzioLanguageOption(code: 'ban', nativeName: 'Basa Bali', turkishName: 'Balice', flag: '🇮🇩'),
+  JuzzioLanguageOption(code: 'min', nativeName: 'Baso Minang', turkishName: 'Minangkabauca', flag: '🇮🇩'),
+  JuzzioLanguageOption(code: 'mak', nativeName: 'Basa Mangkasara', turkishName: 'Makassarca', flag: '🇮🇩'),
+  JuzzioLanguageOption(code: 'bew', nativeName: 'Betawi', turkishName: 'Betavice', flag: '🇮🇩'),
+  JuzzioLanguageOption(code: 'iba', nativeName: 'Jaku Iban', turkishName: 'İbanca', flag: '🇲🇾'),
+  JuzzioLanguageOption(code: 'shn', nativeName: 'လိၵ်ႈတႆး', turkishName: 'Şanca', flag: '🇲🇲'),
+  JuzzioLanguageOption(code: 'kac', nativeName: 'Jinghpaw', turkishName: 'Kaçince', flag: '🇲🇲'),
+  JuzzioLanguageOption(code: 'cnh', nativeName: 'Laiholh', turkishName: 'Hakha Çin dili', flag: '🇲🇲'),
+  JuzzioLanguageOption(code: 'ltg', nativeName: 'Latgalīšu', turkishName: 'Latgalce', flag: '🇱🇻'),
+  JuzzioLanguageOption(code: 'szl', nativeName: 'Ślōnski', turkishName: 'Silezyaca', flag: '🇵🇱'),
+  JuzzioLanguageOption(code: 'li', nativeName: 'Limburgs', turkishName: 'Limburgca', flag: '🇳🇱'),
+  JuzzioLanguageOption(code: 'lmo', nativeName: 'Lombard', turkishName: 'Lombardça', flag: '🇮🇹'),
+  JuzzioLanguageOption(code: 'lij', nativeName: 'Ligure', turkishName: 'Ligurca', flag: '🇮🇹'),
+  JuzzioLanguageOption(code: 'vec', nativeName: 'Vèneto', turkishName: 'Venedikçe', flag: '🇮🇹'),
+  JuzzioLanguageOption(code: 'scn', nativeName: 'Sicilianu', turkishName: 'Sicilyaca', flag: '🇮🇹'),
+  JuzzioLanguageOption(code: 'fur', nativeName: 'Furlan', turkishName: 'Friulice', flag: '🇮🇹'),
+  JuzzioLanguageOption(code: 'gv', nativeName: 'Gaelg', turkishName: 'Mankça', flag: '🇮🇲'),
+  JuzzioLanguageOption(code: 'kw', nativeName: 'Kernewek', turkishName: 'Kernevekçe', flag: '🏴'),
+  JuzzioLanguageOption(code: 'crh', nativeName: 'Qırımtatar tili', turkishName: 'Kırım Tatarcası', flag: '🇺🇦'),
+  JuzzioLanguageOption(code: 'sah', nativeName: 'Саха тыла', turkishName: 'Yakutça', flag: '🇷🇺'),
+  JuzzioLanguageOption(code: 'os', nativeName: 'Ирон', turkishName: 'Osetçe', flag: '🌐'),
+  JuzzioLanguageOption(code: 'udm', nativeName: 'Удмурт', turkishName: 'Udmurtça', flag: '🇷🇺'),
+  JuzzioLanguageOption(code: 'chm', nativeName: 'Марий', turkishName: 'Marice', flag: '🇷🇺'),
+  JuzzioLanguageOption(code: 'tyv', nativeName: 'Тыва', turkishName: 'Tuvaca', flag: '🇷🇺'),
+  JuzzioLanguageOption(code: 'bua', nativeName: 'Буряад', turkishName: 'Buryatça', flag: '🇷🇺'),
+  JuzzioLanguageOption(code: 'kv', nativeName: 'Коми', turkishName: 'Komice', flag: '🇷🇺'),
+  JuzzioLanguageOption(code: 'av', nativeName: 'Авар', turkishName: 'Avarca', flag: '🇷🇺'),
+  JuzzioLanguageOption(code: 'ab', nativeName: 'Аԥсуа', turkishName: 'Abhazca', flag: '🌐'),
+  JuzzioLanguageOption(code: 'iu', nativeName: 'ᐃᓄᒃᑎᑐᑦ', turkishName: 'İnuitçe', flag: '🇨🇦'),
+  JuzzioLanguageOption(code: 'yua', nativeName: "Maaya t'aan", turkishName: 'Yukatek Mayacası', flag: '🇲🇽'),
+  JuzzioLanguageOption(code: 'nhe', nativeName: 'Nāhuatl', turkishName: 'Nahuatlca', flag: '🇲🇽'),
+  JuzzioLanguageOption(code: 'zap', nativeName: 'Diidxazá', turkishName: 'Zapotekçe', flag: '🇲🇽'),
+  JuzzioLanguageOption(code: 'kek', nativeName: "Q'eqchi'", turkishName: 'Kekçice', flag: '🇬🇹'),
+  JuzzioLanguageOption(code: 'mam', nativeName: 'Mam', turkishName: 'Mam dili', flag: '🇬🇹'),
 ];
 
 class JuzzioChatThemePreset {
@@ -350,6 +443,9 @@ class JuzzioAppController extends ChangeNotifier {
   /// Gizlilik/bildirim tercihleri kaydedildiğinde Supabase profiline de yansıtılması için
   /// (SupabaseService tarafından atanır; döngüsel bağımlılığı önler).
   static void Function(Map<String, dynamic> prefs)? remotePreferenceSync;
+
+  /// v0.9.3: uygulama dili değişince (bildirim eylem metinleri vb. için) çağrılır.
+  static void Function(String lang)? onUiLangChanged;
   /// v0.9.0 (G12): Sunucu önbellekli arayüz çevirisi (translate-bridge batch_ui). Kaynak →
   /// çeviri haritası döner; ulaşılamazsa boş harita. SupabaseService bağlar.
   static Future<Map<String, String>> Function(String lang, List<String> texts)? serverUiTranslator;
@@ -380,7 +476,8 @@ class JuzzioAppController extends ChangeNotifier {
   int _darkStartMin = 20 * 60; // 20:00
   int _darkEndMin = 7 * 60; // 07:00
   Timer? _scheduleTimer;
-  String _defaultGlassPaletteId = 'juzzio_liquid';
+  // v1.0.0: yeni kullanıcıların ilk görünümü Figma "Juzzio Space" — Zümrüt
+  String _defaultGlassPaletteId = 'emerald';
   double _chatThemeIntensity = 1.0;
 
   // Dil Ayarları (Cihaz Dilini Otomatik Baz Alır, 142 Dili Destekler)
@@ -428,6 +525,19 @@ class JuzzioAppController extends ChangeNotifier {
   // Kamera ve Görüntülü Arama Efektleri
   bool _allowCameraEffects = true;
   bool _cameraBeautyEnabled = true;
+  // v0.9.3: güzelleştirme yoğunluğu 0..100 (arama + hikâye fotoğrafları)
+  int _beautyLevel = 50;
+  // v0.9.5: düşük veri modu ve aramada gürültü engelleme
+  bool _dataSaverEnabled = false;
+  bool _callNoiseFilterEnabled = true;
+  // v0.9.6: Göz Konforu (mavi ışık filtresi) ve otomatik hata raporları
+  String _eyeComfortMode = 'off'; // off · on · schedule · sun
+  int _eyeComfortIntensity = 40; // 5..90
+  int _eyeComfortStartMin = 20 * 60; // 20:00
+  int _eyeComfortEndMin = 7 * 60; // 07:00
+  double? _eyeComfortLat;
+  double? _eyeComfortLng;
+  bool _autoErrorReports = true;
   String _doubleTapReaction = '❤️‍🔥';
   final List<String> _starredMessageIds = <String>[];
 
@@ -435,9 +545,11 @@ class JuzzioAppController extends ChangeNotifier {
   bool _blockUnknownVolumeMessages = true;
   bool _protectIpInCalls = false;
   bool _disableLinkPreviews = false;
-  /// v0.9.0 (denetim D): Uçtan uca şifreli (E2EE) mesaj metni üçüncü taraf çeviri
-  /// servisine YALNIZCA kullanıcı bunu açıkça açtıysa gönderilir. Varsayılan: kapalı.
-  bool _e2eeTranslationOptIn = false;
+  /// Birebir (E2EE) sohbetlerde otomatik çeviri. Ürün kararı (2026-11-02): VARSAYILAN AÇIK —
+  /// uygulamanın temel özelliği çeviri. Açıkken çözülmüş metin çeviri servisine gider (Gizlilik
+  /// metninde yazılı); kullanıcı Ayarlar > Gizlilik'ten kapatabilir. Eski 'e2eeTranslationOptIn'
+  /// kaydı (varsayılan false yazılmış) bilerek okunmaz; yeni anahtar 'chatTranslationEnabled'.
+  bool _e2eeTranslationOptIn = true;
   bool _strictAccountSettings = false;
 
   // Erişilebilirlik & Sosyal Akış Tercihleri
@@ -553,6 +665,46 @@ class JuzzioAppController extends ChangeNotifier {
 
   bool get allowCameraEffects => _allowCameraEffects;
   bool get cameraBeautyEnabled => _cameraBeautyEnabled;
+  int get beautyLevel => _beautyLevel;
+  bool get dataSaverEnabled => _dataSaverEnabled;
+  bool get callNoiseFilterEnabled => _callNoiseFilterEnabled;
+
+  void setDataSaverEnabled(bool v) {
+    _dataSaverEnabled = v;
+    _persistUserPreferences();
+    notifyListeners();
+  }
+
+  String get eyeComfortMode => _eyeComfortMode;
+  int get eyeComfortIntensity => _eyeComfortIntensity;
+  int get eyeComfortStartMin => _eyeComfortStartMin;
+  int get eyeComfortEndMin => _eyeComfortEndMin;
+  double? get eyeComfortLat => _eyeComfortLat;
+  double? get eyeComfortLng => _eyeComfortLng;
+  bool get autoErrorReports => _autoErrorReports;
+
+  void setEyeComfort({String? mode, int? intensity, int? startMin, int? endMin, double? lat, double? lng}) {
+    if (mode != null && const ['off', 'on', 'schedule', 'sun'].contains(mode)) _eyeComfortMode = mode;
+    if (intensity != null) _eyeComfortIntensity = intensity.clamp(5, 90);
+    if (startMin != null) _eyeComfortStartMin = startMin.clamp(0, 1439);
+    if (endMin != null) _eyeComfortEndMin = endMin.clamp(0, 1439);
+    if (lat != null && lat.abs() <= 90) _eyeComfortLat = lat;
+    if (lng != null && lng.abs() <= 180) _eyeComfortLng = lng;
+    _persistUserPreferences();
+    notifyListeners();
+  }
+
+  void setAutoErrorReports(bool v) {
+    _autoErrorReports = v;
+    _persistUserPreferences();
+    notifyListeners();
+  }
+
+  void setCallNoiseFilterEnabled(bool v) {
+    _callNoiseFilterEnabled = v;
+    _persistUserPreferences();
+    notifyListeners();
+  }
 
   /// Mesaja çift dokununca bırakılan tepki (❤️‍🔥 veya 🌸)
   String get doubleTapReaction => _doubleTapReaction;
@@ -687,7 +839,9 @@ class JuzzioAppController extends ChangeNotifier {
     final lang = code.trim().toLowerCase();
     if (lang.isEmpty || kBuiltInUiLangs.contains(lang)) return Future.value(true);
     // Aynı dil için eşzamanlı ikinci istek, devam eden indirmeyi bekler.
-    return _packJobs[lang] ??= _preparePackImpl(lang).whenComplete(() => _packJobs.remove(lang));
+    return _packJobs[lang] ??= _preparePackImpl(lang).whenComplete(() {
+      _packJobs.remove(lang);
+    });
   }
 
   Future<bool> _preparePackImpl(String lang) async {
@@ -832,7 +986,7 @@ class JuzzioAppController extends ChangeNotifier {
     try {
       final uri = Uri.parse(
         'https://translate.googleapis.com/translate_a/single'
-        '?client=gtx&sl=en&tl=$lang&dt=t&q=${Uri.encodeComponent(masked)}',
+        '?client=gtx&sl=en&tl=${juzzioGoogleLangCode(lang)}&dt=t&q=${Uri.encodeComponent(masked)}',
       );
       final res = await http.get(uri).timeout(timeout);
       if (res.statusCode != 200) return null;
@@ -964,6 +1118,17 @@ class JuzzioAppController extends ChangeNotifier {
       _syncContactsAcrossDevices = raw['syncContactsAcrossDevices'] is bool ? raw['syncContactsAcrossDevices'] as bool : _syncContactsAcrossDevices;
       _allowCameraEffects = raw['allowCameraEffects'] is bool ? raw['allowCameraEffects'] as bool : _allowCameraEffects;
       _cameraBeautyEnabled = raw['cameraBeautyEnabled'] is bool ? raw['cameraBeautyEnabled'] as bool : _cameraBeautyEnabled;
+      if (raw['beautyLevel'] is num) _beautyLevel = (raw['beautyLevel'] as num).toInt().clamp(1, 100);
+      if (raw['dataSaverEnabled'] is bool) _dataSaverEnabled = raw['dataSaverEnabled'] as bool;
+      if (raw['callNoiseFilterEnabled'] is bool) _callNoiseFilterEnabled = raw['callNoiseFilterEnabled'] as bool;
+      final ecm = raw['eyeComfortMode'];
+      if (ecm is String && const ['off', 'on', 'schedule', 'sun'].contains(ecm)) _eyeComfortMode = ecm;
+      if (raw['eyeComfortIntensity'] is num) _eyeComfortIntensity = (raw['eyeComfortIntensity'] as num).toInt().clamp(5, 90);
+      if (raw['eyeComfortStartMin'] is num) _eyeComfortStartMin = (raw['eyeComfortStartMin'] as num).toInt().clamp(0, 1439);
+      if (raw['eyeComfortEndMin'] is num) _eyeComfortEndMin = (raw['eyeComfortEndMin'] as num).toInt().clamp(0, 1439);
+      if (raw['eyeComfortLat'] is num) _eyeComfortLat = (raw['eyeComfortLat'] as num).toDouble();
+      if (raw['eyeComfortLng'] is num) _eyeComfortLng = (raw['eyeComfortLng'] as num).toDouble();
+      if (raw['autoErrorReports'] is bool) _autoErrorReports = raw['autoErrorReports'] as bool;
       final dtr = raw['doubleTapReaction']?.toString() ?? '';
       if (dtr.isNotEmpty) _doubleTapReaction = dtr;
       final starred = raw['starredMessageIds'];
@@ -975,7 +1140,7 @@ class JuzzioAppController extends ChangeNotifier {
       _blockUnknownVolumeMessages = raw['blockUnknownVolumeMessages'] is bool ? raw['blockUnknownVolumeMessages'] as bool : _blockUnknownVolumeMessages;
       _protectIpInCalls = raw['protectIpInCalls'] == true;
       _disableLinkPreviews = raw['disableLinkPreviews'] == true;
-      _e2eeTranslationOptIn = raw['e2eeTranslationOptIn'] == true;
+      _e2eeTranslationOptIn = raw['chatTranslationEnabled'] != false;
       _strictAccountSettings = raw['strictAccountSettings'] == true;
       _highContrastMode = raw['highContrastMode'] == true;
       _reduceMotion = raw['reduceMotion'] == true;
@@ -1092,12 +1257,22 @@ class JuzzioAppController extends ChangeNotifier {
         'blockedUsernames': _blockedUsernames,
         'allowCameraEffects': _allowCameraEffects,
         'cameraBeautyEnabled': _cameraBeautyEnabled,
+        'beautyLevel': _beautyLevel,
+        'dataSaverEnabled': _dataSaverEnabled,
+        'callNoiseFilterEnabled': _callNoiseFilterEnabled,
+        'eyeComfortMode': _eyeComfortMode,
+        'eyeComfortIntensity': _eyeComfortIntensity,
+        'eyeComfortStartMin': _eyeComfortStartMin,
+        'eyeComfortEndMin': _eyeComfortEndMin,
+        if (_eyeComfortLat != null) 'eyeComfortLat': _eyeComfortLat,
+        if (_eyeComfortLng != null) 'eyeComfortLng': _eyeComfortLng,
+        'autoErrorReports': _autoErrorReports,
         'doubleTapReaction': _doubleTapReaction,
         'starredMessageIds': _starredMessageIds,
         'blockUnknownVolumeMessages': _blockUnknownVolumeMessages,
         'protectIpInCalls': _protectIpInCalls,
         'disableLinkPreviews': _disableLinkPreviews,
-        'e2eeTranslationOptIn': _e2eeTranslationOptIn,
+        'chatTranslationEnabled': _e2eeTranslationOptIn,
         'strictAccountSettings': _strictAccountSettings,
         'highContrastMode': _highContrastMode,
         'reduceMotion': _reduceMotion,
@@ -1478,6 +1653,7 @@ class JuzzioAppController extends ChangeNotifier {
     await _saveDeviceUiLang(clean);
     _persistUserPreferences();
     notifyListeners();
+    onUiLangChanged?.call(clean);
     if (!kBuiltInUiLangs.contains(clean)) {
       unawaited(prepareLanguagePack(clean));
     }
@@ -1625,6 +1801,13 @@ class JuzzioAppController extends ChangeNotifier {
 
   void setAllowCameraEffects(bool val) {
     _allowCameraEffects = val;
+    _persistUserPreferences();
+    notifyListeners();
+  }
+
+  /// Yoğunluk (1..100) — kapatma için setCameraBeautyEnabled(false) kullanılır.
+  void setBeautyLevel(int level) {
+    _beautyLevel = level.clamp(1, 100);
     _persistUserPreferences();
     notifyListeners();
   }
@@ -2097,6 +2280,8 @@ class JuzzioAppController extends ChangeNotifier {
 
   /// Güncellemeden sonra ilk açılışta "Sürüm X ile neler geldi?" penceresi gösterilmeli mi?
   bool get whatsNewPending => _whatsNewPending;
+  /// v0.9.7: kullanıcının en son "Yenilikler"ini gördüğü sürüm (aradaki tüm sürümler gösterilir)
+  String get whatsNewSeenVersion => _whatsNewSeenVersion;
 
   Future<File> _otaStateFile() async {
     final dir = await getApplicationSupportDirectory();
@@ -2622,6 +2807,13 @@ class JuzzioAppController extends ChangeNotifier {
     bool isUpdate = false,
     bool isCall = false,
     String? channelId,
+    // v0.9.3: dokununca ilgili sohbete gitme + bildirimden yanıt için
+    String? eventType,
+    String? notificationId,
+    String? targetId,
+    String? targetSecondaryId,
+    String? actorId,
+    String? lockScreenBody,
   }) async {
     if (!_notificationsEnabled && !isUpdate && !isCall) return;
     try {
@@ -2631,6 +2823,12 @@ class JuzzioAppController extends ChangeNotifier {
         'isUpdate': isUpdate,
         'isCall': isCall,
         if (channelId != null && channelId.isNotEmpty) 'channelId': channelId,
+        if (eventType != null) 'eventType': eventType,
+        if (notificationId != null) 'notificationId': notificationId,
+        if (targetId != null) 'targetId': targetId,
+        if (targetSecondaryId != null) 'targetSecondaryId': targetSecondaryId,
+        if (actorId != null) 'actorId': actorId,
+        if (lockScreenBody != null) 'lockScreenBody': lockScreenBody,
         'id': DateTime.now().millisecondsSinceEpoch % 100000,
       });
     } catch (_) {}
@@ -2650,56 +2848,45 @@ class JuzzioPalette {
   Color get bgPrimary => Colors.transparent;
   Color get bgSecondary => isDark ? const Color(0x14FFFFFF) : const Color(0x8CFFFFFF);
   /// Alt pencere / diyalog gibi içeriğin üstüne açılan yüzeyler (okunurluk için yarı opak cam)
-  Color get sheetBg => (JuzzioGlassTokens.custom == null ? null : JuzzioGlassTokens.sheet) ?? (isDark ? const Color(0xC7101116) : const Color(0xE0F7F8FB));
-  Color get bgGlowTop => isDark ? JuzzioColors.slate900 : const Color(0xFFEEF2FF);
-  Color get bgGlowBottom => isDark ? JuzzioColors.surface191D26 : const Color(0xFFF3E8FF);
+  /// Alt pencere / diyalog / menü: v1.0.0 neredeyse opak, temanın derin tonunda (okunur)
+  Color get sheetBg => JuzzioGlassTokens.sheet;
+  Color get bgGlowTop => JuzzioGlassTokens.space.depth[0];
+  Color get bgGlowBottom => JuzzioGlassTokens.space.depth[2];
 
-  // v0.5 nötr cam: koyu modda kartlar hafif saydam grafit + ince kristal kenar
-  // v0.8.1 sıvı cam: yüzeyler yarı saydam, seçili tema arkadan görünür
-  Color get cardBg => (JuzzioGlassTokens.custom == null ? null : JuzzioGlassTokens.surfaceSolid) ?? (isDark
-      ? const Color(0x5C15161B)
-      : const Color(0x8CFFFFFF));
-  Color get cardBgElevated => (JuzzioGlassTokens.custom == null ? null : JuzzioGlassTokens.surfaceSolid) ?? (isDark
-      ? const Color(0x7A1C1D23)
-      : const Color(0xB3FFFFFF));
-  Color get glassPanelBg => (JuzzioGlassTokens.custom == null ? null : JuzzioGlassTokens.surfaceSolid) ?? (isDark
-      ? const Color(0x70121318)
-      : const Color(0xA6FFFFFF));
+  // v1.0.0 Juzzio Space: tüm sayfalardaki kart/panel/girdi yüzeyleri aynı cam belirteçlerinden
+  Color get cardBg => (JuzzioGlassTokens.custom == null ? null : JuzzioGlassTokens.surfaceSolid) ?? JuzzioGlassTokens.spaceCard;
+  Color get cardBgElevated => (JuzzioGlassTokens.custom == null ? null : JuzzioGlassTokens.surfaceSolid) ?? JuzzioGlassTokens.spaceButton;
+  Color get glassPanelBg => (JuzzioGlassTokens.custom == null ? null : JuzzioGlassTokens.surfaceSolid) ?? JuzzioGlassTokens.spaceCard;
   Color get glassCardBg => glassPanelBg;
-  Color get inputBg => (JuzzioGlassTokens.custom == null ? null : JuzzioGlassTokens.surface) ?? (isDark
-      ? const Color(0x14FFFFFF)
-      : const Color(0x8CFFFFFF));
-  Color get pillBg => (JuzzioGlassTokens.custom == null ? null : JuzzioGlassTokens.surfaceStrong) ?? (isDark
-      ? const Color(0x1AFFFFFF)
-      : const Color(0x99FFFFFF));
+  Color get inputBg => (JuzzioGlassTokens.custom == null ? null : JuzzioGlassTokens.surface) ?? JuzzioGlassTokens.spaceInset;
+  Color get pillBg => (JuzzioGlassTokens.custom == null ? null : JuzzioGlassTokens.surfaceStrong) ?? JuzzioGlassTokens.spaceButton;
 
-  Color get glassBorder => (JuzzioGlassTokens.custom == null ? null : JuzzioGlassTokens.border) ?? (isDark
-      ? const Color(0x2EFFFFFF)
-      : const Color(0xB3FFFFFF));
+  Color get glassBorder => (JuzzioGlassTokens.custom == null ? null : JuzzioGlassTokens.border) ?? JuzzioGlassTokens.spaceCardBorder;
   Color get glassHighlight => isDark
       ? Colors.white.withValues(alpha: 0.08)
       : Colors.white;
 
-  // "Cool!" ve "Turn on notifications" butonlarının karakteristik derin siyah (#161618) tonu
-  Color get coolButtonBg => JuzzioGlassTokens.custom?.button ?? (isDark ? JuzzioColors.white : JuzzioColors.ink);
-  Color get coolButtonFg => JuzzioGlassTokens.custom?.buttonText ?? (isDark ? JuzzioColors.surface141416 : JuzzioColors.white);
+  /// Birincil buton: temanın parlayan vurgusu
+  Color get coolButtonBg => JuzzioGlassTokens.glow;
+  Color get coolButtonFg => JuzzioGlassTokens.onGlow;
 
-  // Vurgu renkleri: Modern Orman Siyahı (#07120C) + Kraliyet İndigo/Mavisi (#2563EB / #3B28CC)
-  // Gece modunda eski turuncu tonlar tamamen kaldırıldı.
-  Color get amberPrimary => JuzzioColors.blue600;
-  Color get amberLight => isDark ? JuzzioColors.blue500 : JuzzioColors.slate800;
-  Color get amberDark => JuzzioColors.surface0B0F17;
-  Color get amberGlow => JuzzioGlassTokens.custom?.icon ?? (isDark ? JuzzioColors.blue400 : JuzzioColors.blue600);
+  // Vurgu renkleri temanın parlayan vurgusundan türetilir (aydınlıkta okunur tonu)
+  Color get amberPrimary => JuzzioGlassTokens.glowText;
+  Color get amberLight => JuzzioGlassTokens.glowText;
+  Color get amberDark => JuzzioGlassTokens.space.depth[2];
+  /// Beyaz yazının okunduğu koyu vurgu tonu (avatar baş harf zemini, kilit rozeti)
+  Color get accentDeep => Color.lerp(JuzzioGlassTokens.glow, const Color(0xFF000000), 0.58)!;
+  Color get amberGlow => JuzzioGlassTokens.custom?.icon ?? JuzzioGlassTokens.glowText;
   Color get badgeOrange => JuzzioColors.red500;
-  Color get badgeBlue => JuzzioColors.blueVivid;
+  Color get badgeBlue => JuzzioGlassTokens.glowText;
   Color get headerDarkForest => Colors.transparent;
-  Color get activeNavIndigo => isDark ? JuzzioColors.indigo500 : JuzzioColors.brandIndigo;
+  Color get activeNavIndigo => JuzzioGlassTokens.glowText;
 
-  Color get textPrimary => JuzzioGlassTokens.custom?.text ?? (isDark ? JuzzioColors.slate50 : JuzzioColors.slate900);
-  Color get textSecondary => (JuzzioGlassTokens.custom == null ? null : JuzzioGlassTokens.textSecondary) ?? (isDark ? JuzzioColors.slate400 : JuzzioColors.slate500);
-  Color get textMuted => (JuzzioGlassTokens.custom == null ? null : JuzzioGlassTokens.textMuted) ?? (isDark ? JuzzioColors.slate500 : JuzzioColors.slate400);
+  Color get textPrimary => JuzzioGlassTokens.textPrimary;
+  Color get textSecondary => JuzzioGlassTokens.textSecondary;
+  Color get textMuted => JuzzioGlassTokens.textMuted;
 
-  Color get onlineGreen => JuzzioColors.emerald500;
+  Color get onlineGreen => JuzzioGlassTokens.glow;
   Color get dangerRed => JuzzioColors.red500;
 
   // Nötr cam: giden balon grafit, beyaz yazı her iki modda okunur
@@ -2764,25 +2951,13 @@ class JuzzioPalette {
   LinearGradient get backgroundGradient => LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: isDark
-            ? const [
-                JuzzioColors.obsidianRaised,
-                JuzzioColors.obsidian,
-                Color(0xFF070708),
-              ]
-            : const [
-                JuzzioColors.white,
-                JuzzioColors.surfaceF9FAFC,
-                JuzzioColors.surfaceF3F5F9,
-              ],
+        colors: isDark ? JuzzioGlassTokens.space.depth : JuzzioGlassTokens.space.depthLight,
       );
 
   LinearGradient get amberButtonGradient => LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: isDark
-            ? const [Color(0xFF636366), Color(0xFF3A3A3C)]
-            : const [JuzzioColors.deepForest, JuzzioColors.slate800],
+        colors: [accentDeep, Color.lerp(accentDeep, JuzzioGlassTokens.glow, 0.35)!],
       );
 }
 
@@ -2829,7 +3004,7 @@ class JuzzioCoolPillButton extends StatelessWidget {
               ? SizedBox(
                   width: 22,
                   height: 22,
-                  child: CircularProgressIndicator(color: fg, strokeWidth: 2.4),
+                  child: JuzzioOrbitLoader(color: fg, strokeWidth: 2.4),
                 )
               : Row(
                   mainAxisSize: MainAxisSize.min,
@@ -3730,7 +3905,7 @@ class JuzzioLanguagePickerSheet extends StatefulWidget {
     required String currentCode,
     required ValueChanged<String> onSelected,
   }) {
-    return showModalBottomSheet(
+    return showJuzzioSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -3974,6 +4149,13 @@ class JuzzioModernThemeSelector extends StatelessWidget {
                   ),
                 ),
               ),
+              // v1.1.0: güneşin aya dönüştüğü gece/gündüz anahtarı (dairesel tema geçişiyle)
+              JuzzioSwitch(
+                style: JuzzioToggleStyle.dayNight,
+                value: ctrl.isDark,
+                semanticLabel: s.t('theme_mode_title'),
+                onChanged: (v) => ctrl.setThemeMode(v ? ThemeMode.dark : ThemeMode.light),
+              ),
             ],
           ),
           const SizedBox(height: 14),
@@ -4087,7 +4269,7 @@ Future<void> juzzioSwitchUiLanguage(BuildContext context, String code, {bool als
               SizedBox(
                 width: 18,
                 height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2, value: value ?? 1),
+                child: JuzzioOrbitLoader(strokeWidth: 2, value: value ?? 1),
               ),
               const SizedBox(width: 12),
               Expanded(

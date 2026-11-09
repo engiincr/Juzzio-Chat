@@ -145,8 +145,10 @@ class JuzzioE2ee {
       _epochKeys.clear();
       _plainCache.clear();
       _mediaKeys.clear(); // hesap değişince medya anahtarları unutulur
+      _publishPending = false;
     }
-    return _init ??= _load(uid);
+    final init = _init ??= _load(uid);
+    return init.then((_) => _retryPublishIfNeeded(uid));
   }
 
   Future<_IdentityKey> _materialize(_IdentityKey k) async {
@@ -180,10 +182,38 @@ class JuzzioE2ee {
         await _rotateIdentity(uid, firstFromV1: cur == null ? v1 : null);
       }
       await _materialize(_current!);
-      await _publish(uid);
     } catch (_) {
       _init = null;
+      return;
     }
+    // v0.9.2: anahtarlar cihazda hazır; açık anahtar yayını ağ ister. Çevrimdışıyken
+    // başarısız olursa yerel çözme ÇALIŞMAYA DEVAM EDER, yayın sonra yeniden denenir.
+    // v0.9.3: ekransız bildirim motorunda yayın beklenmez (bildirim süresi kısıtlı) — ana
+    // uygulama açılınca yayınlanır.
+    if (headless) {
+      _publishPending = true;
+      return;
+    }
+    try {
+      await _publish(uid);
+      _publishPending = false;
+    } catch (_) {
+      _publishPending = true;
+    }
+  }
+
+  /// Ekransız (bildirim çözme / hızlı yanıt) motorlarda true: ağ yayını yapılmaz.
+  bool headless = false;
+
+  bool _publishPending = false;
+  DateTime? _lastPublishTry;
+
+  void _retryPublishIfNeeded(String uid) {
+    if (!_publishPending || headless) return;
+    final now = DateTime.now();
+    if (_lastPublishTry != null && now.difference(_lastPublishTry!) < const Duration(seconds: 30)) return;
+    _lastPublishTry = now;
+    _publish(uid).then((_) => _publishPending = false, onError: (_) {});
   }
 
   /// Yeni kimlik anahtarı (yeniden anahtarlama). Eski anahtarlar geçmiş mesajlar için saklanır.
@@ -309,6 +339,20 @@ class JuzzioE2ee {
     final payload = await encryptForRoom(roomId, text: text, translated: translated, media: media);
     if (payload == null) return const JuzzioE2eeOutcome(JuzzioE2eeStatus.unavailable);
     return JuzzioE2eeOutcome(JuzzioE2eeStatus.encrypted, payload);
+  }
+
+  /// v0.9.5: Güvenlik numarası (Signal/WhatsApp benzeri). İki tarafın kimlik + KEM açık
+  /// anahtarlarından türetilir; iki cihazda aynı 60 haneyi görüyorsanız arada kimse yoktur.
+  /// Anahtar yoksa null döner.
+  Future<String?> safetyNumber(String peerUid) async {
+    final me = SupabaseService.instance.currentUserId;
+    final c0 = _current;
+    if (me == null || c0 == null) return null;
+    final cur = await _materialize(c0);
+    if (cur.xPub.isEmpty || cur.kemEk == null) return null;
+    final peer = await _peerBundle(peerUid);
+    if (peer == null || peer.$1.isEmpty || peer.$2.isEmpty) return null;
+    return juzzioSafetyNumber(me, '${cur.xPub}|${base64Encode(cur.kemEk!)}', peerUid, '${peer.$1}|${peer.$2}');
   }
 
   Future<String?> peerForRoom(String roomId) async {
@@ -467,7 +511,9 @@ class JuzzioE2ee {
     final e = m.metadata['e2ee'];
     if (e is! Map || m.isDeleted) return m;
     // v0.9.0 §4.5: düzenlenen mesajın eski çözümü kullanılmaz (anahtar = kimlik + düzenleme zamanı)
-    final cacheKey = '${m.id}@${m.editedAt?.toIso8601String() ?? ''}';
+    // v1.0.0: çeviri gönderimden sonra ayrı şifreli yük (e2ee_tr) olarak gelebilir
+    final trPayload = m.metadata['e2ee_tr'];
+    final cacheKey = '${m.id}@${m.editedAt?.toIso8601String() ?? ''}${trPayload is Map ? '+tr' : ''}';
     final hit = _plainCache[cacheKey];
     if (hit != null) return m.withText(hit.$1, hit.$2);
     await ensureReady();
@@ -476,7 +522,17 @@ class JuzzioE2ee {
       if (clear == null) return m.withText(_lockedText(), '');
       final obj = jsonDecode(utf8.decode(clear));
       final t = (obj is Map ? obj['t'] : '')?.toString() ?? '';
-      final x = (obj is Map ? obj['x'] : '')?.toString() ?? '';
+      var x = (obj is Map ? obj['x'] : '')?.toString() ?? '';
+      if (x.isEmpty && trPayload is Map) {
+        try {
+          final tm = Map<String, dynamic>.from(trPayload);
+          final c2 = (tm['v'] == 2) ? await _decryptV2(tm) : await _decryptV1(tm);
+          if (c2 != null) {
+            final o2 = jsonDecode(utf8.decode(c2));
+            x = (o2 is Map ? o2['t'] : '')?.toString() ?? '';
+          }
+        } catch (_) {}
+      }
       final mk = obj is Map ? JuzzioMediaKey.fromJson(obj['m']) : null;
       if (mk != null) _mediaKeys[m.id] = mk;
       if (_plainCache.length > 4000) _plainCache.clear();
@@ -541,4 +597,21 @@ class JuzzioE2ee {
 
   String _lockedText() =>
       '🔒 Bu mesajın anahtarı bu cihazda yok. Ayarlar → Sohbet yedeği → Yedeği geri yükle ile açabilirsin.';
+}
+
+/// v0.9.5: kullanıcı kimliği sıralı (iki tarafta aynı sonuç), SHA-256 → 60 hane (12 × 5).
+Future<String> juzzioSafetyNumber(String uidA, String keysA, String uidB, String keysB) async {
+  final a = '$uidA:$keysA';
+  final b = '$uidB:$keysB';
+  final ordered = uidA.compareTo(uidB) <= 0 ? '$a\n$b' : '$b\n$a';
+  final digest = await Sha256().hash(utf8.encode('juzzio-safety-v1\n$ordered'));
+  final bytes = digest.bytes;
+  final out = StringBuffer();
+  for (var i = 0; i < 12; i++) {
+    // her grup için 3 bayt → 0..16777215 → mod 100000 (5 hane)
+    final v = (bytes[i * 2] << 16) | (bytes[i * 2 + 1] << 8) | bytes[(i * 2 + 2) % bytes.length];
+    out.write((v % 100000).toString().padLeft(5, '0'));
+    if (i != 11) out.write(i % 4 == 3 ? '\n' : ' ');
+  }
+  return out.toString();
 }

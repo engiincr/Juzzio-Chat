@@ -174,9 +174,10 @@ void main() {
   });
 
   group('Denetim D — uçtan uca şifreleme', () {
-    test('E2EE mesajları için üçüncü taraf çeviri izni varsayılan olarak KAPALI', () {
-      expect(JuzzioAppController.instance.e2eeTranslationOptIn, isFalse);
-      expect(JuzzioAppController.instance.preferencesSnapshot()['e2eeTranslationOptIn'], isFalse);
+    test('sohbet çevirisi varsayılan olarak AÇIK (ürün kararı); yeni anahtarla kaydedilir', () {
+      expect(JuzzioAppController.instance.e2eeTranslationOptIn, isTrue);
+      expect(JuzzioAppController.instance.preferencesSnapshot()['chatTranslationEnabled'], isTrue);
+      expect(JuzzioAppController.instance.preferencesSnapshot().containsKey('e2eeTranslationOptIn'), isFalse);
     });
 
     test('şifreleme yapılamadığında özel istisna; durum mesajda saklanır', () {

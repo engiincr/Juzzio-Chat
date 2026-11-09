@@ -14,13 +14,15 @@ import '../../services/supabase_service.dart';
 import '../../widgets/social_common_widgets.dart';
 import '../../widgets/juzzio_mentions.dart';
 import '../profile/juzzio_profile_view.dart';
+import '../../widgets/juzzio_cloth_refresh.dart';
+import '../../widgets/juzzio_motion.dart';
 
 /// Merkezdeki "+" Oluşturma Seçim Menüsü (Gönderi / Hikâye / İptal)
 Future<String?> showJuzzioCreateContentBottomSheet(BuildContext context) async {
   final app = JuzzioAppController.instance;
   final isDark = app.isDark;
 
-  return showModalBottomSheet<String>(
+  return showJuzzioSheet<String>(
     context: context,
     backgroundColor: JuzzioSocialTokens.cardBg(isDark),
     shape: const RoundedRectangleBorder(
@@ -242,9 +244,10 @@ class _JuzzioPostDetailAndCommentsPageState
   }
 
   Future<void> _loadPostAndComments() async {
+    // v1.1.1: yenilemede içerik sökülmez (aşağı çek animasyonu kesilmez, boş iskelet yanıp sönmez)
     setState(() {
       if (_post == null) _postState = JuzzioDataLoadState.initialLoading;
-      _commentsState = JuzzioDataLoadState.initialLoading;
+      if (_comments.isEmpty) _commentsState = JuzzioDataLoadState.initialLoading;
     });
     try {
       final verifiedPost = await JuzzioSocialService.instance.fetchPostById(widget.postId);
@@ -283,6 +286,19 @@ class _JuzzioPostDetailAndCommentsPageState
         _commentsState = JuzzioDataLoadState.error;
       });
     }
+  }
+
+  /// v0.9.3: yanıtla → yanıtlanan kişi otomatik @etiketlenir (bahsetme bildirimi sunucuda
+  /// yanıt bildirimiyle birleştirilir). Kullanıcı etiketi silebilir; başka @kişiler ekleyebilir.
+  void _prefillReplyMention(String username) {
+    final u = username.trim().replaceAll('@', '');
+    if (u.isEmpty) return;
+    final tag = '@$u ';
+    final current = _commentCtrl.text;
+    // Önceki yanıtın etiketiyle başlıyorsa onu değiştir; yoksa başa ekle
+    final stripped = current.replaceFirst(RegExp(r'^@[A-Za-z0-9_.]{1,30}\s+'), '');
+    final next = tag + stripped;
+    _commentCtrl.value = TextEditingValue(text: next, selection: TextSelection.collapsed(offset: next.length));
   }
 
   Future<void> _submitComment() async {
@@ -443,7 +459,7 @@ class _JuzzioPostDetailAndCommentsPageState
                             actionLabel: app.loc('Geri Dön', 'Go Back', 'Zurück'),
                             onAction: () => Navigator.pop(context),
                           )
-                        : RefreshIndicator(
+                        : JuzzioClothRefresh(
                             onRefresh: _loadPostAndComments,
                             child: ListView(
                               padding: const EdgeInsets.only(top: 8, bottom: 20),
@@ -595,6 +611,7 @@ class _JuzzioPostDetailAndCommentsPageState
                                                     InkWell(
                                                       onTap: () {
                                                         setState(() => _replyingTo = c);
+                                                        _prefillReplyMention(c.authorUsername);
                                                         _commentFocus.requestFocus();
                                                       },
                                                       child: Text(
@@ -735,7 +752,12 @@ class _JuzzioPostDetailAndCommentsPageState
                                     ),
                                   ),
                                   InkWell(
-                                    onTap: () => setState(() => _replyingTo = null),
+                                    onTap: () {
+                                      // Yanıt iptal: otomatik eklenen etiket (tek başınaysa) kaldırılır
+                                      final u = _replyingTo?.authorUsername ?? '';
+                                      if (u.isNotEmpty && _commentCtrl.text.trim() == '@$u') _commentCtrl.clear();
+                                      setState(() => _replyingTo = null);
+                                    },
                                     child: const Icon(Icons.close_rounded, size: 16),
                                   ),
                                 ],
@@ -787,7 +809,7 @@ class _JuzzioPostDetailAndCommentsPageState
                                     ? const SizedBox(
                                         width: 18,
                                         height: 18,
-                                        child: CircularProgressIndicator(
+                                        child: JuzzioOrbitLoader(
                                           strokeWidth: 2,
                                           color: Colors.white,
                                         ),
@@ -1348,24 +1370,36 @@ class _JuzzioFriendsAndRelationsPageState
   }
 
   Future<void> _loadAllRelations() async {
-    setState(() => _loading = true);
+    // v1.1.1: yenilemede içerik sökülmez (aşağı çek animasyonu kesilmez, boş iskelet yanıp sönmez)
+    setState(() => _loading = _allProfiles.isEmpty && _friendships.isEmpty);
     try {
-      await JuzzioSocialService.instance.refreshMyInteractionSets();
-      final profiles = await SupabaseService.instance.fetchAllProfiles();
-      final followers = await JuzzioSocialService.instance.fetchFollowers(widget.currentUser.id);
-      final following = await JuzzioSocialService.instance.fetchFollowing(widget.currentUser.id);
-      final followReqs = await JuzzioSocialService.instance.fetchPendingFollowRequests();
-      List<JuzzioFriendship> fships = const [];
-      try {
-        final rows = await SupabaseService.instance.client
-            .from('friendships')
-            .select()
-            .or('requester_id.eq.${widget.currentUser.id},receiver_id.eq.${widget.currentUser.id}')
-            .order('created_at', ascending: false);
-        fships = (rows as List)
-            .map((e) => JuzzioFriendship.fromMap(e as Map<String, dynamic>))
-            .toList();
-      } catch (_) {}
+      // v1.1.1 performans: bağımsız istekler paralel (önceden 6 istek sırayla bekleniyordu)
+      await JuzzioSocialService.instance.refreshMyInteractionSets(force: true);
+      final social = JuzzioSocialService.instance;
+      final uid = widget.currentUser.id;
+      final profilesF = SupabaseService.instance.fetchAllProfiles();
+      final followersF = social.fetchFollowers(uid);
+      final followingF = social.fetchFollowing(uid);
+      final followReqsF = social.fetchPendingFollowRequests();
+      final fshipsF = () async {
+        try {
+          final rows = await SupabaseService.instance.client
+              .from('friendships')
+              .select()
+              .or('requester_id.eq.$uid,receiver_id.eq.$uid')
+              .order('created_at', ascending: false);
+          return (rows as List).map((e) => JuzzioFriendship.fromMap(e as Map<String, dynamic>)).toList();
+        } catch (_) {
+          return <JuzzioFriendship>[];
+        }
+      }();
+      // Future.wait: hepsine hata işleyicisi bağlanır (yakalanmamış asenkron hata kalmaz)
+      await Future.wait<Object?>([profilesF, followersF, followingF, followReqsF, fshipsF]);
+      final profiles = await profilesF;
+      final followers = await followersF;
+      final following = await followingF;
+      final followReqs = await followReqsF;
+      final fships = await fshipsF;
 
       if (!mounted) return;
       setState(() {
@@ -1433,7 +1467,7 @@ class _JuzzioFriendsAndRelationsPageState
           Expanded(
             child: _loading
                 ? const JuzzioSkeletonListView(itemCount: 4, itemHeight: 74)
-                : RefreshIndicator(
+                : JuzzioClothRefresh(
                     onRefresh: _loadAllRelations,
                     child: _buildTabContent(isDark, app),
                   ),

@@ -1,7 +1,7 @@
 name: juzzio
 description: "JUZZIO - Zero-Latency Bidirectional Translation, LiveKit Group Conference Audio/Video Call & Voice Note Messenger"
 publish_to: 'none'
-version: 0.9.0+90
+version: 1.1.1+111
 
 environment:
   sdk: '>=3.4.0 <4.0.0'
@@ -29,6 +29,19 @@ dependencies:
   path_provider: ^2.1.4
   permission_handler: ^11.3.1
   image_picker: ^1.1.2
+  # v0.9.3: hikâye fotoğraflarında ayarlanabilir güzelleştirme (çözme/kodlama, saf Dart)
+  image: ^4.2.0
+  # v0.9.4: sohbette belge gönderme (PDF/ZIP/DOCX…), belgeyi açma ve konum paylaşımı
+  # v0.9.9: ^13 — <12 sürümleri win32 ^5 ister; flutter_secure_storage ^11 (win32 ^6) ile çakışıyordu.
+  # flutter_secure_storage düşürülmedi: cihazlardaki E2EE anahtarları v11 formatında saklı.
+  file_picker: ^13.3.2
+  open_filex: ^4.5.0
+  geolocator: '>=13.0.1 <15.0.0'
+  # v0.9.6: mobil veride aramada 'Veri Koruma' önerisi
+  connectivity_plus: '>=6.0.0 <8.0.0'
+  # v0.9.7: Drift (SQLite) yerel önbellek — kod üretimi (build_runner) gerektirmez
+  drift: ^2.20.0
+  sqlite3_flutter_libs: '>=0.5.0 <0.7.0'
 
   # Hikâye ve sohbet videolarını oynatma
   video_player: ^2.9.2
@@ -59,6 +72,9 @@ flutter:
   assets:
     - assets/logo/juzzio_logo.png
     - assets/creator/engin.jpg
+    # v0.9.5: giden arama bekleme tonu (kendi ürettiğimiz 400+450 Hz çift tonu, telifsiz)
+    - assets/sounds/juzzio_ringback.wav
+    # v1.1.1: kumaş yenileme artık tamamen vektörle çiziliyor (assets/cloth kaldırıldı, −1,1 MB)
 
   # v0.5: Uygulama genelinde tek ve tutarlı emoji görünümü (mesajlar, tepkiler,
   # emoji seçici, hikâye çıkartmaları). Noto Color Emoji — SIL Open Font License 1.1

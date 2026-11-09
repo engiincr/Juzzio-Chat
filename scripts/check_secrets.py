@@ -23,6 +23,20 @@ RULES = [
     ("Deepgram anahtarı (40 hex, Token)", r"(?i)token\s+[0-9a-f]{40}\b"),
     ("Gizli değişken ataması", r"(?i)(api[_-]?secret|livekit[_-]?api[_-]?secret|deepgram[_-]?api[_-]?key|service[_-]?role[_-]?key|storePassword|keyPassword)\s*[:=]\s*['\"]?[A-Za-z0-9_\-/+]{12,}"),
     ("TC kimlik / IBAN", r"\bTR\d{2}\s?(\d{4}\s?){5}\d{2}\b"),
+    # v0.9.7: push webhook paylaşılan sırrı ve LiveKit API sırrı
+    ("Webhook sırrı", r"(?i)x-webhook-secret['\"]?[ \t]*[:=,][ \t]*['\"][A-Za-z0-9_\-]{16,}['\"]"),
+    ("LiveKit API sırrı", r"(?i)LIVEKIT_API_SECRET\s*=\s*[A-Za-z0-9]{20,}"),
+]
+
+# v0.9.7: depoda İZLENMESİ yasak dosyalar (.gitignore'u aşıp `git add -f` ile eklense bile yakalanır)
+FORBIDDEN_TRACKED = [
+    r"(^|/)\.env$", r"(^|/)\.env\.(?!example$|sample$|template$)[^/]+$",
+    r"(^|/)google-services\.json$", r"(^|/)GoogleService-Info\.plist$",
+    r"\.(jks|keystore|p12|pfx|p8|pem|key|mobileprovision)$",
+    r"(^|/)key\.properties$", r"_base64\.txt$",
+    r"\.(sqlite|sqlite3|db)(-wal|-shm|-journal)?$",
+    r"(^|/)(credentials|secrets)\.(json|ya?ml)$", r"service-account.*\.json$", r"firebase-adminsdk.*\.json$",
+    r"\.(apk|aab)$",
 ]
 ALLOW = ("scripts/check_secrets.py", ".github/workflows/android-ci.yml")
 SKIP_EXT = (".png", ".jpg", ".jpeg", ".webp", ".ogg", ".ttf", ".otf", ".jks", ".keystore", ".apk", ".zip")
@@ -71,6 +85,10 @@ def main() -> int:
         return scan_history()
     files = subprocess.run(["git", "ls-files", "-z"], capture_output=True, text=True, check=True).stdout.split("\0")
     bad = 0
+    for f in files:
+        if f and any(re.search(rx, f) for rx in FORBIDDEN_TRACKED):
+            print(f"::error file={f}::Bu dosya depoda izlenemez (gizli anahtar / imza / yerel veritabanı / derleme çıktısı). `git rm --cached` ile çıkarın.")
+            bad += 1
     for f in files:
         if not f or f in ALLOW or f.lower().endswith(SKIP_EXT):
             continue

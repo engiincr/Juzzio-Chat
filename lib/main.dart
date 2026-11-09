@@ -15,8 +15,13 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/app_theme_and_locale.dart';
 import 'core/config.dart';
+import 'widgets/juzzio_clock_guard.dart';
+import 'widgets/juzzio_eye_comfort.dart';
+import 'widgets/juzzio_theme_reveal.dart';
 import 'core/native_bridge.dart';
 import 'screens/chat_screen.dart';
+import 'services/juzzio_e2ee.dart';
+import 'services/juzzio_error_reporter.dart';
 import 'services/fcm_push_service.dart';
 import 'services/juzzio_quick_reply.dart';
 import 'services/juzzio_notification_preview.dart';
@@ -27,6 +32,8 @@ import 'screens/banned_screen.dart';
 import 'core/theme/juzzio_colors.dart';
 import 'core/theme/juzzio_aurora.dart';
 import 'core/theme/juzzio_glass.dart';
+import 'widgets/juzzio_motion.dart';
+import 'widgets/juzzio_splash.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -49,6 +56,8 @@ Future<void> main() async {
     anonKey: JuzzioConfig.supabaseAnonKey,
   );
   JuzzioFcmPushService.instance.ensureAuthStateListener();
+  // v0.9.6: otomatik hata / çökme bildirimi (Yönetici → Sistem → Hatalar)
+  JuzzioErrorReporter.instance.install();
 
   // Glassmorphism: her sayfanın arkasındaki aurora zemini seçili cam temasını izler
   final appCtrl = JuzzioAppController.instance;
@@ -59,6 +68,8 @@ Future<void> main() async {
   JuzzioGlassTokens.isDarkResolver = () => appCtrl.isDark;
   // v0.8.4: hazır temanın cam karakteri (özel temada standart karakter)
   JuzzioGlassTokens.characterResolver = () => appCtrl.glassPalette.character;
+  JuzzioGlassTokens.accentPairResolver = () => [appCtrl.glassPalette.swatchA, appCtrl.glassPalette.swatchB];
+  JuzzioGlassTokens.spaceResolver = () => appCtrl.glassPalette.space;
   // v0.8.2 erişilebilirlik: Yüksek Kontrast teması, Ayarlar → Erişilebilirlik → "Kontrastı artır"
   // veya işletim sisteminin yüksek kontrast ayarı açıkken kenar ve metinler belirginleşir.
   JuzzioGlassTokens.highContrastResolver = () =>
@@ -77,6 +88,8 @@ Future<void> main() async {
         .timeout(const Duration(milliseconds: 800));
   } catch (_) {}
 
+  JuzzioErrorReporter.instance.userEnabled = appCtrl.autoErrorReports;
+
   // Düşük donanımlı cihazda blur fallback (kullanıcı seçimi her zaman önceliklidir)
   JuzzioNative.isLowEndDevice().then((low) => appCtrl.applyDeviceProfile(lowEnd: low));
 
@@ -93,9 +106,15 @@ Future<void> juzzioQuickReplyMain() async {
   const channel = MethodChannel('juzzio/quick_reply');
   Map<String, Object> outcome = {'ok': false, 'status': JuzzioQuickReplyStatus.failed.name};
   try {
+    JuzzioE2ee.instance.headless = true;
     await Supabase.initialize(url: JuzzioConfig.supabaseUrl, anonKey: JuzzioConfig.supabaseAnonKey);
     final req = await channel.invokeMapMethod<String, dynamic>('take');
     if (req != null) {
+      try {
+        await JuzzioAppController.instance
+            .loadUserPreferences(Supabase.instance.client.auth.currentUser?.id)
+            .timeout(const Duration(seconds: 2));
+      } catch (_) {}
       // v0.9.0 N-E: Android'in ürettiği client_msg_id ile idempotent gönderim
       outcome = await JuzzioQuickReply.handleChannelArgs(req);
     }
@@ -117,6 +136,7 @@ Future<void> juzzioNotificationPreviewMain() async {
   const channel = MethodChannel('juzzio/notif_preview');
   Map<String, Object?> outcome = {'text': null};
   try {
+    JuzzioE2ee.instance.headless = true;
     await Supabase.initialize(url: JuzzioConfig.supabaseUrl, anonKey: JuzzioConfig.supabaseAnonKey);
     final req = await channel.invokeMapMethod<String, dynamic>('take');
     if (req != null) {
@@ -178,9 +198,9 @@ const PageTransitionsTheme kJuzzioPageTransitions = PageTransitionsTheme(
   },
 );
 
-const Set<String> _kRtlLangs = {'ar', 'fa', 'he', 'iw', 'ur', 'ps', 'ckb', 'yi', 'sd', 'ug', 'dv'};
+const Set<String> _kRtlLangs = {'ar', 'fa', 'he', 'iw', 'ur', 'ps', 'ckb', 'yi', 'sd', 'ug', 'dv', 'bal'};
 
-bool juzzioIsRtl(String uiLang) => _kRtlLangs.contains(uiLang.toLowerCase().split(RegExp('[-_]')).first) || uiLang.toLowerCase() == 'ckb';
+bool juzzioIsRtl(String uiLang) => _kRtlLangs.contains(uiLang.toLowerCase().split(RegExp('[-_]')).first) || uiLang.toLowerCase() == 'ckb' || uiLang.toLowerCase().endsWith('-arab');
 
 /// Uygulama dilini Flutter'ın desteklediği en yakın Material diline eşler.
 Locale juzzioMaterialLocale(String uiLang) {
@@ -205,7 +225,8 @@ Widget _resolveInitialHome() {
         .toString()
         .replaceAll('@', '');
     final lang = (meta['preferred_lang'] ?? JuzzioAppController.instance.subtitleLang).toString();
-    return ChatScreen(myDisplayName: uname, myLanguage: lang);
+    // v1.1.0: Android açılışından kesintisiz marka perdesi (sohbetler altında yüklenir)
+    return JuzzioLaunchCurtain(child: ChatScreen(myDisplayName: uname, myLanguage: lang));
   }
   return const JuzzioRootFlow();
 }
@@ -269,7 +290,23 @@ class JuzzioApp extends StatelessWidget {
             ),
             child: Directionality(
               textDirection: juzzioIsRtl(appCtrl.uiLang) ? TextDirection.rtl : TextDirection.ltr,
-              child: child ?? const SizedBox.shrink(),
+              // v0.9.4: cihaz saati sunucudan 2 dk'dan fazla saparsa tüm sayfaların üstünde uyarı
+              // v0.9.6: Göz Konforu (amber mavi ışık filtresi) en üst katmanda, dokunmayı engellemez
+              // v0.9.7: koyu/aydınlık geçişinde dairesel reveal
+              // v1.1.0: Dynamic Island tarzı canlı durum kapsülü (arama, ses kaydı, yükleme) tüm sayfaların üstünde
+              child: JuzzioEyeComfortOverlay(
+                child: JuzzioThemeReveal(
+                  child: JuzzioClockGuard(
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        child ?? const SizedBox.shrink(),
+                        const JuzzioLiveIsland(),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
           // Başlangıç ekranı yalnızca bir kez belirlenir: oturum açıksa doğrudan
@@ -509,7 +546,7 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 300),
                   child: _booting
-                      ? const Center(child: CircularProgressIndicator(strokeWidth: 2.4))
+                      ? const JuzzioSplash()
                       : _step == 0
                       ? _buildOnboardingStep1Cool(p, s)
                       : _step == 1
@@ -610,10 +647,13 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
                 shape: BoxShape.circle,
                 border: Border.all(color: p.glassBorder),
               ),
-              child: Icon(
-                appCtrl.isDark ? Icons.dark_mode_rounded : Icons.wb_sunny_rounded,
-                color: p.textPrimary,
-                size: 17,
+              child: JuzzioSymbolSwap(
+                child: Icon(
+                  appCtrl.isDark ? Icons.dark_mode_rounded : Icons.wb_sunny_rounded,
+                  key: ValueKey(appCtrl.isDark),
+                  color: p.textPrimary,
+                  size: 17,
+                ),
               ),
             ),
           ),

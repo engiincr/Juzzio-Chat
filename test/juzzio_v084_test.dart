@@ -18,8 +18,8 @@ void main() {
     app.setChatThemeIntensity(1.0);
   });
 
-  test('12 temanın her biri kendi cam karakterine sahip', () {
-    expect(kJuzzioAuroraPalettes.length, 12);
+  test('16 temanın her biri kendi cam karakterine sahip (v0.9.7: +4)', () {
+    expect(kJuzzioAuroraPalettes.length, 16);
     for (final p in kJuzzioAuroraPalettes) {
       expect(kJuzzioGlassCharacters.containsKey(p.id), isTrue, reason: p.id);
       final c = p.character;

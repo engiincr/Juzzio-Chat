@@ -8,6 +8,7 @@ import '../core/app_theme_and_locale.dart';
 import '../core/config.dart';
 import '../core/theme/juzzio_glass.dart';
 import '../services/juzzio_backup_service.dart';
+import '../widgets/juzzio_motion.dart';
 
 class JuzzioBackupPage extends StatefulWidget {
   const JuzzioBackupPage({super.key});
@@ -184,7 +185,7 @@ class _JuzzioBackupPageState extends State<JuzzioBackupPage> {
             ),
             onPressed: _busy ? null : _backup,
             icon: _busy
-                ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: p.coolButtonFg))
+                ? SizedBox(width: 18, height: 18, child: JuzzioOrbitLoader(strokeWidth: 2, color: p.coolButtonFg))
                 : const Icon(Icons.backup_rounded),
             label: Text(_app.trEn('Google Drive\'a yedekle', 'Back up to Google Drive', 'In Google Drive sichern'),
                 style: const TextStyle(fontWeight: FontWeight.w900)),
@@ -223,7 +224,7 @@ class _JuzzioBackupPageState extends State<JuzzioBackupPage> {
 Future<bool?> showJuzzioRestorePasswordSheet(BuildContext context, JuzzioBackupInfo info) {
   final app = JuzzioAppController.instance;
   final ctrl = TextEditingController();
-  return showModalBottomSheet<bool>(
+  return showJuzzioSheet<bool>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
@@ -293,7 +294,7 @@ Future<bool?> showJuzzioRestorePasswordSheet(BuildContext context, JuzzioBackupI
                             }
                           },
                     child: busy
-                        ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: p.coolButtonFg))
+                        ? SizedBox(width: 20, height: 20, child: JuzzioOrbitLoader(strokeWidth: 2, color: p.coolButtonFg))
                         : Text(app.trEn('Geri yükle', 'Restore', 'Wiederherstellen'), style: const TextStyle(fontWeight: FontWeight.w900)),
                   ),
                 ],

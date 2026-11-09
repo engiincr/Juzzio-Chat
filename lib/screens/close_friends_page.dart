@@ -11,6 +11,7 @@ import '../core/app_theme_and_locale.dart';
 import '../core/config.dart';
 import '../core/theme/juzzio_glass.dart';
 import '../services/supabase_service.dart';
+import '../widgets/juzzio_motion.dart';
 
 class JuzzioCloseFriendsService {
   JuzzioCloseFriendsService._();
@@ -171,7 +172,7 @@ class _JuzzioCloseFriendsPageState extends State<JuzzioCloseFriendsPage> {
               style: TextStyle(color: p.textSecondary, fontWeight: FontWeight.w800, fontSize: 12.5),
             ),
           ),
-          if (_loading) const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator())),
+          if (_loading) const Padding(padding: EdgeInsets.all(24), child: Center(child: JuzzioOrbitLoader())),
           if (_error != null) Text(_error!, style: TextStyle(color: p.dangerRed)),
           if (!_loading && _friends.isEmpty)
             Padding(

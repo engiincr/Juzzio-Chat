@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import '../core/app_theme_and_locale.dart';
 import '../core/theme/juzzio_glass.dart';
 import '../services/supabase_service.dart';
+import 'juzzio_motion.dart';
 
 /// Saf yardımcı: sunucu yanıtından görünür durum (test edilebilir).
 class JuzzioRoomNotifState {
@@ -106,7 +107,7 @@ class _JuzzioChatNotificationPrefsTileState extends State<JuzzioChatNotification
       if (_error) return;
     }
     if (!mounted) return;
-    await showModalBottomSheet<void>(
+    await showJuzzioSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -182,7 +183,7 @@ class _JuzzioChatNotificationPrefsTileState extends State<JuzzioChatNotification
                         style: sub,
                       ),
                     ),
-                    SwitchListTile(
+                    JuzzioSwitchListTile(
                       activeColor: p.amberGlow,
                       secondary: Icon(Icons.vibration_rounded, color: p.textPrimary),
                       title: Text(_app.trEn('Titreşim', 'Vibration', 'Vibration'), style: style),

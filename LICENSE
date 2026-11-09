@@ -1,66 +1,58 @@
-JUZZIO TESCİLLİ YAZILIM LİSANSI (Tüm Hakları Saklıdır)
-Juzzio Proprietary Software License (All Rights Reserved)
+JUZZIO PROPRIETARY SOFTWARE LICENSE (All Rights Reserved)
 
-Telif Hakkı (c) 2026 Engin (@tugkancr) — Juzzio. Tüm hakları saklıdır.
 Copyright (c) 2026 Engin (@tugkancr) — Juzzio. All rights reserved.
 
-1. KAPSAM
-Bu lisans; Juzzio uygulamasının kaynak kodunu, derlenmiş uygulama paketlerini (APK
-dahil), veritabanı şemasını, sunucu fonksiyonlarını, tasarımını, arayüzünü, ses ve
-görsel varlıklarını, "Juzzio" adını ve logosunu ("Yazılım") kapsar. Yazılım 5846
-sayılı Fikir ve Sanat Eserleri Kanunu ve uluslararası telif hakkı anlaşmalarıyla
-korunmaktadır.
+The legally binding Turkish version of this license is in docs/legal/tr/LICENSE.txt.
 
-2. İZİN VERİLENLER
-a) Resmi kanaldan (GitHub sürüm sayfası) indirilen uygulamanın kişisel ve ticari
-   olmayan amaçla cihazınıza kurulup kullanılması.
-b) Kaynak kodun yalnızca şeffaflık, güvenlik incelemesi ve eğitim amacıyla
-   GitHub üzerinde görüntülenmesi.
+1. SCOPE
+This license covers the source code of the Juzzio application, compiled application
+packages (including APKs), the database schema, server functions, design, user
+interface, audio and visual assets, and the "Juzzio" name and logo (the "Software").
+The Software is protected by Turkish Law No. 5846 on Intellectual and Artistic Works
+and by international copyright treaties.
 
-3. YASAK OLANLAR (yazılı izin olmadan)
-a) Yazılımın tamamının veya bir bölümünün kopyalanması, çoğaltılması, yeniden
-   yayımlanması veya dağıtılması (çatallanmış depolar ve aynalar dahil).
-b) Yazılımın satılması, kiralanması, lisanslanması, ücret karşılığı sunulması veya
-   ticari bir ürün ya da hizmette kullanılması.
-c) Yazılıma dayalı türev çalışma, klon veya benzer uygulama üretilmesi; adının,
-   logosunun veya tasarımının başka bir üründe kullanılması.
-d) Lisans, telif hakkı veya kaynak bildirimlerinin kaldırılması ya da değiştirilmesi.
-e) Yazılımın imzasının değiştirilerek yeniden paketlenmesi veya resmi olmayan
-   kanallardan dağıtılması.
+2. PERMITTED
+a) Installing and using the app downloaded from the official channel (the GitHub
+   releases page) on your device for personal, non-commercial purposes.
+b) Viewing the source code on GitHub solely for transparency, security review and
+   educational purposes.
 
-4. KATKILAR
-Depoya gönderilen katkılar (pull request vb.), gönderen tarafından Yazılım sahibine
-süresiz, dünya çapında ve münhasır olmayan kullanım hakkıyla devredilmiş sayılır.
+3. PROHIBITED (without prior written permission)
+a) Copying, reproducing, republishing or distributing all or part of the Software
+   (including forked repositories and mirrors).
+b) Selling, renting, licensing, offering for a fee, or using the Software in a
+   commercial product or service.
+c) Creating derivative works, clones or similar apps based on the Software; using its
+   name, logo or design in another product.
+d) Removing or altering license, copyright or attribution notices.
+e) Repackaging the Software with a changed signature or distributing it through
+   unofficial channels.
 
-5. GARANTİ REDDİ
-Yazılım "OLDUĞU GİBİ" sunulur. Açık veya zımni hiçbir garanti verilmez. Yürürlükteki
-hukukun izin verdiği azami ölçüde Yazılım sahibi, kullanımdan doğan zararlardan
-sorumlu tutulamaz.
+4. CONTRIBUTIONS
+Contributions submitted to the repository (pull requests, etc.) are deemed to grant
+the owner of the Software a perpetual, worldwide, non-exclusive right of use.
 
-6. FESİH
-Bu koşulların ihlali hâlinde verilen kullanım izni kendiliğinden sona erer; ihlal
-eden taraf Yazılımın tüm kopyalarını silmekle yükümlüdür. Yazılım sahibinin yasal
-yollara başvurma hakkı saklıdır.
+5. DISCLAIMER OF WARRANTY
+The Software is provided "AS IS". No express or implied warranty is given. To the
+maximum extent permitted by applicable law, the owner of the Software cannot be held
+liable for damages arising from its use.
 
-7. GÜVENLİK VE İZİNSİZ ERİŞİM
-Yazılımın, sunucularının veya veritabanının güvenlik önlemlerini aşmak, izinsiz erişim,
-hizmet engelleme, veri ele geçirme, değiştirilmiş/korsan sürüm dağıtma ve tersine
-mühendislik; 5237 sayılı TCK m.132-136 ve m.243-245, 6698 sayılı KVKK, 5846 sayılı
-FSEK m.71-72 ve 5651 sayılı Kanun kapsamında suçtur. Tespit edilen girişimler kayıt
-altına alınır, delil olarak saklanır ve suç duyurusunda bulunulur; doğan zararlar
-tazmin ettirilir. İyi niyetli güvenlik bildirimleri: engiincr@pm.me
+6. TERMINATION
+If these terms are violated, the permission to use ends automatically, and the
+violating party must delete all copies of the Software. The owner's right to take
+legal action is reserved.
 
-8. UYGULANACAK HUKUK
-Bu lisans Türkiye Cumhuriyeti hukukuna tabidir. Yetkili yer: İstanbul (Merkez)
-Mahkemeleri ve İcra Daireleri.
+7. SECURITY AND UNAUTHORIZED ACCESS
+Bypassing the security measures of the Software, its servers or its database,
+unauthorized access, denial of service, data theft, distributing modified/pirated
+versions and reverse engineering are criminal offences under Turkish Penal Code
+No. 5237 Art. 132-136 and 243-245, Personal Data Protection Law No. 6698, Law No. 5846
+Art. 71-72 and Law No. 5651. Detected attempts are logged, kept as evidence and
+reported to the authorities; resulting damages will be claimed. Good-faith security
+reports: engiincr@pm.me
 
-İzin ve iletişim: engiincr@pm.me
+8. GOVERNING LAW
+This license is governed by the laws of the Republic of Türkiye. Place of
+jurisdiction: Istanbul (Central) Courts and Enforcement Offices.
 
--------------------------------------------------------------------------------
-ENGLISH SUMMARY: This software is proprietary. You may install and use the official
-release for personal, non-commercial purposes and view the source for transparency
-and security review only. Copying, redistributing, selling, sublicensing, creating
-derivative works or clones, or reusing the name, logo or design without prior written
-permission is prohibited. Unauthorized access, attacks, tampering and reverse
-engineering are criminal offences under Turkish law and will be prosecuted. Provided "AS IS" without warranty. Governed by the laws of
-the Republic of Türkiye.
+Permissions and contact: engiincr@pm.me

@@ -11,6 +11,9 @@ import '../core/app_theme_and_locale.dart';
 import '../core/theme/juzzio_glass.dart';
 import '../services/juzzio_life_service.dart';
 import '../services/supabase_service.dart';
+import 'shift_planner_screen.dart';
+import '../widgets/juzzio_cloth_refresh.dart';
+import '../widgets/juzzio_motion.dart';
 
 enum JuzzioLifeView { list, calendar, done }
 
@@ -89,7 +92,7 @@ class _JuzzioLifeCenterPageState extends State<JuzzioLifeCenterPage> {
   }
 
   Future<void> _editTask(JuzzioLifeTask? existing, {DateTime? presetDay, bool reminderFocus = false}) async {
-    final saved = await showModalBottomSheet<bool>(
+    final saved = await showJuzzioSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -187,7 +190,7 @@ class _JuzzioLifeCenterPageState extends State<JuzzioLifeCenterPage> {
       );
 
   Widget _body(JuzzioPalette p) {
-    if (_loading && !_svc.loaded) return const Center(child: CircularProgressIndicator());
+    if (_loading && !_svc.loaded) return const Center(child: JuzzioOrbitLoader());
     if (_error != null && !_svc.loaded) {
       return Center(
         child: Padding(
@@ -229,7 +232,7 @@ class _JuzzioLifeCenterPageState extends State<JuzzioLifeCenterPage> {
         ]);
       case JuzzioLifeView.list:
         final none = g.overdue.isEmpty && g.today.isEmpty && g.upcoming.isEmpty && g.undated.isEmpty;
-        return RefreshIndicator(
+        return JuzzioClothRefresh(
           onRefresh: _load,
           child: ListView(padding: const EdgeInsets.all(16), children: [
             if (none)
@@ -258,6 +261,12 @@ class _JuzzioLifeCenterPageState extends State<JuzzioLifeCenterPage> {
             elevation: 0,
             title: Text(_app.trEn('Yaşam Merkezi', 'Life Center', 'Lebenszentrale')),
             actions: [
+              // v0.9.4: vardiya planlayıcı (08-16 / 16-00 / 00-08, ekip takvimi)
+              IconButton(
+                tooltip: _app.trEn('Vardiya planım', 'My shifts', 'Meine Schichten'),
+                icon: const Icon(Icons.work_history_rounded),
+                onPressed: () => JuzzioShiftPlannerScreen.open(context),
+              ),
               IconButton(
                 tooltip: _app.trEn('Bugün', 'Today', 'Heute'),
                 icon: const Icon(Icons.today_rounded),
@@ -489,7 +498,7 @@ class _JuzzioTaskEditorState extends State<_JuzzioTaskEditor> {
                   FilledButton(
                     onPressed: _saving ? null : _save,
                     child: _saving
-                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                        ? const SizedBox(width: 18, height: 18, child: JuzzioOrbitLoader(strokeWidth: 2))
                         : Text(_app.trEn('Kaydet', 'Save', 'Speichern')),
                   ),
                 ],

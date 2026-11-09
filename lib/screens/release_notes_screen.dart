@@ -13,6 +13,8 @@ import '../core/release_notes.dart';
 import '../core/theme/juzzio_colors.dart';
 import '../core/theme/juzzio_glass.dart';
 import '../services/supabase_service.dart';
+import '../widgets/juzzio_cloth_refresh.dart';
+import '../widgets/juzzio_motion.dart';
 
 class JuzzioReleaseNotesPage extends StatefulWidget {
   /// Açılışta genişletilecek sürüm (ör. bildirimden gelinen sürüm)
@@ -219,16 +221,16 @@ class _JuzzioReleaseNotesPageState extends State<JuzzioReleaseNotesPage> {
                     const Divider(height: 1, color: Color(0x2EFFFFFF)),
                     if (reason.trim().isNotEmpty) ...[
                       const SizedBox(height: 12),
-                      Text(_app.trEn('Bu güncelleme neden getirildi?', 'Why this update?', 'Warum dieses Update?'),
+                      Text(_app.trEn('🎯 Bu güncelleme neden geldi?', '🎯 Why did this update come?', '🎯 Warum kam dieses Update?'),
                           style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 14)),
                       const SizedBox(height: 5),
                       Text(reason, style: const TextStyle(color: Colors.white70, height: 1.45, fontSize: 13.5)),
                     ],
-                    _group(_app.trEn('Yeni özellikler', 'New features', 'Neue Funktionen'), Icons.auto_awesome_rounded,
+                    _group(_app.trEn('✨ Neler eklendi?', '✨ What\'s new?', '✨ Was ist neu?'), Icons.auto_awesome_rounded,
                         section.features, const Color(0xFF64D2FF)),
-                    _group(_app.trEn('Düzeltilen hatalar', 'Fixed bugs', 'Behobene Fehler'), Icons.build_circle_rounded,
+                    _group(_app.trEn('🛠️ Neler düzeltildi?', '🛠️ What was fixed?', '🛠️ Was wurde behoben?'), Icons.build_circle_rounded,
                         section.fixes, const Color(0xFF34C759)),
-                    _group(_app.trEn('Güvenlik ve gizlilik', 'Security and privacy', 'Sicherheit und Datenschutz'),
+                    _group(_app.trEn('🔒 Güvenlik ve gizlilik', '🔒 Security & privacy', '🔒 Sicherheit & Datenschutz'),
                         Icons.verified_user_rounded, section.security, const Color(0xFFBF5AF2)),
                     if (isNew && _app.otaUpdateAvailable &&
                         JuzzioReleaseNote.compareSemver(n.versionName, _app.otaRemoteVersion) == 0) ...[
@@ -286,7 +288,7 @@ class _JuzzioReleaseNotesPageState extends State<JuzzioReleaseNotesPage> {
             style: const TextStyle(fontFamily: JuzzioConfig.fontRegularBold, fontWeight: FontWeight.w900),
           ),
         ),
-        body: RefreshIndicator(
+        body: JuzzioClothRefresh(
           onRefresh: _load,
           child: ListView(
             padding: const EdgeInsets.fromLTRB(14, 6, 14, 32),
@@ -315,7 +317,7 @@ class _JuzzioReleaseNotesPageState extends State<JuzzioReleaseNotesPage> {
               if (_app.isDownloadingOta) ...[
                 ClipRRect(
                   borderRadius: BorderRadius.circular(999),
-                  child: LinearProgressIndicator(
+                  child: JuzzioSparklerBar(
                     value: _app.otaDownloadProgress <= 0 ? null : _app.otaDownloadProgress,
                     minHeight: 6,
                     backgroundColor: Colors.white24,
@@ -324,7 +326,7 @@ class _JuzzioReleaseNotesPageState extends State<JuzzioReleaseNotesPage> {
                 ),
                 const SizedBox(height: 12),
               ],
-              if (_loading) const LinearProgressIndicator(minHeight: 2),
+              if (_loading) const JuzzioSparklerBar(minHeight: 2),
               for (final n in _notes) _card(n),
             ],
           ),
@@ -346,19 +348,25 @@ class JuzzioWhatsNewSheet {
     if (_shown || !app.whatsNewPending || !context.mounted) return;
     _shown = true;
     final version = JuzzioConfig.appVersion;
-    JuzzioReleaseNote? note;
-    for (final n in JuzzioReleaseNote.mergeAll(const <JuzzioReleaseNote>[])) {
-      if (JuzzioReleaseNote.compareSemver(n.versionName, version) == 0) note = n;
-    }
-    JuzzioReleaseSection section = note?.sectionFor(app.uiLang) ?? const JuzzioReleaseSection();
-    if (section.isEmpty) {
+    // v0.9.7: en son görülen sürümden bu yana yayınlanan TÜM sürümler (yeniden eskiye)
+    final notes = juzzioNotesSince(JuzzioReleaseNote.mergeAll(const <JuzzioReleaseNote>[]), app.whatsNewSeenVersion, version);
+    final pages = <(JuzzioReleaseNote?, JuzzioReleaseSection)>[
+      for (final n in notes) (n, n.sectionFor(app.uiLang)),
+    ];
+    if (pages.isEmpty || pages.first.$2.isEmpty) {
       final gh = await app.fetchGithubReleaseDetails(version);
       if (gh.isNotEmpty) {
-        section = JuzzioReleaseNote.fromRow(<String, dynamic>{'version_name': version, 'details': gh}).sectionFor(app.uiLang);
+        final sec = JuzzioReleaseNote.fromRow(<String, dynamic>{'version_name': version, 'details': gh}).sectionFor(app.uiLang);
+        if (pages.isEmpty) {
+          pages.add((null, sec));
+        } else {
+          pages[0] = (pages.first.$1, sec);
+        }
       }
     }
+    final section = pages.isEmpty ? const JuzzioReleaseSection() : pages.first.$2;
     if (!context.mounted) return;
-    await showModalBottomSheet<void>(
+    await showJuzzioSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -432,14 +440,40 @@ class JuzzioWhatsNewSheet {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            if (section.reason.isNotEmpty) ...[
-                              const SizedBox(height: 14),
-                              Text(section.reason, style: TextStyle(color: p.textSecondary, height: 1.45, fontSize: 13.5)),
+                            // v0.9.7: aradaki her sürüm kendi başlığıyla (en yeni üstte); başlıklar GitHub'la aynı emojilerle
+                            for (var i = 0; i < (pages.isEmpty ? 1 : pages.length); i++) ...[
+                              if (pages.length > 1)
+                                Padding(
+                                  padding: EdgeInsets.only(top: i == 0 ? 12 : 22),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(999),
+                                      gradient: LinearGradient(colors: JuzzioGlassTokens.accentPair),
+                                    ),
+                                    child: Text(
+                                      'v${pages[i].$1?.versionName ?? version}'
+                                      '${pages[i].$1?.publishedAt != null ? ' · ${pages[i].$1!.publishedAt!.day}.${pages[i].$1!.publishedAt!.month}.${pages[i].$1!.publishedAt!.year}' : ''}',
+                                      style: TextStyle(
+                                          color: juzzioReadableOn(JuzzioGlassTokens.accentPair.first), fontWeight: FontWeight.w900, fontSize: 12.5),
+                                    ),
+                                  ),
+                                ),
+                              if ((pages.isEmpty ? section : pages[i].$2).reason.isNotEmpty) ...[
+                                const SizedBox(height: 12),
+                                Text(app.trEn('🎯 Bu güncelleme neden geldi?', '🎯 Why did this update come?', '🎯 Warum kam dieses Update?'),
+                                    style: TextStyle(color: p.textPrimary, fontWeight: FontWeight.w900, fontSize: 14.5)),
+                                const SizedBox(height: 5),
+                                Text((pages.isEmpty ? section : pages[i].$2).reason,
+                                    style: TextStyle(color: p.textSecondary, height: 1.45, fontSize: 13.5)),
+                              ],
+                              group(app.trEn('✨ Neler eklendi?', '✨ What\'s new?', '✨ Was ist neu?'), Icons.auto_awesome_rounded,
+                                  (pages.isEmpty ? section : pages[i].$2).features),
+                              group(app.trEn('🛠️ Neler düzeltildi?', '🛠️ What was fixed?', '🛠️ Was wurde behoben?'), Icons.build_circle_rounded,
+                                  (pages.isEmpty ? section : pages[i].$2).fixes),
+                              group(app.trEn('🔒 Güvenlik ve gizlilik', '🔒 Security & privacy', '🔒 Sicherheit & Datenschutz'),
+                                  Icons.verified_user_rounded, (pages.isEmpty ? section : pages[i].$2).security),
                             ],
-                            group(app.trEn('Yeni özellikler', 'New features', 'Neue Funktionen'), Icons.auto_awesome_rounded, section.features),
-                            group(app.trEn('Düzeltilen hatalar', 'Fixed bugs', 'Behobene Fehler'), Icons.build_circle_rounded, section.fixes),
-                            group(app.trEn('Güvenlik ve gizlilik', 'Security and privacy', 'Sicherheit und Datenschutz'),
-                                Icons.verified_user_rounded, section.security),
                           ],
                         ),
                       ),
@@ -488,4 +522,16 @@ class JuzzioWhatsNewSheet {
     );
     app.markWhatsNewSeen();
   }
+}
+
+/// v0.9.7: [seen] sürümünden SONRA çıkan ve [current]'i aşmayan notlar (yeniden eskiye).
+/// [seen] boşsa yalnız mevcut sürüm. En fazla 8 sürüm gösterilir.
+List<JuzzioReleaseNote> juzzioNotesSince(List<JuzzioReleaseNote> all, String seen, String current) {
+  final out = all.where((n) {
+    if (JuzzioReleaseNote.compareSemver(n.versionName, current) > 0) return false;
+    if (seen.trim().isEmpty) return JuzzioReleaseNote.compareSemver(n.versionName, current) == 0;
+    return JuzzioReleaseNote.compareSemver(n.versionName, seen) > 0;
+  }).toList()
+    ..sort((a, b) => JuzzioReleaseNote.compareSemver(b.versionName, a.versionName));
+  return out.take(8).toList();
 }

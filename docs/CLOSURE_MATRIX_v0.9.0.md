@@ -29,10 +29,10 @@ Ayrıntılı satırlar: `docs/IMPLEMENTATION_PROGRESS_v0.9.0.md` (B0–B11, C-A1
 
 | Alan | Durum |
 | :-- | :-- |
-| C-A1 analiz, C-NAV gezinme + geri tuşu | 🟡 |
+| C-A1 analiz, C-NAV gezinme + geri tuşu | 🟡 — Ana Sayfa KALDIRILDI (kullanıcı isteği 2026-11-02); kök = Sohbetler; alt menü Sohbetler · Keşfet · Aramalar · Bildirimler · Profil |
 | C-A2 bildirimler (önizleme modları, kilit ekranı gizliliği, hızlı yanıt, arama reddi, sohbet başına ayar, etiketleme) | 🟡 |
 | C-A3 Personal (Yaşam Merkezi, hatırlatıcı, kayıtlı mesaj, arama, düzenleme geçmişi, sohbet kilidi, QR) | 🟡 (QR ✅ mevcut) |
-| C-A4 Business | 🟡 |
+| C-A4 Business | KALDIRILDI (kullanıcı isteği 2026-11-02): tüm istemci sayfaları, servis, profil geçiş şeridi ve Yönetim sekmesi silindi. Veritabanı tabloları veri kaybı olmasın diye DOKUNULMADI (boş kalır; yeni hesap açılamaz) |
 | C-A5 Güvenlik Merkezi, Dosya Merkezi, erişilebilirlik/l10n | 🟡 |
 | G23/G24 E2EE fotoğraf | 🟡 — video/ses/belge şifresiz (bilinen sınır) |
 | G25 kanallar, G29 dalga formu | ✅ mevcut |
@@ -40,6 +40,8 @@ Ayrıntılı satırlar: `docs/IMPLEMENTATION_PROGRESS_v0.9.0.md` (B0–B11, C-A1
 | G30 civciv evrimi | SKIPPED |
 
 ## Bilinen sınırlar
+
+- Birebir sohbet çevirisi varsayılan AÇIK (ürün kararı): açıkken çözülmüş metin çeviri servisine gider; Ayarlar > Gizlilik'ten kapatılabilir.
 
 - Sohbet kilidinde biyometrik açma yok (FlutterFragmentActivity gerektirir).
 - Mesaj arama son 400 mesajı cihazda tarar.
