@@ -1,5 +1,5 @@
 {
-".github/workflows/android-ci.yml": "b6c2164b4ce3adf67655aa285b0887a3dff766f0849cac6a5fbaaea0ad5ea4fb",
+".github/workflows/android-ci.yml": "cde1f94a1a2017e2d69db5d829925b26e556dcb86fc70c519605418b49309fb5",
 "lib/core/app_theme_and_locale.dart": "758272f6b5d65ba95ac29fcb94f6c39e3a5d01f3775dda6f2fc6d34e02d0642a",
 "lib/core/config.dart": "7a2a7ce25a7d3630262a71445c6158cee07991513ede5ed75c9d9185b4c1c776",
 "lib/core/content_filter.dart": "18e1307898a74dcc864f470dc2381a093a78e8a0821df71bd95e22ae6cf547a4",

@@ -295,17 +295,10 @@ EXCEPTION WHEN OTHERS THEN
     NULL;
 END $$;
 
-DO $$
-BEGIN
-    DROP POLICY IF EXISTS "juzzio_storage_public_read" ON storage.objects;
-    CREATE POLICY "juzzio_storage_public_read" ON storage.objects FOR SELECT TO anon, authenticated USING (bucket_id IN ('stories', 'avatars', 'voice-notes'));
-    DROP POLICY IF EXISTS "juzzio_storage_auth_insert" ON storage.objects;
-    CREATE POLICY "juzzio_storage_auth_insert" ON storage.objects FOR INSERT TO anon, authenticated WITH CHECK (bucket_id IN ('stories', 'avatars', 'voice-notes'));
-    DROP POLICY IF EXISTS "juzzio_storage_auth_update" ON storage.objects;
-    CREATE POLICY "juzzio_storage_auth_update" ON storage.objects FOR UPDATE TO anon, authenticated USING (bucket_id IN ('stories', 'avatars', 'voice-notes'));
-EXCEPTION WHEN OTHERS THEN
-    NULL;
-END $$;
+-- v1.0.0: v0.1'in geniş storage politikaları burada artık OLUŞTURULMAZ. Aynı transaction'ın
+-- ilerisinde (sıkılaştırma bölümü) zaten kaldırılıyorlardı; oluştur-sil adımı canlı
+-- dağıtımda storage.objects üzerinde gereksiz ACCESS EXCLUSIVE kilit alıp uygulamanın
+-- dosya sorgularıyla kilitlenmeye (deadlock) yol açıyordu. Sonuç şema aynıdır.
 
 -- RLS Politikaları
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;

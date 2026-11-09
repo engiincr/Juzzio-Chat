@@ -330,7 +330,10 @@ jobs:
             echo "⏭  $DB_NAME değişmedi (özet: ${DB_SUM:0:12})"
           else
             echo "▶  $DB_NAME uygulanıyor (özet: ${DB_SUM:0:12})..."
-            $PSQL --single-transaction -f "$DB_FILE"
+            # Canlı trafikte şema kilitleri çakışabilir (deadlock / uzun bekleme): kısa
+            # lock_timeout ile hızlı vazgeçilir ve artan beklemeyle yeniden denenir. Her deneme
+            # tek transaction'dır; başarısız deneme hiçbir şeyi değiştirmez.
+            bash scripts/db_apply_retry.sh "$DB_URL" "$DB_FILE" 6
             $PSQL -c "INSERT INTO public.juzzio_schema_migrations(filename, checksum, commit_sha, applied_at) VALUES ('$DB_NAME', '$DB_SUM', '$GITHUB_SHA', now()) ON CONFLICT (filename) DO UPDATE SET checksum = EXCLUDED.checksum, commit_sha = EXCLUDED.commit_sha, applied_at = now()"
             echo "✅ $DB_NAME uygulandı"
           fi
