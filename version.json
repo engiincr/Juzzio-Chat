@@ -1,16 +1,16 @@
 {
   "version": "0.9.9",
-  "buildNumber": 99,
+  "buildNumber": 1051,
   "releaseDate": "2026-11-09",
   "releaseTitle": "Kumaş Yenileme: Referansa Birebir 3D Revizyon",
   "mandatory": false,
   "minSupportedVersion": "0.1.0",
   "apkUrl": "https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk",
   "versionedApkUrl": "https://github.com/engiincr/Juzzio-Chat/releases/download/v0.9.9/juzzio-v0.9.9-release.apk",
-  "apkSha256": "",
-  "apkSize": "",
-  "verifiedBuild": false,
-  "verifiedAt": "",
+  "apkSha256": "f7430231486e23c28c47bab9eafa8991dd9310c07bd43e84e8a157699f1da552",
+  "apkSize": "109.66 MB",
+  "verifiedBuild": true,
+  "verifiedAt": "2026-11-09 12:28 UTC",
   "developer": {
     "name": "Engin ÇIRPAN",
     "instagram": "https://ig.me/tugkancr",
@@ -22,8 +22,8 @@
     "en": "v0.9.9: The v0.9.8 cloth refresh preview was compared frame by frame with the reference video and 11 visual/timing deviations were found. This update fixes the 3D hand, fabric folds, notch layering and page sync to match all 11 points exactly.",
     "de": "v0.9.9: The v0.9.8 cloth refresh preview was compared frame by frame with the reference video and 11 visual/timing deviations were found. This update fixes the 3D hand, fabric folds, notch layering and page sync to match all 11 points exactly."
   },
-  "build": 99,
-  "versionCode": 99,
+  "build": 1051,
+  "versionCode": 1051,
   "url": "https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk",
   "changelog_tr": "v0.9.9: v0.9.8 kumaş yenileme önizlemesi referans videoyla kare kare karşılaştırıldı ve 11 görsel/zamanlama sapması bulundu. Bu güncelleme 3D el, kumaş kıvrımları, çentik katmanı ve sayfa senkronizasyonunu bu 11 maddeye birebir uyacak şekilde düzeltir.",
   "changelog_en": "v0.9.9: The v0.9.8 cloth refresh preview was compared frame by frame with the reference video and 11 visual/timing deviations were found. This update fixes the 3D hand, fabric folds, notch layering and page sync to match all 11 points exactly.",
@@ -108,5 +108,7 @@
       ]
     }
   },
-  "releaseTitleEn": "Cloth Refresh: Pixel-Faithful 3D Revision"
+  "releaseTitleEn": "Cloth Refresh: Pixel-Faithful 3D Revision",
+  "mldsa65Sig": "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",
+  "signatureAlg": "ML-DSA-65 (FIPS 204)"
 }

@@ -30,3 +30,16 @@ The v0.9.8 cloth refresh preview was compared frame by frame with the reference 
 
 - The new visuals are fully original 3D renders made by us; no extra permissions or data collection
 
+## ⬇️ Download
+
+- Latest: [Juzzio-latest.apk](https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk)
+- This version: `juzzio-v0.9.9-release.apk` (109.66 MB)
+
+## ✅ Verify the APK
+
+```bash
+sha256sum Juzzio-latest.apk
+# f7430231486e23c28c47bab9eafa8991dd9310c07bd43e84e8a157699f1da552  Juzzio-latest.apk
+```
+
+Built: 2026-11-09 12:28 UTC — GitHub Actions
