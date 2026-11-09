@@ -24,7 +24,7 @@
 <!-- JUZZIO_VERIFIED_APK_START -->
 | Version | APK | Size | SHA-256 | Built |
 | :-- | :-- | :-- | :-- | :-- |
-| v1.0.0 (+100) | Waiting for the GitHub Actions build | – | – | – |
+| v1.0.0 (+1056) | [Juzzio-latest.apk](https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk) | 110.04 MB | `8fd352df413e5a1b2d16b8b786c9caaf68eb9ec86f43ce3c2aa38404c12d4eeb` | 2026-11-09 16:52 UTC |
 <!-- JUZZIO_VERIFIED_APK_END -->
 
 ---

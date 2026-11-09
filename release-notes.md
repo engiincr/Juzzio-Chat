@@ -30,3 +30,16 @@ Juzzio moves to the "Juzzio Space" interface designed in Figma: deep theme gradi
 - The link opener only allows http/https/mailto/tel/geo (javascript:, file: etc. are rejected)
 - Background translation keeps end-to-end encryption: in encrypted chats the translation is attached as a separate encrypted payload
 
+## ⬇️ Download
+
+- Latest: [Juzzio-latest.apk](https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk)
+- This version: `juzzio-v1.0.0-release.apk` (110.04 MB)
+
+## ✅ Verify the APK
+
+```bash
+sha256sum Juzzio-latest.apk
+# 8fd352df413e5a1b2d16b8b786c9caaf68eb9ec86f43ce3c2aa38404c12d4eeb  Juzzio-latest.apk
+```
+
+Built: 2026-11-09 16:52 UTC — GitHub Actions
