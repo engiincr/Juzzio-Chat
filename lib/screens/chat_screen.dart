@@ -74,7 +74,6 @@ import '../widgets/profile_extras.dart';
 import '../widgets/juzzio_emoji_picker.dart';
 import '../widgets/juzzio_story_stickers.dart';
 import 'profile/juzzio_profile_view.dart';
-import 'badges_screen.dart';
 import 'chick_game_screen.dart';
 import 'qa_box_screen.dart';
 import 'safety_walk_screen.dart';

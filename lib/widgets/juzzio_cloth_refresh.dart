@@ -173,7 +173,7 @@ class JuzzioClothAssets {
   static const Size drapeSize = Size(360, 340);
   static const Offset drapeAnchor = Offset(180, 22); // kavrama noktası
 
-  static const List<String> assetNames = [
+  static final List<String> assetNames = List.unmodifiable(<String>[
     for (var i = 0; i < 9; i++) 'hand_s$i',
     for (var i = 0; i < 8; i++) 'hand_c$i',
     'fold_tension_hi',
@@ -182,7 +182,7 @@ class JuzzioClothAssets {
     'fold_drape_hi',
     'fold_drape_sh',
     'fold_drape_cov',
-  ];
+  ]);
 
   final List<ui.Image> swing = [];
   final List<ui.Image> curl = [];
