@@ -10,8 +10,9 @@
 #
 #  Çözüm — her deneme TEK transaction (başarısız deneme hiçbir şeyi değiştirmez):
 #   1) lock_timeout (vars. 8 sn): kilit alınamazsa hızla vazgeçilir, uygulama donmaz.
-#   2) Önce public şemasındaki TÜM tablolar (ve izin varsa storage.objects/buckets) sabit
-#      alfabetik sırayla ACCESS EXCLUSIVE kilitlenir. Kilitler alındıktan sonra dosyanın
+#   2) Önce dosyanın dokunduğu TÜM ilişkiler (public tablo/view/matview + auth.users,
+#      storage.buckets/objects, realtime.messages, cron.job) sabit sırayla ACCESS EXCLUSIVE
+#      kilitlenir. Kilitler alındıktan sonra dosyanın
 #      geri kalanında kilit beklenmez → transaction ortasında deadlock imkânsızdır.
 #   3) Dosyanın tamamı tek bir DO bloğu içinde EXECUTE edilir → sunucuya TEK seferde
 #      gider ve sunucuda saniyeler içinde biter (kilitler çok kısa tutulur).
@@ -45,21 +46,23 @@ trap 'rm -f "$WRAP"' EXIT
 DO $juzzio_lock_all$
 DECLARE r RECORD;
 BEGIN
+    -- Dosyanın DDL ile dokunduğu HER ilişki (public tablo + view + matview ve
+    -- Supabase'in auth/storage/realtime/cron tabloları) tek, sabit sırayla kilitlenir.
     FOR r IN
         SELECT n.nspname, c.relname
         FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-        WHERE c.relkind IN ('r', 'p') AND n.nspname = 'public'
-        ORDER BY c.relname
+        WHERE (n.nspname = 'public' AND c.relkind IN ('r', 'p', 'v', 'm') AND NOT c.relispartition)
+           OR (n.nspname, c.relname) IN (('auth', 'users'), ('storage', 'buckets'),
+                                         ('storage', 'objects'), ('realtime', 'messages'),
+                                         ('cron', 'job'))
+        ORDER BY n.nspname, c.relname
     LOOP
-        EXECUTE format('LOCK TABLE %I.%I IN ACCESS EXCLUSIVE MODE', r.nspname, r.relname);
+        BEGIN
+            EXECUTE format('LOCK TABLE %I.%I IN ACCESS EXCLUSIVE MODE', r.nspname, r.relname);
+        EXCEPTION WHEN insufficient_privilege OR wrong_object_type OR feature_not_supported THEN
+            RAISE NOTICE 'ön kilit atlandı: %.%', r.nspname, r.relname;
+        END;
     END LOOP;
-    -- storage tabloları (dosya politikaları burada değişir); yetki yoksa atlanır
-    BEGIN
-        IF to_regclass('storage.buckets') IS NOT NULL THEN LOCK TABLE storage.buckets IN ACCESS EXCLUSIVE MODE; END IF;
-        IF to_regclass('storage.objects') IS NOT NULL THEN LOCK TABLE storage.objects IN ACCESS EXCLUSIVE MODE; END IF;
-    EXCEPTION WHEN insufficient_privilege THEN
-        RAISE NOTICE 'storage kilidi için yetki yok; atlandı';
-    END;
 END
 $juzzio_lock_all$;
 SQL
@@ -79,10 +82,18 @@ for i in $(seq 1 "$TRIES"); do
     echo "✅ $(basename "$FILE") uygulandı (deneme $i/$TRIES, ${took} sn)"
     exit 0
   fi
-  if printf '%s\n' "$out" | grep -qE "$LOCK_RE"; then
+  # NOT: "printf | grep -q" + pipefail → grep erken çıkınca printf SIGPIPE alır ve eşleşme
+  # "başarısız" sayılır (v1.0.0 CI: deadlock yeniden denenmedi). Bash eşleşmesi kullanılır.
+  if [[ "$out" =~ $LOCK_RE ]]; then
     wait_s=$(( BASE_WAIT * i ))
     echo "⚠️  Kilit çakışması (deneme $i/$TRIES, ${took} sn) — transaction geri alındı, hiçbir şey değişmedi."
-    printf '%s\n' "$out" | grep -E 'ERROR|DETAIL' | head -3
+    grep -E 'ERROR|DETAIL' <<<"$out" | head -3 || true
+    # Hangi ilişki? (oid → ad; teşhis için, ayrı salt-okunur sorgu)
+    oids="$(grep -oE 'relation [0-9]+' <<<"$out" | grep -oE '[0-9]+' | sort -u | tr '\n' ',' | sed 's/,$//')"
+    if [ -n "$oids" ]; then
+      names="$(psql "$URL" -X -At -c "SELECT string_agg(oid::regclass::text, ', ') FROM pg_class WHERE oid IN ($oids)" 2>/dev/null || true)"
+      [ -n "$names" ] && echo "   Çakışan ilişki(ler): $names"
+    fi
     if [ "$i" -lt "$TRIES" ]; then
       echo "   ${wait_s} sn sonra yeniden denenecek…"
       sleep "$wait_s"
@@ -91,7 +102,7 @@ for i in $(seq 1 "$TRIES"); do
   fi
   # Kilit dışı hata: yeniden denemek anlamsız. Dosya tek EXECUTE içinde çalıştığından
   # CONTEXT tüm dosyayı içerir; yalnız hata/ayrıntı/ipucu satırları gösterilir.
-  printf '%s\n' "$out" | grep -E '^(psql:.*)?(ERROR|DETAIL|HINT):' | head -10
+  grep -E '^(psql:.*)?(ERROR|DETAIL|HINT):' <<<"$out" | head -10 || true
   echo "ℹ️  Hatanın satırını bulmak için: bash scripts/sql_test.sh juzzio_sqltest (yerel PostgreSQL)"
   exit "$rc"
 done
