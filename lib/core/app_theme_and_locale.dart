@@ -24,6 +24,7 @@ import 'theme/juzzio_custom_theme.dart';
 import 'theme/juzzio_colors.dart';
 import '../l10n/juzzio_inline_catalog.dart';
 import '../l10n/juzzio_strings_v030.dart';
+import '../widgets/juzzio_motion.dart';
 
 class JuzzioLanguageOption {
   final String code;
@@ -3003,7 +3004,7 @@ class JuzzioCoolPillButton extends StatelessWidget {
               ? SizedBox(
                   width: 22,
                   height: 22,
-                  child: CircularProgressIndicator(color: fg, strokeWidth: 2.4),
+                  child: JuzzioOrbitLoader(color: fg, strokeWidth: 2.4),
                 )
               : Row(
                   mainAxisSize: MainAxisSize.min,
@@ -3904,7 +3905,7 @@ class JuzzioLanguagePickerSheet extends StatefulWidget {
     required String currentCode,
     required ValueChanged<String> onSelected,
   }) {
-    return showModalBottomSheet(
+    return showJuzzioSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -4148,6 +4149,13 @@ class JuzzioModernThemeSelector extends StatelessWidget {
                   ),
                 ),
               ),
+              // v1.1.0: güneşin aya dönüştüğü gece/gündüz anahtarı (dairesel tema geçişiyle)
+              JuzzioSwitch(
+                style: JuzzioToggleStyle.dayNight,
+                value: ctrl.isDark,
+                semanticLabel: s.t('theme_mode_title'),
+                onChanged: (v) => ctrl.setThemeMode(v ? ThemeMode.dark : ThemeMode.light),
+              ),
             ],
           ),
           const SizedBox(height: 14),
@@ -4261,7 +4269,7 @@ Future<void> juzzioSwitchUiLanguage(BuildContext context, String code, {bool als
               SizedBox(
                 width: 18,
                 height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2, value: value ?? 1),
+                child: JuzzioOrbitLoader(strokeWidth: 2, value: value ?? 1),
               ),
               const SizedBox(width: 12),
               Expanded(

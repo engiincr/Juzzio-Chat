@@ -14,6 +14,7 @@ import '../core/theme/juzzio_colors.dart';
 import '../core/theme/juzzio_glass.dart';
 import '../services/supabase_service.dart';
 import '../widgets/juzzio_cloth_refresh.dart';
+import '../widgets/juzzio_motion.dart';
 
 class JuzzioReleaseNotesPage extends StatefulWidget {
   /// Açılışta genişletilecek sürüm (ör. bildirimden gelinen sürüm)
@@ -316,7 +317,7 @@ class _JuzzioReleaseNotesPageState extends State<JuzzioReleaseNotesPage> {
               if (_app.isDownloadingOta) ...[
                 ClipRRect(
                   borderRadius: BorderRadius.circular(999),
-                  child: LinearProgressIndicator(
+                  child: JuzzioSparklerBar(
                     value: _app.otaDownloadProgress <= 0 ? null : _app.otaDownloadProgress,
                     minHeight: 6,
                     backgroundColor: Colors.white24,
@@ -325,7 +326,7 @@ class _JuzzioReleaseNotesPageState extends State<JuzzioReleaseNotesPage> {
                 ),
                 const SizedBox(height: 12),
               ],
-              if (_loading) const LinearProgressIndicator(minHeight: 2),
+              if (_loading) const JuzzioSparklerBar(minHeight: 2),
               for (final n in _notes) _card(n),
             ],
           ),
@@ -365,7 +366,7 @@ class JuzzioWhatsNewSheet {
     }
     final section = pages.isEmpty ? const JuzzioReleaseSection() : pages.first.$2;
     if (!context.mounted) return;
-    await showModalBottomSheet<void>(
+    await showJuzzioSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,

@@ -10,10 +10,11 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../core/app_theme_and_locale.dart';
 import '../services/juzzio_e2ee.dart';
+import 'juzzio_motion.dart';
 
 Future<void> showJuzzioSafetyNumberSheet(BuildContext context, {required String peerUid, required String peerName}) {
   final app = JuzzioAppController.instance;
-  return showModalBottomSheet<void>(
+  return showJuzzioSheet<void>(
     context: context,
     isScrollControlled: true,
     backgroundColor: JuzzioPalette(app.isDark).sheetBg,
@@ -40,7 +41,7 @@ Future<void> showJuzzioSafetyNumberSheet(BuildContext context, {required String 
               ),
               const SizedBox(height: 14),
               if (snap.connectionState != ConnectionState.done)
-                const Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator())
+                const Padding(padding: EdgeInsets.all(24), child: JuzzioOrbitLoader())
               else if (num == null)
                 Padding(
                   padding: const EdgeInsets.all(16),

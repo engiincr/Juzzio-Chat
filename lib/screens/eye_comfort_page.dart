@@ -12,6 +12,7 @@ import 'package:geolocator/geolocator.dart';
 import '../core/app_theme_and_locale.dart';
 import '../core/theme/juzzio_glass.dart';
 import '../widgets/juzzio_eye_comfort.dart';
+import '../widgets/juzzio_motion.dart';
 
 class JuzzioEyeComfortPage extends StatefulWidget {
   const JuzzioEyeComfortPage({super.key});
@@ -165,7 +166,7 @@ class _JuzzioEyeComfortPageState extends State<JuzzioEyeComfortPage> {
                   : _app.trEn('Konumuna göre otomatik (konum yalnız cihazında kalır)', 'Automatic by location (stays on your device)', 'Automatisch nach Standort'),
               onTap: _useSun,
             ),
-            if (_locating) const LinearProgressIndicator(),
+            if (_locating) const JuzzioSparklerBar(),
             if (_error != null) Padding(padding: const EdgeInsets.all(8), child: Text(_error!, style: TextStyle(color: p.amberGlow, fontSize: 12))),
             const SizedBox(height: 12),
             Text('${_app.trEn('Yoğunluk', 'Intensity', 'Intensität')} · %${_app.eyeComfortIntensity}',

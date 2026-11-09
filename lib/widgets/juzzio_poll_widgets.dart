@@ -10,6 +10,7 @@ import '../core/app_theme_and_locale.dart';
 import '../core/theme/juzzio_glass.dart';
 import '../services/juzzio_polls_service.dart';
 import '../services/supabase_service.dart';
+import 'juzzio_motion.dart';
 
 class JuzzioPollCard extends StatefulWidget {
   const JuzzioPollCard({super.key, required this.pollId, required this.isMe});
@@ -101,7 +102,7 @@ class _JuzzioPollCardState extends State<JuzzioPollCard> {
       return Padding(
         padding: const EdgeInsets.all(8),
         child: _error == null
-            ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2))
+            ? const SizedBox(height: 24, width: 24, child: JuzzioOrbitLoader(strokeWidth: 2))
             : TextButton(onPressed: _load, child: Text(_app.trEn('Anket yüklenemedi · tekrar dene', 'Poll failed to load · retry', 'Umfrage nicht geladen · erneut'))),
       );
     }
@@ -268,7 +269,7 @@ Future<void> showJuzzioCreatePollSheet(BuildContext context, {required String ro
   var busy = false;
   String? error;
   int? deadlineHours; // v0.9.5: süre dolunca otomatik kapanır, sonuç herkese bildirilir
-  return showModalBottomSheet<void>(
+  return showJuzzioSheet<void>(
     context: context,
     isScrollControlled: true,
     backgroundColor: JuzzioPalette(app.isDark).sheetBg,
@@ -287,8 +288,8 @@ Future<void> showJuzzioCreatePollSheet(BuildContext context, {required String ro
                 icon: const Icon(Icons.add_rounded),
                 label: Text(app.trEn('Seçenek ekle', 'Add option', 'Option hinzufügen')),
               ),
-            SwitchListTile(value: multi, onChanged: (v) => setS(() => multi = v), title: Text(app.trEn('Çoklu seçim', 'Multiple choice', 'Mehrfachauswahl'))),
-            SwitchListTile(
+            JuzzioSwitchListTile(value: multi, onChanged: (v) => setS(() => multi = v), title: Text(app.trEn('Çoklu seçim', 'Multiple choice', 'Mehrfachauswahl'))),
+            JuzzioSwitchListTile(style: JuzzioToggleStyle.check,
               value: anonymous,
               onChanged: (v) => setS(() => anonymous = v),
               title: Text(app.trEn('Gizli oylama', 'Anonymous voting', 'Anonyme Abstimmung')),
@@ -348,7 +349,7 @@ Future<void> showJuzzioCreatePollSheet(BuildContext context, {required String ro
 /// Metni ileri bir zamana planlar; aynı sayfada bu sohbetteki bekleyen planları listeler/iptal eder.
 Future<bool> showJuzzioScheduleSheet(BuildContext context, {required String roomId, required String text}) async {
   final app = JuzzioAppController.instance;
-  final result = await showModalBottomSheet<bool>(
+  final result = await showJuzzioSheet<bool>(
     context: context,
     isScrollControlled: true,
     backgroundColor: JuzzioPalette(app.isDark).sheetBg,

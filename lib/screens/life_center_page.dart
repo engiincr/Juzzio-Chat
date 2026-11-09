@@ -13,6 +13,7 @@ import '../services/juzzio_life_service.dart';
 import '../services/supabase_service.dart';
 import 'shift_planner_screen.dart';
 import '../widgets/juzzio_cloth_refresh.dart';
+import '../widgets/juzzio_motion.dart';
 
 enum JuzzioLifeView { list, calendar, done }
 
@@ -91,7 +92,7 @@ class _JuzzioLifeCenterPageState extends State<JuzzioLifeCenterPage> {
   }
 
   Future<void> _editTask(JuzzioLifeTask? existing, {DateTime? presetDay, bool reminderFocus = false}) async {
-    final saved = await showModalBottomSheet<bool>(
+    final saved = await showJuzzioSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -189,7 +190,7 @@ class _JuzzioLifeCenterPageState extends State<JuzzioLifeCenterPage> {
       );
 
   Widget _body(JuzzioPalette p) {
-    if (_loading && !_svc.loaded) return const Center(child: CircularProgressIndicator());
+    if (_loading && !_svc.loaded) return const Center(child: JuzzioOrbitLoader());
     if (_error != null && !_svc.loaded) {
       return Center(
         child: Padding(
@@ -497,7 +498,7 @@ class _JuzzioTaskEditorState extends State<_JuzzioTaskEditor> {
                   FilledButton(
                     onPressed: _saving ? null : _save,
                     child: _saving
-                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                        ? const SizedBox(width: 18, height: 18, child: JuzzioOrbitLoader(strokeWidth: 2))
                         : Text(_app.trEn('Kaydet', 'Save', 'Speichern')),
                   ),
                 ],

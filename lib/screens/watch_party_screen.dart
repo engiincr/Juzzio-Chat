@@ -18,6 +18,7 @@ import '../core/app_theme_and_locale.dart';
 import '../services/juzzio_time_sync.dart';
 import '../services/supabase_service.dart';
 import '../widgets/juzzio_ui_kit.dart';
+import '../widgets/juzzio_motion.dart';
 
 class JuzzioWatchSession {
   final String id;
@@ -293,7 +294,7 @@ class _JuzzioWatchPartyScreenState extends State<JuzzioWatchPartyScreen> {
                               ? AspectRatio(aspectRatio: vc.value.aspectRatio == 0 ? 16 / 9 : vc.value.aspectRatio, child: VideoPlayer(vc))
                               : _error != null
                                   ? Text(_error!, style: const TextStyle(color: Colors.redAccent), textAlign: TextAlign.center)
-                                  : const CircularProgressIndicator(),
+                                  : const JuzzioOrbitLoader(),
                         ),
                       ),
                       if (vc != null && vc.value.isInitialized)

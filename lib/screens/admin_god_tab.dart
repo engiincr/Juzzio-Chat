@@ -22,6 +22,7 @@ import '../core/theme/juzzio_colors.dart';
 import '../services/juzzio_features_service.dart';
 import '../services/supabase_service.dart';
 import '../widgets/juzzio_cloth_refresh.dart';
+import '../widgets/juzzio_motion.dart';
 
 String _t(String tr, String en, String de) => JuzzioAppController.instance.trEn(tr, en, de);
 
@@ -169,7 +170,7 @@ class _JuzzioAdminGodTabState extends State<JuzzioAdminGodTab> {
           ]),
         ),
         const SizedBox(height: 12),
-        if (_loading) const LinearProgressIndicator(),
+        if (_loading) const JuzzioSparklerBar(),
         if (_error != null) Padding(padding: const EdgeInsets.all(8), child: Text(_error!, style: const TextStyle(color: Colors.redAccent))),
         ...switch (_section) {
           'health' => _buildHealth(fg),
@@ -451,7 +452,7 @@ class _JuzzioAdminGodTabState extends State<JuzzioAdminGodTab> {
         _numberField('min_supported_build', _t('Minimum desteklenen derleme', 'Minimum supported build', 'Mindest-Build'), 0, 100000),
         _numberField('admin_bruteforce_max_fails', _t('Yönetici girişi: hatalı deneme sınırı', 'Admin login: max failed attempts', 'Max. Fehlversuche'), 3, 20),
         _numberField('admin_bruteforce_window_min', _t('Yönetici girişi: kilit penceresi (dk)', 'Admin login: lock window (min)', 'Sperrfenster (min)'), 5, 1440),
-        SwitchListTile(
+        JuzzioSwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: Text(_t('Otomatik hata raporlama', 'Automatic crash reporting', 'Automatische Absturzberichte')),
           subtitle: Text(_t('Kapalıysa uygulamalar hata göndermez (kill switch)', 'When off, apps send no crash reports (kill switch)', 'Aus = keine Berichte')),

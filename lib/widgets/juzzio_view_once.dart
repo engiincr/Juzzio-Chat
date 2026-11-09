@@ -18,6 +18,7 @@ import '../services/juzzio_media_cache.dart';
 import '../services/juzzio_media_url.dart';
 import '../services/supabase_service.dart';
 import 'juzzio_encrypted_image.dart';
+import 'juzzio_motion.dart';
 
 const MethodChannel _kSecureChannel = MethodChannel('juzzio/notifications');
 
@@ -106,7 +107,7 @@ class _JuzzioViewOnceBubbleState extends State<JuzzioViewOnceBubble> {
         decoration: BoxDecoration(color: fg.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(14)),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           _busy
-              ? SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: fg))
+              ? SizedBox(width: 22, height: 22, child: JuzzioOrbitLoader(strokeWidth: 2, color: fg))
               : Icon(_opened ? Icons.radio_button_unchecked_rounded : Icons.looks_one_rounded, color: fg),
           const SizedBox(width: 8),
           Flexible(child: Text(label, style: TextStyle(color: fg, fontWeight: FontWeight.w700))),
@@ -161,14 +162,14 @@ class _ViewOncePageState extends State<_ViewOncePage> {
       body = InteractiveViewer(
         child: FutureBuilder<String>(
           future: JuzzioMediaUrl.resolve(widget.imageUrl),
-          builder: (_, s) => s.hasData ? Image.network(s.data!, fit: BoxFit.contain) : const CircularProgressIndicator(),
+          builder: (_, s) => s.hasData ? Image.network(s.data!, fit: BoxFit.contain) : const JuzzioOrbitLoader(),
         ),
       );
     } else {
       final vc = _vc;
       body = vc != null && vc.value.isInitialized
           ? AspectRatio(aspectRatio: vc.value.aspectRatio, child: VideoPlayer(vc))
-          : const CircularProgressIndicator();
+          : const JuzzioOrbitLoader();
     }
     return Scaffold(
       backgroundColor: Colors.black,
@@ -228,7 +229,7 @@ class _JuzzioEncryptedVideoTileState extends State<JuzzioEncryptedVideoTile> {
         decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(14)),
         alignment: Alignment.center,
         child: _busy
-            ? const CircularProgressIndicator(color: Colors.white)
+            ? const JuzzioOrbitLoader(color: Colors.white)
             : const Column(mainAxisSize: MainAxisSize.min, children: [
                 Icon(Icons.play_circle_fill_rounded, color: Colors.white, size: 54),
                 SizedBox(height: 4),
@@ -275,7 +276,7 @@ class _LocalVideoPageState extends State<_LocalVideoPage> {
                   onTap: () => setState(() => _vc.value.isPlaying ? _vc.pause() : _vc.play()),
                   child: AspectRatio(aspectRatio: _vc.value.aspectRatio, child: VideoPlayer(_vc)),
                 )
-              : const CircularProgressIndicator(),
+              : const JuzzioOrbitLoader(),
         ),
       );
 }

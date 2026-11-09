@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import '../core/app_theme_and_locale.dart';
 import '../services/juzzio_chat_lock.dart';
 import '../services/supabase_service.dart';
+import 'juzzio_motion.dart';
 
 /// PIN ister; doğrulanırsa true. PIN yoksa önce oluşturtur ([allowCreate]).
 Future<bool> juzzioRequireChatPin(BuildContext context, {bool allowCreate = true}) async {
@@ -170,7 +171,7 @@ class _JuzzioChatLockTileState extends State<JuzzioChatLockTile> {
     final p = JuzzioPalette(app.isDark);
     return ListenableBuilder(
       listenable: JuzzioChatLock.instance,
-      builder: (context, _) => SwitchListTile(
+      builder: (context, _) => JuzzioSwitchListTile(style: JuzzioToggleStyle.check,
         contentPadding: const EdgeInsets.symmetric(horizontal: 14),
         secondary: Icon(Icons.lock_person_rounded, color: p.textPrimary),
         title: Text(app.trEn('Sohbeti Kilitle', 'Lock chat', 'Chat sperren'),

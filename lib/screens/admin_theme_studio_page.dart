@@ -17,6 +17,7 @@ import '../services/juzzio_features_service.dart';
 import '../services/supabase_service.dart';
 import 'theme_studio_page.dart';
 import '../widgets/juzzio_ui_kit.dart';
+import '../widgets/juzzio_motion.dart';
 
 String _t(String tr, String en) => JuzzioAppController.instance.trEn(tr, en);
 
@@ -365,7 +366,7 @@ class _JuzzioAdminStaffPageState extends State<JuzzioAdminStaffPage> {
             ),
           const SizedBox(height: 16),
           Text(_t('Rolü olanlar', 'Staff'), style: TextStyle(color: JuzzioGlassTokens.heading, fontWeight: FontWeight.w900, fontSize: 16)),
-          if (_loading) const Padding(padding: EdgeInsets.all(20), child: Center(child: CircularProgressIndicator())),
+          if (_loading) const Padding(padding: EdgeInsets.all(20), child: Center(child: JuzzioOrbitLoader())),
           if (!_loading && _staff.isEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 10),

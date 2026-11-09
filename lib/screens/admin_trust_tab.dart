@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import '../core/app_theme_and_locale.dart';
 import '../services/supabase_service.dart';
 import '../widgets/juzzio_cloth_refresh.dart';
+import '../widgets/juzzio_motion.dart';
 
 class JuzzioAdminTrustTab extends StatefulWidget {
   const JuzzioAdminTrustTab({super.key, required this.token});
@@ -63,7 +64,7 @@ class _JuzzioAdminTrustTabState extends State<JuzzioAdminTrustTab> {
           style: const TextStyle(fontSize: 12.5),
         ),
         const SizedBox(height: 10),
-        if (_loading) const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator())),
+        if (_loading) const Center(child: Padding(padding: EdgeInsets.all(24), child: JuzzioOrbitLoader())),
         if (_error != null) Text(_error!, style: const TextStyle(color: Colors.redAccent)),
         if (!_loading && _rows.isEmpty && _error == null) Text(_app.trEn('Şikâyet edilen hesap yok.', 'No reported accounts.', 'Keine gemeldeten Konten.')),
         for (final r in _rows)

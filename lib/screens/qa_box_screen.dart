@@ -11,6 +11,7 @@ import '../core/app_theme_and_locale.dart';
 import '../services/supabase_service.dart';
 import '../widgets/juzzio_cloth_refresh.dart';
 import '../widgets/juzzio_ui_kit.dart';
+import '../widgets/juzzio_motion.dart';
 
 class JuzzioQaInboxScreen extends StatefulWidget {
   const JuzzioQaInboxScreen({super.key});
@@ -112,14 +113,14 @@ class _JuzzioQaInboxScreenState extends State<JuzzioQaInboxScreen> {
               onRefresh: _load,
               child: ListView(padding: const EdgeInsets.all(16), children: [
                 TextField(controller: _title, maxLength: 120, decoration: InputDecoration(labelText: _app.trEn('Kutu başlığı', 'Box title', 'Titel'))),
-                SwitchListTile(
+                JuzzioSwitchListTile(style: JuzzioToggleStyle.check,
                   contentPadding: EdgeInsets.zero,
                   title: Text(_app.trEn('Anonim sorulara izin ver', 'Allow anonymous questions', 'Anonyme Fragen erlauben')),
                   subtitle: Text(_app.trEn('Anonim soranın kimliği sana hiçbir zaman gösterilmez.', 'You never see who asked anonymously.', 'Du siehst nie, wer anonym fragt.')),
                   value: _anon,
                   onChanged: (v) => setState(() => _anon = v),
                 ),
-                SwitchListTile(
+                JuzzioSwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text(_app.trEn('Kutu açık (profilimde görünsün)', 'Box open (show on my profile)', 'Kasten offen')),
                   value: _active,
@@ -191,7 +192,7 @@ class _JuzzioQaProfileSectionState extends State<JuzzioQaProfileSection> {
           content: Column(mainAxisSize: MainAxisSize.min, children: [
             TextField(controller: ctrl, maxLength: 500, maxLines: 4, minLines: 2, decoration: InputDecoration(labelText: _app.trEn('Sorun', 'Your question', 'Deine Frage'))),
             if (_box?['allow_anonymous'] == true)
-              SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(_app.trEn('Anonim sor', 'Ask anonymously', 'Anonym fragen')), value: anon, onChanged: (v) => setS(() => anon = v)),
+              JuzzioSwitchListTile(contentPadding: EdgeInsets.zero, title: Text(_app.trEn('Anonim sor', 'Ask anonymously', 'Anonym fragen')), value: anon, onChanged: (v) => setS(() => anon = v)),
           ]),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(_app.trEn('Vazgeç', 'Cancel', 'Abbrechen'))),

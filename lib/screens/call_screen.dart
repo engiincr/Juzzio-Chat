@@ -39,6 +39,7 @@ import '../services/supabase_service.dart';
 import '../core/theme/juzzio_colors.dart';
 import '../core/theme/juzzio_glass.dart';
 import '../widgets/juzzio_beauty_sheet.dart';
+import '../widgets/juzzio_motion.dart';
 
 /// Arama sırasında üstte görünen kısa süreli uyarı (ağ yavaş, pil azaldı)
 class _CallAlert {
@@ -174,6 +175,10 @@ class _CallScreenState extends State<CallScreen> {
   // v0.9.7: süre sayacı ayrı bir ValueNotifier — her saniye TÜM arama ekranı (video
   // katmanları dahil) yeniden çizilmez; yalnız süre metni güncellenir (pil/ısı tasarrufu).
   final ValueNotifier<int> _elapsed = ValueNotifier<int>(0);
+
+  // v1.1.0 hareket kiti: süzülen tepkiler + canlı durum kapsülü (arama sayfası örtülünce)
+  final JuzzioFloatingReactionsController _reactions = JuzzioFloatingReactionsController();
+  bool _islandShown = false;
   int get _elapsedSeconds => _elapsed.value;
 
   // Ağ / pil uyarıları
@@ -199,6 +204,9 @@ class _CallScreenState extends State<CallScreen> {
     _controller.onForeignParticipantDetected = _handleForeignParticipantJoined;
     _controller.onParticipantQualityChanged = _handleParticipantQuality;
     _controller.onRemoteBatteryLow = _handleRemoteBatteryLow;
+    _controller.onCallReaction = (_, emoji) {
+      if (mounted) _reactions.add(emoji);
+    };
     _controller.addListener(_onControllerUpdate);
     _startBatteryMonitor();
     // v0.9.3: küçük pencere / PiP görüntüsü ve bildirimden kapatma için oturuma kaydol
@@ -218,6 +226,7 @@ class _CallScreenState extends State<CallScreen> {
     _callDurationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) {
         _elapsed.value++;
+        _syncCallIsland();
       }
     });
   }
@@ -573,7 +582,7 @@ class _CallScreenState extends State<CallScreen> {
                                   ? const SizedBox(
                                       width: 22,
                                       height: 22,
-                                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                      child: JuzzioOrbitLoader(strokeWidth: 2, color: Colors.white),
                                     )
                                   : TextButton(
                                       style: TextButton.styleFrom(
@@ -638,7 +647,7 @@ class _CallScreenState extends State<CallScreen> {
         .toList();
     final selected = <String>{};
 
-    await showModalBottomSheet<void>(
+    await showJuzzioSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: JuzzioGlassTokens.sheet,
@@ -873,7 +882,76 @@ class _CallScreenState extends State<CallScreen> {
   }
 
   @override
+  /// v1.1.0 Live Activity: arama sayfasının üstüne başka sayfa açılırsa üstte süre sayan
+  /// arama kapsülü görünür; dokununca aramaya geri dönülür.
+  void _syncCallIsland() {
+    final route = ModalRoute.of(context);
+    final covered = route != null && !route.isCurrent && _controller.isConnected;
+    if (covered == _islandShown) return;
+    _islandShown = covered;
+    if (!covered) {
+      JuzzioIsland.instance.clear('call');
+      return;
+    }
+    final nav = Navigator.of(context);
+    JuzzioIsland.instance.set(JuzzioIslandActivity(
+      id: 'call',
+      icon: _controller.isCameraEnabled ? Icons.videocam_rounded : Icons.call_rounded,
+      label: widget.partnerName ?? _app.loc('Arama sürüyor', 'Call in progress', 'Anruf läuft'),
+      detail: _app.loc('Arama sürüyor', 'Call in progress', 'Anruf läuft'),
+      color: JuzzioColors.emerald400,
+      startedAt: DateTime.now().subtract(Duration(seconds: _elapsed.value)),
+      onTap: () => nav.popUntil((r) => r == route),
+    ));
+  }
+
+  Widget _withReactions(Widget body) => Stack(
+        fit: StackFit.expand,
+        children: [
+          body,
+          Positioned(left: 0, right: 0, bottom: 96, height: 380, child: JuzzioFloatingReactions(controller: _reactions)),
+        ],
+      );
+
+  Future<void> _pickCallReaction() async {
+    final picked = await showJuzzioSheet<String>(
+      context: context,
+      backgroundColor: JuzzioGlassTokens.sheet,
+      builder: (ctx) => SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 18, 12, 16),
+          child: Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              for (final e in DeepgramLiveKitController.kCallReactions)
+                GestureDetector(
+                  onTap: () => Navigator.of(ctx).pop(e),
+                  child: Container(
+                    width: 56,
+                    height: 56,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(color: JuzzioGlassTokens.spaceButton, shape: BoxShape.circle),
+                    child: Text(e, style: const TextStyle(fontSize: 28)),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (picked != null) {
+      JuzzioHaptics.send();
+      await _controller.sendCallReaction(picked);
+    }
+  }
+
   void dispose() {
+    JuzzioIsland.instance.clear('call');
+    _controller.onCallReaction = null;
+    _reactions.dispose();
     _elapsed.dispose();
     _peerReachTimer?.cancel();
     _ringback.dispose();
@@ -1086,7 +1164,7 @@ class _CallScreenState extends State<CallScreen> {
   }
 
   void _openSubtitleHistorySheet() {
-    showModalBottomSheet(
+    showJuzzioSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -1388,8 +1466,8 @@ class _CallScreenState extends State<CallScreen> {
   Widget build(BuildContext context) {
     // v0.9.5: pil dostu mod — OLED ekranda siyah piksel kapalıdır; arama ve altyazı sürer
     if (!_blackout) {
-      if (!_showDataSaverPrompt) return _buildCallBody(context);
-      return Stack(children: [_buildCallBody(context), _dataSaverBanner()]);
+      if (!_showDataSaverPrompt) return _withReactions(_buildCallBody(context));
+      return Stack(children: [_withReactions(_buildCallBody(context)), _dataSaverBanner()]);
     }
     return Stack(children: [
       _buildCallBody(context),
@@ -2627,7 +2705,18 @@ class _CallScreenState extends State<CallScreen> {
         _bottomCircleBtn(
           icon: _controller.isMicEnabled ? Icons.mic_none_rounded : Icons.mic_off_rounded,
           isMutedOrOff: !_controller.isMicEnabled,
-          onTap: _controller.toggleMicrophone,
+          onTap: () async {
+            await _controller.toggleMicrophone();
+            if (!mounted) return;
+            // v1.1.0 HUD: ekranı kaplamayan cam bildirim
+            JuzzioHud.show(
+              context,
+              icon: _controller.isMicEnabled ? Icons.mic_rounded : Icons.mic_off_rounded,
+              text: _controller.isMicEnabled
+                  ? _app.loc('Mikrofon açık', 'Microphone on', 'Mikrofon an')
+                  : _app.loc('Mikrofon kapalı', 'Microphone off', 'Mikrofon aus'),
+            );
+          },
         ),
         // 2. Hoparlör / Ses (Yarı Saydam Cam Yuvarlak)
         _bottomCircleBtn(
@@ -2642,18 +2731,39 @@ class _CallScreenState extends State<CallScreen> {
           onTap: _controller.toggleCamera,
         ),
         // 6. Canlı çeviri kapsülünü aç / kapat
+        // v1.1.0 (#09 Power button): canlı çeviri tek dokunuşla açılır/kapanır (neon halka)
         if (JuzzioFeaturesService.instance.lastAppConfig.liveTranslationEnabled)
-          _bottomCircleBtn(
+          JuzzioSwitch(
+            style: JuzzioToggleStyle.power,
             icon: Icons.translate_rounded,
-            isMutedOrOff: false,
-            highlighted: _isTranslatorVisible,
-            onTap: () => setState(() {
-              _isTranslatorVisible = !_isTranslatorVisible;
-          if (_isTranslatorVisible) _controller.ensureSubtitles(force: true);
-              _isTranslatorMinimized = false;
-              _userManuallyToggledTranslator = true;
-            }),
+            value: _isTranslatorVisible,
+            semanticLabel: _app.loc('Canlı çeviri', 'Live translation', 'Live-Übersetzung'),
+            onChanged: (on) {
+              setState(() {
+                _isTranslatorVisible = on;
+                if (_isTranslatorVisible) _controller.ensureSubtitles(force: true);
+                _isTranslatorMinimized = false;
+                _userManuallyToggledTranslator = true;
+              });
+              JuzzioHud.show(
+                context,
+                icon: Icons.translate_rounded,
+                text: on ? _app.loc('Canlı çeviri açık', 'Live translation on', 'Live-Übersetzung an') : _app.loc('Canlı çeviri kapalı', 'Live translation off', 'Live-Übersetzung aus'),
+              );
+            },
           ),
+        // v1.1.0 (#04 Floating hearts): dokun ❤️ · basılı tut → tepki seç
+        GestureDetector(
+          onLongPress: _pickCallReaction,
+          child: _bottomCircleBtn(
+            icon: Icons.favorite_rounded,
+            isMutedOrOff: false,
+            onTap: () {
+              JuzzioHaptics.send();
+              _controller.sendCallReaction('❤️');
+            },
+          ),
+        ),
         // 5. Aramayı Kapat 'X' (Canlı Kırmızı #EA3423 Yuvarlak — Görsel ile Birebir!)
         GestureDetector(
           onTap: _hangUpAndCloseForEveryone,
@@ -2718,7 +2828,10 @@ class _CallScreenState extends State<CallScreen> {
               shape: BoxShape.circle,
               border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
             ),
-            child: Icon(icon, color: highlighted && !isMutedOrOff ? const Color(0xFF111113) : Colors.white, size: 22),
+            // v1.1.0 Symbol Effect: durum değişince ikon ölçeklenip zıplar
+            child: JuzzioSymbolSwap(
+              child: Icon(icon, key: ValueKey(icon), color: highlighted && !isMutedOrOff ? const Color(0xFF111113) : Colors.white, size: 22),
+            ),
           ),
         ),
       ),

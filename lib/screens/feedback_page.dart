@@ -11,6 +11,7 @@ import '../core/app_theme_and_locale.dart';
 import '../core/config.dart';
 import '../core/theme/juzzio_glass.dart';
 import '../services/supabase_service.dart';
+import '../widgets/juzzio_motion.dart';
 
 class JuzzioFeedbackPage extends StatefulWidget {
   const JuzzioFeedbackPage({super.key});
@@ -202,7 +203,7 @@ class _JuzzioFeedbackPageState extends State<JuzzioFeedbackPage> {
             ),
             onPressed: _sending ? null : _send,
             icon: _sending
-                ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: p.coolButtonFg))
+                ? SizedBox(width: 18, height: 18, child: JuzzioOrbitLoader(strokeWidth: 2, color: p.coolButtonFg))
                 : const Icon(Icons.send_rounded),
             label: Text(_app.trEn('Gönder', 'Send', 'Senden'), style: const TextStyle(fontWeight: FontWeight.w900)),
           ),

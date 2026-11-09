@@ -16,6 +16,7 @@ import '../core/theme/juzzio_colors.dart';
 import '../core/theme/juzzio_glass.dart';
 import '../services/supabase_service.dart';
 import '../widgets/juzzio_cloth_refresh.dart';
+import '../widgets/juzzio_motion.dart';
 
 class JuzzioAdminStoryTab extends StatefulWidget {
   const JuzzioAdminStoryTab({super.key});
@@ -245,7 +246,7 @@ class _JuzzioAdminStoryTabState extends State<JuzzioAdminStoryTab> {
           Text(_l('Yayındaki resmi hikâyeler', 'Live official stories', 'Aktive offizielle Storys'), style: TextStyle(color: tc, fontSize: 16, fontWeight: FontWeight.w800)),
           const SizedBox(height: 8),
           if (_loading)
-            const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator()))
+            const Padding(padding: EdgeInsets.all(24), child: Center(child: JuzzioOrbitLoader()))
           else if (_active.isEmpty)
             Padding(padding: const EdgeInsets.all(16), child: Text(_l('Henüz yok.', 'None yet.', 'Noch keine.'), style: TextStyle(color: t2)))
           else

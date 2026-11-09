@@ -18,13 +18,13 @@
 </div>
 
 <!-- JUZZIO_DYNAMIC_TITLE_START -->
-### 🚀 Latest update: **v1.0.0 — Juzzio Space: New Design & Instant Messaging**
+### 🚀 Latest update: **v1.1.1 — New Refresh Hand & Faster Profile**
 <!-- JUZZIO_DYNAMIC_TITLE_END -->
 
 <!-- JUZZIO_VERIFIED_APK_START -->
 | Version | APK | Size | SHA-256 | Built |
 | :-- | :-- | :-- | :-- | :-- |
-| v1.0.0 (+1056) | [Juzzio-latest.apk](https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk) | 110.04 MB | `8fd352df413e5a1b2d16b8b786c9caaf68eb9ec86f43ce3c2aa38404c12d4eeb` | 2026-11-09 16:52 UTC |
+| v1.1.1 (+111) | Waiting for the GitHub Actions build | – | – | – |
 <!-- JUZZIO_VERIFIED_APK_END -->
 
 ---
@@ -46,9 +46,64 @@
 
 ## 🆕 Today's updates (November 9, 2026)
 
-Seven releases shipped today — **v0.9.4, v0.9.5, v0.9.6, v0.9.7, v0.9.8, v0.9.9 and v1.0.0**. Every update below is also shown inside the app on the first launch after updating ("What's new?"), with the same sections and emojis. Full notes: [release-notes.md](release-notes.md) · [GitHub Releases](https://github.com/engiincr/Juzzio-Chat/releases).
+Eight releases shipped today — **v0.9.4, v0.9.5, v0.9.6, v0.9.7, v0.9.8, v0.9.9, v1.0.0 and v1.1.0**. Every update below is also shown inside the app on the first launch after updating ("What's new?"), with the same sections and emojis. Full notes: [release-notes.md](release-notes.md) · [GitHub Releases](https://github.com/engiincr/Juzzio-Chat/releases).
 
 <details open>
+<summary><b>v1.1.1 — New Refresh Hand & Faster Profile</b></summary>
+
+### 🎯 Why did this update come?
+The chubby pull-to-refresh hand was redrawn as vector art; the notifications list no longer disappears while refreshing, and the profile page opens much faster.
+
+### ✨ What's new?
+- ✋ Redrawn refresh hand: a chubby, clean-lined hand comes out of the notch with a sleeve in your theme colour, swings, makes a fist and pulls the page up — crisp on every screen
+- 🧺 The cloth is now a light surface in your theme colour that gathers up with soft folds
+
+### 🛠️ What was fixed?
+- Fixed the refresh hand looking like a foot and ghosting between poses
+- Fixed the cloth looking like a black smear over the content in dark themes
+- Notifications: refreshing or switching filters no longer flashes empty placeholder cards; stale requests can't overwrite the new list; empty/error states can be pulled to refresh; swipe-to-delete removes by id
+- Profile: counts, posts and relationship appear as soon as each arrives and reopen instantly; background requests run in parallel instead of one after another
+- Friends, files, saved messages, security and post comments no longer lose their content while refreshing
+
+</details>
+
+<details>
+<summary><b>v1.1.0 — Live Motion, New Logo & Clean Captions</b></summary>
+
+### 🎯 Why did this update come?
+Juzzio now feels alive at every touch: page transitions, switches, loaders, message sending, likes and icon morphs were redesigned, and there is a new logo. Phantom captions like "Okay my love" that users never said are gone from calls, and tapping a quote jumps to the quoted message.
+
+### ✨ What's new?
+- 🐣 New logo: a chick with a glass chat-bubble wing and an orbit ring; Android adaptive and themed (monochrome) icon, new launch screen
+- 🚀 Launch/loading screen: a glowing orbit around the logo, a sparkler progress bar and "Connecting → Verifying encryption → Syncing messages"
+- 💬 Sending: the text in the composer breaks off like a droplet, turns into a bubble and slides up; the paper plane on the send button flies off with a swoosh
+- ✓✓ Read receipts draw themselves: clock → ✓ sent → ✓✓ delivered → glowing ✓✓ read
+- 😀 Emoji-only messages arrive big with a pop; messages like "Happy Birthday", "Congrats" or "İyi ki doğdun" burst into confetti
+- ❤️ Reactions: the heart draws itself and fills with a ring and particle burst; new reaction badges spring in; double-tap a photo for a heart
+- ⭐ Starring a message spins the star with sparkles
+- 🔘 New switches: a gooey neon switch for general settings; ✕→✓ switches for privacy, encryption, read receipts and permissions; a Day/Night switch where the sun turns into the moon
+- ⏻ Live translation and Do Not Disturb get a one-tap neon Power button
+- 🧭 Transitions: bottom sheets blur the background and spring open; photos and videos zoom to full screen from where you tapped; the profile photo flies seamlessly into the profile page
+- ➕ Icon morphs: attach (+) turns into × while the menu is open, ⋮ turns into ×, the inbox menu becomes × inside a ring, the back button morphs from menu to arrow
+- 🏝️ Dynamic Island–style live activity: ongoing calls, voice recording and uploads appear at the top with a timer/progress
+- 🫧 Copied, microphone on/off and live translation states show as a glass HUD that doesn't cover the screen; deleting a message is confirmed with an action sheet
+- 🎉 Live reactions in calls: tap the heart (hold to pick another reaction) and it floats up on everyone's screen
+- ⌛ Three glowing dots bounce at the bottom of the chat while the other person types; sparkler bars for uploads and an orbit ring while connecting
+- 📳 Haptic feedback on send, switches, swipe thresholds and long presses
+
+### 🛠️ What was fixed?
+- Fixed made-up captions such as "Okay my love" appearing in voice/video calls while nobody was speaking: the caption microphone now uses echo cancellation and noise suppression with auto-gain off, and the recognizer only receives silence unless you are actually speaking
+- The other person's voice leaking from the speaker into your microphone is no longer written as a "You: …" line (echo filter); low-confidence and phantom-phrase results are dropped and a stale interim line is retracted
+- Tapping a quote (the replied message) scrolls the chat to the quoted message and highlights it briefly; older history loads automatically
+- Image quotes show a thumbnail instead of caption text; video, voice and document quotes show their type
+
+### 🔐 Security
+- Live captions only send audio to the speech recognizer while you are actually speaking; silence and room sound are not sent
+- Call reactions are limited to an allow-list of emojis (no arbitrary text can be broadcast)
+
+</details>
+
+<details>
 <summary><b>v1.0.0 — Juzzio Space: New Design & Instant Messaging</b></summary>
 
 ### 🎯 Why did this update come?

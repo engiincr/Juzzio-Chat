@@ -14,6 +14,7 @@ import '../core/theme/juzzio_glass.dart';
 import '../services/juzzio_e2ee.dart';
 import '../services/supabase_service.dart';
 import '../widgets/juzzio_cloth_refresh.dart';
+import '../widgets/juzzio_motion.dart';
 
 enum JuzzioFileKind { media, documents, voice }
 
@@ -66,8 +67,9 @@ class _JuzzioFileCenterPageState extends State<JuzzioFileCenterPage> {
   }
 
   Future<void> _load() async {
+    // v1.1.1: yenilemede içerik sökülmez (aşağı çek animasyonu kesilmez, boş iskelet yanıp sönmez)
     setState(() {
-      _loading = true;
+      _loading = _items.isEmpty;
       _error = null;
     });
     try {
@@ -118,7 +120,7 @@ class _JuzzioFileCenterPageState extends State<JuzzioFileCenterPage> {
     final visible = _items.where((m) => JuzzioFileCenterFilter.kindOf(m.messageType) == _kind).toList();
     Widget body;
     if (_loading) {
-      body = const Center(child: CircularProgressIndicator());
+      body = const Center(child: JuzzioOrbitLoader());
     } else if (_error != null) {
       body = Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [

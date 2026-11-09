@@ -157,6 +157,112 @@ class JuzzioReleaseNote {
 /// Uygulamaya gömülü sürüm geçmişi (yayınlanmış sürümlerin gerçek içeriği)
 final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
   JuzzioReleaseNote(
+    versionName: '1.1.1',
+    versionCode: 111,
+    publishedAt: DateTime(2026, 11, 10),
+    sections: const {
+      'tr': JuzzioReleaseSection(
+        reason: "Aşağı çekip yenilemedeki tombul el baştan vektörle çizildi; bildirimler sayfasında yenilerken listenin kaybolması giderildi ve profil sayfası çok daha hızlı açılıyor.",
+        features: [
+          "✋ Yenileme eli yeniden çizildi: tombul, temiz çizgili el temanın renginde bir kollukla çentikten çıkar, sallanır, yumruk yapıp sayfayı yukarı çeker — her ekranda keskin",
+          "🧺 Kumaş artık temanın renginden açık bir yüzey; yumuşak kıvrımlarla toplanıp kaybolur",
+        ],
+        fixes: [
+          "Yenileme elinin poz geçişlerinde \"ayak gibi\" görünmesi ve hayalet görüntü giderildi",
+          "Koyu temada kumaşın içeriğin üstünde siyah leke gibi görünmesi giderildi",
+          "Bildirimler: yenilerken veya filtre değiştirirken liste boş kartlara dönüp yanıp sönmüyor; eski istek yeni listeyi ezmiyor; boş/hata durumunda da aşağı çekilebiliyor; kaydırarak silme kimlikle yapılıyor",
+          "Profil: sayaçlar, gönderiler ve ilişki bilgisi geldiği an görünür, sekmeye dönüşte anında açılır; arka plandaki istekler sırayla değil paralel çalışır",
+          "Arkadaşlar, dosyalar, kaydedilenler, güvenlik ve gönderi yorumları sayfalarında yenileme sırasında içerik kaybolmuyor",
+        ],
+        security: [],
+      ),
+      'en': JuzzioReleaseSection(
+        reason: "The chubby pull-to-refresh hand was redrawn as vector art; the notifications list no longer disappears while refreshing, and the profile page opens much faster.",
+        features: [
+          "✋ Redrawn refresh hand: a chubby, clean-lined hand comes out of the notch with a sleeve in your theme colour, swings, makes a fist and pulls the page up — crisp on every screen",
+          "🧺 The cloth is now a light surface in your theme colour that gathers up with soft folds",
+        ],
+        fixes: [
+          "Fixed the refresh hand looking like a foot and ghosting between poses",
+          "Fixed the cloth looking like a black smear over the content in dark themes",
+          "Notifications: refreshing or switching filters no longer flashes empty placeholder cards; stale requests can't overwrite the new list; empty/error states can be pulled to refresh; swipe-to-delete removes by id",
+          "Profile: counts, posts and relationship appear as soon as each arrives and reopen instantly; background requests run in parallel instead of one after another",
+          "Friends, files, saved messages, security and post comments no longer lose their content while refreshing",
+        ],
+        security: [],
+      ),
+    },
+  ),
+  JuzzioReleaseNote(
+    versionName: '1.1.0',
+    versionCode: 110,
+    publishedAt: DateTime(2026, 11, 9),
+    sections: const {
+      'tr': JuzzioReleaseSection(
+        reason: "Juzzio artık her dokunuşta canlı: sayfa geçişleri, anahtarlar, yükleyiciler, mesaj gönderme, beğeni ve ikon dönüşümleri baştan tasarlandı; yeni logo geldi. Aramalarda kullanıcının söylemediği \"Tamam aşkım\" gibi hayalet altyazılar giderildi ve alıntıya dokununca alıntılanan mesaja gidiliyor.",
+        features: [
+          "🐣 Yeni logo: civciv + cam sohbet balonu kanat + yörünge halkası; Android uyarlanabilir ve tematik (tek renk) ikon, yeni açılış ekranı",
+          "🚀 Açılış/yükleme ekranı: logonun etrafında dönen ışıklı yörünge, kıvılcımlı ilerleme çubuğu ve \"Bağlanıyor → Şifreleme doğrulanıyor → Mesajlar eşitleniyor\"",
+          "💬 Mesaj gönderme: yazma kutusundaki metin damla gibi koparak balona dönüşür ve yukarı kayar; gönder düğmesindeki kağıt uçak swoosh ile uçar",
+          "✓✓ Okundu bilgisi çizilerek değişir: saat → ✓ gönderildi → ✓✓ iletildi → parlayan ✓✓ okundu",
+          "😀 Yalnız emoji gönderilince büyük ve zıplayarak gelir; \"İyi ki doğdun\", \"Tebrikler\", \"Happy Birthday\" gibi mesajlarda konfeti patlar",
+          "❤️ Tepkiler: kalp çizilerek dolar, etrafında halka ve parçacık patlaması; yeni tepki rozeti yaylanarak belirir; fotoğrafa çift dokununca ortada kalp",
+          "⭐ Yıldızlı mesaja eklerken yıldız dönerek ışıltı saçar",
+          "🔘 Yeni anahtarlar: genel ayarlarda akışkan (gooey) neon anahtar; gizlilik, şifreleme, okundu bilgisi ve izinlerde ✕→✓ anahtar; koyu temada güneşin aya dönüştüğü Gece/Gündüz anahtarı",
+          "⏻ Canlı çeviri ve Rahatsız Etme tek dokunuşla açılan neon Power düğmesiyle",
+          "🧭 Geçişler: alt sayfalar arkayı bulanıklaştırıp yaylanarak açılır; fotoğraf ve videolar dokunulan yerden yakınlaşarak tam ekrana büyür; profil fotoğrafı profil sayfasına kesintisiz uçar",
+          "➕ İkon dönüşümleri: ekle (+) menü açılınca ×'e döner, ⋮ menüsü ×'e, gelen kutusu menüsü halka içinde ×'e, geri düğmesi menüden oka dönüşür",
+          "🏝️ Dynamic Island tarzı canlı durum kapsülü: süren arama, ses kaydı ve dosya yüklemeleri üstte süre/ilerlemeyle görünür",
+          "🫧 Kopyalandı, mikrofon açık/kapalı, canlı çeviri gibi durumlar ekranı kaplamayan cam bildirimle (HUD) gösterilir; mesaj silme alttan açılan eylem sayfasıyla onaylanır",
+          "🎉 Aramalarda anlık tepki: kalbe dokun (basılı tutarak başka tepki seç), herkesin ekranında alttan süzülür",
+          "⌛ Karşı taraf yazarken sohbetin dibinde üç ışıklı nokta zıplar; ses ve dosya yüklemelerinde kıvılcımlı çubuk, bağlantıda yörünge halkası",
+          "📳 Gönderimde, anahtarlarda, kaydırma eşiğinde ve uzun basmada titreşim geri bildirimi",
+        ],
+        fixes: [
+          "Sesli/görüntülü aramada kimse konuşmazken altyazıda çıkan \"Tamam aşkım\" gibi uydurma metinler giderildi: altyazı mikrofonu artık yankı engelleme ve gürültü bastırmayla okunur, otomatik kazanç kapalı; gerçekten konuşmadıkça tanıyıcıya ses değil sessizlik gider",
+          "Karşı taraf konuşurken onun sesinin hoparlörden mikrofona girip \"Sen: …\" satırı olarak yazılması engellendi (yankı süzgeci); düşük güvenli ve hayalet kalıp sonuçlar gösterilmez, ekranda kalmış ara satır geri çekilir",
+          "Alıntıya (yanıtlanan mesaja) dokununca sohbet alıntılanan mesaja kayar ve onu kısa süre parlatır; eski mesajsa geçmiş otomatik yüklenir",
+          "Görsel alıntılarında resim yazısı yerine küçük resim gösterilir; video, sesli mesaj ve belge alıntıları türüyle birlikte görünür",
+        ],
+        security: [
+          "Canlı altyazı yalnız gerçekten konuştuğunuz anların sesini konuşma tanıma servisine gönderir; sessizlik ve oda sesi gönderilmez",
+          "Arama tepkileri beyaz listeli emojilerle sınırlıdır (rastgele metin yayınlanamaz)",
+        ],
+      ),
+      'en': JuzzioReleaseSection(
+        reason: "Juzzio now feels alive at every touch: page transitions, switches, loaders, message sending, likes and icon morphs were redesigned, and there is a new logo. Phantom captions like \"Okay my love\" that users never said are gone from calls, and tapping a quote jumps to the quoted message.",
+        features: [
+          "🐣 New logo: a chick with a glass chat-bubble wing and an orbit ring; Android adaptive and themed (monochrome) icon, new launch screen",
+          "🚀 Launch/loading screen: a glowing orbit around the logo, a sparkler progress bar and \"Connecting → Verifying encryption → Syncing messages\"",
+          "💬 Sending: the text in the composer breaks off like a droplet, turns into a bubble and slides up; the paper plane on the send button flies off with a swoosh",
+          "✓✓ Read receipts draw themselves: clock → ✓ sent → ✓✓ delivered → glowing ✓✓ read",
+          "😀 Emoji-only messages arrive big with a pop; messages like \"Happy Birthday\", \"Congrats\" or \"İyi ki doğdun\" burst into confetti",
+          "❤️ Reactions: the heart draws itself and fills with a ring and particle burst; new reaction badges spring in; double-tap a photo for a heart",
+          "⭐ Starring a message spins the star with sparkles",
+          "🔘 New switches: a gooey neon switch for general settings; ✕→✓ switches for privacy, encryption, read receipts and permissions; a Day/Night switch where the sun turns into the moon",
+          "⏻ Live translation and Do Not Disturb get a one-tap neon Power button",
+          "🧭 Transitions: bottom sheets blur the background and spring open; photos and videos zoom to full screen from where you tapped; the profile photo flies seamlessly into the profile page",
+          "➕ Icon morphs: attach (+) turns into × while the menu is open, ⋮ turns into ×, the inbox menu becomes × inside a ring, the back button morphs from menu to arrow",
+          "🏝️ Dynamic Island–style live activity: ongoing calls, voice recording and uploads appear at the top with a timer/progress",
+          "🫧 Copied, microphone on/off and live translation states show as a glass HUD that doesn't cover the screen; deleting a message is confirmed with an action sheet",
+          "🎉 Live reactions in calls: tap the heart (hold to pick another reaction) and it floats up on everyone's screen",
+          "⌛ Three glowing dots bounce at the bottom of the chat while the other person types; sparkler bars for uploads and an orbit ring while connecting",
+          "📳 Haptic feedback on send, switches, swipe thresholds and long presses",
+        ],
+        fixes: [
+          "Fixed made-up captions such as \"Okay my love\" appearing in voice/video calls while nobody was speaking: the caption microphone now uses echo cancellation and noise suppression with auto-gain off, and the recognizer only receives silence unless you are actually speaking",
+          "The other person's voice leaking from the speaker into your microphone is no longer written as a \"You: …\" line (echo filter); low-confidence and phantom-phrase results are dropped and a stale interim line is retracted",
+          "Tapping a quote (the replied message) scrolls the chat to the quoted message and highlights it briefly; older history loads automatically",
+          "Image quotes show a thumbnail instead of caption text; video, voice and document quotes show their type",
+        ],
+        security: [
+          "Live captions only send audio to the speech recognizer while you are actually speaking; silence and room sound are not sent",
+          "Call reactions are limited to an allow-list of emojis (no arbitrary text can be broadcast)",
+        ],
+      ),
+    },
+  ),
+  JuzzioReleaseNote(
     versionName: '1.0.0',
     versionCode: 100,
     publishedAt: DateTime(2026, 11, 9),

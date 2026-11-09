@@ -37,6 +37,7 @@ import '../../widgets/juzzio_story_stickers.dart';
 import '../../widgets/profile_extras.dart';
 import '../../widgets/juzzio_mentions.dart';
 import '../close_friends_page.dart';
+import '../../widgets/juzzio_motion.dart';
 
 String _l(String tr, String en, String de) => JuzzioAppController.instance.trEn(tr, en, de);
 
@@ -886,7 +887,7 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
         _captionCtrl.text.trim().isNotEmpty ||
         _overlayText.isNotEmpty;
     if (!hasDraft) return true;
-    final res = await showModalBottomSheet<bool>(
+    final res = await showJuzzioSheet<bool>(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (ctx) => _GlassSheet(
@@ -1165,7 +1166,7 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
             Container(
               color: Colors.black54,
               alignment: Alignment.center,
-              child: const CircularProgressIndicator(color: Colors.white),
+              child: const JuzzioOrbitLoader(color: Colors.white),
             ),
           if (_publishing) _buildPublishingOverlay(),
         ],
@@ -1607,7 +1608,7 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
               fit: StackFit.expand,
               children: [
                 if (thumb != null) Image.file(File(thumb), fit: BoxFit.cover) else const ColoredBox(color: Colors.black),
-                const Center(child: CircularProgressIndicator(color: Colors.white54, strokeWidth: 2)),
+                const Center(child: JuzzioOrbitLoader(color: Colors.white54, strokeWidth: 2)),
               ],
             );
           }
@@ -1859,7 +1860,7 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
 
   Future<void> _showAddMoreSheet() async {
     _preview?.pause();
-    final choice = await showModalBottomSheet<String>(
+    final choice = await showJuzzioSheet<String>(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (ctx) => _GlassSheet(
@@ -2225,7 +2226,7 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
                 alignment: Alignment.center,
                 children: [
                   SizedBox.expand(
-                    child: CircularProgressIndicator(
+                    child: JuzzioOrbitLoader(
                       value: _progress <= 0.06 ? null : _progress.clamp(0.0, 1.0),
                       strokeWidth: 5,
                       color: Colors.white,
@@ -2445,7 +2446,7 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
               const SizedBox(height: 10),
               Container(
                 decoration: BoxDecoration(color: card, borderRadius: BorderRadius.circular(16)),
-                child: SwitchListTile.adaptive(
+                child: JuzzioSwitchListTile(style: JuzzioToggleStyle.check,
                   value: _commentsEnabled,
                   onChanged: (v) => setState(() => _commentsEnabled = v),
                   title: Text(
@@ -2517,7 +2518,7 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
                         const SizedBox(height: 10),
                         ClipRRect(
                           borderRadius: BorderRadius.circular(99),
-                          child: LinearProgressIndicator(
+                          child: JuzzioSparklerBar(
                             value: _progress.clamp(0.0, 1.0),
                             minHeight: 6,
                             color: isDark ? Colors.white : JuzzioColors.ink,

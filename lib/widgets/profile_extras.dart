@@ -22,6 +22,7 @@ import '../core/config.dart';
 import '../core/theme/juzzio_colors.dart';
 import '../services/juzzio_features_service.dart';
 import '../services/supabase_service.dart';
+import 'juzzio_motion.dart';
 
 class JuzzioVerifiedTick extends StatelessWidget {
   final double size;
@@ -93,7 +94,7 @@ class _JuzzioBadgeRowState extends State<JuzzioBadgeRow> {
     final style = JuzzioBadgeStyle.all[code];
     if (style == null) return;
     final info = _info ?? const JuzzioBadgeInfo();
-    showModalBottomSheet<void>(
+    showJuzzioSheet<void>(
       context: context,
       backgroundColor: widget.isDark ? JuzzioColors.surface141519 : Colors.white,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
@@ -676,7 +677,7 @@ class _JuzzioMusicPickerPageState extends State<JuzzioMusicPickerPage> {
               ),
             ),
           ),
-          if (_loading || _saving) LinearProgressIndicator(minHeight: 2, color: p.textPrimary, backgroundColor: Colors.transparent),
+          if (_loading || _saving) JuzzioSparklerBar(minHeight: 2, color: p.textPrimary, backgroundColor: Colors.transparent),
           if (_error != null)
             Padding(
               padding: const EdgeInsets.all(16),

@@ -1,16 +1,16 @@
 {
-  "version": "1.0.0",
-  "buildNumber": 1056,
-  "releaseDate": "2026-11-09",
-  "releaseTitle": "Juzzio Space: Yeni Tasarım ve Anında Mesaj",
+  "version": "1.1.1",
+  "buildNumber": 111,
+  "releaseDate": "2026-11-10",
+  "releaseTitle": "Yeni Yenileme Eli ve Hızlı Profil",
   "mandatory": false,
   "minSupportedVersion": "0.1.0",
   "apkUrl": "https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk",
-  "versionedApkUrl": "https://github.com/engiincr/Juzzio-Chat/releases/download/v1.0.0/juzzio-v1.0.0-release.apk",
-  "apkSha256": "8fd352df413e5a1b2d16b8b786c9caaf68eb9ec86f43ce3c2aa38404c12d4eeb",
-  "apkSize": "110.04 MB",
-  "verifiedBuild": true,
-  "verifiedAt": "2026-11-09 16:52 UTC",
+  "versionedApkUrl": "https://github.com/engiincr/Juzzio-Chat/releases/download/v1.1.1/juzzio-v1.1.1-release.apk",
+  "apkSha256": "",
+  "apkSize": "",
+  "verifiedBuild": false,
+  "verifiedAt": "",
   "developer": {
     "name": "Engin ÇIRPAN",
     "instagram": "https://ig.me/tugkancr",
@@ -18,97 +18,62 @@
     "email": "engiincr@pm.me"
   },
   "changelog": {
-    "tr": "v1.0.0: Juzzio, Figma'da tasarlanan \"Juzzio Space\" arayüzüne taşındı: derin tema gradyanları, buzlu cam kartlar ve her temada parlayan vurgu rengi. Aynı güncellemede mesajlar beklemeden gönderiliyor, konum/bağlantı/anket deneyimi yenilendi, vardiyalar tarih aralığıyla planlanıyor ve yönetici kayıtları okunur hâle geldi.",
-    "en": "v1.0.0: Juzzio moves to the \"Juzzio Space\" interface designed in Figma: deep theme gradients, frosted glass cards and a glowing accent in every theme. In the same update messages send without waiting, location/link/poll experiences were rebuilt, shifts can be planned by date range and admin logs became readable.",
-    "de": "v1.0.0: Juzzio erhält die in Figma gestaltete \"Juzzio Space\"-Oberfläche: tiefe Themenverläufe, Milchglas-Karten und eine leuchtende Akzentfarbe in jedem Theme. Außerdem werden Nachrichten ohne Wartezeit gesendet, Standort, Links und Umfragen wurden erneuert, Schichten lassen sich per Zeitraum planen und Admin-Protokolle sind lesbar."
+    "tr": "v1.1.1: Aşağı çekip yenilemedeki tombul el baştan vektörle çizildi; bildirimler sayfasında yenilerken listenin kaybolması giderildi ve profil sayfası çok daha hızlı açılıyor.",
+    "en": "v1.1.1: The chubby pull-to-refresh hand was redrawn as vector art; the notifications list no longer disappears while refreshing, and the profile page opens much faster.",
+    "de": "v1.1.1: The chubby pull-to-refresh hand was redrawn as vector art; the notifications list no longer disappears while refreshing, and the profile page opens much faster."
   },
-  "build": 1056,
-  "versionCode": 1056,
+  "build": 111,
+  "versionCode": 111,
   "url": "https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk",
-  "changelog_tr": "v1.0.0: Juzzio, Figma'da tasarlanan \"Juzzio Space\" arayüzüne taşındı: derin tema gradyanları, buzlu cam kartlar ve her temada parlayan vurgu rengi. Aynı güncellemede mesajlar beklemeden gönderiliyor, konum/bağlantı/anket deneyimi yenilendi, vardiyalar tarih aralığıyla planlanıyor ve yönetici kayıtları okunur hâle geldi.",
-  "changelog_en": "v1.0.0: Juzzio moves to the \"Juzzio Space\" interface designed in Figma: deep theme gradients, frosted glass cards and a glowing accent in every theme. In the same update messages send without waiting, location/link/poll experiences were rebuilt, shifts can be planned by date range and admin logs became readable.",
-  "changelog_de": "v1.0.0: Juzzio erhält die in Figma gestaltete \"Juzzio Space\"-Oberfläche: tiefe Themenverläufe, Milchglas-Karten und eine leuchtende Akzentfarbe in jedem Theme. Außerdem werden Nachrichten ohne Wartezeit gesendet, Standort, Links und Umfragen wurden erneuert, Schichten lassen sich per Zeitraum planen und Admin-Protokolle sind lesbar.",
+  "changelog_tr": "v1.1.1: Aşağı çekip yenilemedeki tombul el baştan vektörle çizildi; bildirimler sayfasında yenilerken listenin kaybolması giderildi ve profil sayfası çok daha hızlı açılıyor.",
+  "changelog_en": "v1.1.1: The chubby pull-to-refresh hand was redrawn as vector art; the notifications list no longer disappears while refreshing, and the profile page opens much faster.",
+  "changelog_de": "v1.1.1: The chubby pull-to-refresh hand was redrawn as vector art; the notifications list no longer disappears while refreshing, and the profile page opens much faster.",
   "details": {
     "tr": {
-      "reason": "Juzzio, Figma'da tasarlanan \"Juzzio Space\" arayüzüne taşındı: derin tema gradyanları, buzlu cam kartlar ve her temada parlayan vurgu rengi. Aynı güncellemede mesajlar beklemeden gönderiliyor, konum/bağlantı/anket deneyimi yenilendi, vardiyalar tarih aralığıyla planlanıyor ve yönetici kayıtları okunur hâle geldi.",
+      "reason": "Aşağı çekip yenilemedeki tombul el baştan vektörle çizildi; bildirimler sayfasında yenilerken listenin kaybolması giderildi ve profil sayfası çok daha hızlı açılıyor.",
       "features": [
-        "🎨 Juzzio Space tasarımı: \"Senin alanın · Juzzio.\" başlığı, ⌘K kısayollu arama, hikâye halkaları, Gelen kutusu · Mesajlar, sayaçlı filtre hapları, cam sohbet kartları ve yüzen cam alt menü",
-        "🌈 16 temanın tamamı aynı tasarım dilini kullanır; vurgu rengi, zemin derinliği ve cam opaklığı seçili temadan gelir (yeni kullanıcılarda varsayılan Zümrüt)",
-        "🪪 Profil ve yönetici paneli de Juzzio Space düzeninde: büyük başlık, parlayan halkalı kare avatar, cam sayaç karoları, vurgu renkli birincil düğme, kapsül sekmeler ve cam istatistik kartları",
-        "⚡ Mesajlar anında gönderilir: balon hemen görünür, çeviri arka planda yapılır ve hazır olunca mesajın altında belirir (uçtan uca şifreli sohbetlerde çeviri de şifreli eklenir)",
-        "📍 Paylaşılan konum harita önizlemeli kart olarak görünür; Android'de Google Haritalar, iOS'ta Apple Haritalar ya da Google Maps ile açılır",
-        "🔗 Mesajlar, biyografi, gönderi ve yorumlardaki bağlantılar, e-postalar ve telefon numaraları tıklanabilir; varsayılan tarayıcıda/uygulamada açılır",
-        "📊 Yeni anket kartı: oran çubuklu seçenekler, yüzdeler, kazanan vurgusu ve canlı durum çipi",
-        "📅 Vardiya planlayıcıda tarih aralığı: başlangıç–bitiş günü ve saatleri seç (gece vardiyası dahil), hafta içi/sonu filtrele, grupla paylaş ve gruba otomatik plan özeti gönder",
-        "🐣 Civciv sevilince prenses gibi sağa dönüp göz kırpar ve cilve yapar; sohbetteki civciv rozeti de aynı animasyonu yapar",
-        "👑 Yeni civciv özelleştirmeleri: prenses tacı, çiçek taç, büyücü şapkası, yıldız gözlük, prenses tütüsü, inci kolye, bale pabucu, Şato/Uzay/Sakura sahneleri",
-        "🧾 Yönetici kayıtları yöneticinin dilinde okunur cümleler: kim, ne yaptı, kime, ne zaman (kod ve kimlik gösterilmez)"
+        "✋ Yenileme eli yeniden çizildi: tombul, temiz çizgili el temanın renginde bir kollukla çentikten çıkar, sallanır, yumruk yapıp sayfayı yukarı çeker — her ekranda keskin",
+        "🧺 Kumaş artık temanın renginden açık bir yüzey; yumuşak kıvrımlarla toplanıp kaybolur"
       ],
       "fixes": [
-        "Kumaş yenileme mobilde düzeltildi: Android taşma esnemesi ve iOS sekmesi ile çakışma giderildi, kısa listelerde de çekilebilir",
-        "El gölgesindeki GPU bulanıklık artefaktı (dikdörtgen leke/titreme) kaldırıldı; yumuşak radyal gölge kullanılıyor",
-        "Sohbet ⋯ menüsü sadeleşti: emojiler kaldırıldı, ikonlu ve opak (okunur) arka plan, tehlikeli işlemler ayrı ve kırmızı",
-        "Menü, alt sayfa ve diyalog arka planları artık neredeyse opak — yazılar okunur"
+        "Yenileme elinin poz geçişlerinde \"ayak gibi\" görünmesi ve hayalet görüntü giderildi",
+        "Koyu temada kumaşın içeriğin üstünde siyah leke gibi görünmesi giderildi",
+        "Bildirimler: yenilerken veya filtre değiştirirken liste boş kartlara dönüp yanıp sönmüyor; eski istek yeni listeyi ezmiyor; boş/hata durumunda da aşağı çekilebiliyor; kaydırarak silme kimlikle yapılıyor",
+        "Profil: sayaçlar, gönderiler ve ilişki bilgisi geldiği an görünür, sekmeye dönüşte anında açılır; arka plandaki istekler sırayla değil paralel çalışır",
+        "Arkadaşlar, dosyalar, kaydedilenler, güvenlik ve gönderi yorumları sayfalarında yenileme sırasında içerik kaybolmuyor"
       ],
-      "security": [
-        "Bağlantı açıcı yalnız http/https/mailto/tel/geo şemalarına izin verir (javascript:, file: vb. reddedilir)",
-        "Arka plan çevirisi uçtan uca şifrelemeyi bozmaz: şifreli sohbette çeviri ayrı bir şifreli yük olarak eklenir"
-      ]
+      "security": []
     },
     "en": {
-      "reason": "Juzzio moves to the \"Juzzio Space\" interface designed in Figma: deep theme gradients, frosted glass cards and a glowing accent in every theme. In the same update messages send without waiting, location/link/poll experiences were rebuilt, shifts can be planned by date range and admin logs became readable.",
+      "reason": "The chubby pull-to-refresh hand was redrawn as vector art; the notifications list no longer disappears while refreshing, and the profile page opens much faster.",
       "features": [
-        "🎨 Juzzio Space design: \"Your space · Juzzio.\" header, search with a ⌘K shortcut, story rings, Inbox · Messages, filter pills with counters, glass chat cards and a floating glass bottom bar",
-        "🌈 All 16 themes share the same design language; accent, background depth and glass opacity come from the selected theme (Emerald is the default for new users)",
-        "🪪 Profile and admin panel use the Juzzio Space layout too: large header, square avatar with a glowing ring, glass counter tiles, accent primary button, capsule tabs and glass stat cards",
-        "⚡ Messages send instantly: the bubble appears right away, translation runs in the background and shows up under the message when ready (in end-to-end encrypted chats the translation is added encrypted too)",
-        "📍 Shared locations appear as a card with a map preview and open in Google Maps on Android, Apple Maps on iOS, or Google Maps",
-        "🔗 Links, e-mail addresses and phone numbers in messages, bios, posts and comments are tappable and open in the default browser/app",
-        "📊 New poll card: options with share bars, percentages, winner highlight and a live status chip",
-        "📅 Date ranges in the shift planner: pick start–end days and hours (overnight shifts included), filter weekdays/weekends, share with a group and post a plan summary automatically",
-        "🐣 When petted, the chick twirls to the right like a princess, winks and flirts; the chick badge in chats does the same animation",
-        "👑 New chick customizations: princess tiara, flower crown, wizard hat, star glasses, princess tutu, pearl necklace, ballet shoes, Castle/Space/Sakura scenes",
-        "🧾 Admin logs are readable sentences in the admin's language: who did what, to whom and when (no raw codes or IDs)"
+        "✋ Redrawn refresh hand: a chubby, clean-lined hand comes out of the notch with a sleeve in your theme colour, swings, makes a fist and pulls the page up — crisp on every screen",
+        "🧺 The cloth is now a light surface in your theme colour that gathers up with soft folds"
       ],
       "fixes": [
-        "Cloth pull-to-refresh fixed on mobile: no more conflict with Android's stretch overscroll or iOS bouncing, and short lists can be pulled too",
-        "Removed the GPU blur artifact on the hand shadow (rectangular smudge/flicker); a soft radial shadow is used instead",
-        "Chat ⋯ menu cleaned up: no emojis, icons and an opaque (readable) background, destructive actions separated in red",
-        "Menus, bottom sheets and dialogs are now nearly opaque — text stays readable"
+        "Fixed the refresh hand looking like a foot and ghosting between poses",
+        "Fixed the cloth looking like a black smear over the content in dark themes",
+        "Notifications: refreshing or switching filters no longer flashes empty placeholder cards; stale requests can't overwrite the new list; empty/error states can be pulled to refresh; swipe-to-delete removes by id",
+        "Profile: counts, posts and relationship appear as soon as each arrives and reopen instantly; background requests run in parallel instead of one after another",
+        "Friends, files, saved messages, security and post comments no longer lose their content while refreshing"
       ],
-      "security": [
-        "The link opener only allows http/https/mailto/tel/geo (javascript:, file: etc. are rejected)",
-        "Background translation keeps end-to-end encryption: in encrypted chats the translation is attached as a separate encrypted payload"
-      ]
+      "security": []
     },
     "de": {
-      "reason": "Juzzio erhält die in Figma gestaltete \"Juzzio Space\"-Oberfläche: tiefe Themenverläufe, Milchglas-Karten und eine leuchtende Akzentfarbe in jedem Theme. Außerdem werden Nachrichten ohne Wartezeit gesendet, Standort, Links und Umfragen wurden erneuert, Schichten lassen sich per Zeitraum planen und Admin-Protokolle sind lesbar.",
+      "reason": "The chubby pull-to-refresh hand was redrawn as vector art; the notifications list no longer disappears while refreshing, and the profile page opens much faster.",
       "features": [
-        "🎨 Juzzio Space design: \"Your space · Juzzio.\" header, search with a ⌘K shortcut, story rings, Inbox · Messages, filter pills with counters, glass chat cards and a floating glass bottom bar",
-        "🌈 All 16 themes share the same design language; accent, background depth and glass opacity come from the selected theme (Emerald is the default for new users)",
-        "🪪 Profile and admin panel use the Juzzio Space layout too: large header, square avatar with a glowing ring, glass counter tiles, accent primary button, capsule tabs and glass stat cards",
-        "⚡ Messages send instantly: the bubble appears right away, translation runs in the background and shows up under the message when ready (in end-to-end encrypted chats the translation is added encrypted too)",
-        "📍 Shared locations appear as a card with a map preview and open in Google Maps on Android, Apple Maps on iOS, or Google Maps",
-        "🔗 Links, e-mail addresses and phone numbers in messages, bios, posts and comments are tappable and open in the default browser/app",
-        "📊 New poll card: options with share bars, percentages, winner highlight and a live status chip",
-        "📅 Date ranges in the shift planner: pick start–end days and hours (overnight shifts included), filter weekdays/weekends, share with a group and post a plan summary automatically",
-        "🐣 When petted, the chick twirls to the right like a princess, winks and flirts; the chick badge in chats does the same animation",
-        "👑 New chick customizations: princess tiara, flower crown, wizard hat, star glasses, princess tutu, pearl necklace, ballet shoes, Castle/Space/Sakura scenes",
-        "🧾 Admin logs are readable sentences in the admin's language: who did what, to whom and when (no raw codes or IDs)"
+        "✋ Redrawn refresh hand: a chubby, clean-lined hand comes out of the notch with a sleeve in your theme colour, swings, makes a fist and pulls the page up — crisp on every screen",
+        "🧺 The cloth is now a light surface in your theme colour that gathers up with soft folds"
       ],
       "fixes": [
-        "Cloth pull-to-refresh fixed on mobile: no more conflict with Android's stretch overscroll or iOS bouncing, and short lists can be pulled too",
-        "Removed the GPU blur artifact on the hand shadow (rectangular smudge/flicker); a soft radial shadow is used instead",
-        "Chat ⋯ menu cleaned up: no emojis, icons and an opaque (readable) background, destructive actions separated in red",
-        "Menus, bottom sheets and dialogs are now nearly opaque — text stays readable"
+        "Fixed the refresh hand looking like a foot and ghosting between poses",
+        "Fixed the cloth looking like a black smear over the content in dark themes",
+        "Notifications: refreshing or switching filters no longer flashes empty placeholder cards; stale requests can't overwrite the new list; empty/error states can be pulled to refresh; swipe-to-delete removes by id",
+        "Profile: counts, posts and relationship appear as soon as each arrives and reopen instantly; background requests run in parallel instead of one after another",
+        "Friends, files, saved messages, security and post comments no longer lose their content while refreshing"
       ],
-      "security": [
-        "The link opener only allows http/https/mailto/tel/geo (javascript:, file: etc. are rejected)",
-        "Background translation keeps end-to-end encryption: in encrypted chats the translation is attached as a separate encrypted payload"
-      ]
+      "security": []
     }
   },
-  "releaseTitleEn": "Juzzio Space: New Design & Instant Messaging",
-  "mldsa65Sig": "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",
-  "signatureAlg": "ML-DSA-65 (FIPS 204)"
+  "releaseTitleEn": "Juzzio Space: New Design & Instant Messaging"
 }

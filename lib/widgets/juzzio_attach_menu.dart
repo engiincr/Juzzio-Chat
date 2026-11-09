@@ -18,6 +18,7 @@ import '../core/app_theme_and_locale.dart';
 import '../services/juzzio_media_cache.dart';
 import '../services/supabase_service.dart';
 import 'juzzio_encrypted_image.dart';
+import 'juzzio_motion.dart';
 
 class _AttachItem {
   final String id;
@@ -41,7 +42,7 @@ Future<String?> showJuzzioAttachMenu(BuildContext context, {required bool isGrou
     if (isGroup) _AttachItem('event', Icons.event_rounded, app.trEn('Etkinlik', 'Event', 'Termin'), const [Color(0xFF66BB6A), Color(0xFF43A047)]),
     _AttachItem('schedule', Icons.schedule_send_rounded, app.trEn('Zamanla', 'Schedule', 'Planen'), const [Color(0xFF78909C), Color(0xFF546E7A)]),
   ];
-  return showModalBottomSheet<String>(
+  return showJuzzioSheet<String>(
     context: context,
     backgroundColor: Colors.transparent,
     builder: (ctx) {
@@ -200,7 +201,7 @@ class _JuzzioDocumentBubbleState extends State<JuzzioDocumentBubble> {
             height: 42,
             decoration: BoxDecoration(color: fg.withValues(alpha: 0.16), borderRadius: BorderRadius.circular(12)),
             child: _busy
-                ? Padding(padding: const EdgeInsets.all(11), child: CircularProgressIndicator(strokeWidth: 2, color: fg))
+                ? Padding(padding: const EdgeInsets.all(11), child: JuzzioOrbitLoader(strokeWidth: 2, color: fg))
                 : Icon(juzzioDocumentIcon(_name), color: fg),
           ),
           const SizedBox(width: 10),

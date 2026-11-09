@@ -26,28 +26,28 @@ void main() {
     expect(juzzioPeekReveal(g.restContent, g.restContent, g.maxVisible), closeTo(g.maxVisible, 1e-9));
   });
 
-  test('3) Bilek genişliği ≈ çentik genişliğinin %55\'i', () {
-    expect(63 * g.scale / g.islandWidth, closeTo(0.55, 0.02));
-  });
-
-  test('4) Sarkaç pozları −15°…+25°, komşu kare seçimi', () {
-    expect(kJuzzioSwingAngles.first, -15);
-    expect(kJuzzioSwingAngles.last, 25);
-    expect(juzzioSwingFrame(0), (3, 4, 0.0));
-    final (i0, i1, f) = juzzioSwingFrame(22.5);
-    expect((i0, i1), (7, 8));
-    expect(f, closeTo(0.5, 1e-9));
-    expect(juzzioSwingFrame(40).$1, 8);
-  });
-
-  test('7) Kumaş renkleri: aydınlıkta siyah yok, koyuda beyaz yok', () {
+  test('3) Vektör el: bilek çentiğe oranlı, yumrukta parmaklar kısalır, siyah ton yok', () {
+    final open = JuzzioHandShape(0);
+    final fist = JuzzioHandShape(1);
+    // önkol çapı (40) + dış çizgi ≈ çentiğin %37'si
+    expect((40 + 3) * g.scale / g.islandWidth, closeTo(0.37, 0.02));
+    expect(fist.lowestY, lessThan(open.lowestY));
+    expect(open.lowestY * g.scale, lessThanOrEqualTo(g.openTip));
     double lum(Color c) => 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
-    expect(kJuzzioFoldLightRidge, const Color(0xFFFFFFFF));
-    expect(kJuzzioFoldLightValley, const Color(0xFFC8CDD6));
-    expect(lum(kJuzzioFoldLightValley), greaterThan(0.75));
-    expect(kJuzzioFoldDarkValley, const Color(0xFF07080B));
-    expect(kJuzzioFoldDarkRidge, const Color(0xFF222630));
-    expect(lum(kJuzzioFoldDarkRidge), lessThan(0.2));
+    for (final c in [JuzzioHandColors.skin, JuzzioHandColors.shade, JuzzioHandColors.highlight, JuzzioHandColors.outline]) {
+      expect(lum(c), greaterThan(0.35));
+    }
+  });
+
+  test('7) Kumaş: koyu temada zeminden AÇIK yüzey (siyah leke yok), aydınlıkta beyaz', () {
+    double lum(Color c) => 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+    const depth = Color(0xFF16362B);
+    final d = juzzioSheetColors(dark: true, depth: depth);
+    expect(lum(d.fill), greaterThan(lum(depth)));
+    expect(d.fill.a, 1.0);
+    final l = juzzioSheetColors(dark: false, depth: depth);
+    expect(l.fill, Colors.white);
+    expect(lum(l.valley), greaterThan(0.5));
   });
 
   test('9) İçerik 140–155 px kayar; el ucu ile içerik arasında boşluk', () {

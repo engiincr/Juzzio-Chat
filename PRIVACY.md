@@ -1,6 +1,6 @@
 # 🔐 Juzzio Privacy Policy
 
-Last updated: November 9, 2026 · App version: v1.0.0 (BETA · Early Access)
+Last updated: November 9, 2026 · App version: v1.1.1 (BETA · Early Access)
 
 > 🇹🇷 The legally binding Turkish version (Privacy Policy and KVKK Disclosure Notice) is in [docs/legal/tr/PRIVACY.md](docs/legal/tr/PRIVACY.md). In the app, the Turkish text is shown when the app language is Turkish.
 
@@ -105,7 +105,7 @@ The following services are used to run Juzzio. Some are located abroad, so data 
 
 - **Supabase** (database, file storage, authentication): account, message and media data.
 - **LiveKit Cloud** (voice/video call server): audio and video streams during calls. Nothing is recorded.
-- **Deepgram** (speech-to-text): your own voice is sent for captions only when someone **speaking a different language** is in the call or when you turn on live translation yourself. No audio is sent between people speaking the same language.
+- **Deepgram** (speech-to-text): your own voice is sent for captions only when someone **speaking a different language** is in the call or when you turn on live translation yourself. No audio is sent between people speaking the same language. Even then, audio only goes out while you are actually speaking: silence and room sound are replaced with digital silence on your device before anything is sent.
 - **Google** – Firebase Cloud Messaging (notifications); Google Translate (automatic translation, from the device); optional Google Cloud Vision (only for explicit content checks in video calls; frames are not stored).
 - **MyMemory** (fallback translation if Google Translate fails).
 - **Apple iTunes Search** (the song name you type in the add-music screen is searched and a 30-second preview is played).

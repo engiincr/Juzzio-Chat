@@ -18,6 +18,7 @@ import '../core/theme/juzzio_glass.dart';
 import '../services/juzzio_features_service.dart';
 import '../services/supabase_service.dart';
 import '../widgets/juzzio_cloth_refresh.dart';
+import '../widgets/juzzio_motion.dart';
 
 String _t(String tr, String en, String de) => JuzzioAppController.instance.trEn(tr, en, de);
 
@@ -692,7 +693,7 @@ class _JuzzioAdminModerationTabState extends State<JuzzioAdminModerationTab> {
           const SizedBox(height: 12),
           _segment(),
           const SizedBox(height: 12),
-          if (_loading) const LinearProgressIndicator(minHeight: 2),
+          if (_loading) const JuzzioSparklerBar(minHeight: 2),
           ...body,
         ],
       ),
@@ -819,7 +820,7 @@ class _JuzzioAdminGroupsTabState extends State<JuzzioAdminGroupsTab> {
             },
           ),
           const SizedBox(height: 10),
-          if (_loading) const LinearProgressIndicator(minHeight: 2),
+          if (_loading) const JuzzioSparklerBar(minHeight: 2),
           if (!_loading && _groups.isEmpty) _empty(_t('Grup bulunamadı.', 'No groups found.', 'Keine Gruppen gefunden.')),
           for (final g in _groups)
             JuzzioAdminGlassCard(
@@ -946,7 +947,7 @@ class _JuzzioAdminLiveTabState extends State<JuzzioAdminLiveTab> {
         padding: const EdgeInsets.fromLTRB(14, 14, 14, 40),
         children: [
           _sectionHeader(_t('Süren aramalar', 'Active calls', 'Aktive Anrufe'), Icons.call_rounded, trailing: _pill('${_calls.length}')),
-          if (_loading) const LinearProgressIndicator(minHeight: 2),
+          if (_loading) const JuzzioSparklerBar(minHeight: 2),
           if (!_loading && _calls.isEmpty) _empty(_t('Şu an süren arama yok.', 'No active calls right now.', 'Derzeit keine Anrufe.')),
           for (final c in _calls)
             JuzzioAdminGlassCard(
@@ -1175,7 +1176,7 @@ class _AdminUserPowerSheetState extends State<_AdminUserPowerSheet> {
           Text('@${widget.username}', style: const TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.w900)),
           const SizedBox(height: 4),
           Text(_t('Yönetici güç araçları', 'Admin power tools', 'Admin-Werkzeuge'), style: const TextStyle(color: Colors.white60)),
-          if (_busy) const Padding(padding: EdgeInsets.only(top: 8), child: LinearProgressIndicator(minHeight: 2)),
+          if (_busy) const Padding(padding: EdgeInsets.only(top: 8), child: JuzzioSparklerBar(minHeight: 2)),
           const SizedBox(height: 14),
           TextField(controller: _name, decoration: _deco(_t('Ad Soyad', 'Full name', 'Name'), Icons.badge_rounded)),
           const SizedBox(height: 8),
@@ -1377,7 +1378,7 @@ class _JuzzioAdminFeedbackTabState extends State<JuzzioAdminFeedbackTab> {
             ],
           ),
           const SizedBox(height: 8),
-          if (_loading) const LinearProgressIndicator(minHeight: 2),
+          if (_loading) const JuzzioSparklerBar(minHeight: 2),
           if (!_loading && _items.isEmpty) _empty(_t('Bildirim yok.', 'No reports.', 'Keine Meldungen.')),
           for (final f in _items)
             JuzzioAdminGlassCard(

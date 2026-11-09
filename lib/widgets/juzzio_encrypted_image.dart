@@ -14,6 +14,7 @@ import '../services/juzzio_e2ee.dart';
 import '../services/juzzio_media_crypto.dart';
 import '../services/juzzio_media_cache.dart';
 import '../services/supabase_service.dart';
+import 'juzzio_motion.dart';
 
 class JuzzioEncryptedMedia {
   JuzzioEncryptedMedia._();
@@ -65,13 +66,18 @@ class JuzzioEncryptedImage extends StatelessWidget {
   final double? height;
   final BoxFit fit;
 
-  static Future<void> openFullScreen(BuildContext context, {required String messageId, required String url}) =>
-      Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => Scaffold(
-          backgroundColor: Colors.black,
-          appBar: AppBar(backgroundColor: Colors.black, foregroundColor: Colors.white),
-          body: Center(child: InteractiveViewer(child: JuzzioEncryptedImage(messageId: messageId, url: url, fit: BoxFit.contain))),
-        ),
+  /// v1.1.0: yakınlaşma geçişi (#03 Zoom) + paylaşılan öğe (#09 Hero)
+  static Future<void> openFullScreen(BuildContext context, {required String messageId, required String url, String? heroTag, Rect? origin}) =>
+      Navigator.of(context).push(JuzzioZoomRoute<void>(
+        origin: origin,
+        builder: (_) {
+          final img = JuzzioEncryptedImage(messageId: messageId, url: url, fit: BoxFit.contain);
+          return Scaffold(
+            backgroundColor: Colors.black,
+            appBar: AppBar(backgroundColor: Colors.black, foregroundColor: Colors.white),
+            body: Center(child: InteractiveViewer(child: heroTag == null ? img : Hero(tag: heroTag, child: img))),
+          );
+        },
       ));
 
   @override
@@ -81,7 +87,7 @@ class JuzzioEncryptedImage extends StatelessWidget {
       future: JuzzioEncryptedMedia.load(messageId, url),
       builder: (context, snap) {
         if (snap.connectionState != ConnectionState.done) {
-          return SizedBox(height: height, child: const Center(child: CircularProgressIndicator()));
+          return SizedBox(height: height, child: const Center(child: JuzzioOrbitLoader()));
         }
         final bytes = snap.data;
         if (bytes == null) {

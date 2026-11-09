@@ -10,6 +10,7 @@ import '../core/theme/juzzio_colors.dart';
 import '../services/juzzio_chick_wardrobe.dart';
 import '../services/supabase_service.dart';
 import '../widgets/juzzio_chick_art.dart';
+import '../widgets/juzzio_motion.dart';
 
 class JuzzioChickWardrobeScreen extends StatefulWidget {
   const JuzzioChickWardrobeScreen({super.key, required this.mood});
@@ -132,7 +133,7 @@ class _JuzzioChickWardrobeScreenState extends State<JuzzioChickWardrobeScreen> {
         ],
       ),
       body: st == null
-          ? Center(child: _error != null ? Text(_error!) : const CircularProgressIndicator())
+          ? Center(child: _error != null ? Text(_error!) : const JuzzioOrbitLoader())
           : !st.hasChick
               ? Center(child: Text(_app.trEn('Önce bir civcivin olmalı.', 'You need a chick first.', 'Du brauchst zuerst ein Küken.')))
               : ListView(padding: const EdgeInsets.all(16), children: [

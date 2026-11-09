@@ -10,6 +10,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import '../services/juzzio_media_url.dart';
 import 'package:video_player/video_player.dart';
+import 'juzzio_motion.dart';
 
 class JuzzioVideoController {
   JuzzioVideoController(
@@ -200,13 +201,17 @@ class JuzzioMediaViewerPage extends StatefulWidget {
   final String url;
   final bool isVideo;
 
-  const JuzzioMediaViewerPage({super.key, required this.url, required this.isVideo});
+  /// v1.1.0 (#09 Shared element): balondaki görselle aynı etiket → kesintisiz büyüme
+  final String? heroTag;
 
-  static Future<void> open(BuildContext context, {required String url, required bool isVideo}) {
+  const JuzzioMediaViewerPage({super.key, required this.url, required this.isVideo, this.heroTag});
+
+  /// v1.1.0 (#03 Zoom): dokunulan öğeden tam ekrana yakınlaşarak açılır
+  static Future<void> open(BuildContext context, {required String url, required bool isVideo, String? heroTag, Rect? origin}) {
     return Navigator.of(context).push(
-      MaterialPageRoute(
-        fullscreenDialog: true,
-        builder: (_) => JuzzioMediaViewerPage(url: url, isVideo: isVideo),
+      JuzzioZoomRoute<void>(
+        origin: origin,
+        builder: (_) => JuzzioMediaViewerPage(url: url, isVideo: isVideo, heroTag: heroTag),
       ),
     );
   }
@@ -240,6 +245,8 @@ class _JuzzioMediaViewerPageState extends State<JuzzioMediaViewerPage> {
     super.dispose();
   }
 
+  Widget _hero(Widget child) => widget.heroTag == null ? child : Hero(tag: widget.heroTag!, child: child);
+
   @override
   Widget build(BuildContext context) {
     final video = _video;
@@ -253,7 +260,7 @@ class _JuzzioMediaViewerPageState extends State<JuzzioMediaViewerPage> {
       body: Center(
         child: widget.isVideo
             ? (_loading || video == null
-                ? const CircularProgressIndicator(color: Colors.white)
+                ? const JuzzioOrbitLoader(color: Colors.white)
                 : GestureDetector(
                     onTap: () => setState(() => video.isPlaying ? video.pause() : video.play()),
                     child: Stack(
@@ -268,14 +275,14 @@ class _JuzzioMediaViewerPageState extends State<JuzzioMediaViewerPage> {
             : InteractiveViewer(
                 minScale: 1,
                 maxScale: 5,
-                child: JuzzioStorageImage(
+                child: _hero(JuzzioStorageImage(
                   widget.url,
                   fit: BoxFit.contain,
                   loadingBuilder: (ctx, child, progress) =>
-                      progress == null ? child : const CircularProgressIndicator(color: Colors.white),
+                      progress == null ? child : const JuzzioOrbitLoader(color: Colors.white),
                   errorBuilder: (_, __, ___) =>
                       const Icon(Icons.broken_image_outlined, color: Colors.white54, size: 56),
-                ),
+                )),
               ),
       ),
     );

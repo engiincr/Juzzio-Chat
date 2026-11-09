@@ -11,6 +11,8 @@
 
 import 'dart:ui' as ui;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -33,6 +35,7 @@ import '../../widgets/juzzio_cloth_refresh.dart';
 import '../../widgets/juzzio_ui_kit.dart';
 import '../../widgets/juzzio_rich_text.dart';
 import '../../widgets/juzzio_space_kit.dart';
+import '../../widgets/juzzio_motion.dart';
 
 String _l(String tr, String en, String de) => JuzzioAppController.instance.trEn(tr, en, de);
 
@@ -100,60 +103,84 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
     }
   }
 
+  /// v1.1.1 performans: son görülen profil bellekte tutulur → sekmeye dönüşte ANINDA görünür,
+  /// ağdan gelen her parça (profil, sayaçlar, ilişki, gönderiler) hazır olduğu an ekrana
+  /// yansır (önceden 5 isteğin hepsi bitene kadar sayaçlar 0'da bekliyordu). Kaydedilenler
+  /// en son, arka planda yüklenir.
+  static final Map<String, _ProfileSnapshot> _memo = <String, _ProfileSnapshot>{};
+  int _loadGen = 0;
+
+  void _remember() {
+    final p = _profile;
+    if (p == null) return;
+    _memo[widget.userId] = _ProfileSnapshot(p, _counts, _relation, _posts, _saved);
+    if (_memo.length > 24) _memo.remove(_memo.keys.first);
+  }
+
+  void _restoreFromMemo() {
+    final m = _memo[widget.userId];
+    if (m == null) return;
+    _profile = m.profile;
+    _counts = m.counts;
+    _relation = m.relation;
+    _posts = m.posts;
+    _saved = m.saved;
+    _loading = false;
+  }
+
   /// v0.9.3: ağdan bağımsız, her parça ayrı ayrı ve süre sınırlı yüklenir. İnternet yokken
   /// cihazdaki son profil + gönderiler HEMEN gösterilir (dönen yükleme simgesinde kalınmaz);
   /// bağlantı gelince ağ verisi üzerine yazar.
   Future<void> _load() async {
+    final gen = ++_loadGen;
     final social = JuzzioSocialService.instance;
     final svc = SupabaseService.instance;
+    bool live() => mounted && gen == _loadGen;
+    if (_profile == null) _restoreFromMemo();
     // 1) Anında: cihazdaki son hâl
     if (_profile == null) {
-      final cached = await svc.cachedUserProfile(widget.userId);
-      if (!mounted) return;
-      if (cached != null || _isOwn) {
+      if (_isOwn) {
         setState(() {
-          _profile = cached ?? widget.currentUser;
+          _profile = widget.currentUser;
           _loading = false;
         });
       }
+      unawaited(svc.cachedUserProfile(widget.userId).then((cached) {
+        if (live() && cached != null && _profile == null) {
+          setState(() {
+            _profile = cached;
+            _loading = false;
+          });
+        }
+      }));
     }
     const limit = Duration(seconds: 12);
-    Future<T> safe<T>(Future<T> f, T fallback) async {
+    // 2) Ağ: her parça bağımsız ve geldiği an uygulanır; biri başarısız olursa diğerleri yine görünür
+    Future<void> part<T>(Future<T> f, void Function(T v) apply) async {
       try {
-        return await f.timeout(limit);
-      } catch (_) {
-        return fallback;
-      }
+        final v = await f.timeout(limit);
+        if (!live()) return;
+        setState(() => apply(v));
+        _remember();
+      } catch (_) {}
     }
 
-    // 2) Ağ: her biri bağımsız; biri başarısız olursa diğerleri yine gösterilir
-    final results = await Future.wait<Object?>([
-      safe<JuzzioUserProfile?>(svc.fetchUserProfile(widget.userId), null),
-      safe<JuzzioProfileSocialCounts?>(social.fetchProfileSocialCounts(widget.userId), null),
-      safe<List<JuzzioPost>?>(social.fetchFeedPosts(authorId: widget.userId, limit: 90), null),
-      _isOwn ? safe<List<JuzzioPost>?>(social.fetchMySavedPosts(limit: 90), null) : Future<List<JuzzioPost>?>.value(const []),
-      _isOwn
-          ? Future<JuzzioRelationship?>.value(const JuzzioRelationship())
-          : safe<JuzzioRelationship?>(JuzzioFeaturesService.instance.fetchRelationship(widget.userId), null),
+    await Future.wait<void>([
+      part<JuzzioUserProfile?>(svc.fetchUserProfile(widget.userId), (v) {
+        _profile = v ?? _profile ?? (_isOwn ? widget.currentUser : null);
+        _loading = false;
+      }),
+      part<JuzzioProfileSocialCounts?>(social.fetchProfileSocialCounts(widget.userId), (v) {
+        if (v != null) _counts = v;
+      }),
+      part<JuzzioRelationship?>(JuzzioFeaturesService.instance.fetchRelationship(widget.userId), (v) {
+        if (v != null) _relation = v;
+      }),
+      part<List<JuzzioPost>>(social.fetchFeedPosts(authorId: widget.userId, limit: 60), (v) => _posts = v),
     ]);
-    if (!mounted) return;
-    setState(() {
-      _profile = (results[0] as JuzzioUserProfile?) ?? _profile ?? (_isOwn ? widget.currentUser : null);
-      final counts = results[1] as JuzzioProfileSocialCounts?;
-      if (counts != null) _counts = counts;
-      final posts = results[2] as List<JuzzioPost>?;
-      if (posts != null) _posts = posts;
-      final saved = results[3] as List<JuzzioPost>?;
-      if (saved != null) _saved = saved;
-      final rel = results[4] as JuzzioRelationship?;
-      if (rel != null) _relation = rel;
-      _loading = false;
-    });
-    if (_isOwn) {
-      // Arkadaş sayısı kendi profilde de gösterilir
-      final rel = await safe<JuzzioRelationship?>(JuzzioFeaturesService.instance.fetchRelationship(widget.userId), null);
-      if (mounted && rel != null) setState(() => _relation = rel);
-    }
+    if (!live()) return;
+    if (_loading) setState(() => _loading = false);
+    if (_isOwn) await part<List<JuzzioPost>>(social.fetchMySavedPosts(limit: 90), (v) => _saved = v);
   }
 
   // ---------------------------------------------------------------------------
@@ -208,7 +235,7 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
 
   Future<bool?> _confirmSheet({required String title, required String actionLabel}) {
     final isDark = JuzzioAppController.instance.isDark;
-    return showModalBottomSheet<bool>(
+    return showJuzzioSheet<bool>(
       context: context,
       backgroundColor: JuzzioGlassTokens.sheet,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
@@ -239,7 +266,7 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
   Future<void> _openMoreMenu() async {
     final prof = _profile;
     if (prof == null) return;
-    final choice = await showModalBottomSheet<String>(
+    final choice = await showJuzzioSheet<String>(
       context: context,
       backgroundColor: JuzzioGlassTokens.sheet,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
@@ -1131,4 +1158,14 @@ class _TabsHeader extends SliverPersistentHeaderDelegate {
 
   @override
   bool shouldRebuild(covariant _TabsHeader oldDelegate) => true;
+}
+
+/// v1.1.1: profil sayfasının bellekteki son görünümü (sekmeye dönüşte anında gösterim)
+class _ProfileSnapshot {
+  const _ProfileSnapshot(this.profile, this.counts, this.relation, this.posts, this.saved);
+  final JuzzioUserProfile profile;
+  final JuzzioProfileSocialCounts counts;
+  final JuzzioRelationship relation;
+  final List<JuzzioPost> posts;
+  final List<JuzzioPost> saved;
 }

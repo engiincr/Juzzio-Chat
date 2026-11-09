@@ -8,6 +8,7 @@ import '../core/app_theme_and_locale.dart';
 import '../core/config.dart';
 import '../core/theme/juzzio_colors.dart';
 import '../services/juzzio_features_service.dart';
+import '../widgets/juzzio_motion.dart';
 
 class JuzzioMaintenanceScreen extends StatefulWidget {
   final String message;
@@ -105,7 +106,7 @@ class _JuzzioMaintenanceScreenState extends State<JuzzioMaintenanceScreen> {
                     ),
                     onPressed: _checking ? null : _recheck,
                     icon: _checking
-                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                        ? const SizedBox(width: 18, height: 18, child: JuzzioOrbitLoader(strokeWidth: 2))
                         : Icon(widget.updateRequired ? Icons.download_rounded : Icons.refresh_rounded),
                     label: Text(widget.updateRequired ? app.trEn('Güncelle', 'Update', 'Aktualisieren') : app.t('common_retry')),
                   ),

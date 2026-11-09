@@ -12,6 +12,7 @@ import '../services/juzzio_backup_service.dart';
 import '../services/juzzio_security_center.dart';
 import '../services/supabase_service.dart';
 import '../widgets/juzzio_cloth_refresh.dart';
+import '../widgets/juzzio_motion.dart';
 
 class JuzzioSecurityCenterPage extends StatefulWidget {
   const JuzzioSecurityCenterPage({super.key});
@@ -41,8 +42,9 @@ class _JuzzioSecurityCenterPageState extends State<JuzzioSecurityCenterPage> {
   }
 
   Future<void> _load() async {
+    // v1.1.1: yenilemede içerik sökülmez (aşağı çek animasyonu kesilmez, boş iskelet yanıp sönmez)
     setState(() {
-      _loading = true;
+      _loading = _overview == null;
       _error = null;
     });
     try {
@@ -149,7 +151,7 @@ class _JuzzioSecurityCenterPageState extends State<JuzzioSecurityCenterPage> {
     final p = JuzzioPalette(_app.isDark);
     Widget body;
     if (_loading) {
-      body = const Center(child: CircularProgressIndicator());
+      body = const Center(child: JuzzioOrbitLoader());
     } else if (_error != null) {
       body = Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [

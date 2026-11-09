@@ -13,6 +13,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'juzzio_motion.dart';
 
 /// Ruh hâli → çizim parametreleri (test edilebilir saf fonksiyon).
 class JuzzioChickLook {
@@ -727,7 +728,7 @@ class _JuzzioLiquidGlassButtonState extends State<JuzzioLiquidGlassButton> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         if (widget.loading)
-                          const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2.2, color: Colors.white))
+                          const SizedBox(width: 18, height: 18, child: JuzzioOrbitLoader(strokeWidth: 2.2, color: Colors.white))
                         else if (widget.icon != null)
                           Icon(widget.icon, color: Colors.white, size: 21),
                         if (widget.loading || widget.icon != null) const SizedBox(width: 9),
@@ -799,7 +800,7 @@ class JuzzioGlassStatChip extends StatelessWidget {
                     tween: Tween(begin: 0, end: meter!.clamp(0.0, 1.0)),
                     duration: const Duration(milliseconds: 900),
                     curve: Curves.easeOutCubic,
-                    builder: (_, v, __) => LinearProgressIndicator(value: v, minHeight: 6, color: color, backgroundColor: color.withValues(alpha: 0.18)),
+                    builder: (_, v, __) => JuzzioSparklerBar(value: v, minHeight: 6, color: color, backgroundColor: color.withValues(alpha: 0.18)),
                   ),
                 ),
               ],

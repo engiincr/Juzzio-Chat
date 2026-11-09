@@ -21,6 +21,7 @@ import 'package:web_socket_channel/io.dart';
 import '../core/app_theme_and_locale.dart';
 import '../core/config.dart';
 import 'juzzio_features_service.dart';
+import 'juzzio_speech_gate.dart';
 import 'supabase_service.dart';
 
 enum NetworkHealthLevel {
@@ -111,6 +112,15 @@ class DeepgramLiveKitController extends ChangeNotifier {
 
   final AudioRecorder _sharedAudioTap = AudioRecorder();
 
+  /// v1.1.0: yalnız gerçekten konuşurken tanıyıcıya gerçek ses gider (hayalet metin yok)
+  final JuzzioSpeechGate _speechGate = JuzzioSpeechGate();
+
+  /// Açık bölütün ara metni ekranda/karşıda gösterildi mi (reddedilirse geri çekilir)
+  bool _myOpenSegmentShown = false;
+
+  /// LiveKit'in (yankısı temizlenmiş izde) beni son konuşur gördüğü an
+  DateTime _lastLocalSpeakAt = DateTime.fromMillisecondsSinceEpoch(0);
+
   bool isConnected = false;
   bool isMicEnabled = true;
   bool isCameraEnabled = true;
@@ -128,6 +138,25 @@ class DeepgramLiveKitController extends ChangeNotifier {
 
   /// Bir katılımcının bağlantı kalitesi değişti (ağ hızı uyarısı için).
   void Function(String identity, String displayName, ConnectionQuality quality, bool isLocal)? onParticipantQualityChanged;
+
+  /// v1.1.0 (#04 Floating hearts): bir katılımcı anlık tepki gönderdi
+  void Function(String identity, String emoji)? onCallReaction;
+
+  /// Aramada gönderilebilen tepkiler (beyaz liste: rastgele metin yayınlanamaz)
+  static const List<String> kCallReactions = ['❤️', '😂', '👏', '🔥', '😮', '👍', '🎉', '😢'];
+
+  /// Anlık tepkiyi herkese yayınlar ve kendi ekranımda da gösterir
+  Future<void> sendCallReaction(String emoji) async {
+    if (!kCallReactions.contains(emoji)) return;
+    onCallReaction?.call(_myIdentity, emoji);
+    try {
+      await _room?.localParticipant?.publishData(
+        utf8.encode(jsonEncode({'type': 'juzzio_reaction', 'emoji': emoji})),
+        reliable: false,
+        topic: 'juzzio_fx',
+      );
+    } catch (_) {}
+  }
 
   /// Başka bir katılımcının pil seviyesi kritik eşiğe indi (%10 / %5).
   void Function(String identity, String displayName, int level)? onRemoteBatteryLow;
@@ -290,6 +319,10 @@ class DeepgramLiveKitController extends ChangeNotifier {
   }
 
   void _onActiveSpeakersChanged() {
+    // v1.1.0: yankı süzgeci için yerel konuşmanın son anı (sonuçlar gecikmeli gelir)
+    try {
+      if (localParticipant?.isSpeaking ?? false) _lastLocalSpeakAt = DateTime.now();
+    } catch (_) {}
     notifyListeners();
     // Bırakma süresi dolunca halkanın kapanması için bir kez daha çiz
     _speakingReleaseTimer?.cancel();
@@ -699,6 +732,22 @@ class DeepgramLiveKitController extends ChangeNotifier {
             return;
           }
 
+          if (packetType == 'juzzio_reaction') {
+            final emoji = map['emoji']?.toString() ?? '';
+            if (kCallReactions.contains(emoji)) onCallReaction?.call(event.participant?.identity ?? '', emoji);
+            return;
+          }
+
+          if (packetType == 'juzzio_subtitle_retract') {
+            final id = map['id']?.toString() ?? '';
+            final speaker = map['speakerId']?.toString() ?? '';
+            // yalnız gönderen kendi bölütünü geri çekebilir
+            if (id.isNotEmpty && speaker.isNotEmpty && speaker == event.participant?.identity) {
+              retractSubtitleSegment(id, speaker);
+            }
+            return;
+          }
+
           if (packetType == 'juzzio_subtitle') {
             final incoming = LiveSubtitlePacket.fromJson(map);
             if (incoming.sourceLang.toLowerCase() != _myLang) {
@@ -916,21 +965,28 @@ class DeepgramLiveKitController extends ChangeNotifier {
       if (!hasPerm) return;
 
       final pcmStream = await _sharedAudioTap.startStream(
+        // v1.1.0: yankı engelleme + gürültü bastırma AÇIK, otomatik kazanç KAPALI.
+        // (Önceden kazanç sessizliği yükseltiyor, hoparlördeki karşı ses de mikrofona
+        // geri giriyordu → kullanıcının söylemediği "Tamam aşkım" vb. satırlar.)
         const RecordConfig(
           encoder: AudioEncoder.pcm16bits,
           sampleRate: 16000,
           numChannels: 1,
-          autoGain: true,
-          echoCancel: false,
-          noiseSuppress: false,
+          autoGain: false,
+          echoCancel: true,
+          noiseSuppress: true,
         ),
       );
 
+      _speechGate.reset();
       _audioStreamSub = pcmStream.listen((Uint8List pcmChunk) {
-        if (isMicEnabled && _deepgramChannel != null) {
-          _updateVoiceFingerprintFromPcm(pcmChunk);
-          _deepgramChannel!.sink.add(pcmChunk);
+        final ch = _deepgramChannel;
+        if (!isMicEnabled || ch == null) return;
+        // Konuşma kapısı: konuşulmuyorsa gerçek ses yerine dijital sessizlik gider
+        for (final out in _speechGate.process(pcmChunk, DateTime.now())) {
+          ch.sink.add(out);
         }
+        if (_speechGate.isOpen) _updateVoiceFingerprintFromPcm(pcmChunk);
       });
     } catch (e) {
       debugPrint('Deepgram pipeline warning: $e');
@@ -948,6 +1004,9 @@ class DeepgramLiveKitController extends ChangeNotifier {
           _mySegmentBuffer = '';
           await _emitOwnSegment(_myOpenSegmentId!, pending, isFinal: true);
           _myOpenSegmentId = null;
+          _myOpenSegmentShown = false;
+        } else if (pending.isEmpty) {
+          _retractMyOpenSegment();
         }
         return;
       }
@@ -959,8 +1018,17 @@ class DeepgramLiveKitController extends ChangeNotifier {
       final alternatives = channel?['alternatives'] as List?;
       if (alternatives == null || alternatives.isEmpty) return;
 
-      final piece = (alternatives.first['transcript'] ?? '').toString().trim();
-      if (piece.isEmpty && !(chunkFinal && speechFinal && _mySegmentBuffer.trim().isNotEmpty)) return;
+      var piece = (alternatives.first['transcript'] ?? '').toString().trim();
+      final confidence = (alternatives.first['confidence'] as num?)?.toDouble();
+      // v1.1.0: hayalet/yankı süzgeci — gerçekten konuşmadıysam bu parça benim değil
+      if (piece.isNotEmpty && !_acceptOwnPiece(piece, confidence)) {
+        piece = '';
+      }
+      if (piece.isEmpty && !(chunkFinal && speechFinal && _mySegmentBuffer.trim().isNotEmpty)) {
+        // Kesin sonuç reddedildi ve biriken metin yok → ekranda kalan ara satırı geri çek
+        if (chunkFinal && _mySegmentBuffer.trim().isEmpty) _retractMyOpenSegment();
+        return;
+      }
 
       // v0.9.4: Deepgram "is_final" yalnız bir ses parçasını kesinleştirir; cümle bitmemiş olabilir.
       // Kesin parçalar biriktirilir, ara sonuçlar tek satırda güncellenir; bölüt yalnız
@@ -974,9 +1042,67 @@ class DeepgramLiveKitController extends ChangeNotifier {
       if (isFinal) {
         _mySegmentBuffer = '';
         _myOpenSegmentId = null;
+        _myOpenSegmentShown = false;
+      } else {
+        _myOpenSegmentShown = true;
       }
       await _emitOwnSegment(segmentId, transcript, isFinal: isFinal);
     } catch (_) {}
+  }
+
+  /// v1.1.0: bu tanıma parçası gerçekten benim konuşmam mı?
+  bool _acceptOwnPiece(String piece, double? confidence) {
+    final now = DateTime.now();
+    final local = localParticipant;
+    var remoteSpeaking = false;
+    for (final p in remoteParticipants) {
+      if (isParticipantSpeaking(p)) {
+        remoteSpeaking = true;
+        break;
+      }
+    }
+    // Kesin sonuçlar konuşma bittikten 1–2 sn sonra gelebilir → pencereler buna göre geniş
+    return juzzioAcceptOwnTranscript(
+      text: piece,
+      confidence: confidence,
+      localVoiceRecent: _speechGate.voicedWithin(const Duration(milliseconds: 3500), now),
+      remoteSpeaking: remoteSpeaking,
+      localSpeaking: local == null || isParticipantSpeaking(local) || now.difference(_lastLocalSpeakAt) < const Duration(seconds: 3),
+    );
+  }
+
+  /// Ekranda görünmüş ama sonradan reddedilen ara satırı yerelde ve karşıda kaldırır.
+  void _retractMyOpenSegment() {
+    final id = _myOpenSegmentId;
+    final wasShown = _myOpenSegmentShown;
+    _myOpenSegmentId = null;
+    _myOpenSegmentShown = false;
+    _mySegmentBuffer = '';
+    _interimTranslateTicket++;
+    if (id == null || !wasShown) return;
+    retractSubtitleSegment(id, _myIdentity);
+    try {
+      _room?.localParticipant?.publishData(
+        utf8.encode(jsonEncode({'type': 'juzzio_subtitle_retract', 'id': id, 'speakerId': _myIdentity})),
+        reliable: true,
+        topic: 'juzzio_subtitles',
+      );
+    } catch (_) {}
+  }
+
+  /// Kesinleşmemiş bir bölütü ekrandan kaldırır (hayalet/yankı olduğu anlaşıldı).
+  void retractSubtitleSegment(String id, String speakerId) {
+    if (_finalizedSegmentIds.contains(id)) return;
+    final cur = interimBySpeaker[speakerId];
+    if (cur == null || cur.id != id) return;
+    interimBySpeaker.remove(speakerId);
+    if (speakerId == _myIdentity) {
+      myInterimText = null;
+    } else {
+      remoteInterimText = null;
+    }
+    activeInterimSpeakerHandle = interimBySpeaker.isEmpty ? null : interimBySpeaker.values.last.formattedHandle;
+    notifyListeners();
   }
 
   String _mySegmentBuffer = '';

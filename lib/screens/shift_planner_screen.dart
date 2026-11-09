@@ -15,6 +15,7 @@ import '../core/theme/juzzio_colors.dart';
 import '../core/theme/juzzio_glass.dart';
 import '../services/supabase_service.dart';
 import '../widgets/juzzio_cloth_refresh.dart';
+import '../widgets/juzzio_motion.dart';
 
 class JuzzioShift {
   final String id;
@@ -256,7 +257,7 @@ class _JuzzioShiftPlannerScreenState extends State<JuzzioShiftPlannerScreen> {
     TimeOfDay? start = existing?.startsAt != null ? TimeOfDay.fromDateTime(existing!.startsAt!) : null;
     TimeOfDay? end = existing?.endsAt != null ? TimeOfDay.fromDateTime(existing!.endsAt!) : null;
     final note = TextEditingController(text: existing?.note ?? '');
-    final res = await showModalBottomSheet<String>(
+    final res = await showJuzzioSheet<String>(
       context: context,
       isScrollControlled: true,
       backgroundColor: JuzzioPalette(_app.isDark).sheetBg,
@@ -407,7 +408,7 @@ class _JuzzioShiftPlannerScreenState extends State<JuzzioShiftPlannerScreen> {
       _app.trEn('Cu', 'Fr', 'Fr'), _app.trEn('Ct', 'Sa', 'Sa'), _app.trEn('Pz', 'Su', 'So'),
     ];
     String dm(DateTime d) => '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}';
-    final saved = await showModalBottomSheet<bool>(
+    final saved = await showJuzzioSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: JuzzioPalette(_app.isDark).sheetBg,
@@ -500,7 +501,7 @@ class _JuzzioShiftPlannerScreenState extends State<JuzzioShiftPlannerScreen> {
                     onChanged: (v) => setS(() => room = v),
                   ),
                   if (room != null)
-                    SwitchListTile(
+                    JuzzioSwitchListTile(style: JuzzioToggleStyle.check,
                       contentPadding: EdgeInsets.zero,
                       value: notify,
                       onChanged: (v) => setS(() => notify = v),
@@ -542,7 +543,7 @@ class _JuzzioShiftPlannerScreenState extends State<JuzzioShiftPlannerScreen> {
                             });
                           }
                         },
-                  icon: busy ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.event_available_rounded),
+                  icon: busy ? const SizedBox(width: 16, height: 16, child: JuzzioOrbitLoader(strokeWidth: 2)) : const Icon(Icons.event_available_rounded),
                   label: Text(_app.trEn('${rows.length} günü kaydet', 'Save ${rows.length} days', '${rows.length} Tage speichern')),
                 ),
               ]),
@@ -595,7 +596,7 @@ class _JuzzioShiftPlannerScreenState extends State<JuzzioShiftPlannerScreen> {
             }),
           ]),
           if (_error != null) Padding(padding: const EdgeInsets.all(8), child: Text(_error!, style: const TextStyle(color: Colors.redAccent))),
-          if (_loading) const LinearProgressIndicator(minHeight: 2),
+          if (_loading) const JuzzioSparklerBar(minHeight: 2),
           GridView.count(
             crossAxisCount: 7,
             shrinkWrap: true,

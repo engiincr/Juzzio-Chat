@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../core/app_theme_and_locale.dart';
+import 'juzzio_motion.dart';
 
 /// Aç/kapat + 1..100 yoğunluk. Değişiklikler canlı bildirilir ([onChanged]: enabled, level).
 Future<void> showJuzzioBeautySheet(
@@ -20,7 +21,7 @@ Future<void> showJuzzioBeautySheet(
   final app = JuzzioAppController.instance;
   var on = enabled;
   var lv = level.clamp(1, 100).toDouble();
-  return showModalBottomSheet<void>(
+  return showJuzzioSheet<void>(
     context: context,
     backgroundColor: Colors.transparent,
     builder: (ctx) => StatefulBuilder(
@@ -49,7 +50,7 @@ Future<void> showJuzzioBeautySheet(
                       child: Text(app.loc('Güzelleştirme', 'Beauty', 'Verschönerung'),
                           style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
                     ),
-                    Switch(
+                    JuzzioSwitch(
                       value: on,
                       onChanged: (v) {
                         HapticFeedback.selectionClick();

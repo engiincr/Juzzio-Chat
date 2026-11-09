@@ -28,6 +28,7 @@ import '../widgets/juzzio_cloth_refresh.dart';
 import '../widgets/juzzio_ui_kit.dart';
 import 'admin_audit_format.dart';
 import '../widgets/juzzio_space_kit.dart';
+import '../widgets/juzzio_motion.dart';
 
 const List<String> kJuzzioBanReasons = [
   'spam',
@@ -243,7 +244,7 @@ class _AdminUnlockDialogState extends State<_AdminUnlockDialog> {
                               ),
                               onPressed: _busy ? null : _submit,
                               icon: _busy
-                                  ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: JuzzioGlassTokens.onAccent))
+                                  ? SizedBox(width: 18, height: 18, child: JuzzioOrbitLoader(strokeWidth: 2, color: JuzzioGlassTokens.onAccent))
                                   : const Icon(Icons.login_rounded),
                               label: Text(app.t('admin_unlock'), style: const TextStyle(fontWeight: FontWeight.w900)),
                             ),
@@ -617,7 +618,7 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> with Si
                   maxLength: 300,
                   decoration: InputDecoration(labelText: app.t('admin_ban_note')),
                 ),
-                SwitchListTile(
+                JuzzioSwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   value: banDevices,
                   onChanged: (v) => setLocal(() => banDevices = v),
@@ -762,7 +763,7 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> with Si
   }
 
   Future<void> _openUserDetail(String userId) async {
-    await showModalBottomSheet<void>(
+    await showJuzzioSheet<void>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
@@ -1281,7 +1282,7 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> with Si
             ],
           ),
         ),
-        if (_usersLoading) const LinearProgressIndicator(minHeight: 2),
+        if (_usersLoading) const JuzzioSparklerBar(minHeight: 2),
         Expanded(
           child: list.isEmpty
               ? Center(child: Text(_al('Kullanıcı bulunamadı', 'No users found', 'Keine Nutzer gefunden')))
@@ -1785,7 +1786,7 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> with Si
               TextField(controller: _relEn, minLines: 2, maxLines: 5, decoration: deco(_al('Notlar (İngilizce)', 'Notes (English)', 'Notizen (Englisch)'), Icons.notes_rounded)),
               const SizedBox(height: 8),
               TextField(controller: _relDe, minLines: 2, maxLines: 5, decoration: deco(_al('Notlar (Almanca)', 'Notes (German)', 'Notizen (Deutsch)'), Icons.notes_rounded)),
-              SwitchListTile(
+              JuzzioSwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 value: _relMandatory,
                 onChanged: (v) => setState(() => _relMandatory = v),
@@ -1842,7 +1843,7 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> with Si
 
   Widget _buildSettings(bool isDark) {
     Widget flag(String key, bool value, String title, String sub, IconData icon) {
-      return SwitchListTile(
+      return JuzzioSwitchListTile(
         contentPadding: EdgeInsets.zero,
         value: value,
         onChanged: (v) => _setFlag(key, v),
@@ -2181,7 +2182,7 @@ class _AdminUserDetailSheetState extends State<_AdminUserDetailSheet> {
     if (d == null) {
       return SizedBox(
         height: 260,
-        child: Center(child: _error != null ? Text(_error!) : const CircularProgressIndicator()),
+        child: Center(child: _error != null ? Text(_error!) : const JuzzioOrbitLoader()),
       );
     }
     final handle = '@${d['username'] ?? ''}';
@@ -2318,7 +2319,7 @@ class _AdminUserDetailSheetState extends State<_AdminUserDetailSheet> {
             ),
           ],
           const Divider(height: 28),
-          SwitchListTile(
+          JuzzioSwitchListTile(
             contentPadding: EdgeInsets.zero,
             secondary: const Icon(Icons.verified_rounded, color: JuzzioColors.sky500),
             title: Text(_al('Mavi tik', 'Blue tick', 'Blauer Haken'), style: const TextStyle(fontWeight: FontWeight.w800)),

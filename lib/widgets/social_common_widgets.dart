@@ -16,6 +16,7 @@ import '../core/theme/juzzio_colors.dart';
 import '../core/theme/juzzio_glass.dart';
 import 'juzzio_video_kit.dart';
 import 'juzzio_space_kit.dart';
+import 'juzzio_motion.dart';
 
 class JuzzioSocialTokens {
   JuzzioSocialTokens._();
@@ -198,7 +199,7 @@ class JuzzioUserAvatar extends StatelessWidget {
                       child: SizedBox(
                         width: radius * 0.7,
                         height: radius * 0.7,
-                        child: const CircularProgressIndicator(
+                        child: const JuzzioOrbitLoader(
                           strokeWidth: 2,
                           color: JuzzioSocialTokens.royalBlue,
                         ),
@@ -549,7 +550,7 @@ Future<bool?> showJuzzioReportModalSheet({
     MapEntry('other', app.loc('Diğer', 'Other', 'Sonstiges')),
   ];
 
-  return showModalBottomSheet<bool>(
+  return showJuzzioSheet<bool>(
     context: context,
     isScrollControlled: true,
     backgroundColor: JuzzioSocialTokens.cardBg(isDark),
@@ -706,7 +707,7 @@ Future<bool?> showJuzzioReportModalSheet({
                             ? const SizedBox(
                                 width: 20,
                                 height: 20,
-                                child: CircularProgressIndicator(
+                                child: JuzzioOrbitLoader(
                                   strokeWidth: 2,
                                   color: Colors.white,
                                 ),
@@ -758,7 +759,7 @@ Future<void> showJuzzioSharePostModalSheet({
   String? errorMsg;
 
   if (!context.mounted) return;
-  await showModalBottomSheet<void>(
+  await showJuzzioSheet<void>(
     context: context,
     isScrollControlled: true,
     backgroundColor: JuzzioSocialTokens.cardBg(isDark),
@@ -976,7 +977,7 @@ Future<void> showJuzzioSharePostModalSheet({
                               ? const SizedBox(
                                   width: 20,
                                   height: 20,
-                                  child: CircularProgressIndicator(
+                                  child: JuzzioOrbitLoader(
                                     strokeWidth: 2,
                                     color: Colors.white,
                                   ),
@@ -1139,7 +1140,7 @@ class _JuzzioPostCardWidgetState extends State<JuzzioPostCardWidget> {
     final isDark = app.isDark;
     final isMine = widget.post.authorId == widget.currentUser.id;
 
-    await showModalBottomSheet<void>(
+    await showJuzzioSheet<void>(
       context: context,
       backgroundColor: JuzzioSocialTokens.cardBg(isDark),
       shape: const RoundedRectangleBorder(
@@ -1388,7 +1389,7 @@ class _JuzzioPostCardWidgetState extends State<JuzzioPostCardWidget> {
                     if (v != null) setDlgState(() => vis = v);
                   },
                 ),
-                SwitchListTile(
+                JuzzioSwitchListTile(style: JuzzioToggleStyle.check,
                   contentPadding: EdgeInsets.zero,
                   value: commentsOn,
                   title: Text(
@@ -1675,7 +1676,7 @@ class _JuzzioPostCardWidgetState extends State<JuzzioPostCardWidget> {
                           loadingBuilder: (ctx, child, progress) {
                             if (progress == null) return child;
                             return const Center(
-                              child: CircularProgressIndicator(
+                              child: JuzzioOrbitLoader(
                                 strokeWidth: 2.2,
                                 color: JuzzioSocialTokens.royalBlue,
                               ),

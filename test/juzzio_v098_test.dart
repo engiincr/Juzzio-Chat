@@ -32,17 +32,8 @@ void main() {
     expect(kJuzzioSmoothDur, closeTo(0.25, 1e-9)); // ~250 ms ütüleme
   });
 
-  test('Sprite oranı ve kök noktası (v0.9.9)', () {
-    const s = JuzzioClothAssets.spriteLogical;
-    expect(s.width / s.height, closeTo(1.5, 1e-9));
-    expect(JuzzioClothAssets.rootLogical.dx, closeTo(s.width / 2, 1e-9));
-  });
-
-  test('3D el ve kumaş varlıkları pakette (v0.9.9)', () {
-    for (final n in JuzzioClothAssets.assetNames) {
-      expect(File('assets/cloth/$n.png').existsSync(), isTrue, reason: n);
-    }
-    // eski v0.9.8 katı sprite'ları kaldırıldı
-    expect(File('assets/cloth/hand_spread.png').existsSync(), isFalse);
+  test('v1.1.1: raster el/kumaş varlıkları kaldırıldı (vektör çizim)', () {
+    expect(Directory('assets/cloth').existsSync(), isFalse);
+    expect(File('pubspec.yaml').readAsStringSync().contains('assets/cloth/'), isFalse);
   });
 }

@@ -26,6 +26,7 @@ import 'package:flutter/services.dart';
 import 'juzzio_aurora.dart';
 import 'juzzio_colors.dart';
 import 'juzzio_custom_theme.dart';
+import '../../widgets/juzzio_motion.dart';
 
 /// Uygulama genelinde emoji yazı tipi (Noto Color Emoji, OFL 1.1 — pubspec'te
 /// `JuzzioEmoji` ailesi). Tüm metinlerde yedek yazı tipi olarak kullanılır;
@@ -547,7 +548,7 @@ class JuzzioGlassButton extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         if (loading)
-          SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2.2, color: fg))
+          SizedBox(width: 18, height: 18, child: JuzzioOrbitLoader(strokeWidth: 2.2, color: fg))
         else if (icon != null)
           Icon(icon, size: 19, color: fg),
         if (loading || icon != null) const SizedBox(width: 8),
@@ -806,7 +807,7 @@ Future<T?> showJuzzioGlassSheet<T>({
   required WidgetBuilder builder,
   bool isScrollControlled = true,
 }) {
-  return showModalBottomSheet<T>(
+  return showJuzzioSheet<T>(
     context: context,
     isScrollControlled: isScrollControlled,
     backgroundColor: Colors.transparent,

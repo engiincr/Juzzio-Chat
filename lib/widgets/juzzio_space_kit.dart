@@ -27,6 +27,7 @@ import '../core/app_theme_and_locale.dart';
 import '../core/config.dart';
 import '../core/theme/juzzio_glass.dart';
 import '../services/juzzio_media_url.dart';
+import 'juzzio_motion.dart';
 
 /// Ölçüler (Figma, 393 dp genişlik referansı)
 class JuzzioSpaceMetrics {
@@ -132,9 +133,13 @@ class JuzzioSpaceIconButton extends StatelessWidget {
     this.badgeCount = 0,
     this.size = JuzzioSpaceMetrics.iconButton,
     this.iconColor,
+    this.iconWidget,
   });
 
   final IconData icon;
+
+  /// v1.1.0: dönüşen ikon (JuzzioMorphIcon) gibi özel çizim; verilirse [icon] yerine çizilir
+  final Widget? iconWidget;
   final VoidCallback? onTap;
   final String? tooltip;
   final Color? dotColor;
@@ -156,7 +161,13 @@ class JuzzioSpaceIconButton extends StatelessWidget {
       ),
       child: Stack(
         children: [
-          Center(child: Icon(icon, size: size * 0.46, color: iconColor ?? JuzzioGlassTokens.icon)),
+          // v1.1.0 Symbol Effect: rozet sayısı değişince ikon zıplar
+          Center(
+            child: JuzzioBounceOnChange(
+              value: badgeCount,
+              child: iconWidget ?? Icon(icon, size: size * 0.46, color: iconColor ?? JuzzioGlassTokens.icon),
+            ),
+          ),
           if (dot != null)
             Positioned(
               top: size * 0.17,
@@ -561,7 +572,10 @@ class _RingPainter extends CustomPainter {
 // Bölüm başlığı ve filtreler
 // ---------------------------------------------------------------------------
 class JuzzioSpaceSectionHeader extends StatelessWidget {
-  const JuzzioSpaceSectionHeader({super.key, required this.eyebrow, required this.title, this.onMore, this.moreTooltip, this.trailing});
+  const JuzzioSpaceSectionHeader({super.key, required this.eyebrow, required this.title, this.onMore, this.moreTooltip, this.trailing, this.moreOpen = false});
+
+  /// v1.1.0 (#10 Ring + X): menü açıkken çizgiler halka içinde × olur
+  final bool moreOpen;
   final String eyebrow;
   final String title;
   final VoidCallback? onMore;
@@ -598,7 +612,13 @@ class JuzzioSpaceSectionHeader extends StatelessWidget {
           ),
           if (trailing != null) trailing!,
           if (onMore != null)
-            JuzzioSpaceIconButton(icon: Icons.more_horiz_rounded, size: 40, tooltip: moreTooltip, onTap: onMore),
+            JuzzioSpaceIconButton(
+              icon: Icons.more_horiz_rounded,
+              size: 40,
+              tooltip: moreTooltip,
+              onTap: onMore,
+              iconWidget: JuzzioMorphIcon(kind: JuzzioMorph.ringX, open: moreOpen, size: 20, color: JuzzioGlassTokens.icon),
+            ),
         ],
       ),
     );

@@ -32,6 +32,8 @@ import 'screens/banned_screen.dart';
 import 'core/theme/juzzio_colors.dart';
 import 'core/theme/juzzio_aurora.dart';
 import 'core/theme/juzzio_glass.dart';
+import 'widgets/juzzio_motion.dart';
+import 'widgets/juzzio_splash.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -223,7 +225,8 @@ Widget _resolveInitialHome() {
         .toString()
         .replaceAll('@', '');
     final lang = (meta['preferred_lang'] ?? JuzzioAppController.instance.subtitleLang).toString();
-    return ChatScreen(myDisplayName: uname, myLanguage: lang);
+    // v1.1.0: Android açılışından kesintisiz marka perdesi (sohbetler altında yüklenir)
+    return JuzzioLaunchCurtain(child: ChatScreen(myDisplayName: uname, myLanguage: lang));
   }
   return const JuzzioRootFlow();
 }
@@ -290,7 +293,20 @@ class JuzzioApp extends StatelessWidget {
               // v0.9.4: cihaz saati sunucudan 2 dk'dan fazla saparsa tüm sayfaların üstünde uyarı
               // v0.9.6: Göz Konforu (amber mavi ışık filtresi) en üst katmanda, dokunmayı engellemez
               // v0.9.7: koyu/aydınlık geçişinde dairesel reveal
-              child: JuzzioEyeComfortOverlay(child: JuzzioThemeReveal(child: JuzzioClockGuard(child: child ?? const SizedBox.shrink()))),
+              // v1.1.0: Dynamic Island tarzı canlı durum kapsülü (arama, ses kaydı, yükleme) tüm sayfaların üstünde
+              child: JuzzioEyeComfortOverlay(
+                child: JuzzioThemeReveal(
+                  child: JuzzioClockGuard(
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        child ?? const SizedBox.shrink(),
+                        const JuzzioLiveIsland(),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
           // Başlangıç ekranı yalnızca bir kez belirlenir: oturum açıksa doğrudan
@@ -530,7 +546,7 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 300),
                   child: _booting
-                      ? const Center(child: CircularProgressIndicator(strokeWidth: 2.4))
+                      ? const JuzzioSplash()
                       : _step == 0
                       ? _buildOnboardingStep1Cool(p, s)
                       : _step == 1
@@ -631,10 +647,13 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
                 shape: BoxShape.circle,
                 border: Border.all(color: p.glassBorder),
               ),
-              child: Icon(
-                appCtrl.isDark ? Icons.dark_mode_rounded : Icons.wb_sunny_rounded,
-                color: p.textPrimary,
-                size: 17,
+              child: JuzzioSymbolSwap(
+                child: Icon(
+                  appCtrl.isDark ? Icons.dark_mode_rounded : Icons.wb_sunny_rounded,
+                  key: ValueKey(appCtrl.isDark),
+                  color: p.textPrimary,
+                  size: 17,
+                ),
               ),
             ),
           ),

@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 
 import '../core/app_theme_and_locale.dart';
 import '../services/supabase_service.dart';
+import 'juzzio_motion.dart';
 
 class JuzzioEventDetails {
   final String title;
@@ -125,7 +126,7 @@ class _JuzzioEventCardState extends State<JuzzioEventCard> {
       return Padding(
         padding: const EdgeInsets.all(8),
         child: _error == null
-            ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+            ? const SizedBox(width: 24, height: 24, child: JuzzioOrbitLoader(strokeWidth: 2))
             : TextButton(onPressed: _load, child: Text(_app.trEn('Etkinlik yüklenemedi · tekrar dene', 'Event failed to load · retry', 'Termin nicht geladen · erneut'))),
       );
     }
@@ -183,7 +184,7 @@ Future<bool> showJuzzioCreateEventSheet(BuildContext context, {required String r
   var remind = 15;
   var busy = false;
   String? error;
-  final ok = await showModalBottomSheet<bool>(
+  final ok = await showJuzzioSheet<bool>(
     context: context,
     isScrollControlled: true,
     backgroundColor: JuzzioPalette(app.isDark).sheetBg,

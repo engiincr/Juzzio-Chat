@@ -24,6 +24,7 @@ import '../widgets/juzzio_chick_art.dart';
 import 'chick_wardrobe_screen.dart';
 import '../widgets/juzzio_nest_scene.dart';
 import '../widgets/juzzio_cloth_refresh.dart';
+import '../widgets/juzzio_motion.dart';
 
 class JuzzioChickGameScreen extends StatefulWidget {
   final List<JuzzioUserProfile> friends;
@@ -259,7 +260,7 @@ class _JuzzioChickGameScreenState extends State<JuzzioChickGameScreen> with Tick
       return;
     }
     final nameCtrl = TextEditingController(text: app.t('chick_default_name'));
-    final picked = await showModalBottomSheet<JuzzioUserProfile>(
+    final picked = await showJuzzioSheet<JuzzioUserProfile>(
       context: context,
       isScrollControlled: true,
       backgroundColor: JuzzioGlassTokens.sheet,
@@ -409,7 +410,7 @@ class _JuzzioChickGameScreenState extends State<JuzzioChickGameScreen> with Tick
 
   Widget _buildBody(JuzzioPalette p) {
     final app = JuzzioAppController.instance;
-    if (_loading && _state == null) return const Center(child: CircularProgressIndicator());
+    if (_loading && _state == null) return const Center(child: JuzzioOrbitLoader());
     if (_error != null && _state == null) {
       return ListView(
         children: [
@@ -590,7 +591,7 @@ class _JuzzioChickGameScreenState extends State<JuzzioChickGameScreen> with Tick
         const SizedBox(height: 18),
         ClipRRect(
           borderRadius: BorderRadius.circular(999),
-          child: LinearProgressIndicator(
+          child: JuzzioSparklerBar(
             value: progress,
             minHeight: 12,
             backgroundColor: JuzzioGlassTokens.surfaceStrong,
