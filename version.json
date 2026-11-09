@@ -34,6 +34,7 @@
       "features": [
         "🎨 Juzzio Space tasarımı: \"Senin alanın · Juzzio.\" başlığı, ⌘K kısayollu arama, hikâye halkaları, Gelen kutusu · Mesajlar, sayaçlı filtre hapları, cam sohbet kartları ve yüzen cam alt menü",
         "🌈 16 temanın tamamı aynı tasarım dilini kullanır; vurgu rengi, zemin derinliği ve cam opaklığı seçili temadan gelir (yeni kullanıcılarda varsayılan Zümrüt)",
+        "🪪 Profil ve yönetici paneli de Juzzio Space düzeninde: büyük başlık, parlayan halkalı kare avatar, cam sayaç karoları, vurgu renkli birincil düğme, kapsül sekmeler ve cam istatistik kartları",
         "⚡ Mesajlar anında gönderilir: balon hemen görünür, çeviri arka planda yapılır ve hazır olunca mesajın altında belirir (uçtan uca şifreli sohbetlerde çeviri de şifreli eklenir)",
         "📍 Paylaşılan konum harita önizlemeli kart olarak görünür; Android'de Google Haritalar, iOS'ta Apple Haritalar ya da Google Maps ile açılır",
         "🔗 Mesajlar, biyografi, gönderi ve yorumlardaki bağlantılar, e-postalar ve telefon numaraları tıklanabilir; varsayılan tarayıcıda/uygulamada açılır",
@@ -59,6 +60,7 @@
       "features": [
         "🎨 Juzzio Space design: \"Your space · Juzzio.\" header, search with a ⌘K shortcut, story rings, Inbox · Messages, filter pills with counters, glass chat cards and a floating glass bottom bar",
         "🌈 All 16 themes share the same design language; accent, background depth and glass opacity come from the selected theme (Emerald is the default for new users)",
+        "🪪 Profile and admin panel use the Juzzio Space layout too: large header, square avatar with a glowing ring, glass counter tiles, accent primary button, capsule tabs and glass stat cards",
         "⚡ Messages send instantly: the bubble appears right away, translation runs in the background and shows up under the message when ready (in end-to-end encrypted chats the translation is added encrypted too)",
         "📍 Shared locations appear as a card with a map preview and open in Google Maps on Android, Apple Maps on iOS, or Google Maps",
         "🔗 Links, e-mail addresses and phone numbers in messages, bios, posts and comments are tappable and open in the default browser/app",
@@ -84,6 +86,7 @@
       "features": [
         "🎨 Juzzio Space design: \"Your space · Juzzio.\" header, search with a ⌘K shortcut, story rings, Inbox · Messages, filter pills with counters, glass chat cards and a floating glass bottom bar",
         "🌈 All 16 themes share the same design language; accent, background depth and glass opacity come from the selected theme (Emerald is the default for new users)",
+        "🪪 Profile and admin panel use the Juzzio Space layout too: large header, square avatar with a glowing ring, glass counter tiles, accent primary button, capsule tabs and glass stat cards",
         "⚡ Messages send instantly: the bubble appears right away, translation runs in the background and shows up under the message when ready (in end-to-end encrypted chats the translation is added encrypted too)",
         "📍 Shared locations appear as a card with a map preview and open in Google Maps on Android, Apple Maps on iOS, or Google Maps",
         "🔗 Links, e-mail addresses and phone numbers in messages, bios, posts and comments are tappable and open in the default browser/app",

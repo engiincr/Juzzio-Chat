@@ -25,7 +25,6 @@ void main() {
     expect(ctrl.uiLang.isNotEmpty, isTrue);
 
     // Vurgu ve zemin renkleri: turuncu ton yok (v0.6 cam teması renklerini yalnız balon taşır)
-    final lightPalette = JuzzioPalette(false);
     final darkPalette = JuzzioPalette(true);
     bool isNeutral(Color c) {
       final r = (c.r * 255).round(), g = (c.g * 255).round(), b = (c.b * 255).round();

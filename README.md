@@ -60,6 +60,7 @@ Juzzio moves to the "Juzzio Space" interface designed in Figma: deep theme gradi
 - ⚡ Messages send instantly: the bubble appears right away, translation runs in the background and shows up under the message when ready (in end-to-end encrypted chats the translation is added encrypted too)
 - 📍 Shared locations appear as a card with a map preview and open in Google Maps on Android, Apple Maps on iOS, or Google Maps
 - 🔗 Links, e-mail addresses and phone numbers in messages, bios, posts and comments are tappable and open in the default browser/app
+- 🪪 Profile and admin panel use the Juzzio Space layout too: large header, square avatar with a glowing ring, glass counter tiles, accent primary button, capsule tabs and glass stat cards
 - 📊 New poll card: options with share bars, percentages, winner highlight and a live status chip
 - 📅 Date ranges in the shift planner: pick start–end days and hours (overnight shifts included), filter weekdays/weekends, share with a group and post a plan summary automatically
 - 🐣 When petted, the chick twirls to the right like a princess, winks and flirts; the chick badge in chats does the same animation

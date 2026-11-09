@@ -137,6 +137,173 @@ class JuzzioDarkHeaderBar extends StatelessWidget {
     );
   }
 }
+/// Yükleniyor/Hata/Baş Harf Fallback'li Ortak Avatar ve Hikâye Halkası (Bölüm 4.3, 18.1)
+class JuzzioUserAvatar extends StatelessWidget {
+  final String? imageUrl;
+  final String displayName;
+  final double radius;
+  final bool isOnline;
+  final bool showOnlineDot;
+  final bool hasActiveStory;
+  final bool isStorySeen;
+  final VoidCallback? onTap;
+
+  const JuzzioUserAvatar({
+    super.key,
+    required this.imageUrl,
+    required this.displayName,
+    this.radius = 24,
+    this.isOnline = false,
+    this.showOnlineDot = false,
+    this.hasActiveStory = false,
+    this.isStorySeen = false,
+    this.onTap,
+  });
+
+  String get _initials {
+    final clean = displayName.trim().replaceAll('@', '');
+    if (clean.isEmpty) return 'J';
+    final parts = clean.split(RegExp(r'\s+')).where((s) => s.isNotEmpty).toList();
+    if (parts.length >= 2) {
+      return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+    }
+    return clean[0].toUpperCase();
+  }
+
+  Widget _buildInnerAvatar(bool isDark) {
+    final url = imageUrl?.trim() ?? '';
+    final isLocalFile = url.isNotEmpty && !url.startsWith('http') && File(url).existsSync();
+
+    return Container(
+      width: radius * 2,
+      height: radius * 2,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: isDark ? JuzzioColors.slate800 : JuzzioColors.slate200,
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: isLocalFile
+          ? Image.file(
+              File(url),
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => _buildFallbackText(isDark),
+            )
+          : (url.startsWith('http')
+              ? JuzzioStorageImage(
+                  url,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (ctx, child, progress) {
+                    if (progress == null) return child;
+                    return Center(
+                      child: SizedBox(
+                        width: radius * 0.7,
+                        height: radius * 0.7,
+                        child: const CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: JuzzioSocialTokens.royalBlue,
+                        ),
+                      ),
+                    );
+                  },
+                  errorBuilder: (_, __, ___) => _buildFallbackText(isDark),
+                )
+              : _buildFallbackText(isDark)),
+    );
+  }
+
+  Widget _buildFallbackText(bool isDark) {
+    return Center(
+      child: Text(
+        _initials,
+        style: TextStyle(
+          color: isDark ? Colors.white : JuzzioColors.slate800,
+          fontSize: (radius * 0.72).clamp(11, 28),
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = JuzzioAppController.instance.isDark;
+    final canShowOnline = showOnlineDot &&
+        isOnline &&
+        JuzzioAppController.instance.canViewOthersLastSeenAndOnline;
+
+    Widget avatar = _buildInnerAvatar(isDark);
+
+    if (hasActiveStory) {
+      avatar = Container(
+        padding: const EdgeInsets.all(2.4),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: isStorySeen
+              ? LinearGradient(
+                  colors: [
+                    Colors.grey.shade400,
+                    Colors.grey.shade500,
+                  ],
+                )
+              : const LinearGradient(
+                  colors: [
+                    Color(0xFFFFFFFF),
+                    Color(0xFF9A9AA0),
+                    Color(0xFFE5E5EA),
+                    Color(0xFF7C7C82),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(2),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: JuzzioSocialTokens.cardBg(isDark),
+          ),
+          child: avatar,
+        ),
+      );
+    }
+
+    Widget stacked = Stack(
+      clipBehavior: Clip.none,
+      children: [
+        avatar,
+        if (canShowOnline)
+          Positioned(
+            right: 1,
+            bottom: 1,
+            child: Container(
+              width: (radius * 0.48).clamp(10.0, 15.0),
+              height: (radius * 0.48).clamp(10.0, 15.0),
+              decoration: BoxDecoration(
+                color: JuzzioSocialTokens.onlineEmerald,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: JuzzioSocialTokens.cardBg(isDark),
+                  width: 2,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+
+    if (onTap == null) return stacked;
+    return Semantics(
+      button: true,
+      label: JuzzioAppController.instance.trEn("$displayName profili", "$displayName's profile", "Profil von $displayName"),
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: stacked,
+      ),
+    );
+  }
+}
+
 class JuzzioFilterPillBar extends StatelessWidget {
   final List<MapEntry<String, String>> items;
   final String selectedKey;

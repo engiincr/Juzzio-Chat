@@ -214,7 +214,6 @@ class JuzzioUnreadPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accents = JuzzioGlassTokens.accentPair;
     final dark = JuzzioAppController.instance.isDark;
     // v1.0.0 Juzzio Space: okunmamış rozeti temanın parlayan vurgusu
     final a = muted ? JuzzioGlassTokens.textMuted : JuzzioGlassTokens.glow;

@@ -236,6 +236,9 @@ class JuzzioMessage {
   final DateTime? editedAt;
   final DateTime createdAt;
 
+  /// v1.0.0: istemci gönderim kimliği (anında görünen yerel balonu sunucu kaydıyla eşler)
+  final String? clientMsgId;
+
   const JuzzioMessage({
     required this.id,
     required this.roomId,

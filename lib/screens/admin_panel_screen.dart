@@ -27,6 +27,7 @@ import 'admin_theme_studio_page.dart';
 import '../widgets/juzzio_cloth_refresh.dart';
 import '../widgets/juzzio_ui_kit.dart';
 import 'admin_audit_format.dart';
+import '../widgets/juzzio_space_kit.dart';
 
 const List<String> kJuzzioBanReasons = [
   'spam',
@@ -964,78 +965,61 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> with Si
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
-        backgroundColor: isDark ? const Color(0x66101117) : const Color(0x99FFFFFF),
+        // v1.0.0 Juzzio Space başlığı: zeminle bütünleşik, eyebrow + büyük başlık, kare cam eylemler
+        backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
         foregroundColor: JuzzioGlassTokens.textPrimary,
         elevation: 0,
-        toolbarHeight: 68,
-        titleSpacing: 12,
+        toolbarHeight: 84,
+        titleSpacing: 16,
+        automaticallyImplyLeading: false,
         title: Row(
           children: [
-            Container(
-              padding: const EdgeInsets.all(2.5),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white.withValues(alpha: 0.45), width: 1.5),
+            if (Navigator.of(context).canPop()) ...[
+              JuzzioSpaceIconButton(
+                icon: Icons.arrow_back_rounded,
+                size: 42,
+                tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+                onTap: () => Navigator.of(context).maybePop(),
               ),
-              child: JuzzioGlassAvatar(
-                imageUrl: _me?.avatarUrl,
-                name: _me?.displayName ?? 'tugkancr',
-                radius: 20,
-              ),
-            ),
-            const SizedBox(width: 12),
+              const SizedBox(width: 12),
+            ],
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    _al('Hoşgeldin, $_welcomeName!', 'Welcome, $_welcomeName!', 'Willkommen, $_welcomeName!'),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, fontWeight: FontWeight.w900, fontSize: 19, color: JuzzioGlassTokens.textPrimary),
-                  ),
-                  Row(
-                    children: [
-                      Icon(Icons.admin_panel_settings_rounded, size: 13, color: JuzzioGlassTokens.textSecondary),
-                      const SizedBox(width: 4),
-                      Flexible(
-                        child: Text(
-                          app.t('admin_title'),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 12, color: JuzzioGlassTokens.textSecondary, fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ],
-                  ),
+                  JuzzioSpaceEyebrow(app.t('admin_title')),
+                  const SizedBox(height: 4),
+                  JuzzioSpaceBrand(text: _al('Merhaba, $_welcomeName', 'Hi, $_welcomeName', 'Hallo, $_welcomeName'), size: 24),
                 ],
               ),
             ),
           ],
         ),
         actions: [
-          IconButton(tooltip: app.t('common_refresh'), icon: const Icon(Icons.refresh_rounded), onPressed: _reloadAll),
-          IconButton(
+          JuzzioSpaceIconButton(icon: Icons.refresh_rounded, size: 42, tooltip: app.t('common_refresh'), onTap: _reloadAll),
+          const SizedBox(width: 8),
+          JuzzioSpaceIconButton(
+            icon: Icons.logout_rounded,
+            size: 42,
             tooltip: app.t('admin_logout'),
-            icon: const Icon(Icons.logout_rounded),
-            onPressed: () async {
+            iconColor: JuzzioColors.red500,
+            onTap: () async {
               final nav = Navigator.of(context);
               await _f.adminLogout(widget.token);
               nav.pop();
             },
           ),
+          const SizedBox(width: 16),
         ],
         bottom: TabBar(
           controller: _tabs,
           isScrollable: true,
           tabAlignment: TabAlignment.start,
-          // v0.7.0: aydınlık ve karanlık temada net okunan sekmeler
-          labelColor: JuzzioGlassTokens.textPrimary,
-          unselectedLabelColor: JuzzioGlassTokens.textSecondary,
-          indicatorColor: JuzzioGlassTokens.textPrimary,
-          dividerColor: Colors.transparent,
+          // v1.0.0: tema sekmeleri (parlayan vurgu kapsül) — renkler TabBarTheme'den
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          labelPadding: const EdgeInsets.symmetric(horizontal: 14),
           tabs: [
             for (final i in _visibleTabs) _allTabs(app)[i],
             if (_visibleTabs.isEmpty) Tab(text: _al('Yetki yok', 'No access', 'Kein Zugriff')),
@@ -1123,17 +1107,11 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> with Si
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: padding,
+      // v1.0.0 Juzzio Space cam kart
       decoration: BoxDecoration(
-        color: isDark ? null : JuzzioGlassTokens.surfaceSolid,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: JuzzioGlassTokens.border),
-        gradient: isDark
-            ? LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Colors.white.withValues(alpha: 0.09), Colors.white.withValues(alpha: 0.03)],
-              )
-            : null,
+        color: JuzzioGlassTokens.spaceCard,
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: JuzzioGlassTokens.spaceCardBorder, width: 1.2),
       ),
       child: child,
     );
@@ -1144,9 +1122,14 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> with Si
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: isDark ? Colors.white70 : JuzzioColors.ink),
-          const SizedBox(width: 8),
-          Text(text, style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15, color: isDark ? Colors.white : JuzzioColors.ink)),
+          Container(
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(color: JuzzioGlassTokens.glow.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(10)),
+            child: Icon(icon, size: 17, color: JuzzioGlassTokens.glowText),
+          ),
+          const SizedBox(width: 10),
+          Text(text, style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: JuzzioGlassTokens.heading, letterSpacing: -0.3)),
         ],
       ),
     );
@@ -2430,26 +2413,25 @@ class _StatTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // v0.8.0: cam istatistik karosu, cam ikon kapsülü (renk lekesi yok)
-    return JuzzioGlass(
-      radius: 20,
-      blur: false,
-      color: JuzzioGlassTokens.surface,
+    // v1.0.0 Juzzio Space: cam karo + yuvarlatılmış kare ikon rozeti
+    return Container(
       padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: JuzzioGlassTokens.spaceCard,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: JuzzioGlassTokens.spaceCardBorder, width: 1.2),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.all(7),
+            width: 34,
+            height: 34,
             decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Colors.white.withValues(alpha: isDark ? 0.22 : 0.85), Colors.white.withValues(alpha: isDark ? 0.06 : 0.35)],
-              ),
-              border: Border.all(color: JuzzioGlassTokens.borderStrong),
+              color: data.color.withValues(alpha: isDark ? 0.18 : 0.14),
+              borderRadius: BorderRadius.circular(11),
             ),
-            child: Icon(data.icon, color: Color.lerp(data.color, JuzzioGlassTokens.textPrimary, 0.35), size: 18),
+            child: Icon(data.icon, color: Color.lerp(data.color, JuzzioGlassTokens.textPrimary, isDark ? 0.15 : 0.3), size: 18),
           ),
           const Spacer(),
           FittedBox(
