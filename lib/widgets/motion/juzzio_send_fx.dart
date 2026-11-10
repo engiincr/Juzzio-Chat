@@ -350,6 +350,8 @@ class _FlightViewState extends State<_FlightView> with SingleTickerProviderState
     })
     ..forward();
 
+  Rect? _lastTo;
+
   @override
   void dispose() {
     _c.dispose();
@@ -379,14 +381,34 @@ class _FlightViewState extends State<_FlightView> with SingleTickerProviderState
   @override
   Widget build(BuildContext context) {
     final st = widget.style;
+    // v1.2.7: uçuş kök Overlay'de çizilir; orada Material/DefaultTextStyle atası yoktur ve
+    // Flutter metni varsayılan hata stiliyle (SARI ÇİFT ALT ÇİZGİ) boyar. Saydam Material +
+    // alt çizgisiz DefaultTextStyle ile uçan metin balondakiyle birebir aynı görünür.
     return IgnorePointer(
+      child: Material(
+        type: MaterialType.transparency,
+        child: DefaultTextStyle(
+          style: st.textStyle.copyWith(decoration: TextDecoration.none),
+          child: _flight(st),
+        ),
+      ),
+    );
+  }
+
+  Widget _flight(JuzzioSendFlightStyle st) {
+    return RepaintBoundary(
       child: AnimatedBuilder(
         animation: _c,
         builder: (context, _) {
           final t = _c.value;
           // aşmasız (overshoot yok) eğri → balonun TAM yerine iner, zıplama olmaz
           final move = Curves.easeInOutCubic.transform(t);
-          final to = _target(context);
+          // v1.2.7: gerçek balon uçuşun ortasında ortaya çıktığında hedef tahminden gerçeğe
+          // birkaç karede yumuşakça kayar (önceden tek karede sıçrıyordu); son %8'de tam gerçek kutu.
+          final actual = _target(context);
+          final prev = _lastTo;
+          final to = prev == null || t >= 0.92 ? actual : Rect.lerp(prev, actual, 0.35)!;
+          _lastTo = to;
           final from = _fromLocal(context);
           // damla: yolun ortasında hafifçe daralıp uzar, varışta balon şekline tam oturur
           final pinch = math.sin(math.pi * t) * 0.28;
@@ -425,7 +447,14 @@ class _FlightViewState extends State<_FlightView> with SingleTickerProviderState
                     alignment: Alignment.topLeft,
                     child: SizedBox(
                       width: innerW,
-                      child: Text(widget.text, style: st.textStyle.copyWith(color: textColor)),
+                      child: Text(
+                        widget.text,
+                        style: st.textStyle.copyWith(
+                          color: textColor,
+                          decoration: TextDecoration.none,
+                          decorationColor: Colors.transparent,
+                        ),
+                      ),
                     ),
                   ),
                 ),

@@ -49,7 +49,7 @@ void main() {
       final e = JuzzioRefreshGeometry(screenWidth: 393, topInset: 59, contentTop: 160);
       expect(e.embedded, isTrue);
       expect(e.originY, 0);
-      expect(g.scale, inInclusiveRange(0.85, 1.15));
+      expect(g.scale, inInclusiveRange(1.0, 1.4)); // v1.2.7: el ~%20 büyütüldü
     });
 
     test('kaynak sözleşmesi: tek tetik kilidi, reduce motion, warm-up, dispose, eski çizim yok', () {

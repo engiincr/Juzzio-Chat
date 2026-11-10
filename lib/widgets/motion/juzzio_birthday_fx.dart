@@ -1,14 +1,21 @@
 // =============================================================================
 // JUZZIO v1.2.0 — Doğum günü kutlaması
 //  "Happy Birthday", "Doğum günün kutlu olsun", "İyi ki doğdun" … içeren bir mesaj
-//  geldiğinde/gönderildiğinde TOPLAM 4 SANİYE süren bir kutlama oynar:
+//  geldiğinde/gönderildiğinde TOPLAM 7 SANİYE süren bir kutlama oynar (v1.2.7: 4 → 7 sn):
 //   • ekranın solundan ve sağından orantılı, ışık-gölgeli (3B görünümlü) iki el
 //     konfeti patlatıcısıyla (party popper) içeri girer ve patlatır;
 //   • iki patlatıcıdan renkli konfeti + kıvrımlı serpantin saçılır;
 //   • 🌸🎂😍⚡🥳💖❤️ emojileri aşağıdan yumuşakça yükselir ve yumuşakça kaybolur;
 //   • mesaj balonunun çevresinde elektrik dalgası dolaşır.
 //  Her mesaj için bir kez (yeni mesaj = son 8 sn) oynar; "Hareketi azalt" açıkken oynamaz.
-//  Tüm çizim vektördür (CustomPainter) — görsel dosyası yok.
+//  v1.2.7 — 3 BOYUTLU sahne (kullanıcı: "kenardan çıkan efektler çok yapmacık ve vektörel"):
+//   • eller ve patlatıcılar gerçek PERSPEKTİF dönüşümüyle (Matrix4, derinlik) çizilir; içeri
+//     girerken yana dönüp öne eğilir, patlamada geri teper; koni silindirik ışıkla, ağız
+//     derinlikli iç gölge ve metalik halkayla gölgelenir, kolların altında yumuşak temas gölgesi;
+//   • konfeti parçaları 3B uzayda üç eksende döner, ön/arka yüzü ışığa göre aydınlanıp kararır;
+//     serpantinler bükülen kurdele gibi daralıp genişler; parlak 3B küreler ve yıldızlar eklenir;
+//   • iki patlama (1.0 sn ve 3.2 sn), konfeti yavaşça süzülür, sahne 7 sn sürer.
+//  Tüm çizim kodla yapılır (CustomPainter) — görsel dosyası yok, APK büyümez.
 // =============================================================================
 
 import 'dart:math' as math;
@@ -19,8 +26,18 @@ import '../../core/app_theme_and_locale.dart';
 import '../../core/theme/juzzio_glass.dart';
 import 'juzzio_motion_core.dart';
 
-/// Toplam kutlama süresi (kullanıcı isteği: 4 sn)
-const Duration kJuzzioBirthdayDuration = Duration(seconds: 4);
+/// Toplam kutlama süresi (v1.2.7 kullanıcı isteği: daha uzun → 7 sn)
+const Duration kJuzzioBirthdayDuration = Duration(seconds: 7);
+
+/// Patlama anları (sn): ilk patlama + ikinci (daha büyük) patlama
+const List<double> kJuzzioBirthdayPops = <double>[1.0, 3.2];
+
+/// 3B bir konfeti yaprağının ışığa göre parlaklığı (0.35..1). [rx]/[ry] radyan.
+/// Yüzey normali kameraya döndükçe aydınlanır, yan döndükçe kararır (saf; test edilir).
+double juzzioConfettiShade(double rx, double ry) {
+  final n = (math.cos(rx) * math.cos(ry)).abs();
+  return 0.35 + 0.65 * n;
+}
 
 /// Yükselen emojiler (kullanıcı isteğiyle aynı sıra)
 const List<String> kJuzzioBirthdayEmojis = <String>['🌸', '🎂', '😍', '⚡', '🥳', '💖', '❤️'];
@@ -158,7 +175,7 @@ class _ElectricBorderPainter extends CustomPainter {
     final metric = path.computeMetrics().first;
     final len = metric.length;
     // titreşen şimşek çizgisi (her ~70 ms yeni desen)
-    final frame = (t * 4000 / 70).floor();
+    final frame = (t * kJuzzioBirthdayDuration.inMilliseconds / 70).floor();
     final rnd = math.Random(frame * 7919 + size.width.round());
     final bolt = Path();
     const step = 9.0;
@@ -231,22 +248,35 @@ class JuzzioBirthdayStage extends StatefulWidget {
   State<JuzzioBirthdayStage> createState() => _JuzzioBirthdayStageState();
 }
 
+enum _BitKind { leaf, streamer, orb, star }
+
 class _Bit {
   _Bit({
     required this.left,
+    required this.burst,
     required this.vx,
     required this.vy,
-    required this.spin,
+    required this.vz,
+    required this.rx,
+    required this.ry,
+    required this.rz,
+    required this.wx,
+    required this.wy,
+    required this.wz,
     required this.color,
     required this.w,
     required this.h,
-    required this.streamer,
+    required this.kind,
     required this.delay,
   });
   final bool left;
-  final double vx, vy, spin, w, h, delay;
+  final int burst; // 0: ilk patlama, 1: ikinci patlama
+  final double vx, vy, vz; // başlangıç hızı (px/sn); z: derinlik
+  final double rx, ry, rz; // başlangıç açıları
+  final double wx, wy, wz; // açısal hızlar (rad/sn)
+  final double w, h, delay;
   final Color color;
-  final bool streamer;
+  final _BitKind kind;
 }
 
 class _Riser {
@@ -266,32 +296,50 @@ class _JuzzioBirthdayStageState extends State<JuzzioBirthdayStage> {
     final rnd = math.Random();
     const colors = <Color>[
       Color(0xFFFF4D8D), Color(0xFFFFD23F), Color(0xFF3EC1F3), Color(0xFF8C6CFF),
-      Color(0xFF4BE39A), Color(0xFFFF8A3D), Color(0xFFFFFFFF),
+      Color(0xFF4BE39A), Color(0xFFFF8A3D), Color(0xFFFFFFFF), Color(0xFFFFC2E2),
     ];
-    for (final left in const [true, false]) {
-      for (var i = 0; i < 46; i++) {
-        // patlatıcı ağzından merkeze ve yukarı doğru yelpaze
-        final a = -math.pi / 2 + (left ? 0.55 : -0.55) + (rnd.nextDouble() - 0.5) * 1.05;
-        final sp = 520 + rnd.nextDouble() * 560;
-        _bits.add(_Bit(
-          left: left,
-          vx: math.cos(a) * sp,
-          vy: math.sin(a) * sp,
-          spin: (rnd.nextDouble() - 0.5) * 14,
-          color: colors[rnd.nextInt(colors.length)],
-          w: 5 + rnd.nextDouble() * 5,
-          h: 8 + rnd.nextDouble() * 7,
-          streamer: i % 6 == 0,
-          delay: rnd.nextDouble() * 0.08,
-        ));
+    for (var burst = 0; burst < kJuzzioBirthdayPops.length; burst++) {
+      final n = burst == 0 ? 44 : 58;
+      for (final left in const [true, false]) {
+        for (var i = 0; i < n; i++) {
+          // patlatıcı ağzından merkeze ve yukarı doğru 3B koni şeklinde yelpaze
+          final a = -math.pi / 2 + (left ? 0.55 : -0.55) + (rnd.nextDouble() - 0.5) * 1.1;
+          final sp = 480 + rnd.nextDouble() * 620;
+          final roll = rnd.nextDouble();
+          final kind = i % 7 == 0
+              ? _BitKind.streamer
+              : roll < 0.09
+                  ? _BitKind.orb
+                  : roll < 0.16
+                      ? _BitKind.star
+                      : _BitKind.leaf;
+          _bits.add(_Bit(
+            left: left,
+            burst: burst,
+            vx: math.cos(a) * sp,
+            vy: math.sin(a) * sp,
+            vz: (rnd.nextDouble() - 0.35) * 520,
+            rx: rnd.nextDouble() * math.pi * 2,
+            ry: rnd.nextDouble() * math.pi * 2,
+            rz: rnd.nextDouble() * math.pi * 2,
+            wx: (rnd.nextDouble() - 0.5) * 16,
+            wy: (rnd.nextDouble() - 0.5) * 14,
+            wz: (rnd.nextDouble() - 0.5) * 8,
+            color: colors[rnd.nextInt(colors.length)],
+            w: 6 + rnd.nextDouble() * 6,
+            h: 10 + rnd.nextDouble() * 8,
+            kind: kind,
+            delay: rnd.nextDouble() * 0.10,
+          ));
+        }
       }
     }
-    for (var i = 0; i < 16; i++) {
+    for (var i = 0; i < 22; i++) {
       _risers.add(_Riser(
         emoji: kJuzzioBirthdayEmojis[i % kJuzzioBirthdayEmojis.length],
         x: 0.08 + rnd.nextDouble() * 0.84,
-        start: 0.10 + rnd.nextDouble() * 0.40,
-        dur: 0.45 + rnd.nextDouble() * 0.15,
+        start: 0.08 + rnd.nextDouble() * 0.56,
+        dur: 0.26 + rnd.nextDouble() * 0.10,
         size: 26 + rnd.nextDouble() * 18,
         sway: 10 + rnd.nextDouble() * 18,
       ));
@@ -339,8 +387,12 @@ class _BirthdayStagePainter extends CustomPainter {
   final List<_Riser> risers;
   final TextPainter Function(String e, double size) emoji;
 
-  static const double _total = 4.0; // sn
-  static const double _popAt = 0.75; // sn — patlama anı
+  static final double _total = kJuzzioBirthdayDuration.inMilliseconds / 1000.0; // 7 sn
+  static const double _handsOutAt = 5.7; // sn — eller çekilmeye başlar
+  static const double _focal = 900; // perspektif odak uzaklığı (px)
+
+  /// Perspektif matrisi (Matrix4; derinlik etkisi setEntry(3,2)).
+  static Matrix4 _persp() => Matrix4.identity()..setEntry(3, 2, 1 / _focal);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -365,90 +417,203 @@ class _BirthdayStagePainter extends CustomPainter {
       canvas.restore();
     }
 
-    // ---- eller: giriş (0–0.6 sn), patlamada geri tepme, çıkış (3.2–3.9 sn) ----
+    // ---- eller: giriş (0–0.8 sn), her patlamada geri tepme, çıkış (5.7–6.5 sn) ----
     final handY = h * 0.66;
-    final inK = const JuzzioSpringCurve(damping: 7, frequency: 2.2).transform((sec / 0.6).clamp(0.0, 1.0));
-    final outK = Curves.easeInCubic.transform(((sec - 3.2) / 0.7).clamp(0.0, 1.0));
-    final recoil = sec > _popAt ? math.exp(-(sec - _popAt) * 9) * math.sin((sec - _popAt) * 30) * 10 : 0.0;
+    final inK = const JuzzioSpringCurve(damping: 7, frequency: 2.0).transform((sec / 0.8).clamp(0.0, 1.0));
+    final outK = Curves.easeInCubic.transform(((sec - _handsOutAt) / 0.8).clamp(0.0, 1.0));
+    var recoil = 0.0;
+    for (final at in kJuzzioBirthdayPops) {
+      if (sec > at) recoil += math.exp(-(sec - at) * 8) * math.sin((sec - at) * 28) * 12;
+    }
     final reach = 118 * scale;
     final mouths = <Offset>[];
+    final popped = sec > kJuzzioBirthdayPops.first;
     for (final left in const [true, false]) {
       final dir = left ? 1.0 : -1.0;
-      final hiddenX = left ? -reach * 1.6 : w + reach * 1.6;
+      final hiddenX = left ? -reach * 1.7 : w + reach * 1.7;
       final shownX = left ? reach * 0.62 : w - reach * 0.62;
       final x = hiddenX + (shownX - hiddenX) * inK - (shownX - hiddenX) * outK - dir * recoil;
-      final base = Offset(x, handY);
-      // patlatıcı merkeze ve yukarı bakar
+      final base = Offset(x, handY + math.sin(sec * 2.4 + (left ? 0 : 1.3)) * 4 * scale);
+      // patlatıcı merkeze ve yukarı bakar; 3B: içeri girerken yandan öne döner, hafif salınır
       final angle = left ? -0.62 : math.pi + 0.62;
-      mouths.add(_drawPopperHand(canvas, base, angle, scale, left: left, popped: sec > _popAt));
+      final yaw = (1 - inK) * 0.9 + 0.38 + math.sin(sec * 1.7) * 0.06;
+      final pitch = -0.18 + math.sin(sec * 2.1 + (left ? 0 : 0.8)) * 0.05 - recoil * 0.004;
+      mouths.add(_drawPopperHand3D(canvas, base, angle, scale, left: left, popped: popped, yaw: yaw, pitch: pitch));
     }
 
-    // ---- patlama parlaması ----
-    if (sec > _popAt && sec < _popAt + 0.35) {
-      final k = (sec - _popAt) / 0.35;
-      for (final m in mouths) {
-        canvas.drawCircle(
-          m,
-          16 + 50 * k,
-          Paint()
-            ..color = const Color(0xFFFFF3B0).withValues(alpha: 0.55 * (1 - k))
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14),
-        );
-      }
-    }
-
-    // ---- konfeti + serpantin ----
-    if (sec > _popAt) {
-      final fadeAll = (1 - (sec - 3.3) / 0.7).clamp(0.0, 1.0);
-      for (final b in bits) {
-        final tt = sec - _popAt - b.delay;
-        if (tt <= 0) continue;
-        final m = mouths[b.left ? 0 : 1];
-        // sürtünmeli atış: x = v(1-e^{-kt})/k, y + yerçekimi
-        const drag = 2.1;
-        final f = (1 - math.exp(-drag * tt)) / drag;
-        final px = m.dx + b.vx * f * scale;
-        final py = m.dy + b.vy * f * scale + 0.5 * 620 * tt * tt * 0.55;
-        if (py > h + 40) continue;
-        final paint = Paint()..color = b.color.withValues(alpha: fadeAll);
-        canvas.save();
-        canvas.translate(px, py);
-        if (b.streamer) {
-          final sp = Path()..moveTo(0, 0);
-          for (var i = 1; i <= 6; i++) {
-            sp.lineTo(math.sin(tt * 9 + i) * 5, -i * 5.0);
-          }
-          canvas.drawPath(
-            sp,
+    // ---- patlama parlaması (her patlamada) ----
+    for (final at in kJuzzioBirthdayPops) {
+      if (sec > at && sec < at + 0.4) {
+        final k = (sec - at) / 0.4;
+        for (final m in mouths) {
+          canvas.drawCircle(
+            m,
+            18 + 64 * k,
             Paint()
-              ..style = PaintingStyle.stroke
-              ..strokeWidth = 2.4
-              ..strokeCap = StrokeCap.round
-              ..color = b.color.withValues(alpha: fadeAll),
-          );
-        } else {
-          canvas.rotate(b.spin * tt);
-          // 3B dönme hissi: genişlik kosinüsle daralıp genişler
-          final flip = math.cos(tt * (6 + b.spin.abs())).abs() * 0.85 + 0.15;
-          canvas.drawRRect(
-            RRect.fromRectAndRadius(Rect.fromCenter(center: Offset.zero, width: b.w * flip, height: b.h), const Radius.circular(1.6)),
-            paint,
+              ..shader = RadialGradient(colors: [
+                const Color(0xFFFFFFFF).withValues(alpha: 0.75 * (1 - k)),
+                const Color(0xFFFFE27A).withValues(alpha: 0.45 * (1 - k)),
+                const Color(0x00FFB347),
+              ], stops: const [0.0, 0.35, 1.0])
+                  .createShader(Rect.fromCircle(center: m, radius: 18 + 64 * k)),
           );
         }
-        canvas.restore();
       }
+    }
+
+    // ---- 3B konfeti, kurdele, küre, yıldız ----
+    final fadeAll = (1 - (sec - (_total - 0.9)) / 0.9).clamp(0.0, 1.0);
+    if (fadeAll <= 0) return;
+    for (final b in bits) {
+      final at = kJuzzioBirthdayPops[b.burst];
+      final tt = sec - at - b.delay;
+      if (tt <= 0) continue;
+      final m = mouths[b.left ? 0 : 1];
+      // hava sürtünmeli atış + yerçekimi; konfeti düşerken salınır (yaprak süzülmesi)
+      const drag = 2.2;
+      final f = (1 - math.exp(-drag * tt)) / drag;
+      final flutter = math.sin(tt * 4.2 + b.rx) * 26 * math.min(1.0, tt);
+      final px = m.dx + (b.vx * f + flutter) * scale;
+      final py = m.dy + b.vy * f * scale + 0.5 * 360 * tt * tt * 0.55 * (b.kind == _BitKind.orb ? 1.4 : 1.0);
+      final pz = b.vz * f; // + uzaklaşır, − yaklaşır
+      if (py > h + 60) continue;
+      final depthK = (_focal / (_focal + pz)).clamp(0.55, 1.6); // yakın parça büyük, uzak küçük
+      canvas.save();
+      canvas.translate(px, py);
+      canvas.scale(depthK);
+      switch (b.kind) {
+        case _BitKind.leaf:
+          _leaf3D(canvas, b, tt, fadeAll);
+        case _BitKind.streamer:
+          _ribbon3D(canvas, b, tt, fadeAll);
+        case _BitKind.orb:
+          _orb3D(canvas, b, fadeAll);
+        case _BitKind.star:
+          _star3D(canvas, b, tt, fadeAll);
+      }
+      canvas.restore();
     }
   }
 
-  /// Bir el + patlatıcı çizer, patlatıcının ağzını (ekran koordinatı) döndürür.
-  Offset _drawPopperHand(Canvas canvas, Offset base, double angle, double k, {required bool left, required bool popped}) {
+  /// Üç eksende dönen 3B konfeti yaprağı: ön yüz renkli, arka yüz koyu; ışığa göre parlaklık
+  void _leaf3D(Canvas canvas, _Bit b, double tt, double alpha) {
+    final rx = b.rx + b.wx * tt, ry = b.ry + b.wy * tt, rz = b.rz + b.wz * tt;
+    final m = _persp()
+      ..rotateZ(rz)
+      ..rotateX(rx)
+      ..rotateY(ry);
+    canvas.transform(m.storage);
+    final front = math.cos(rx) * math.cos(ry) >= 0;
+    final shade = juzzioConfettiShade(rx, ry);
+    final base = front ? b.color : Color.lerp(b.color, Colors.black, 0.35)!;
+    final c = Color.lerp(Colors.black, base, shade)!;
+    final r = Rect.fromCenter(center: Offset.zero, width: b.w, height: b.h);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(r, const Radius.circular(1.8)),
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color.lerp(c, Colors.white, 0.35 * shade)!.withValues(alpha: alpha), c.withValues(alpha: alpha)],
+        ).createShader(r),
+    );
+  }
+
+  /// Bükülen kurdele: boyunca dönerek daralıp genişler, kıvrım yüzeyi ışığa göre gölgelenir
+  void _ribbon3D(Canvas canvas, _Bit b, double tt, double alpha) {
+    canvas.rotate(b.rz + b.wz * tt * 0.3);
+    const segs = 14;
+    var prev = Offset.zero;
+    for (var i = 1; i <= segs; i++) {
+      final y = -i * 5.0;
+      final x = math.sin(tt * 7 + i * 0.7 + b.rx) * 7;
+      final cur = Offset(x, y);
+      final twist = math.cos(tt * 9 + i * 0.55 + b.ry);
+      final width = 1.2 + 3.6 * twist.abs();
+      final lit = 0.45 + 0.55 * twist.abs();
+      final col = Color.lerp(Colors.black, twist >= 0 ? b.color : Color.lerp(b.color, Colors.black, 0.3)!, lit)!;
+      canvas.drawLine(
+        prev,
+        cur,
+        Paint()
+          ..strokeWidth = width
+          ..strokeCap = StrokeCap.round
+          ..color = col.withValues(alpha: alpha * (1 - i / (segs * 1.6))),
+      );
+      prev = cur;
+    }
+  }
+
+  /// Parlak 3B küre (ışık sol üstten): yansıma noktası + alt gölge tonu
+  void _orb3D(Canvas canvas, _Bit b, double alpha) {
+    final r = b.w * 0.75;
+    final rect = Rect.fromCircle(center: Offset.zero, radius: r);
+    canvas.drawCircle(
+      Offset.zero,
+      r,
+      Paint()
+        ..shader = RadialGradient(
+          center: const Alignment(-0.45, -0.5),
+          radius: 1.05,
+          colors: [
+            Colors.white.withValues(alpha: alpha),
+            b.color.withValues(alpha: alpha),
+            Color.lerp(b.color, Colors.black, 0.55)!.withValues(alpha: alpha),
+          ],
+          stops: const [0.0, 0.45, 1.0],
+        ).createShader(rect),
+    );
+    canvas.drawCircle(Offset(-r * 0.35, -r * 0.4), r * 0.22, Paint()..color = Colors.white.withValues(alpha: 0.85 * alpha));
+  }
+
+  /// Kabartmalı 3B yıldız: Y ekseninde döner, her kol ışık/gölge iki yüzle çizilir
+  void _star3D(Canvas canvas, _Bit b, double tt, double alpha) {
+    final ry = b.ry + b.wy * tt * 0.6;
+    canvas.transform((_persp()..rotateY(ry)..rotateZ(b.rz + b.wz * tt * 0.2)).storage);
+    final r = b.h * 0.65;
+    final lit = juzzioConfettiShade(0, ry);
+    for (var j = 0; j < 5; j++) {
+      final a0 = -math.pi / 2 + j * 2 * math.pi / 5;
+      final tip = Offset(math.cos(a0) * r, math.sin(a0) * r);
+      final l = Offset(math.cos(a0 - math.pi / 5) * r * 0.42, math.sin(a0 - math.pi / 5) * r * 0.42);
+      final rr = Offset(math.cos(a0 + math.pi / 5) * r * 0.42, math.sin(a0 + math.pi / 5) * r * 0.42);
+      canvas.drawPath(Path()..moveTo(0, 0)..lineTo(l.dx, l.dy)..lineTo(tip.dx, tip.dy)..close(),
+          Paint()..color = Color.lerp(const Color(0xFFB8860B), const Color(0xFFFFF2A8), lit)!.withValues(alpha: alpha));
+      canvas.drawPath(Path()..moveTo(0, 0)..lineTo(tip.dx, tip.dy)..lineTo(rr.dx, rr.dy)..close(),
+          Paint()..color = Color.lerp(const Color(0xFF8A6300), const Color(0xFFFFD23F), lit)!.withValues(alpha: alpha));
+    }
+  }
+
+  /// El + patlatıcıyı 3B perspektifle çizer (yaw: Y ekseni, pitch: X ekseni), ağzın ekran
+  /// koordinatını döndürür. Altında yumuşak temas gölgesi vardır.
+  Offset _drawPopperHand3D(Canvas canvas, Offset base, double angle, double k,
+      {required bool left, required bool popped, required double yaw, required double pitch}) {
+    // zemin gölgesi (3B derinlik hissi)
+    canvas.drawOval(
+      Rect.fromCenter(center: base.translate(left ? -30 * k : 30 * k, 64 * k), width: 190 * k, height: 26 * k),
+      Paint()
+        ..color = Colors.black.withValues(alpha: 0.22)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14),
+    );
+    // perspektif merkezi elin kendisi: T(base) · P · R  (sahnenin köşesine kaymaz)
+    final m = Matrix4.translationValues(base.dx, base.dy, 0)
+      ..multiply(_persp())
+      ..rotateY(left ? yaw : -yaw)
+      ..rotateX(pitch)
+      ..rotateZ(angle);
     canvas.save();
-    canvas.translate(base.dx, base.dy);
-    canvas.rotate(angle);
+    canvas.transform(m.storage);
     canvas.scale(k);
     if (!left) canvas.scale(1, -1); // sağ el: ayna (başparmak yine üstte)
+    _paintPopperAndHand(canvas, popped: popped);
+    canvas.restore();
+    // ağzın ekran koordinatı: aynı 3B dönüşümden (perspektif bölmesi dahil) geçirilir
+    const coneLen = 96.0;
+    return MatrixUtils.transformPoint(m, Offset((coneLen - 2.5) * k, 0));
+  }
 
-    // ---- patlatıcı koni (el kavrar, ağız +x yönünde) ----
+  /// Yerel koordinatta patlatıcı (silindirik ışıklı koni) + kil el (yumruk)
+  void _paintPopperAndHand(Canvas canvas, {required bool popped}) {
     const coneBack = Offset(-6, 0);
     const coneLen = 96.0;
     final cone = Path()
@@ -458,98 +623,141 @@ class _BirthdayStagePainter extends CustomPainter {
       ..lineTo(coneBack.dx, 9)
       ..close();
     final coneRect = Rect.fromLTRB(-6, -27, coneLen + 2, 27);
+    // silindirik ışık: üstten gelen ışıkla yuvarlak yüzey (koyu kenar → parlak şerit → koyu)
     canvas.drawPath(
       cone,
       Paint()
         ..shader = const LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0xFFFF9FD0), Color(0xFFE0367E), Color(0xFF8E1F57)],
-          stops: [0.0, 0.55, 1.0],
+          colors: [Color(0xFF7A1749), Color(0xFFE0367E), Color(0xFFFFB3D9), Color(0xFFE0367E), Color(0xFF5E0F37)],
+          stops: [0.0, 0.22, 0.38, 0.66, 1.0],
         ).createShader(coneRect),
     );
-    // çapraz şeritler
+    // sarmal şeritler (koni yüzeyine göre gölgelenir)
     canvas.save();
     canvas.clipPath(cone);
-    final stripe = Paint()
-      ..color = const Color(0xFFFFE066)
-      ..strokeWidth = 7
-      ..style = PaintingStyle.stroke;
     for (var i = 0; i < 6; i++) {
       final x = 8.0 + i * 17;
-      canvas.drawLine(Offset(x, -32), Offset(x + 14, 32), stripe);
+      final stripe = Path()
+        ..moveTo(x, -34)
+        ..lineTo(x + 7, -34)
+        ..lineTo(x + 21, 34)
+        ..lineTo(x + 14, 34)
+        ..close();
+      canvas.drawPath(
+        stripe,
+        Paint()
+          ..shader = const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFFB08A00), Color(0xFFFFE066), Color(0xFFFFF6C2), Color(0xFFFFD23F), Color(0xFF8C6A00)],
+            stops: [0.0, 0.25, 0.38, 0.68, 1.0],
+          ).createShader(coneRect),
+      );
     }
-    // parlak kenar (3B)
+    // speküler parlama şeridi + ortam kapanması (koninin tabanı koyu)
     canvas.drawPath(
       Path()
-        ..moveTo(0, -8)
-        ..lineTo(coneLen - 6, -23),
+        ..moveTo(4, -6)
+        ..lineTo(coneLen - 8, -17),
       Paint()
-        ..color = const Color(0x88FFFFFF)
-        ..strokeWidth = 3
+        ..color = const Color(0xCCFFFFFF)
+        ..strokeWidth = 3.4
         ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round,
+        ..strokeCap = StrokeCap.round
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.2),
+    );
+    canvas.drawRect(
+      Rect.fromLTRB(-6, -30, 26, 30),
+      Paint()
+        ..shader = const LinearGradient(colors: [Color(0x66000000), Color(0x00000000)]).createShader(Rect.fromLTRB(-6, -30, 26, 30)),
     );
     canvas.restore();
-    // altın ağız halkası
-    final rim = Rect.fromCenter(center: const Offset(coneLen - 2.5, 0), width: 13, height: 56);
-    canvas.drawOval(rim, Paint()..color = const Color(0xFFB8860B));
-    canvas.drawOval(rim.deflate(2.2), Paint()..color = popped ? const Color(0xFF3A1430) : const Color(0xFFFFD45C));
+    // ağız: metalik altın halka + derinlikli iç
+    final rim = Rect.fromCenter(center: const Offset(coneLen - 2.5, 0), width: 15, height: 58);
+    canvas.drawOval(
+      rim,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFFFF1A6), Color(0xFFC99A17), Color(0xFF7A5500), Color(0xFFE8C34A)],
+          stops: [0.0, 0.35, 0.7, 1.0],
+        ).createShader(rim),
+    );
+    final hole = rim.deflate(2.6);
+    canvas.drawOval(
+      hole,
+      Paint()
+        ..shader = RadialGradient(
+          center: const Alignment(-0.3, 0),
+          colors: popped
+              ? const [Color(0xFF12040C), Color(0xFF3A1430), Color(0xFF6B2A55)]
+              : const [Color(0xFFFFF0A0), Color(0xFFFFD45C), Color(0xFFC99A17)],
+          stops: const [0.0, 0.6, 1.0],
+        ).createShader(hole),
+    );
 
-    // ---- el (yumruk) ----
+    // ---- el (yumruk) — kil dokusu, alt yüzey gölgeli ----
     const skin = Color(0xFFF6C3A5);
     const shade = Color(0xFFD98F6E);
+    const deep = Color(0xFFB86F52);
     const light = Color(0xFFFFE3D2);
-    // bilek / kol
     final arm = RRect.fromRectAndRadius(const Rect.fromLTWH(-150, -19, 128, 38), const Radius.circular(19));
     canvas.drawRRect(
       arm,
       Paint()
-        ..shader = const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [light, skin, shade])
-            .createShader(arm.outerRect),
+        ..shader = const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [light, skin, shade, deep],
+          stops: [0.0, 0.35, 0.75, 1.0],
+        ).createShader(arm.outerRect),
     );
-    // avuç
+    // kolda speküler çizgi
+    canvas.drawLine(const Offset(-140, -11), const Offset(-36, -11),
+        Paint()
+          ..color = const Color(0x88FFFFFF)
+          ..strokeWidth = 3
+          ..strokeCap = StrokeCap.round
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.5));
     final palm = RRect.fromRectAndRadius(const Rect.fromLTWH(-38, -28, 50, 58), const Radius.circular(22));
-    canvas.drawShadow(Path()..addRRect(palm), const Color(0xFF000000), 6, false);
+    canvas.drawShadow(Path()..addRRect(palm), const Color(0xFF000000), 8, false);
     canvas.drawRRect(
       palm,
       Paint()
-        ..shader = const RadialGradient(center: Alignment(-0.4, -0.5), radius: 1.1, colors: [light, skin, shade], stops: [0.0, 0.55, 1.0])
+        ..shader = const RadialGradient(center: Alignment(-0.4, -0.5), radius: 1.15, colors: [light, skin, shade, deep], stops: [0.0, 0.45, 0.85, 1.0])
             .createShader(palm.outerRect),
     );
-    // koniyi saran dört parmak (alt taraf, boğumlu)
+    // koniyi saran dört parmak: her boğum küre gibi gölgelenir, aralarında ortam kapanması
     for (var i = 0; i < 4; i++) {
       final c = Offset(-24 + i * 12.5, 26 + (i == 0 || i == 3 ? -2 : 0));
-      final r = Rect.fromCenter(center: c, width: 14, height: 19);
+      final r = Rect.fromCenter(center: c, width: 14.5, height: 20);
+      canvas.drawOval(
+        r.shift(const Offset(0, 1.5)),
+        Paint()
+          ..color = const Color(0x55000000)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.5),
+      );
       canvas.drawOval(
         r,
         Paint()
-          ..shader = const RadialGradient(center: Alignment(-0.3, -0.6), colors: [light, skin, shade], stops: [0.0, 0.5, 1.0])
+          ..shader = const RadialGradient(center: Alignment(-0.3, -0.6), colors: [light, skin, shade, deep], stops: [0.0, 0.4, 0.8, 1.0])
               .createShader(r),
       );
-      canvas.drawArc(r.deflate(1), 0.3, 2.4, false,
-          Paint()
-            ..color = shade.withValues(alpha: 0.6)
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 1.2);
+      canvas.drawCircle(c.translate(-2.5, -4.5), 2.2, Paint()..color = const Color(0x99FFFFFF));
     }
-    // başparmak (üstte, koninin üzerinden)
+    // başparmak (üstte, koninin üzerinden) + tırnak parlaması
     final thumb = RRect.fromRectAndRadius(const Rect.fromLTWH(-20, -36, 40, 16), const Radius.circular(8));
+    canvas.drawShadow(Path()..addRRect(thumb), const Color(0xFF000000), 3, false);
     canvas.drawRRect(
       thumb,
       Paint()
-        ..shader = const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [light, skin, shade])
+        ..shader = const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [light, skin, shade, deep], stops: [0.0, 0.4, 0.8, 1.0])
             .createShader(thumb.outerRect),
     );
-    canvas.drawOval(
-      Rect.fromLTWH(10, -34, 8, 6),
-      Paint()..color = const Color(0xFFFFF1EA),
-    );
-    canvas.restore();
-
-    // ağzın ekran koordinatı
-    final mouthLocal = Offset((coneLen - 2.5) * k, 0);
-    return base + Offset(math.cos(angle) * mouthLocal.dx, math.sin(angle) * mouthLocal.dx);
+    canvas.drawOval(Rect.fromLTWH(10, -34, 8, 6), Paint()..color = const Color(0xFFFFF1EA));
   }
 
   @override

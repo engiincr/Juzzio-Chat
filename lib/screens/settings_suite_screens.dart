@@ -6191,6 +6191,9 @@ class JuzzioDeveloperPage extends StatelessWidget {
           const SizedBox(height: 12),
           // v1.2.4: "Hello…" yapımcı tanıtım videosu (cam düğme → tam ekran oynatıcı)
           const JuzzioCreatorReelButton(),
+          const SizedBox(height: 10),
+          // v1.2.7: ilk girişte gösterilen 20 sn'lik uygulama tanıtım videosu (tekrar izlenebilir)
+          const JuzzioCreatorReelButton(intro: true),
           const SizedBox(height: 12),
           Row(children: [
             stat('v${JuzzioConfig.appVersion}', app.trEn('Sürüm (BETA)', 'Version (BETA)', 'Version (BETA)')),

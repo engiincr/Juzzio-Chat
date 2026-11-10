@@ -57,6 +57,7 @@ import '../services/juzzio_weather_service.dart';
 import '../services/juzzio_net.dart';
 import '../services/juzzio_gallery_saver.dart';
 import '../core/juzzio_community.dart';
+import '../core/juzzio_intro.dart';
 import '../widgets/juzzio_shift_card.dart';
 import '../widgets/juzzio_encrypted_image.dart';
 import '../widgets/social_common_widgets.dart';
@@ -428,6 +429,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           (route) => false,
         );
       });
+      // v1.2.7: ilk girişte 20 sn'lik tanıtım videosu (bu cihazda/hesapta bir kez)
+      if (!mounted) return;
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      if (mounted) await juzzioMaybeShowIntro(context);
     });
   }
 

@@ -34,7 +34,7 @@ void main() {
     });
 
     test('toplam süre 4 sn, emojiler istenen sırada', () {
-      expect(kJuzzioBirthdayDuration, const Duration(seconds: 4));
+      expect(kJuzzioBirthdayDuration, const Duration(seconds: 7)); // v1.2.7: 4 → 7 sn
       expect(kJuzzioBirthdayEmojis, ['🌸', '🎂', '😍', '⚡', '🥳', '💖', '❤️']);
     });
 
@@ -56,7 +56,8 @@ void main() {
           ),
         ),
       ));
-      for (var i = 0; i < 9; i++) {
+      // v1.2.7: sahne 7 sn (3B eller + iki patlama) → tamamı oynatılır
+      for (var i = 0; i < 16; i++) {
         await tester.pump(const Duration(milliseconds: 500));
       }
       expect(tester.takeException(), isNull);

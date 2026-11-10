@@ -18,12 +18,13 @@
 </div>
 
 <!-- JUZZIO_DYNAMIC_TITLE_START -->
-### 🚀 Latest update: **v1.2.6 — Official Juzzio Community Channel & Group Logos**
+### 🚀 Latest update: **v1.2.7 — Intro Video, 3D Birthday & Smooth Sending**
 <!-- JUZZIO_DYNAMIC_TITLE_END -->
 
 <!-- JUZZIO_VERIFIED_APK_START -->
 | Version | APK | Size | SHA-256 | Built |
 | :-- | :-- | :-- | :-- | :-- |
+| v1.2.7 (+127) | Waiting for the GitHub Actions build | — | — | — |
 | v1.2.6 (+126) | Waiting for the GitHub Actions build | — | — | — |
 | v1.2.5 (+125) | Waiting for the GitHub Actions build | — | — | — |
 | v1.2.4 (+1061) | [Juzzio-latest.apk](https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk) | 112.18 MB | `c76f065349909384479e1b2f4d29e622b171c72d0a31710cf615d78ea0868264` | 2026-11-10 07:20 UTC |
@@ -53,9 +54,39 @@
 
 ## 🆕 Latest updates (November 10, 2026)
 
-**v1.2.6** is the newest release (after v1.2.5, v1.2.4, v1.2.3, v1.2.2, v1.2.1, v1.2.0, v1.1.1 and the November 9 releases v0.9.4 → v1.1.0). Every update below is also shown inside the app on the first launch after updating ("What's new?"), with the same sections and emojis. Full notes: [release-notes.md](release-notes.md) · [GitHub Releases](https://github.com/engiincr/Juzzio-Chat/releases).
+**v1.2.7** is the newest release (after v1.2.6, v1.2.5, v1.2.4, v1.2.3, v1.2.2, v1.2.1, v1.2.0, v1.1.1 and the November 9 releases v0.9.4 → v1.1.0). Every update below is also shown inside the app on the first launch after updating ("What's new?"), with the same sections and emojis. Full notes: [release-notes.md](release-notes.md) · [GitHub Releases](https://github.com/engiincr/Juzzio-Chat/releases).
 
 <details open>
+<summary><b>v1.2.7 — Intro Video, 3D Birthday & Smooth Sending</b></summary>
+
+### 🎯 Why did this update come?
+First-time users had no introduction to Juzzio; the birthday celebration felt flat and short; a yellow line appeared under the flying text while sending; and the pull-to-refresh hand only grabbed the page on the second try. This update fixes all of that and adds tiny time-of-day icons to the weather theme.
+
+### ✨ What's new?
+- 🎬 A 20-second intro video with music: shown once to anyone opening the app for the first time and to new accounts; everyone sees it once with this update. Skip it with "Skip", or replay it any time from the "App Introduction" button on the Creator page (Turkish and English)
+- 🎂 3D birthday celebration: the popper hands turn in perspective, confetti spins in 3D space and catches the light, ribbons twist, glossy orbs and stars burst out; two pops, 7 seconds in total
+- 🌙 Tiny vector icons in the weather theme by time of day: crescent moon and stars at night, sun and clouds by day, an orange sun in the evening; raindrops in rain, snowflakes in snow, lightning in storms
+- 🤚 The refresh hand is a little bigger and chubbier
+
+### 🛠 Fixes
+- Removed the yellow line under the flying text when sending a message
+- The send animation now lands smoothly on the real bubble without jumping
+- Pull-to-refresh grabs the page on the first pull: a shorter pull is enough, the refresh still starts if your finger moves back a little after the fist, and pulls that start mid-list and reach the top work too
+
+### 🔐 Security & privacy
+- The intro video is bundled in the app; no internet needed, no data sent
+- Whether the video was shown is stored only on the device
+
+### 🧭 How it works (details)
+- **Intro video** — `assets/intro/juzzio_intro_{tr,en}.mp4` (720×1280, 20 s, ~1.2 MB each, rendered by `tools/intro_video/intro.py`, background music supplied by the creator). `juzzioMaybeShowIntro()` runs after the consent check: shown when the device marker `juzzio_intro_seen_v1` is missing (new installs, and once for everyone with v1.2.7) or when the account is ≤ 3 days old and has not seen it. The marker is written *before* playback, so a crash never forces a replay.
+- **3D birthday** — `Matrix4` perspective (`setEntry(3,2,1/900)`) around each hand; confetti quads rotate on X/Y/Z with `juzzioConfettiShade()` lighting, ribbons twist, orbs/stars added; pops at 1.0 s and 3.2 s, 7 s total.
+- **Send flight** — the root `Overlay` has no `Material` ancestor, so Flutter painted the flying text with its fallback style (yellow double underline). The flight is now wrapped in a transparent `Material` + `DefaultTextStyle` with `TextDecoration.none`, and the target rect eases from the estimate to the real bubble.
+- **Pull-to-refresh** — `travel = pull × 0.8` (was 0.55), a latch keeps the fist armed down to 60 %, overscroll that reaches the top mid-drag also arms, hand scale ×1.2.
+- **GitHub contributors** — `scripts/github_yazar_duzelt.sh` rewrites the 20 early commits authored as `noreply@anthropic.com` to the repository owner (backup branch first, `--force-with-lease`, `[skip ci]`).
+
+</details>
+
+<details>
 <summary><b>v1.2.6 — Official Juzzio Community Channel & Group Logos</b></summary>
 
 ### 🎯 Why did this update come?

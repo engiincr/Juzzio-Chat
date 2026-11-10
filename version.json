@@ -1,12 +1,12 @@
 {
-  "version": "1.2.6",
-  "buildNumber": 126,
+  "version": "1.2.7",
+  "buildNumber": 127,
   "releaseDate": "2026-11-10",
-  "releaseTitle": "Resmî Juzzio Topluluğu Kanalı ve Grup Logoları",
+  "releaseTitle": "Tanıtım Videosu, 3B Doğum Günü ve Akıcı Gönderme",
   "mandatory": false,
   "minSupportedVersion": "0.1.0",
   "apkUrl": "https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk",
-  "versionedApkUrl": "https://github.com/engiincr/Juzzio-Chat/releases/download/v1.2.6/juzzio-v1.2.6-release.apk",
+  "versionedApkUrl": "https://github.com/engiincr/Juzzio-Chat/releases/download/v1.2.7/juzzio-v1.2.7-release.apk",
   "apkSha256": "",
   "apkSize": "",
   "verifiedBuild": false,
@@ -18,72 +18,72 @@
     "email": "engiincr@pm.me"
   },
   "changelog": {
-    "tr": "v1.2.6: Juzzio Topluluğu bir sohbet grubu gibi davranıyordu: üyeler birbirinin adını görebiliyor, tepki bırakabiliyor ve kanalda başka yetkili tanımlanabiliyordu. Topluluk artık gerçek bir resmî duyuru KANALI: logosu uygulama logosu, üyeler birbirini göremez, kanala mesaj atılamaz, yalnız güncelleme duyuruları düşer ve tek yetkili @tugkancr. Ayrıca tüm gruplara ve kanallara logo ekleme özelliği geldi.",
-    "en": "v1.2.6: Juzzio Community behaved like a chat group: members could see each other's names, leave reactions, and extra admins could be assigned. The community is now a real official announcement CHANNEL: the app logo is its logo, members cannot see each other, nobody can post, only update announcements appear, and @tugkancr is the only admin. Groups and channels can now also have a logo.",
-    "de": "v1.2.6: Juzzio Community behaved like a chat group: members could see each other's names, leave reactions, and extra admins could be assigned. The community is now a real official announcement CHANNEL: the app logo is its logo, members cannot see each other, nobody can post, only update announcements appear, and @tugkancr is the only admin. Groups and channels can now also have a logo."
+    "tr": "v1.2.7: Uygulamayı ilk kez açanlar Juzzio'yu tanıyamıyordu; doğum günü kutlaması düz ve kısa kalıyordu; mesaj gönderirken uçan metnin altında sarı çizgi çıkıyordu; aşağı çekip yenilemede el ancak ikinci denemede sayfayı tutuyordu. Bu güncelleme hepsini düzeltir ve hava durumu temasına saate göre minik simgeler ekler.",
+    "en": "v1.2.7: First-time users had no introduction to Juzzio; the birthday celebration felt flat and short; a yellow line appeared under the flying text while sending; and the pull-to-refresh hand only grabbed the page on the second try. This update fixes all of that and adds tiny time-of-day icons to the weather theme.",
+    "de": "v1.2.7: First-time users had no introduction to Juzzio; the birthday celebration felt flat and short; a yellow line appeared under the flying text while sending; and the pull-to-refresh hand only grabbed the page on the second try. This update fixes all of that and adds tiny time-of-day icons to the weather theme."
   },
-  "build": 126,
-  "versionCode": 126,
+  "build": 127,
+  "versionCode": 127,
   "url": "https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk",
-  "changelog_tr": "v1.2.6: Juzzio Topluluğu bir sohbet grubu gibi davranıyordu: üyeler birbirinin adını görebiliyor, tepki bırakabiliyor ve kanalda başka yetkili tanımlanabiliyordu. Topluluk artık gerçek bir resmî duyuru KANALI: logosu uygulama logosu, üyeler birbirini göremez, kanala mesaj atılamaz, yalnız güncelleme duyuruları düşer ve tek yetkili @tugkancr. Ayrıca tüm gruplara ve kanallara logo ekleme özelliği geldi.",
-  "changelog_en": "v1.2.6: Juzzio Community behaved like a chat group: members could see each other's names, leave reactions, and extra admins could be assigned. The community is now a real official announcement CHANNEL: the app logo is its logo, members cannot see each other, nobody can post, only update announcements appear, and @tugkancr is the only admin. Groups and channels can now also have a logo.",
-  "changelog_de": "v1.2.6: Juzzio Community behaved like a chat group: members could see each other's names, leave reactions, and extra admins could be assigned. The community is now a real official announcement CHANNEL: the app logo is its logo, members cannot see each other, nobody can post, only update announcements appear, and @tugkancr is the only admin. Groups and channels can now also have a logo.",
+  "changelog_tr": "v1.2.7: Uygulamayı ilk kez açanlar Juzzio'yu tanıyamıyordu; doğum günü kutlaması düz ve kısa kalıyordu; mesaj gönderirken uçan metnin altında sarı çizgi çıkıyordu; aşağı çekip yenilemede el ancak ikinci denemede sayfayı tutuyordu. Bu güncelleme hepsini düzeltir ve hava durumu temasına saate göre minik simgeler ekler.",
+  "changelog_en": "v1.2.7: First-time users had no introduction to Juzzio; the birthday celebration felt flat and short; a yellow line appeared under the flying text while sending; and the pull-to-refresh hand only grabbed the page on the second try. This update fixes all of that and adds tiny time-of-day icons to the weather theme.",
+  "changelog_de": "v1.2.7: First-time users had no introduction to Juzzio; the birthday celebration felt flat and short; a yellow line appeared under the flying text while sending; and the pull-to-refresh hand only grabbed the page on the second try. This update fixes all of that and adds tiny time-of-day icons to the weather theme.",
   "details": {
     "tr": {
-      "reason": "Juzzio Topluluğu bir sohbet grubu gibi davranıyordu: üyeler birbirinin adını görebiliyor, tepki bırakabiliyor ve kanalda başka yetkili tanımlanabiliyordu. Topluluk artık gerçek bir resmî duyuru KANALI: logosu uygulama logosu, üyeler birbirini göremez, kanala mesaj atılamaz, yalnız güncelleme duyuruları düşer ve tek yetkili @tugkancr. Ayrıca tüm gruplara ve kanallara logo ekleme özelliği geldi.",
+      "reason": "Uygulamayı ilk kez açanlar Juzzio'yu tanıyamıyordu; doğum günü kutlaması düz ve kısa kalıyordu; mesaj gönderirken uçan metnin altında sarı çizgi çıkıyordu; aşağı çekip yenilemede el ancak ikinci denemede sayfayı tutuyordu. Bu güncelleme hepsini düzeltir ve hava durumu temasına saate göre minik simgeler ekler.",
       "features": [
-        "🖼️ Gruplara ve kanallara logo: yönetici/moderatör, grup bilgisindeki fotoğrafa dokunup galeriden ya da kameradan logo koyar veya kaldırır; logo sohbet listesinde ve sohbet başlığında görünür",
-        "📣 Juzzio Topluluğu resmî kanal: uygulama logosu, onay rozeti ve \"Resmî kanal · Yalnız güncelleme duyuruları\" başlığı",
-        "ℹ️ \"Kanal bilgisi\" sayfası: kanalın kuralları ve tek yetkilisi (@tugkancr) açıkça yazılı"
+        "🎬 20 saniyelik tanıtım videosu (müzikli): uygulamayı ilk kez açanlara ve yeni hesap açanlara bir kez gösterilir; bu güncellemede herkes bir kez görür. \"Atla\" ile geçilebilir, Yapımcı sayfasındaki \"Uygulama Tanıtımı\" düğmesiyle istediğin zaman yeniden izlenir (Türkçe ve İngilizce)",
+        "🎂 Doğum günü kutlaması 3 boyutlu: patlatıcı eller perspektifle döner, konfeti 3B uzayda döner ve ışığa göre parlar, kurdeleler bükülür, parlak küreler ve yıldızlar saçılır; iki patlama, toplam 7 saniye",
+        "🌙 Hava durumu temasında saate göre minik vektör simgeler: gece hilal ve yıldız, gündüz güneş ve bulut, akşam turuncu güneş; yağmurda damla, karda kar tanesi, fırtınada şimşek",
+        "🤚 Yenileme eli biraz daha büyük ve tombul"
       ],
       "fixes": [
-        "Toplulukta üye sayısı ve üye adları artık gösterilmiyor; üye listesi yalnız yetkiliye açık",
-        "Toplulukta tepki, \"kim tepki verdi\" listesi, sesli/görüntülü arama, izleme partisi ve elle üye ekleme kaldırıldı",
-        "Topluluk duyuruları her zaman @tugkancr adına (Juzzio Official) gönderiliyor"
+        "Mesaj gönderirken uçan metnin altında çıkan sarı çizgi kaldırıldı",
+        "Gönderme animasyonu artık gerçek balonun yerine sıçramadan, yumuşakça iner",
+        "Aşağı çekip yenilemede el ilk çekişte sayfayı tutar: daha kısa çekiş yeter, el yumruk yaptıktan sonra parmak biraz geri gelse de yenileme başlar, listenin ortasından tepeye varan çekiş de çalışır"
       ],
       "security": [
-        "Üyelerin birbirini görmemesi SUNUCUDA zorunlu: katılımcı satırları, üye önbelleği, üye listesi, okundu bilgisi ve canlı \"yazıyor\" yayını yalnız kişinin kendisine ve yetkiliye açık",
-        "Toplulukta @tugkancr dışında kimse sahip/moderatör olamaz (veritabanı tetikleyicisi zorlar); rol atama, tepki ve arama sunucuda reddedilir",
-        "Grup logosu yalnız kendi yüklediğin dosya olabilir, profil fotoğrafıyla aynı müstehcenlik denetiminden geçer ve yalnız yönetici/moderatör değiştirebilir; dış bağlantı kabul edilmez"
+        "Tanıtım videosu uygulamanın içindedir; internet gerekmez, hiçbir veri gönderilmez",
+        "Videonun gösterildiği bilgisi yalnız cihazda tutulur"
       ]
     },
     "en": {
-      "reason": "Juzzio Community behaved like a chat group: members could see each other's names, leave reactions, and extra admins could be assigned. The community is now a real official announcement CHANNEL: the app logo is its logo, members cannot see each other, nobody can post, only update announcements appear, and @tugkancr is the only admin. Groups and channels can now also have a logo.",
+      "reason": "First-time users had no introduction to Juzzio; the birthday celebration felt flat and short; a yellow line appeared under the flying text while sending; and the pull-to-refresh hand only grabbed the page on the second try. This update fixes all of that and adds tiny time-of-day icons to the weather theme.",
       "features": [
-        "🖼️ Logos for groups and channels: an admin/moderator taps the photo in group info to set a logo from the gallery or camera, or remove it; the logo shows in the chat list and chat header",
-        "📣 Juzzio Community is an official channel: app logo, verified badge and an \"Official channel · Update announcements only\" header",
-        "ℹ️ \"Channel info\" page clearly lists the channel rules and its only admin (@tugkancr)"
+        "🎬 A 20-second intro video with music: shown once to anyone opening the app for the first time and to new accounts; everyone sees it once with this update. Skip it with \"Skip\", or replay it any time from the \"App Introduction\" button on the Creator page (Turkish and English)",
+        "🎂 3D birthday celebration: the popper hands turn in perspective, confetti spins in 3D space and catches the light, ribbons twist, glossy orbs and stars burst out; two pops, 7 seconds in total",
+        "🌙 Tiny vector icons in the weather theme by time of day: crescent moon and stars at night, sun and clouds by day, an orange sun in the evening; raindrops in rain, snowflakes in snow, lightning in storms",
+        "🤚 The refresh hand is a little bigger and chubbier"
       ],
       "fixes": [
-        "The community no longer shows the member count or member names; the member list is visible only to the admin",
-        "Reactions, the \"who reacted\" list, voice/video calls, watch party and manual member adding were removed from the community",
-        "Community announcements are always sent as @tugkancr (Juzzio Official)"
+        "Removed the yellow line under the flying text when sending a message",
+        "The send animation now lands smoothly on the real bubble without jumping",
+        "Pull-to-refresh grabs the page on the first pull: a shorter pull is enough, the refresh still starts if your finger moves back a little after the fist, and pulls that start mid-list and reach the top work too"
       ],
       "security": [
-        "Members not seeing each other is enforced ON THE SERVER: participant rows, the member cache, the member list, read receipts and the live \"typing\" broadcast are visible only to the person themselves and the admin",
-        "Nobody but @tugkancr can be owner/moderator of the community (a database trigger enforces it); role changes, reactions and calls are rejected by the server",
-        "A group logo must be a file you uploaded yourself, passes the same content review as profile photos and can only be changed by an admin/moderator; external links are rejected"
+        "The intro video is bundled in the app; no internet needed, no data sent",
+        "Whether the video was shown is stored only on the device"
       ]
     },
     "de": {
-      "reason": "Juzzio Community behaved like a chat group: members could see each other's names, leave reactions, and extra admins could be assigned. The community is now a real official announcement CHANNEL: the app logo is its logo, members cannot see each other, nobody can post, only update announcements appear, and @tugkancr is the only admin. Groups and channels can now also have a logo.",
+      "reason": "First-time users had no introduction to Juzzio; the birthday celebration felt flat and short; a yellow line appeared under the flying text while sending; and the pull-to-refresh hand only grabbed the page on the second try. This update fixes all of that and adds tiny time-of-day icons to the weather theme.",
       "features": [
-        "🖼️ Logos for groups and channels: an admin/moderator taps the photo in group info to set a logo from the gallery or camera, or remove it; the logo shows in the chat list and chat header",
-        "📣 Juzzio Community is an official channel: app logo, verified badge and an \"Official channel · Update announcements only\" header",
-        "ℹ️ \"Channel info\" page clearly lists the channel rules and its only admin (@tugkancr)"
+        "🎬 A 20-second intro video with music: shown once to anyone opening the app for the first time and to new accounts; everyone sees it once with this update. Skip it with \"Skip\", or replay it any time from the \"App Introduction\" button on the Creator page (Turkish and English)",
+        "🎂 3D birthday celebration: the popper hands turn in perspective, confetti spins in 3D space and catches the light, ribbons twist, glossy orbs and stars burst out; two pops, 7 seconds in total",
+        "🌙 Tiny vector icons in the weather theme by time of day: crescent moon and stars at night, sun and clouds by day, an orange sun in the evening; raindrops in rain, snowflakes in snow, lightning in storms",
+        "🤚 The refresh hand is a little bigger and chubbier"
       ],
       "fixes": [
-        "The community no longer shows the member count or member names; the member list is visible only to the admin",
-        "Reactions, the \"who reacted\" list, voice/video calls, watch party and manual member adding were removed from the community",
-        "Community announcements are always sent as @tugkancr (Juzzio Official)"
+        "Removed the yellow line under the flying text when sending a message",
+        "The send animation now lands smoothly on the real bubble without jumping",
+        "Pull-to-refresh grabs the page on the first pull: a shorter pull is enough, the refresh still starts if your finger moves back a little after the fist, and pulls that start mid-list and reach the top work too"
       ],
       "security": [
-        "Members not seeing each other is enforced ON THE SERVER: participant rows, the member cache, the member list, read receipts and the live \"typing\" broadcast are visible only to the person themselves and the admin",
-        "Nobody but @tugkancr can be owner/moderator of the community (a database trigger enforces it); role changes, reactions and calls are rejected by the server",
-        "A group logo must be a file you uploaded yourself, passes the same content review as profile photos and can only be changed by an admin/moderator; external links are rejected"
+        "The intro video is bundled in the app; no internet needed, no data sent",
+        "Whether the video was shown is stored only on the device"
       ]
     }
   },
-  "releaseTitleEn": "Official Juzzio Community Channel & Group Logos",
+  "releaseTitleEn": "Intro Video, 3D Birthday & Smooth Sending",
   "signatureAlg": "ML-DSA-65 (FIPS 204)"
 }

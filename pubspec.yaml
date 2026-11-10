@@ -1,7 +1,7 @@
 name: juzzio
 description: "JUZZIO - Zero-Latency Bidirectional Translation, LiveKit Group Conference Audio/Video Call & Voice Note Messenger"
 publish_to: 'none'
-version: 1.2.6+126
+version: 1.2.7+127
 
 environment:
   sdk: '>=3.4.0 <4.0.0'
@@ -74,6 +74,9 @@ flutter:
     - assets/creator/engin.jpg
     # v1.2.4: yapımcı tanıtım videosu (Hello… — 26 sn, 1,3 MB)
     - assets/creator/juzzio_creator_reel.mp4
+    # v1.2.7: 20 sn uygulama tanıtım videosu (ilk giriş + Yapımcı sayfası), TR/EN
+    - assets/intro/juzzio_intro_tr.mp4
+    - assets/intro/juzzio_intro_en.mp4
     # v0.9.5: giden arama bekleme tonu (kendi ürettiğimiz 400+450 Hz çift tonu, telifsiz)
     - assets/sounds/juzzio_ringback.wav
     # v1.1.1: kumaş yenileme artık tamamen vektörle çiziliyor (assets/cloth kaldırıldı, −1,1 MB)

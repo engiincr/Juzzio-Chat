@@ -157,6 +157,67 @@ class JuzzioReleaseNote {
 /// Uygulamaya gömülü sürüm geçmişi (yayınlanmış sürümlerin gerçek içeriği)
 final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
   JuzzioReleaseNote(
+    versionName: '1.2.7',
+    versionCode: 127,
+    publishedAt: DateTime(2026, 11, 10),
+    sections: const {
+      'tr': JuzzioReleaseSection(
+        reason: "Uygulamayı ilk kez açanlar Juzzio'yu tanıyamıyordu; doğum günü kutlaması düz ve kısa kalıyordu; mesaj gönderirken uçan metnin altında sarı çizgi çıkıyordu; aşağı çekip yenilemede el ancak ikinci denemede sayfayı tutuyordu. Bu güncelleme hepsini düzeltir ve hava durumu temasına saate göre minik simgeler ekler.",
+        features: [
+          "🎬 20 saniyelik tanıtım videosu (müzikli): uygulamayı ilk kez açanlara ve yeni hesap açanlara bir kez gösterilir; bu güncellemede herkes bir kez görür. \"Atla\" ile geçilebilir, Yapımcı sayfasındaki \"Uygulama Tanıtımı\" düğmesiyle istediğin zaman yeniden izlenir (Türkçe ve İngilizce)",
+          "🎂 Doğum günü kutlaması 3 boyutlu: patlatıcı eller perspektifle döner, konfeti 3B uzayda döner ve ışığa göre parlar, kurdeleler bükülür, parlak küreler ve yıldızlar saçılır; iki patlama, toplam 7 saniye",
+          "🌙 Hava durumu temasında saate göre minik vektör simgeler: gece hilal ve yıldız, gündüz güneş ve bulut, akşam turuncu güneş; yağmurda damla, karda kar tanesi, fırtınada şimşek",
+          "🤚 Yenileme eli biraz daha büyük ve tombul",
+        ],
+        fixes: [
+          "Mesaj gönderirken uçan metnin altında çıkan sarı çizgi kaldırıldı",
+          "Gönderme animasyonu artık gerçek balonun yerine sıçramadan, yumuşakça iner",
+          "Aşağı çekip yenilemede el ilk çekişte sayfayı tutar: daha kısa çekiş yeter, el yumruk yaptıktan sonra parmak biraz geri gelse de yenileme başlar, listenin ortasından tepeye varan çekiş de çalışır",
+        ],
+        security: [
+          "Tanıtım videosu uygulamanın içindedir; internet gerekmez, hiçbir veri gönderilmez",
+          "Videonun gösterildiği bilgisi yalnız cihazda tutulur",
+        ],
+      ),
+      'en': JuzzioReleaseSection(
+        reason: "First-time users had no introduction to Juzzio; the birthday celebration felt flat and short; a yellow line appeared under the flying text while sending; and the pull-to-refresh hand only grabbed the page on the second try. This update fixes all of that and adds tiny time-of-day icons to the weather theme.",
+        features: [
+          "🎬 A 20-second intro video with music: shown once to anyone opening the app for the first time and to new accounts; everyone sees it once with this update. Skip it with \"Skip\", or replay it any time from the \"App Introduction\" button on the Creator page (Turkish and English)",
+          "🎂 3D birthday celebration: the popper hands turn in perspective, confetti spins in 3D space and catches the light, ribbons twist, glossy orbs and stars burst out; two pops, 7 seconds in total",
+          "🌙 Tiny vector icons in the weather theme by time of day: crescent moon and stars at night, sun and clouds by day, an orange sun in the evening; raindrops in rain, snowflakes in snow, lightning in storms",
+          "🤚 The refresh hand is a little bigger and chubbier",
+        ],
+        fixes: [
+          "Removed the yellow line under the flying text when sending a message",
+          "The send animation now lands smoothly on the real bubble without jumping",
+          "Pull-to-refresh grabs the page on the first pull: a shorter pull is enough, the refresh still starts if your finger moves back a little after the fist, and pulls that start mid-list and reach the top work too",
+        ],
+        security: [
+          "The intro video is bundled in the app; no internet needed, no data sent",
+          "Whether the video was shown is stored only on the device",
+        ],
+      ),
+      'de': JuzzioReleaseSection(
+        reason: "First-time users had no introduction to Juzzio; the birthday celebration felt flat and short; a yellow line appeared under the flying text while sending; and the pull-to-refresh hand only grabbed the page on the second try. This update fixes all of that and adds tiny time-of-day icons to the weather theme.",
+        features: [
+          "🎬 A 20-second intro video with music: shown once to anyone opening the app for the first time and to new accounts; everyone sees it once with this update. Skip it with \"Skip\", or replay it any time from the \"App Introduction\" button on the Creator page (Turkish and English)",
+          "🎂 3D birthday celebration: the popper hands turn in perspective, confetti spins in 3D space and catches the light, ribbons twist, glossy orbs and stars burst out; two pops, 7 seconds in total",
+          "🌙 Tiny vector icons in the weather theme by time of day: crescent moon and stars at night, sun and clouds by day, an orange sun in the evening; raindrops in rain, snowflakes in snow, lightning in storms",
+          "🤚 The refresh hand is a little bigger and chubbier",
+        ],
+        fixes: [
+          "Removed the yellow line under the flying text when sending a message",
+          "The send animation now lands smoothly on the real bubble without jumping",
+          "Pull-to-refresh grabs the page on the first pull: a shorter pull is enough, the refresh still starts if your finger moves back a little after the fist, and pulls that start mid-list and reach the top work too",
+        ],
+        security: [
+          "The intro video is bundled in the app; no internet needed, no data sent",
+          "Whether the video was shown is stored only on the device",
+        ],
+      ),
+    },
+  ),
+  JuzzioReleaseNote(
     versionName: '1.2.6',
     versionCode: 126,
     publishedAt: DateTime(2026, 11, 10),

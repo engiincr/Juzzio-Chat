@@ -4,6 +4,8 @@
 //  Video uygulamaya gömülüdür (assets/creator/juzzio_creator_reel.mp4) → internet gerekmez.
 //  Dokun: duraklat/oynat · alttaki çubuk: ilerleme · bitince "Tekrar izle".
 //  Kaynak: tools/creator_reel/reel.py (kareler kodla çizilir, ffmpeg ile kodlanır).
+// v1.2.7: aynı oynatıcı 20 sn'lik UYGULAMA TANITIM videosunu da oynatır (ilk giriş + Yapımcı
+//  sayfası). Tanıtım kipinde sağ üstte "Atla" vardır ve video bitince sayfa kendiliğinden kapanır.
 // =============================================================================
 
 import 'dart:ui';
@@ -13,17 +15,28 @@ import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 
 import '../core/app_theme_and_locale.dart';
+import '../core/juzzio_intro.dart';
 
 const String kJuzzioCreatorReelAsset = 'assets/creator/juzzio_creator_reel.mp4';
 
 class JuzzioCreatorReelPage extends StatefulWidget {
-  const JuzzioCreatorReelPage({super.key});
+  const JuzzioCreatorReelPage({super.key, this.asset = kJuzzioCreatorReelAsset, this.title, this.isIntro = false});
 
-  static Future<void> open(BuildContext context) => Navigator.of(context).push(
+  /// Oynatılacak gömülü video
+  final String asset;
+
+  /// Üst başlık (null → "Yapımcı Tanıtım İçeriği")
+  final String? title;
+
+  /// Uygulama tanıtımı kipi: "Atla" düğmesi, bitince otomatik kapanır
+  final bool isIntro;
+
+  static Future<void> open(BuildContext context, {String asset = kJuzzioCreatorReelAsset, String? title, bool isIntro = false}) =>
+      Navigator.of(context).push(
         PageRouteBuilder<void>(
           opaque: true,
           transitionDuration: const Duration(milliseconds: 320),
-          pageBuilder: (_, __, ___) => const JuzzioCreatorReelPage(),
+          pageBuilder: (_, __, ___) => JuzzioCreatorReelPage(asset: asset, title: title, isIntro: isIntro),
           transitionsBuilder: (_, a, __, child) => FadeTransition(
             opacity: CurvedAnimation(parent: a, curve: Curves.easeOutCubic),
             child: ScaleTransition(scale: Tween<double>(begin: 0.96, end: 1).animate(CurvedAnimation(parent: a, curve: Curves.easeOutCubic)), child: child),
@@ -36,9 +49,10 @@ class JuzzioCreatorReelPage extends StatefulWidget {
 }
 
 class _JuzzioCreatorReelPageState extends State<JuzzioCreatorReelPage> {
-  late final VideoPlayerController _c = VideoPlayerController.asset(kJuzzioCreatorReelAsset);
+  late final VideoPlayerController _c = VideoPlayerController.asset(widget.asset);
   bool _ready = false;
   bool _failed = false;
+  bool _closing = false;
 
   @override
   void initState() {
@@ -55,7 +69,15 @@ class _JuzzioCreatorReelPageState extends State<JuzzioCreatorReelPage> {
   }
 
   void _tick() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    setState(() {});
+    // tanıtım kipi: video bitince sayfa kendiliğinden kapanır (bir kez)
+    if (widget.isIntro && _ended && !_closing) {
+      _closing = true;
+      Future<void>.delayed(const Duration(milliseconds: 350), () {
+        if (mounted) Navigator.of(context).maybePop();
+      });
+    }
   }
 
   @override
@@ -120,11 +142,21 @@ class _JuzzioCreatorReelPageState extends State<JuzzioCreatorReelPage> {
               Expanded(
                 child: _GlassPill(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  child: Text(app.trEn('Yapımcı Tanıtım İçeriği', 'Creator Showreel', 'Creator-Showreel'),
+                  child: Text(widget.title ?? app.trEn('Yapımcı Tanıtım İçeriği', 'Creator Showreel', 'Creator-Showreel'),
                       maxLines: 1, overflow: TextOverflow.ellipsis,
                       style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14)),
                 ),
               ),
+              if (widget.isIntro) ...[
+                const SizedBox(width: 10),
+                _GlassPill(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(context).maybePop(),
+                    child: Text(app.trEn('Atla', 'Skip', 'Überspringen'),
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14)),
+                  ),
+                ),
+              ],
             ]),
           ),
           // orta: duraklatıldı / bitti
@@ -183,18 +215,33 @@ class _GlassPill extends StatelessWidget {
 
 /// Yapımcı sayfasındaki "Portfolyo · Yapımcı Tanıtımı" cam düğmesi (glassmorphism).
 class JuzzioCreatorReelButton extends StatelessWidget {
-  const JuzzioCreatorReelButton({super.key});
+  const JuzzioCreatorReelButton({super.key, this.intro = false});
+
+  /// v1.2.7: true → 20 sn'lik uygulama tanıtım videosu (ilk girişte gösterilen)
+  final bool intro;
 
   @override
   Widget build(BuildContext context) {
     final app = JuzzioAppController.instance;
+    final title = intro
+        ? app.trEn('Uygulama Tanıtımı', 'App Introduction', 'App-Vorstellung')
+        : app.trEn('Portfolyo · Yapımcı Tanıtımı', 'Portfolio · Creator Showreel', 'Portfolio · Creator-Showreel');
+    final sub = intro
+        ? app.trEn('20 sn · ilk girişte gösterilen video', '20 s · the video shown on first launch', '20 s · Video beim ersten Start')
+        : app.trEn('26 sn · internetsiz izlenir', '26 s · plays offline', '26 s · offline abspielbar');
     return Semantics(
       button: true,
-      label: app.trEn('Yapımcı tanıtım videosunu oynat', 'Play creator showreel', 'Creator-Showreel abspielen'),
+      label: intro
+          ? app.trEn('Uygulama tanıtım videosunu oynat', 'Play the app introduction video', 'App-Vorstellungsvideo abspielen')
+          : app.trEn('Yapımcı tanıtım videosunu oynat', 'Play creator showreel', 'Creator-Showreel abspielen'),
       child: GestureDetector(
         onTap: () {
           HapticFeedback.lightImpact();
-          JuzzioCreatorReelPage.open(context);
+          if (intro) {
+            JuzzioCreatorReelPage.open(context, asset: juzzioIntroAssetFor(app.uiLang), title: title);
+          } else {
+            JuzzioCreatorReelPage.open(context);
+          }
         },
         child: ClipRRect(
           borderRadius: BorderRadius.circular(24),
@@ -222,10 +269,9 @@ class JuzzioCreatorReelButton extends StatelessWidget {
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(app.trEn('Portfolyo · Yapımcı Tanıtımı', 'Portfolio · Creator Showreel', 'Portfolio · Creator-Showreel'),
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 15.5)),
+                    Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 15.5)),
                     const SizedBox(height: 3),
-                    Text(app.trEn('26 sn · internetsiz izlenir', '26 s · plays offline', '26 s · offline abspielbar'),
+                    Text(sub,
                         style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontWeight: FontWeight.w600, fontSize: 12.5)),
                   ]),
                 ),

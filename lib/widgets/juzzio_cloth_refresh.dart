@@ -18,6 +18,13 @@
 //   • dispose: tüm AnimationController / Ticker kaynakları kapatılır
 //   • disableAnimations (ve "Hareketi azalt") → 3B sekans atlanır, yalnız standart halka
 //
+//  v1.2.7 düzeltmesi ("ilk çekişte el sayfayı tutmuyor, ancak ikinci çekişte tutuyor"):
+//   • Kök neden: eşik için ~145 dp aşağı çekmek gerekiyordu (travel = pull × 0.55) ve el yumruk
+//     yaptıktan sonra parmak birkaç piksel geri gelince eşik kayboluyordu; ayrıca listenin tam
+//     tepesinde BAŞLAMAYAN çekişler (tepeye varıp taşan) hiç kurulmuyordu.
+//   • Artık: travel = pull × 0.8 (≈100 dp'de tutar), el bir kez yumruk yapınca KİLİTLENİR
+//     (parmak %60'ın altına çekilmedikçe bırakınca yenileme kesin başlar) ve tepeye sonradan
+//     varan çekişler de kurulur. El ~%20 büyütüldü.
 //  Biçim: Rive/Lottie yerine vektör CustomPainter. Gerekçe: ek paket ve ağ yok, APK büyümez,
 //  tema rengine göre anında boyanır, 60 FPS (tek RepaintBoundary, önbellekli Paint/gölge),
 //  çentik ölçüsüne göre her ekranda keskin; varlık yüklemesi olmadığı için ilk karede takılma yok.
@@ -49,7 +56,21 @@ const double kJuzzioSnapDamping = 0.85;
 const Color kJuzzioIslandColor = Color(0xFF000000);
 
 /// Çekme mesafesi → elin dikey yolu (dp). Saf; test edilir.
-double juzzioRefreshTravel(double pull) => math.min(math.max(pull, 0.0) * 0.55, kJuzzioRefreshMaxTravel);
+double juzzioRefreshTravel(double pull) => math.min(math.max(pull, 0.0) * kJuzzioRefreshPullRatio, kJuzzioRefreshMaxTravel);
+
+/// Parmak yolu → el yolu oranı (v1.2.7: 0.55 → 0.8; eşik ≈100 dp çekişte)
+const double kJuzzioRefreshPullRatio = 0.8;
+
+/// El yumruk yaptıktan sonra kilit bu oranın altına düşmedikçe korunur (v1.2.7)
+const double kJuzzioRefreshLatchKeep = 0.6;
+
+/// Bırakınca yenileme başlamalı mı: eşik şimdi aşılmışsa ya da el kilitliyse ve parmak
+/// %60'ın altına geri çekilmemişse. Saf; test edilir.
+bool juzzioRefreshShouldFire(double travel, {required bool latched}) =>
+    juzzioRefreshArmed(travel) || (latched && juzzioRefreshProgress(travel) >= kJuzzioRefreshLatchKeep);
+
+/// Elin boyut çarpanı (v1.2.7: ~%20 daha tombul/büyük)
+const double kJuzzioHandScaleBoost = 1.2;
 
 /// 0..1 ilerleme (eşik = 1)
 double juzzioRefreshProgress(double travel) => (travel / kJuzzioRefreshMaxTravel).clamp(0.0, 1.0);
@@ -98,7 +119,7 @@ class JuzzioRefreshGeometry {
   double get originY => embedded ? 0 : islandBottomY - contentTop;
 
   /// Elin ölçeği (çentik genişliğine oranlı; tasarım: 112 px'lik çentik)
-  double get scale => (islandWidth / 112.0).clamp(0.85, 1.15);
+  double get scale => (islandWidth / 112.0 * kJuzzioHandScaleBoost).clamp(1.0, 1.4);
 
   /// Yükleme halkasının merkezi (yerel koordinat): çentik ile başlık arasındaki boşluk
   double get spinnerCenterY => (embedded ? 0 : math.max(topInset - contentTop, 0.0)) + kJuzzioRefreshSpinnerGap / 2;
@@ -136,6 +157,7 @@ class _JuzzioClothRefreshState extends State<JuzzioClothRefresh> with TickerProv
   double _pull = 0;
   bool _armedDrag = false;
   bool _hapticDone = false;
+  bool _latched = false; // v1.2.7: el bir kez yumruk yaptı → bırakınca yenile
   bool _inFlight = false; // tekil tetikleme kilidi
   double _snapFromTravel = 0;
   double _snapFromCurl = 0;
@@ -185,6 +207,8 @@ class _JuzzioClothRefreshState extends State<JuzzioClothRefresh> with TickerProv
     if (n is ScrollStartNotification) {
       _armedDrag = n.dragDetails != null && n.metrics.extentBefore <= 0.5;
     } else if (n is OverscrollNotification) {
+      // v1.2.7: tepede başlamayan ama tepeye varıp taşan çekiş de kurulur
+      if (!_armedDrag && n.dragDetails != null && n.overscroll < 0 && n.metrics.extentBefore <= 0.5) _armedDrag = true;
       if (_armedDrag && n.dragDetails != null && n.overscroll < 0) _setPull(_pull - n.overscroll);
     } else if (n is ScrollUpdateNotification) {
       final d = n.dragDetails;
@@ -219,6 +243,8 @@ class _JuzzioClothRefreshState extends State<JuzzioClothRefresh> with TickerProv
     }
     _phase = _pull > 0 ? JuzzioRefreshPhase.pulling : JuzzioRefreshPhase.idle;
     final armed = juzzioRefreshArmed(travel);
+    if (armed) _latched = true;
+    if (_latched && juzzioRefreshProgress(travel) < kJuzzioRefreshLatchKeep) _latched = false;
     if (armed && !_hapticDone) {
       _hapticDone = true;
       HapticFeedback.mediumImpact(); // 03 PINCH
@@ -231,7 +257,8 @@ class _JuzzioClothRefreshState extends State<JuzzioClothRefresh> with TickerProv
     _armedDrag = false;
     if (_phase != JuzzioRefreshPhase.pulling) return;
     final travel = juzzioRefreshTravel(_pull);
-    final fire = juzzioRefreshArmed(travel) && !_inFlight;
+    final fire = juzzioRefreshShouldFire(travel, latched: _latched) && !_inFlight;
+    _latched = false;
     _pull = 0;
     _hapticDone = false;
     // 04 RELEASE & SNAP: el hiç beklemeden çentiğe çekilir

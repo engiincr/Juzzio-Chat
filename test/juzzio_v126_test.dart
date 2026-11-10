@@ -67,8 +67,8 @@ void main() {
     expect(chat.contains('if (juzzioIsCommunityTitle(group.title)) return;'), isTrue);
   });
 
-  test('v1.2.6 sürüm notu en üstte', () {
-    final n = kJuzzioBundledReleaseNotes.first;
+  test('v1.2.6 sürüm notu mevcut', () {
+    final n = kJuzzioBundledReleaseNotes.firstWhere((r) => r.versionName == '1.2.6');
     expect(n.versionName, '1.2.6');
     expect(n.versionCode, 126);
     expect(n.sections.keys, containsAll(['tr', 'en']));

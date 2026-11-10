@@ -66,7 +66,8 @@ void main() {
 
   test('uçuşun yazı stili balonla aynı (font değişimi yok), pembe gölge yok, aşmasız eğri', () {
     final s = _src('lib/widgets/motion/juzzio_send_fx.dart');
-    expect(s.contains('st.textStyle.copyWith(color: textColor)'), isTrue);
+    // v1.2.7: aynı stil + alt çizgisiz (sarı çizgi düzeltmesi)
+    expect(RegExp(r'st\.textStyle\.copyWith\(\s*color: textColor,').hasMatch(s), isTrue);
     expect(s.contains('Curves.easeInOutCubic'), isTrue);
     final flight = s.substring(s.indexOf('class _FlightViewState'), s.indexOf('class JuzzioBubbleEntrance'));
     expect(flight.contains('glow'), isFalse);
