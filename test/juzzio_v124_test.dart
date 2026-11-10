@@ -236,11 +236,25 @@ void main() {
     });
   });
 
-  test('Sürüm notu 1.2.4 en üstte', () {
-    final n = kJuzzioBundledReleaseNotes.first;
+  test('Sürüm notu 1.2.4', () {
+    final n = kJuzzioBundledReleaseNotes.firstWhere((r) => r.versionName == '1.2.4');
     expect(n.versionName, '1.2.4');
     expect(n.versionCode, 124);
     expect(n.sections.keys, containsAll(['tr', 'en']));
+  });
+
+  test('v1.2.5: güncelleme doğrulaması önbellek beklemez; duyuru yayından sonra', () {
+    final core = _src('lib/core/app_theme_and_locale.dart');
+    expect(core.contains('_otaSignedSecurity'), isTrue);
+    expect(core.contains('/releases/download/v\$_otaRemoteVersion/version.json'), isTrue);
+    expect(core.contains('_waitForOtaVerification()'), isTrue);
+    final ci = _src('.github/workflows/android-ci.yml');
+    expect(ci.indexOf('Juzzio Topluluğu sürüm duyurusu'), greaterThan(ci.indexOf('Tüm kullanıcılara anında güncelleme bildirimi')));
+    expect(ci.contains('.apk.sha256" version.json)'), isTrue);
+    expect(_src('scripts/release_meta.py').contains('sec["build"] = int(data["build"])'), isTrue);
+    final n = kJuzzioBundledReleaseNotes.firstWhere((r) => r.versionName == '1.2.5');
+    expect(n.versionName, '1.2.5');
+    expect(n.versionCode, 125);
   });
 
   test('JuzzioConsentState hâlâ iki kutu', () {

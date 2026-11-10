@@ -346,21 +346,6 @@ jobs:
             echo "✅ $DB_NAME uygulandı"
           fi
 
-      # v1.2.0: her sürüm Juzzio Topluluğu kanalında "Juzzio Official" olarak otomatik duyurulur
-      # (yönetici emeği gerekmez; aynı sürüm iki kez paylaşılmaz — fonksiyon idempotenttir).
-      - name: Juzzio Topluluğu sürüm duyurusu
-        if: env.SUPABASE_DB_URL != ''
-        run: |
-          set -euo pipefail
-          DB_URL="$(python3 scripts/resolve_db_url.py)"
-          echo "::add-mask::$DB_URL"
-          VER="$(python3 scripts/community_release_post.py ver)"
-          TR="$(python3 scripts/community_release_post.py tr)"
-          EN="$(python3 scripts/community_release_post.py en)"
-          echo "SELECT public.juzzio_community_post_release(:'ver', :'tr', :'en') IS NOT NULL AS paylasildi;" \
-            | psql "$DB_URL" -X -q -v ON_ERROR_STOP=1 -At -v ver="$VER" -v tr="$TR" -v en="$EN" \
-            || echo "::warning::Topluluk duyurusu gönderilemedi (yayın etkilenmez)."
-
       - name: Migration atlandı
         if: env.SUPABASE_DB_URL == ''
         run: echo "::warning::SUPABASE_DB_URL secret tanımlı değil; veritabanı migration'ları atlandı."
@@ -435,7 +420,9 @@ jobs:
           TITLE=$(python3 scripts/release_meta.py title)
 
           TAG="v${APP_VER}"
-          ASSETS=(release-output/Juzzio-latest.apk release-output/Juzzio-latest.apk.sha256 "release-output/juzzio-v${APP_VER}-release.apk" "release-output/juzzio-v${APP_VER}-release.apk.sha256")
+          # v1.2.4: imzalı version.json da sürüme eklenir — uygulama doğrulama bilgisini GitHub'ın
+          # önbelleğe aldığı ham dosyayı beklemeden bu sabit adresten okuyabilir
+          ASSETS=(release-output/Juzzio-latest.apk release-output/Juzzio-latest.apk.sha256 "release-output/juzzio-v${APP_VER}-release.apk" "release-output/juzzio-v${APP_VER}-release.apk.sha256" version.json)
           # Eski sürümler, etiketler ve dallar KORUNUR (geri dönüş için gereklidir).
           # Aynı sürüm tekrar derlenirse yalnızca BU sürümün dosyaları ve notları güncellenir.
           if gh release view "$TAG" >/dev/null 2>&1; then
@@ -475,3 +462,22 @@ jobs:
           python3 scripts/release_meta.py publish-sql > /tmp/publish_release.sql
           psql "$DB_URL" -v ON_ERROR_STOP=1 -q -X -f /tmp/publish_release.sql
           echo "app_releases güncellendi; kullanıcılara anlık bildirim gönderildi"
+
+      # v1.2.0: her sürüm Juzzio Topluluğu kanalında "Juzzio Official" olarak otomatik duyurulur
+      # (yönetici emeği gerekmez; aynı sürüm iki kez paylaşılmaz — fonksiyon idempotenttir).
+      # v1.2.4: duyuru artık APK + imzalı doğrulama bilgisi YAYINLANDIKTAN SONRA gider
+      # (önceden derlemeden önce gidiyordu; duyuruya hemen dokunan "doğrulama bilgisi yok" görüyordu)
+      - name: Juzzio Topluluğu sürüm duyurusu
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_DB_URL:-}" ]; then echo "SUPABASE_DB_URL yok, atlandı"; exit 0; fi
+          DB_URL="$(python3 scripts/resolve_db_url.py)"
+          echo "::add-mask::$DB_URL"
+          VER="$(python3 scripts/community_release_post.py ver)"
+          TR="$(python3 scripts/community_release_post.py tr)"
+          EN="$(python3 scripts/community_release_post.py en)"
+          echo "SELECT public.juzzio_community_post_release(:'ver', :'tr', :'en') IS NOT NULL AS paylasildi;" \
+            | psql "$DB_URL" -X -q -v ON_ERROR_STOP=1 -At -v ver="$VER" -v tr="$TR" -v en="$EN" \
+            || echo "::warning::Topluluk duyurusu gönderilemedi (yayın etkilenmez)."

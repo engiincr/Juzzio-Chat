@@ -8,6 +8,7 @@
 // Tüm hata mesajları SupabaseService.friendlyError ile kullanıcının dilindedir.
 // =============================================================================
 
+import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/services.dart';
@@ -279,6 +280,14 @@ class JuzzioAppConfig {
   }
 }
 
+/// v1.2.6: grup logosu dosya adı için oda kimliğinin güvenli kısa parçası (saf; test edilir).
+/// Sunucu yalnız `[A-Za-z0-9._-]` karakterli dosya adlarını kabul eder.
+String juzzioRoomAvatarSlug(String roomId) {
+  final clean = roomId.replaceAll(RegExp(r'[^A-Za-z0-9]'), '');
+  if (clean.isEmpty) return 'room';
+  return clean.length > 8 ? clean.substring(0, 8) : clean;
+}
+
 class JuzzioFeaturesService {
   JuzzioFeaturesService._();
   static final JuzzioFeaturesService instance = JuzzioFeaturesService._();
@@ -457,6 +466,25 @@ class JuzzioFeaturesService {
   Future<void> moderateDeleteMessage(String messageId) async {
     try {
       await _svc.client.rpc('moderate_delete_message', params: {'p_message': messageId});
+    } catch (e) {
+      _fail(e);
+    }
+  }
+
+  /// v1.2.6: grup/kanal logosu. [file] null → logo kaldırılır. Dosya avatars kovasına
+  /// (kendi klasörüne) yüklenir, profil fotoğrafıyla aynı müstehcenlik denetiminden geçer,
+  /// ardından set_room_avatar (yalnız yönetici/moderatör) çağrılır. Yeni adresi döndürür.
+  /// Juzzio Community'nin logosu sabittir (uygulama logosu); sunucu değişikliği reddeder.
+  Future<String?> setRoomAvatar({required String roomId, File? file}) async {
+    try {
+      String? url;
+      if (file != null) {
+        url = await _svc.uploadPublicImage(file, prefix: 'room_${juzzioRoomAvatarSlug(roomId)}');
+        await _svc.moderateAvatar(url);
+      }
+      final res = await _svc.client.rpc('set_room_avatar', params: {'p_room': roomId, 'p_url': url});
+      final out = res?.toString() ?? '';
+      return out.isEmpty ? null : out;
     } catch (e) {
       _fail(e);
     }

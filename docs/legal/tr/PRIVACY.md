@@ -1,6 +1,6 @@
 # Juzzio Gizlilik Politikası ve KVKK Aydınlatma Metni
 
-Son güncelleme: 10 Kasım 2026 · Uygulama sürümü: v1.2.4 (BETA · Erken Erişim)
+Son güncelleme: 10 Kasım 2026 · Uygulama sürümü: v1.2.6 (BETA · Erken Erişim)
 
 Bu metin, Juzzio mobil uygulamasının hangi kişisel verileri hangi amaçla işlediğini, kimlerle paylaştığını ve haklarınızı **olduğu gibi** açıklar. Uygulamanın kaynak kodu GitHub'da açıktır; buradaki her ifade koddan doğrulanabilir.
 

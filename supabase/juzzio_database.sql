@@ -15831,3 +15831,469 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION public.admin_legal_export_by_username(TEXT, TEXT, TEXT) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.admin_legal_export_by_username(TEXT, TEXT, TEXT) TO authenticated;
+
+-- =============================================================================
+-- 10.35 v1.2.6 — Juzzio Community resmî kanal kuralları + grup/kanal logosu
+--  (a) Juzzio Community bir KANALDIR: üyeler birbirini GÖREMEZ (katılımcı satırları, üye
+--      önbelleği, üye listesi, okundu bilgisi ve yazıyor göstergesi yalnız kişinin kendisine
+--      ve kanal yetkilisine açıktır). Üyeler mesaj atamaz (10.31 b) ve tepki bırakamaz;
+--      kanala yalnız sürüm (güncelleme) duyuruları ve yetkili paylaşımları düşer.
+--  (b) Tek yetkili @tugkancr: başka hiç kimse sahip/moderatör olamaz (tetikleyici zorlar),
+--      rol atama ve elle üye ekleme bu kanalda kapalıdır, oda sahibi (created_by) @tugkancr.
+--  (c) Grup ve kanal logosu: yönetici/moderatör set_room_avatar ile logo koyar veya kaldırır.
+--      Adres yalnız "avatars" kovasının herkese açık yolu olabilir ve profil fotoğrafıyla aynı
+--      müstehcenlik denetiminden (media_moderation) geçmiş olmalıdır. Juzzio Community'nin
+--      logosu sabittir (uygulama logosu) ve değiştirilemez.
+-- =============================================================================
+CREATE OR REPLACE FUNCTION public.juzzio_is_community_room(p_room UUID)
+RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+    SELECT COALESCE((SELECT r.is_community FROM public.rooms r WHERE r.id = p_room), false);
+$$;
+GRANT EXECUTE ON FUNCTION public.juzzio_is_community_room(UUID) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.juzzio_community_admin_id()
+RETURNS UUID LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+    SELECT id FROM public.profiles WHERE LOWER(username) = 'tugkancr' LIMIT 1;
+$$;
+REVOKE ALL ON FUNCTION public.juzzio_community_admin_id() FROM PUBLIC, anon, authenticated;
+
+-- (a) Üye önbelleği: toplulukta yalnız yetkili yazılır (herkes oda satırını okuyabildiği için)
+CREATE OR REPLACE FUNCTION public.sync_room_member_cache(p_room UUID)
+RETURNS VOID
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    UPDATE public.rooms r
+    SET group_member_ids = COALESCE((
+            SELECT jsonb_agg(rp.user_id::text ORDER BY rp.joined_at)
+            FROM public.room_participants rp
+            WHERE rp.room_id = r.id AND rp.left_at IS NULL
+              AND (NOT r.is_community OR rp.role IN ('owner', 'moderator'))
+        ), '[]'::jsonb),
+        group_members = COALESCE((
+            SELECT jsonb_agg(COALESCE(NULLIF(p.display_name, ''), p.username, 'Juzzio') ORDER BY rp.joined_at)
+            FROM public.room_participants rp
+            JOIN public.profiles p ON p.id = rp.user_id
+            WHERE rp.room_id = r.id AND rp.left_at IS NULL
+              AND (NOT r.is_community OR rp.role IN ('owner', 'moderator'))
+        ), '[]'::jsonb),
+        updated_at = NOW()
+    WHERE r.id = p_room;
+$$;
+
+-- (a) Katılımcı satırları: toplulukta üye yalnız kendini ve yetkiliyi görür
+DROP POLICY IF EXISTS room_participants_select_member ON public.room_participants;
+CREATE POLICY room_participants_select_member ON public.room_participants FOR SELECT TO authenticated
+    USING (
+        user_id = auth.uid()
+        OR (public.is_room_member(room_id)
+            AND (NOT public.juzzio_is_community_room(room_id)
+                 OR role IN ('owner', 'moderator')
+                 OR COALESCE(public.group_role_of(room_id, auth.uid()), '') IN ('owner', 'moderator')))
+    );
+
+-- (a) Üye listesi: toplulukta üyeye yalnız yetkili (ve kendisi) döner
+CREATE OR REPLACE FUNCTION public.get_group_members(p_room UUID)
+RETURNS TABLE (
+    user_id UUID,
+    username TEXT,
+    display_name TEXT,
+    avatar_url TEXT,
+    role TEXT,
+    muted_until TIMESTAMPTZ,
+    joined_at TIMESTAMPTZ,
+    is_verified BOOLEAN
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT p.id, p.username, p.display_name, p.avatar_url,
+           CASE WHEN rp.role IN ('owner', 'moderator') THEN rp.role ELSE 'member' END,
+           CASE WHEN rp.muted_until > NOW() THEN rp.muted_until END,
+           rp.joined_at, p.is_verified
+    FROM public.room_participants rp
+    JOIN public.profiles p ON p.id = rp.user_id
+    WHERE rp.room_id = p_room AND rp.left_at IS NULL AND public.is_room_member(p_room, auth.uid())
+      AND (NOT public.juzzio_is_community_room(p_room)
+           OR rp.role IN ('owner', 'moderator')
+           OR rp.user_id = auth.uid()
+           OR COALESCE(public.group_role_of(p_room, auth.uid()), '') IN ('owner', 'moderator'))
+    ORDER BY CASE rp.role WHEN 'owner' THEN 0 WHEN 'moderator' THEN 1 ELSE 2 END, LOWER(p.display_name);
+$$;
+GRANT EXECUTE ON FUNCTION public.get_group_members(UUID) TO authenticated;
+
+-- (a) Okundu bilgisi ve yazıyor göstergesi (canlı DB'de varsa): toplulukta başkası görünmez
+DO $$
+BEGIN
+    IF to_regclass('public.message_reads') IS NOT NULL
+       AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'message_reads' AND column_name = 'user_id') THEN
+        DROP POLICY IF EXISTS message_reads_select_member ON public.message_reads;
+        CREATE POLICY message_reads_select_member ON public.message_reads FOR SELECT TO authenticated
+            USING (EXISTS (SELECT 1 FROM public.messages m WHERE m.id = message_reads.message_id AND public.is_room_member(m.room_id)
+                           AND (message_reads.user_id = auth.uid() OR NOT public.juzzio_is_community_room(m.room_id)
+                                OR COALESCE(public.group_role_of(m.room_id, auth.uid()), '') IN ('owner', 'moderator'))));
+    END IF;
+    IF to_regclass('public.typing_indicators') IS NOT NULL
+       AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'typing_indicators' AND column_name = 'user_id') THEN
+        DROP POLICY IF EXISTS typing_indicators_select_member ON public.typing_indicators;
+        CREATE POLICY typing_indicators_select_member ON public.typing_indicators FOR SELECT TO authenticated
+            USING (public.is_room_member(room_id)
+                   AND (typing_indicators.user_id = auth.uid() OR NOT public.juzzio_is_community_room(room_id)
+                        OR COALESCE(public.group_role_of(room_id, typing_indicators.user_id), '') IN ('owner', 'moderator')));
+    END IF;
+END $$;
+
+-- (b) Tek yetkili: toplulukta @tugkancr dışında kimse sahip/moderatör olamaz
+CREATE OR REPLACE FUNCTION public.juzzio_guard_community_roles()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+    v_admin UUID;
+BEGIN
+    IF NOT public.juzzio_is_community_room(NEW.room_id) THEN RETURN NEW; END IF;
+    v_admin := public.juzzio_community_admin_id();
+    IF v_admin IS NOT NULL AND NEW.user_id = v_admin THEN
+        NEW.role := 'owner';
+        NEW.muted_until := NULL;
+    ELSIF COALESCE(NEW.role, 'member') <> 'member' THEN
+        NEW.role := 'member';
+    END IF;
+    RETURN NEW;
+END $$;
+DROP TRIGGER IF EXISTS trg_juzzio_guard_community_roles ON public.room_participants;
+CREATE TRIGGER trg_juzzio_guard_community_roles BEFORE INSERT OR UPDATE OF role, user_id, room_id ON public.room_participants
+    FOR EACH ROW EXECUTE FUNCTION public.juzzio_guard_community_roles();
+
+-- (b) Rol atama: toplulukta kapalı
+CREATE OR REPLACE FUNCTION public.set_group_member_role(p_room UUID, p_user UUID, p_role TEXT)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_uid UUID := auth.uid();
+BEGIN
+    IF public.juzzio_is_community_room(p_room) THEN RAISE EXCEPTION 'community_roles_fixed' USING ERRCODE = '42501'; END IF;
+    IF public.group_role_of(p_room, v_uid) IS DISTINCT FROM 'owner' THEN RAISE EXCEPTION 'not_allowed'; END IF;
+    IF p_user = v_uid THEN RAISE EXCEPTION 'cannot_change_self'; END IF;
+    IF p_role NOT IN ('owner', 'moderator', 'member') THEN RAISE EXCEPTION 'invalid_role'; END IF;
+    IF public.group_role_of(p_room, p_user) IS NULL THEN RAISE EXCEPTION 'not_a_member'; END IF;
+
+    IF p_role = 'owner' THEN
+        UPDATE public.room_participants SET role = 'moderator' WHERE room_id = p_room AND user_id = v_uid;
+        UPDATE public.room_participants SET role = 'owner', muted_until = NULL WHERE room_id = p_room AND user_id = p_user;
+    ELSE
+        UPDATE public.room_participants SET role = p_role WHERE room_id = p_room AND user_id = p_user;
+    END IF;
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.set_group_member_role(UUID, UUID, TEXT) TO authenticated;
+
+-- (b) Elle üye ekleme: toplulukta kapalı (herkes kayıtta otomatik katılır)
+CREATE OR REPLACE FUNCTION public.add_group_members(p_room UUID, p_member_ids UUID[])
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_uid UUID := auth.uid();
+    v_member UUID;
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM public.rooms WHERE id = p_room AND is_group) THEN RAISE EXCEPTION 'not_a_group'; END IF;
+    IF public.juzzio_is_community_room(p_room) THEN RAISE EXCEPTION 'community_membership_automatic' USING ERRCODE = '42501'; END IF;
+    IF COALESCE(public.group_role_of(p_room, v_uid), '') NOT IN ('owner', 'moderator') THEN
+        RAISE EXCEPTION 'not_allowed';
+    END IF;
+    FOREACH v_member IN ARRAY COALESCE(p_member_ids, ARRAY[]::UUID[]) LOOP
+        IF public.can_add_to_group(v_uid, v_member) THEN
+            INSERT INTO public.room_participants (room_id, user_id, role)
+            VALUES (p_room, v_member, 'member')
+            ON CONFLICT (room_id, user_id) DO UPDATE
+                SET left_at = NULL, hidden_at = NULL, role = 'member', muted_until = NULL, joined_at = NOW()
+                WHERE public.room_participants.left_at IS NOT NULL;
+        END IF;
+    END LOOP;
+    PERFORM public.sync_room_member_cache(p_room);
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.add_group_members(UUID, UUID[]) TO authenticated;
+
+-- (a) Tepki: toplulukta kapalı (tepki haritası kişi kimliği taşır; üyeler birbirini görmemeli)
+CREATE OR REPLACE FUNCTION public.toggle_message_reaction(p_message UUID, p_emoji TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_uid UUID := auth.uid();
+    v_key TEXT := auth.uid()::text;
+    v_room UUID;
+    v_owner UUID;
+    v_text TEXT;
+    v_reactions JSONB;
+    v_added BOOLEAN := false;
+    v_emoji TEXT := LEFT(BTRIM(COALESCE(p_emoji, '')), 16);
+    v_actor RECORD;
+    v_owner_room UUID;
+    v_owner_room_at TIMESTAMPTZ;
+    v_owner_seen TIMESTAMPTZ;
+BEGIN
+    SELECT room_id, sender_id, COALESCE(original_text, ''), COALESCE(reactions, '{}'::jsonb)
+      INTO v_room, v_owner, v_text, v_reactions
+      FROM public.messages WHERE id = p_message FOR UPDATE;
+    IF v_room IS NULL OR v_uid IS NULL OR NOT public.is_room_member(v_room, v_uid) THEN
+        RAISE EXCEPTION 'not_allowed';
+    END IF;
+    IF public.juzzio_is_community_room(v_room) THEN
+        RAISE EXCEPTION 'community_read_only' USING ERRCODE = '42501';
+    END IF;
+    IF v_emoji = '' OR v_reactions->>v_key = v_emoji THEN
+        v_reactions := v_reactions - v_key;
+    ELSE
+        v_reactions := jsonb_set(v_reactions, ARRAY[v_key], to_jsonb(v_emoji), true);
+        v_added := true;
+    END IF;
+    UPDATE public.messages SET reactions = v_reactions WHERE id = p_message;
+
+    IF v_added AND v_owner IS NOT NULL AND v_owner <> v_uid
+       AND NOT public.is_blocked_between(v_uid, v_owner) THEN
+        SELECT active_room_id, active_room_at, last_seen INTO v_owner_room, v_owner_room_at, v_owner_seen
+          FROM public.profiles WHERE id = v_owner;
+        -- Mesaj sahibi şu an bu sohbetin içindeyse bildirim gönderme
+        IF NOT COALESCE(v_owner_room = v_room
+                AND COALESCE(v_owner_seen, v_owner_room_at) > NOW() - INTERVAL '3 minutes', false) THEN
+            SELECT username, display_name, avatar_url INTO v_actor FROM public.profiles WHERE id = v_uid;
+            INSERT INTO public.notifications (
+                recipient_id, actor_id, actor_username, actor_display_name, actor_avatar_url,
+                event_type, target_id, target_secondary_id, preview_text, dedupe_key
+            ) VALUES (
+                v_owner, v_uid, COALESCE(v_actor.username, ''),
+                COALESCE(NULLIF(v_actor.display_name, ''), v_actor.username, 'Juzzio'), v_actor.avatar_url,
+                'reaction', v_room::text, p_message::text,
+                v_emoji || '|' || LEFT(REGEXP_REPLACE(v_text, '\s+', ' ', 'g'), 80),
+                'reaction_' || p_message::text || '_' || v_key || '_' || v_emoji
+            )
+            ON CONFLICT (recipient_id, dedupe_key) DO NOTHING;
+        END IF;
+    END IF;
+    RETURN v_reactions;
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.toggle_message_reaction(UUID, TEXT) TO authenticated;
+
+-- (c) Logo adresi geçerli mi: boş (kaldır) veya avatars kovasının herkese açık yolu
+CREATE OR REPLACE FUNCTION public.juzzio_room_avatar_url_ok(p_url TEXT)
+RETURNS BOOLEAN LANGUAGE sql IMMUTABLE AS $$
+    SELECT p_url IS NULL OR p_url = ''
+        OR (public.juzzio_url_ok(p_url) AND char_length(p_url) <= 600
+            AND p_url ~ '^https://[A-Za-z0-9.-]+(:[0-9]+)?/storage/v1/object/public/avatars/[0-9a-fA-F-]{36}/[A-Za-z0-9._-]+(\?[A-Za-z0-9=&._-]*)?$');
+$$;
+
+-- (c) Logo denetimden geçmiş mi (profil fotoğrafı kuralı ile aynı; denetim kapalıysa serbest)
+CREATE OR REPLACE FUNCTION public.juzzio_room_avatar_moderated(p_user UUID, p_url TEXT)
+RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+    SELECT COALESCE(p_url, '') = ''
+        OR NOT public.juzzio_setting_bool('avatar_moderation_enabled', true)
+        OR EXISTS (
+            SELECT 1 FROM public.media_moderation m
+            WHERE m.user_id = p_user AND m.kind = 'avatar' AND m.url = p_url
+              AND m.verdict IN ('safe', 'unchecked') AND m.review_status <> 'rejected'
+              AND m.created_at > NOW() - INTERVAL '2 hours');
+$$;
+REVOKE ALL ON FUNCTION public.juzzio_room_avatar_moderated(UUID, TEXT) FROM PUBLIC, anon, authenticated;
+
+-- (c) Doğrudan oda güncellemesinde de aynı kural (istemci RPC'yi atlayamaz)
+CREATE OR REPLACE FUNCTION public.juzzio_guard_room_avatar()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+    IF NEW.avatar_url IS NOT DISTINCT FROM OLD.avatar_url THEN RETURN NEW; END IF;
+    IF COALESCE(NEW.is_community, false) THEN
+        NEW.avatar_url := NULL; -- topluluk logosu sabit: uygulama logosu (istemci varlığı)
+        RETURN NEW;
+    END IF;
+    IF NOT COALESCE(OLD.is_group, false) THEN
+        IF public.juzzio_is_client_request() THEN NEW.avatar_url := OLD.avatar_url; END IF;
+        RETURN NEW;
+    END IF;
+    IF public.juzzio_is_client_request() OR auth.uid() IS NOT NULL THEN
+        NEW.avatar_url := NULLIF(BTRIM(COALESCE(NEW.avatar_url, '')), '');
+        IF NOT public.juzzio_room_avatar_url_ok(NEW.avatar_url) THEN
+            RAISE EXCEPTION 'invalid_avatar_url' USING ERRCODE = '22023';
+        END IF;
+        IF auth.uid() IS NOT NULL AND NOT public.juzzio_room_avatar_moderated(auth.uid(), NEW.avatar_url) THEN
+            RAISE EXCEPTION 'avatar_not_moderated' USING ERRCODE = '22023';
+        END IF;
+    END IF;
+    RETURN NEW;
+END $$;
+DROP TRIGGER IF EXISTS trg_juzzio_guard_room_avatar ON public.rooms;
+CREATE TRIGGER trg_juzzio_guard_room_avatar BEFORE UPDATE OF avatar_url ON public.rooms
+    FOR EACH ROW EXECUTE FUNCTION public.juzzio_guard_room_avatar();
+
+-- (c) Grup/kanal logosu koy veya kaldır (p_url NULL/boş → kaldır). Yalnız yönetici/moderatör.
+CREATE OR REPLACE FUNCTION public.set_room_avatar(p_room UUID, p_url TEXT)
+RETURNS TEXT LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+    v_uid UUID := auth.uid();
+    v_url TEXT := NULLIF(BTRIM(COALESCE(p_url, '')), '');
+    v_is_group BOOLEAN;
+    v_is_comm BOOLEAN;
+BEGIN
+    IF v_uid IS NULL THEN RAISE EXCEPTION 'not_authenticated'; END IF;
+    SELECT is_group, COALESCE(is_community, false) INTO v_is_group, v_is_comm FROM public.rooms WHERE id = p_room;
+    IF NOT COALESCE(v_is_group, false) THEN RAISE EXCEPTION 'not_a_group' USING ERRCODE = '22023'; END IF;
+    IF v_is_comm THEN RAISE EXCEPTION 'community_logo_fixed' USING ERRCODE = '42501'; END IF;
+    IF COALESCE(public.group_role_of(p_room, v_uid), '') NOT IN ('owner', 'moderator') THEN
+        RAISE EXCEPTION 'not_allowed' USING ERRCODE = '42501';
+    END IF;
+    IF NOT public.juzzio_room_avatar_url_ok(v_url) THEN RAISE EXCEPTION 'invalid_avatar_url' USING ERRCODE = '22023'; END IF;
+    IF v_url IS NOT NULL AND split_part(split_part(v_url, '/storage/v1/object/public/avatars/', 2), '/', 1) <> v_uid::text THEN
+        RAISE EXCEPTION 'invalid_avatar_url' USING ERRCODE = '22023'; -- yalnız kendi yüklediği dosya
+    END IF;
+    IF NOT public.juzzio_room_avatar_moderated(v_uid, v_url) THEN RAISE EXCEPTION 'avatar_not_moderated' USING ERRCODE = '22023'; END IF;
+    IF NOT public.juzzio_rate_check(v_uid, 'room_avatar', 20, 3600) THEN RAISE EXCEPTION 'rate_limited'; END IF;
+    UPDATE public.rooms SET avatar_url = v_url, updated_at = NOW() WHERE id = p_room;
+    RETURN v_url;
+END $$;
+REVOKE ALL ON FUNCTION public.set_room_avatar(UUID, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.set_room_avatar(UUID, TEXT) TO authenticated;
+
+-- (a) Canlı "yazıyor/kaydediyor" yayını: toplulukta yalnız yetkili yayın yapabilir
+CREATE OR REPLACE FUNCTION public.juzzio_can_room_activity(p_room UUID, p_user UUID, p_sending BOOLEAN)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_is_group BOOLEAN;
+    v_other UUID;
+    v_privacy TEXT;
+BEGIN
+    IF p_room IS NULL OR p_user IS NULL OR NOT public.is_room_member(p_room, p_user) THEN
+        RETURN false;
+    END IF;
+    SELECT r.is_group INTO v_is_group FROM public.rooms r WHERE r.id = p_room;
+    IF v_is_group IS NULL THEN
+        RETURN false;
+    END IF;
+    IF NOT v_is_group THEN
+        SELECT rp.user_id INTO v_other
+        FROM public.room_participants rp
+        WHERE rp.room_id = p_room AND rp.user_id <> p_user
+        LIMIT 1;
+        IF v_other IS NOT NULL AND public.is_blocked_between(p_user, v_other) THEN
+            RETURN false;
+        END IF;
+    END IF;
+    -- v1.2.6: Juzzio Community'de yalnız yetkili yayın yapar (üyeler birbirini göremez)
+    IF p_sending AND public.juzzio_is_community_room(p_room)
+       AND COALESCE(public.group_role_of(p_room, p_user), '') NOT IN ('owner', 'moderator') THEN
+        RETURN false;
+    END IF;
+    IF p_sending THEN
+        SELECT p.privacy_online INTO v_privacy FROM public.profiles p WHERE p.id = p_user;
+        IF COALESCE(v_privacy, 'everyone') = 'nobody' THEN
+            RETURN false;
+        END IF;
+        IF NOT v_is_group AND v_other IS NOT NULL
+           AND NOT public.juzzio_can_see_presence(v_other, p_user, COALESCE(v_privacy, 'everyone')) THEN
+            RETURN false;
+        END IF;
+    END IF;
+    RETURN true;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.juzzio_can_room_activity(UUID, UUID, BOOLEAN) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.juzzio_can_room_activity(UUID, UUID, BOOLEAN) TO authenticated, service_role;
+
+-- (a) Arama: Juzzio Community'de sesli/görüntülü arama başlatılamaz ve katılınamaz
+CREATE OR REPLACE FUNCTION public.juzzio_guard_community_call()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+    IF NEW.room_id IS NOT NULL AND public.juzzio_is_community_room(NEW.room_id) THEN
+        RAISE EXCEPTION 'community_read_only' USING ERRCODE = '42501';
+    END IF;
+    RETURN NEW;
+END $$;
+DROP TRIGGER IF EXISTS trg_juzzio_guard_community_call ON public.call_logs;
+CREATE TRIGGER trg_juzzio_guard_community_call BEFORE INSERT ON public.call_logs
+    FOR EACH ROW EXECUTE FUNCTION public.juzzio_guard_community_call();
+
+CREATE OR REPLACE FUNCTION public.can_join_livekit_room(p_user UUID, p_livekit_room TEXT)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_session UUID;
+    v_caller UUID;
+BEGIN
+    IF p_user IS NULL OR COALESCE(p_livekit_room, '') = '' THEN RETURN false; END IF;
+    IF public.juzzio_is_banned(p_user) THEN RETURN false; END IF;
+    -- v1.2.6: Juzzio Community'de arama yok (üyeler birbirini göremez)
+    IF EXISTS (SELECT 1 FROM public.rooms r WHERE r.livekit_room_name = p_livekit_room AND r.is_community) THEN
+        RETURN false;
+    END IF;
+    IF NOT (
+        EXISTS (
+            SELECT 1 FROM public.rooms r
+            JOIN public.room_participants rp ON rp.room_id = r.id
+            WHERE r.livekit_room_name = p_livekit_room AND rp.user_id = p_user AND rp.left_at IS NULL
+        ) OR EXISTS (
+            SELECT 1 FROM public.call_logs c
+            WHERE c.livekit_room_name = p_livekit_room
+              AND (c.caller_id = p_user OR c.receiver_id = p_user)
+              AND c.created_at > NOW() - INTERVAL '12 hours'
+              AND (c.status = 'ringing' OR (c.status = 'answered' AND c.ended_at IS NULL))
+        )
+    ) THEN
+        RETURN false;
+    END IF;
+
+    SELECT c.session_id, c.caller_id INTO v_session, v_caller
+    FROM public.call_logs c
+    WHERE c.livekit_room_name = p_livekit_room AND c.created_at > NOW() - INTERVAL '6 hours'
+      AND (c.status = 'ringing' OR (c.status = 'answered' AND c.ended_at IS NULL))
+    ORDER BY c.created_at DESC LIMIT 1;
+    IF v_session IS NULL OR v_caller = p_user THEN RETURN true; END IF;
+    IF EXISTS (SELECT 1 FROM public.call_removals cr WHERE cr.session_id = v_session AND cr.user_id = p_user) THEN
+        RETURN false;
+    END IF;
+    IF EXISTS (SELECT 1 FROM public.call_logs c WHERE c.session_id = v_session AND c.receiver_id = p_user
+               AND c.status = 'answered' AND c.ended_at IS NULL) THEN
+        RETURN true;
+    END IF;
+    RETURN public.call_session_active_count(v_session) < public.juzzio_max_call_participants();
+END;
+$$;
+REVOKE ALL ON FUNCTION public.can_join_livekit_room(UUID, TEXT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.can_join_livekit_room(UUID, TEXT) TO service_role;
+
+-- Mevcut topluluğu kurallara getir (idempotent): sahip @tugkancr, başka yetkili yok,
+-- eski tepkiler temizlenir, üye önbelleği yalnız yetkiliyi taşır, logo alanı boş.
+DO $$
+DECLARE
+    v_room UUID := public.juzzio_community_room_id();
+    v_admin UUID := public.juzzio_community_admin_id();
+BEGIN
+    IF v_room IS NULL THEN RETURN; END IF;
+    IF v_admin IS NOT NULL THEN
+        UPDATE public.rooms SET created_by = v_admin WHERE id = v_room AND created_by IS DISTINCT FROM v_admin;
+        INSERT INTO public.room_participants (room_id, user_id, role) VALUES (v_room, v_admin, 'owner')
+        ON CONFLICT (room_id, user_id) DO UPDATE SET role = 'owner', left_at = NULL, muted_until = NULL;
+    END IF;
+    UPDATE public.room_participants SET role = 'member'
+     WHERE room_id = v_room AND role <> 'member' AND user_id IS DISTINCT FROM v_admin;
+    UPDATE public.messages SET reactions = '{}'::jsonb WHERE room_id = v_room AND reactions <> '{}'::jsonb;
+    UPDATE public.rooms SET avatar_url = NULL WHERE id = v_room AND avatar_url IS NOT NULL;
+    PERFORM public.sync_room_member_cache(v_room);
+END $$;

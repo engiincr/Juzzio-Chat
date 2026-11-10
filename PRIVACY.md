@@ -1,6 +1,6 @@
 # 🔐 Juzzio Privacy Policy
 
-Last updated: November 10, 2026 · App version: v1.2.4 (BETA · Early Access)
+Last updated: November 10, 2026 · App version: v1.2.6 (BETA · Early Access)
 
 > 🇹🇷 The legally binding Turkish version (Privacy Policy and KVKK Disclosure Notice) is in [docs/legal/tr/PRIVACY.md](docs/legal/tr/PRIVACY.md). In the app, the Turkish text is shown when the app language is Turkish.
 

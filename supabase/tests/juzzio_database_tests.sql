@@ -2319,3 +2319,125 @@ SELECT pg_temp.check('ticari ileti isteğe bağlı: onaysız kayıtta kapalı',
 RESET ROLE;
 DELETE FROM juzzio_rate_events WHERE user_id = :'C';
 SELECT 'TÜM v1.2.3 TESTLERİ GEÇTİ';
+
+-- =============================================================================
+-- v1.2.6 — Grup/kanal logosu + Juzzio Community resmî kanal kuralları
+-- =============================================================================
+RESET ROLE;
+SET search_path = public, extensions;
+DELETE FROM juzzio_rate_events WHERE user_id IN (:'A', :'B', :'C');
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+SELECT create_group_room('v126 logo', ARRAY[:'B'::uuid], 'off', false, 'friends', '', '') AS lg \gset
+RESET ROLE;
+SELECT set_config('jz.lg', :'lg', false);
+\set LOGO_OK 'https://proj.supabase.co/storage/v1/object/public/avatars/aaaaaaaa-0000-0000-0000-000000000001/room_x_1.jpg'
+\set LOGO_RAW 'https://proj.supabase.co/storage/v1/object/public/avatars/aaaaaaaa-0000-0000-0000-000000000001/room_x_2.jpg'
+\set LOGO_B 'https://proj.supabase.co/storage/v1/object/public/avatars/bbbbbbbb-0000-0000-0000-000000000002/room_x_3.jpg'
+INSERT INTO media_moderation (user_id, kind, url, verdict, provider) VALUES (:'A', 'avatar', :'LOGO_OK', 'safe', 'test');
+INSERT INTO media_moderation (user_id, kind, url, verdict, provider) VALUES (:'A', 'avatar', :'LOGO_B', 'safe', 'test');
+INSERT INTO media_moderation (user_id, kind, url, verdict, provider) VALUES (:'B', 'avatar', :'LOGO_B', 'safe', 'test');
+SELECT pg_temp.check('logo adresi: yalnız avatars kovası',
+    juzzio_room_avatar_url_ok(:'LOGO_OK') AND juzzio_room_avatar_url_ok(NULL)
+    AND NOT juzzio_room_avatar_url_ok('https://evil.test/a.jpg')
+    AND NOT juzzio_room_avatar_url_ok('javascript:alert(1)')
+    AND NOT juzzio_room_avatar_url_ok('https://proj.supabase.co/storage/v1/object/public/stories/aaaaaaaa-0000-0000-0000-000000000001/x.jpg'));
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+SELECT pg_temp.check('yönetici grup logosu koyar', set_room_avatar(:'lg', :'LOGO_OK') = :'LOGO_OK');
+SELECT pg_temp.check('logo sohbet listesine yansır', (SELECT avatar_url FROM get_my_conversations() WHERE room_id = :'lg') = :'LOGO_OK');
+DO $$ BEGIN PERFORM set_room_avatar(current_setting('jz.lg')::uuid, 'https://proj.supabase.co/storage/v1/object/public/avatars/aaaaaaaa-0000-0000-0000-000000000001/room_x_2.jpg');
+  RAISE NOTICE 'FAIL denetlenmemiş logo kabul edildi';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS denetlenmemiş logo reddedilir'; END $$;
+DO $$ BEGIN PERFORM set_room_avatar(current_setting('jz.lg')::uuid, 'https://proj.supabase.co/storage/v1/object/public/avatars/bbbbbbbb-0000-0000-0000-000000000002/room_x_3.jpg');
+  RAISE NOTICE 'FAIL başkasının dosyası logo yapıldı';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS yalnız kendi yüklediği dosya logo olur'; END $$;
+DO $$ BEGIN PERFORM set_room_avatar(current_setting('jz.lg')::uuid, 'https://evil.test/x.jpg');
+  RAISE NOTICE 'FAIL dış adres logo yapıldı';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS dış adres reddedilir'; END $$;
+-- doğrudan UPDATE de aynı kurala tabi
+DO $$ BEGIN UPDATE rooms SET avatar_url = 'https://evil.test/y.jpg' WHERE id = current_setting('jz.lg')::uuid;
+  RAISE NOTICE 'FAIL doğrudan güncelleme kuralı atladı';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS doğrudan güncellemede de logo kuralı'; END $$;
+SELECT pg_temp.as_user(:'B');
+DO $$ BEGIN PERFORM set_room_avatar(current_setting('jz.lg')::uuid, NULL);
+  RAISE NOTICE 'FAIL üye logoyu değiştirdi';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS üye logo değiştiremez'; END $$;
+SELECT pg_temp.as_user(:'A');
+SELECT pg_temp.check('logo kaldırma çağrısı', set_room_avatar(:'lg', NULL) IS NULL);
+SELECT pg_temp.check('logo kaldırılır', (SELECT avatar_url FROM rooms WHERE id = :'lg') IS NULL);
+-- 1'e 1 sohbet logo alamaz
+SELECT room_id AS dm126 FROM room_participants rp JOIN rooms r ON r.id = rp.room_id
+ WHERE NOT r.is_group AND rp.user_id = :'A' AND EXISTS (SELECT 1 FROM room_participants x WHERE x.room_id = rp.room_id AND x.user_id = :'B') LIMIT 1 \gset
+RESET ROLE;
+SELECT set_config('jz.dm126', :'dm126', false);
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+DO $$ BEGIN PERFORM set_room_avatar(current_setting('jz.dm126')::uuid, NULL);
+  RAISE NOTICE 'FAIL birebir sohbete logo';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS logo yalnız grup/kanal'; END $$;
+
+-- Juzzio Community
+RESET ROLE;
+UPDATE profiles SET username = 'tugkancr' WHERE id = :'A';
+SELECT juzzio_ensure_community() AS comm6 \gset
+SELECT set_config('jz.comm6', :'comm6', false);
+SELECT pg_temp.check('topluluk sahibi @tugkancr', (SELECT created_by FROM rooms WHERE id = :'comm6') = :'A'::uuid AND group_role_of(:'comm6', :'A') = 'owner');
+SELECT pg_temp.check('üye önbelleği yalnız yetkiliyi taşır',
+    (SELECT group_member_ids FROM rooms WHERE id = :'comm6') = jsonb_build_array(:'A'::text));
+UPDATE room_participants SET role = 'moderator' WHERE room_id = :'comm6' AND user_id = :'B';
+SELECT pg_temp.check('toplulukta başka yetkili olamaz', group_role_of(:'comm6', :'B') = 'member');
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'B');
+SELECT pg_temp.check('üye diğer üyeleri göremez (katılımcı satırları)',
+    NOT EXISTS (SELECT 1 FROM room_participants WHERE room_id = :'comm6' AND user_id NOT IN (:'A'::uuid, :'B'::uuid))
+    AND EXISTS (SELECT 1 FROM room_participants WHERE room_id = :'comm6' AND user_id = :'B'));
+SELECT pg_temp.check('üye listesi: yalnız yetkili + kendisi',
+    (SELECT count(*) FROM get_group_members(:'comm6')) = 2
+    AND NOT EXISTS (SELECT 1 FROM get_group_members(:'comm6') g WHERE g.user_id = :'C'));
+SELECT pg_temp.check('toplulukta üye canlı etkinlik yayını yapamaz, dinleyebilir',
+    NOT juzzio_can_room_activity(:'comm6', :'B', true) AND juzzio_can_room_activity(:'comm6', :'B', false)
+    AND juzzio_can_room_activity(:'comm6', :'A', true));
+SELECT pg_temp.check('üye sohbet listesinde diğer üye adlarını görmez',
+    (SELECT jsonb_array_length(group_member_ids) FROM rooms WHERE id = :'comm6') = 1);
+DO $$ BEGIN
+  INSERT INTO messages (room_id, sender_id, original_text) VALUES (current_setting('jz.comm6')::uuid, current_setting('request.jwt.claim.sub')::uuid, 'üye yazdı');
+  RAISE NOTICE 'FAIL topluluğa üye mesajı';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS topluluğa üye mesaj atamaz'; END $$;
+DO $$ BEGIN PERFORM start_call(current_setting('jz.comm6')::uuid, false, NULL);
+  RAISE NOTICE 'FAIL toplulukta arama başladı';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS toplulukta arama kapalı'; END $$;
+DO $$ BEGIN PERFORM set_room_avatar(current_setting('jz.comm6')::uuid, NULL);
+  RAISE NOTICE 'FAIL topluluk logosu değişti';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS topluluk logosu sabit'; END $$;
+SELECT pg_temp.as_user(:'A');
+SELECT pg_temp.check('yetkili tüm üyeleri görür', (SELECT count(*) FROM get_group_members(:'comm6')) >= 3);
+DO $$ BEGIN PERFORM set_group_member_role(current_setting('jz.comm6')::uuid, 'bbbbbbbb-0000-0000-0000-000000000002'::uuid, 'moderator');
+  RAISE NOTICE 'FAIL toplulukta rol atandı';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS toplulukta rol atama kapalı'; END $$;
+DO $$ BEGIN PERFORM add_group_members(current_setting('jz.comm6')::uuid, ARRAY['cccccccc-0000-0000-0000-000000000003'::uuid]);
+  RAISE NOTICE 'FAIL toplulukta elle üye eklendi';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS toplulukta elle üye ekleme kapalı'; END $$;
+DO $$ BEGIN PERFORM set_room_avatar(current_setting('jz.comm6')::uuid, NULL);
+  RAISE NOTICE 'FAIL yetkili topluluk logosunu değiştirdi';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS topluluk logosu yetkili için de sabit (uygulama logosu)'; END $$;
+RESET ROLE;
+SELECT juzzio_community_post_release('1.2.6', 'Juzzio v1.2.6 yayında', 'Juzzio v1.2.6 is out') AS rel126 \gset
+SELECT set_config('jz.rel126', :'rel126', false);
+SELECT pg_temp.check('güncelleme duyurusu kanala düşer (gönderen @tugkancr)',
+    (SELECT sender_id FROM messages WHERE id = :'rel126') = :'A'::uuid);
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'B');
+DO $$ BEGIN PERFORM toggle_message_reaction(current_setting('jz.rel126')::uuid, '👍');
+  RAISE NOTICE 'FAIL toplulukta tepki bırakıldı';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS toplulukta tepki kapalı (kimlikler görünmez)'; END $$;
+RESET ROLE;
+SELECT pg_temp.check('topluluk mesajında tepki yok', (SELECT reactions FROM messages WHERE id = :'rel126') = '{}'::jsonb);
+SELECT pg_temp.check('toplulukta LiveKit katılımı kapalı', NOT can_join_livekit_room(:'B', 'lk_juzzio_community'));
+SELECT pg_temp.check('topluluk araması kaydı yok', NOT EXISTS (SELECT 1 FROM call_logs WHERE room_id = :'comm6'));
+-- temizlik
+DELETE FROM rooms WHERE id IN (:'comm6', :'lg');
+DELETE FROM media_moderation WHERE provider = 'test' AND url LIKE '%room_x_%';
+DELETE FROM juzzio_rate_events WHERE user_id IN (:'A', :'B', :'C');
+UPDATE profiles SET username = 'ali' WHERE id = :'A';
+SELECT 'TÜM v1.2.6 TESTLERİ GEÇTİ';

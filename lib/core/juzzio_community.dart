@@ -7,6 +7,8 @@
 //  • Paylaşımlar "Juzzio Official" adıyla ve uygulama logosuyla görünür; kanala yalnız
 //    yöneticiler yazabilir (RLS). Her sürüm yayınında CI otomatik duyuru gönderir.
 //  • Ad sunucuda rezervedir: başka bir oda "Juzzio Community/Topluluğu" adını alamaz.
+//  • v1.2.6: logo sabittir (uygulama logosu). Üyeler birbirini göremez, mesaj/tepki
+//    gönderemez; kanala yalnız sürüm güncellemesi duyuruları düşer. Tek yetkili @tugkancr.
 // =============================================================================
 
 import 'app_theme_and_locale.dart';
@@ -16,6 +18,9 @@ const String kJuzzioCommunityTitle = 'Juzzio Community';
 
 /// Kanaldaki paylaşımların gönderen adı
 const String kJuzzioOfficialName = 'Juzzio Official';
+
+/// v1.2.6: kanalın tek yetkilisi (sunucu da yalnız bu hesabı sahip yapar)
+const String kJuzzioCommunityAdminUsername = 'tugkancr';
 
 /// Avatar olarak uygulama logosu (JuzzioSpacePhoto / JuzzioUserAvatar "asset:" önekini tanır)
 const String kJuzzioLogoAvatar = 'asset:assets/logo/juzzio_logo.png';
@@ -34,3 +39,9 @@ String juzzioCommunityDisplayTitle([String? lang]) {
 
 /// Oda başlığını gösterime çevirir (yalnız topluluk kanalı yerelleştirilir)
 String juzzioLocalizedRoomTitle(String raw) => juzzioIsCommunityTitle(raw) ? juzzioCommunityDisplayTitle() : raw;
+
+/// v1.2.6: oda için gösterilecek gerçek bir logo var mı (http(s) adresi veya uygulama varlığı)
+bool juzzioHasRoomLogo(String? url) {
+  final u = (url ?? '').trim();
+  return u.startsWith('https://') || u.startsWith('http://') || u.startsWith('asset:');
+}

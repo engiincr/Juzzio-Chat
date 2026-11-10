@@ -286,9 +286,12 @@ def cmd_publish_sql() -> None:
         details["tr"] = dict(tr, reason=reason)
     apk = f"https://github.com/{REPO}/releases/download/v{data['version']}/juzzio-v{data['version']}-release.apk"
     # v1.2.4: yönetici panelindeki "geçmiş paketler" seçicisi için güvenlik ayrıntıları
+    # v1.2.4: imzalı doğrulama bilgisi (sürüm|derleme|SHA-256 + ML-DSA-65 imzası) TAM hâliyle eklenir:
+    # uygulama güncellemeyi bu kayıttan doğrular, GitHub'ın ~5 dk'lık version.json önbelleğini beklemez.
     sec = {k: str(data.get(k) or "") for k in ("apkSha256", "apkSize", "verifiedAt", "mldsa65Sig", "releaseDate")}
     sec["verifiedBuild"] = bool(data.get("verifiedBuild"))
-    sec["mldsa65Sig"] = sec["mldsa65Sig"][:64]  # imzanın başı yeterli (parmak izi)
+    sec["build"] = int(data["build"])
+    sec["version"] = str(data["version"])
     details = dict(details, security=sec)
     ch = data.get("changelog") or {}
     print(

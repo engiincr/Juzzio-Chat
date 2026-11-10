@@ -2019,6 +2019,7 @@ class JuzzioAppController extends ChangeNotifier {
   String _otaApkUrl = JuzzioConfig.otaDirectApkUrl;
   /// v0.9.0 (G13): imzası doğrulanmış version.json'daki APK SHA-256 özeti (küçük harf hex).
   String _otaExpectedSha256 = '';
+  Map<String, dynamic>? _otaSignedSecurity;
   DateTime? _otaSnoozedUntil;
   DateTime? _lastUpdateCheckTime;
   bool _isCheckingUpdate = false;
@@ -2609,6 +2610,8 @@ class JuzzioAppController extends ChangeNotifier {
     }
     // Başka bir sürüme geçildiyse eski sürümün özeti kullanılmaz (G13)
     if (_otaRemoteVersion != versionName || _otaRemoteCode != versionCode) _otaExpectedSha256 = '';
+    // v1.2.4: sürüm kaydındaki imzalı doğrulama bilgisi (varsa)
+    _otaSignedSecurity = details['security'] is Map ? Map<String, dynamic>.from(details['security'] as Map) : null;
     _otaRemoteVersion = versionName;
     _otaRemoteCode = versionCode;
     _otaReleaseNotesTr = notesTr;
@@ -2670,6 +2673,40 @@ class JuzzioAppController extends ChangeNotifier {
   /// version.json'dan alınır; sürüm eşleşmezse veya özet yoksa boş kalır (kurulum reddedilir).
   Future<void> _ensureOtaExpectedSha() async {
     if (_otaExpectedSha256.isNotEmpty) return;
+    // v1.2.4 — 1) sürüm kaydındaki İMZALI doğrulama bilgisi (anında hazır; GitHub önbelleği beklenmez)
+    final sec = _otaSignedSecurity;
+    if (sec != null) {
+      final data = <String, dynamic>{
+        'version': _otaRemoteVersion,
+        'build': sec['build'] ?? _otaRemoteCode,
+        'apkSha256': '${sec['apkSha256'] ?? ''}',
+        'mldsa65Sig': '${sec['mldsa65Sig'] ?? ''}',
+      };
+      final declared = '${sec['version'] ?? _otaRemoteVersion}'.trim();
+      if (declared == _otaRemoteVersion && normalizeSha256('${data['apkSha256']}').isNotEmpty && await verifyReleaseSignatureAsync(data)) {
+        _otaExpectedSha256 = normalizeSha256('${data['apkSha256']}');
+        return;
+      }
+    }
+    // 2) sürüme eklenen imzalı version.json (sabit adres, önbellek sorunu yok)
+    if (_otaRemoteVersion.isNotEmpty) {
+      try {
+        final res = await http
+            .get(Uri.parse('https://github.com/${JuzzioConfig.githubOwner}/${JuzzioConfig.githubRepo}/releases/download/v$_otaRemoteVersion/version.json'))
+            .timeout(const Duration(seconds: 10));
+        if (res.statusCode == 200) {
+          final data = parseVersionManifest(res.bodyBytes);
+          if (data != null && '${data['version'] ?? ''}'.trim() == _otaRemoteVersion && await verifyReleaseSignatureAsync(data)) {
+            final sha = normalizeSha256('${data['apkSha256'] ?? ''}');
+            if (sha.isNotEmpty) {
+              _otaExpectedSha256 = sha;
+              return;
+            }
+          }
+        }
+      } catch (_) {}
+    }
+    // 3) depodaki version.json (eski yol)
     try {
       final uri = Uri.parse('${JuzzioConfig.otaVersionJsonUrl}?t=${DateTime.now().millisecondsSinceEpoch}');
       final res = await http.get(uri).timeout(const Duration(seconds: 8));
@@ -2680,6 +2717,30 @@ class JuzzioAppController extends ChangeNotifier {
       if (ver.isNotEmpty && _otaRemoteVersion.isNotEmpty && ver != _otaRemoteVersion) return;
       _otaExpectedSha256 = normalizeSha256('${data['apkSha256'] ?? ''}');
     } catch (_) {}
+  }
+
+  Timer? _otaVerifyWait;
+
+  /// v1.2.4: doğrulama bilgisini 60 sn arayla (en fazla 20 dk) yeniden dener; bulununca bildirir.
+  /// İndirme/kurulum yine kullanıcının dokunuşuyla başlar (kendiliğinden kurulmaz).
+  void _waitForOtaVerification() {
+    if (_otaVerifyWait != null) return;
+    var tries = 0;
+    _otaVerifyWait = Timer.periodic(const Duration(seconds: 60), (t) async {
+      tries++;
+      await _ensureOtaExpectedSha();
+      if (_otaExpectedSha256.isNotEmpty || tries >= 20) {
+        t.cancel();
+        _otaVerifyWait = null;
+        if (_otaExpectedSha256.isEmpty) return;
+        notifyListeners();
+        await triggerSystemNotification(
+          title: trEn('✅ Güncelleme hazır (v$_otaRemoteVersion)', '✅ Update ready (v$_otaRemoteVersion)', '✅ Update bereit (v$_otaRemoteVersion)'),
+          body: trEn('Doğrulama tamamlandı. Dokun ve güncelle.', 'Verification complete. Tap to update.', 'Prüfung abgeschlossen. Tippe zum Aktualisieren.'),
+          isUpdate: true,
+        );
+      }
+    });
   }
 
   Future<String> startOtaDownloadAndInstall() async {
@@ -2717,10 +2778,12 @@ class JuzzioAppController extends ChangeNotifier {
     if (_otaExpectedSha256.isEmpty) {
       _isDownloadingOta = false;
       notifyListeners();
+      // v1.2.4: kullanıcı tekrar denemek zorunda kalmaz — doğrulama bilgisi yayınlanınca bildirilir
+      _waitForOtaVerification();
       return trEn(
-        'Güncellemenin doğrulama bilgisi henüz yayınlanmadı. Güvenliğiniz için birkaç dakika sonra tekrar deneyin.',
-        'The update\'s verification data is not published yet. For your security, try again in a few minutes.',
-        'Die Prüfdaten des Updates sind noch nicht veröffentlicht. Versuche es zu deiner Sicherheit in einigen Minuten erneut.',
+        'Güncelleme şu an yayınlanıyor; doğrulama bilgisi birkaç dakika içinde hazır olacak. Hazır olunca sana bildirim gelecek.',
+        'The update is being published; its verification data will be ready in a few minutes. You\'ll get a notification when it is.',
+        'Das Update wird gerade veröffentlicht. Du wirst benachrichtigt, sobald es bereit ist.',
       );
     }
     var integrityFailed = false;

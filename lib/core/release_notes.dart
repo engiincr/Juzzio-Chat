@@ -157,6 +157,119 @@ class JuzzioReleaseNote {
 /// Uygulamaya gömülü sürüm geçmişi (yayınlanmış sürümlerin gerçek içeriği)
 final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
   JuzzioReleaseNote(
+    versionName: '1.2.6',
+    versionCode: 126,
+    publishedAt: DateTime(2026, 11, 10),
+    sections: const {
+      'tr': JuzzioReleaseSection(
+        reason: "Juzzio Topluluğu bir sohbet grubu gibi davranıyordu: üyeler birbirinin adını görebiliyor, tepki bırakabiliyor ve kanalda başka yetkili tanımlanabiliyordu. Topluluk artık gerçek bir resmî duyuru KANALI: logosu uygulama logosu, üyeler birbirini göremez, kanala mesaj atılamaz, yalnız güncelleme duyuruları düşer ve tek yetkili @tugkancr. Ayrıca tüm gruplara ve kanallara logo ekleme özelliği geldi.",
+        features: [
+          "🖼️ Gruplara ve kanallara logo: yönetici/moderatör, grup bilgisindeki fotoğrafa dokunup galeriden ya da kameradan logo koyar veya kaldırır; logo sohbet listesinde ve sohbet başlığında görünür",
+          "📣 Juzzio Topluluğu resmî kanal: uygulama logosu, onay rozeti ve \"Resmî kanal · Yalnız güncelleme duyuruları\" başlığı",
+          "ℹ️ \"Kanal bilgisi\" sayfası: kanalın kuralları ve tek yetkilisi (@tugkancr) açıkça yazılı",
+        ],
+        fixes: [
+          "Toplulukta üye sayısı ve üye adları artık gösterilmiyor; üye listesi yalnız yetkiliye açık",
+          "Toplulukta tepki, \"kim tepki verdi\" listesi, sesli/görüntülü arama, izleme partisi ve elle üye ekleme kaldırıldı",
+          "Topluluk duyuruları her zaman @tugkancr adına (Juzzio Official) gönderiliyor",
+        ],
+        security: [
+          "Üyelerin birbirini görmemesi SUNUCUDA zorunlu: katılımcı satırları, üye önbelleği, üye listesi, okundu bilgisi ve canlı \"yazıyor\" yayını yalnız kişinin kendisine ve yetkiliye açık",
+          "Toplulukta @tugkancr dışında kimse sahip/moderatör olamaz (veritabanı tetikleyicisi zorlar); rol atama, tepki ve arama sunucuda reddedilir",
+          "Grup logosu yalnız kendi yüklediğin dosya olabilir, profil fotoğrafıyla aynı müstehcenlik denetiminden geçer ve yalnız yönetici/moderatör değiştirebilir; dış bağlantı kabul edilmez",
+        ],
+      ),
+      'en': JuzzioReleaseSection(
+        reason: "Juzzio Community behaved like a chat group: members could see each other's names, leave reactions, and extra admins could be assigned. The community is now a real official announcement CHANNEL: the app logo is its logo, members cannot see each other, nobody can post, only update announcements appear, and @tugkancr is the only admin. Groups and channels can now also have a logo.",
+        features: [
+          "🖼️ Logos for groups and channels: an admin/moderator taps the photo in group info to set a logo from the gallery or camera, or remove it; the logo shows in the chat list and chat header",
+          "📣 Juzzio Community is an official channel: app logo, verified badge and an \"Official channel · Update announcements only\" header",
+          "ℹ️ \"Channel info\" page clearly lists the channel rules and its only admin (@tugkancr)",
+        ],
+        fixes: [
+          "The community no longer shows the member count or member names; the member list is visible only to the admin",
+          "Reactions, the \"who reacted\" list, voice/video calls, watch party and manual member adding were removed from the community",
+          "Community announcements are always sent as @tugkancr (Juzzio Official)",
+        ],
+        security: [
+          "Members not seeing each other is enforced ON THE SERVER: participant rows, the member cache, the member list, read receipts and the live \"typing\" broadcast are visible only to the person themselves and the admin",
+          "Nobody but @tugkancr can be owner/moderator of the community (a database trigger enforces it); role changes, reactions and calls are rejected by the server",
+          "A group logo must be a file you uploaded yourself, passes the same content review as profile photos and can only be changed by an admin/moderator; external links are rejected",
+        ],
+      ),
+      'de': JuzzioReleaseSection(
+        reason: "Juzzio Community behaved like a chat group: members could see each other's names, leave reactions, and extra admins could be assigned. The community is now a real official announcement CHANNEL: the app logo is its logo, members cannot see each other, nobody can post, only update announcements appear, and @tugkancr is the only admin. Groups and channels can now also have a logo.",
+        features: [
+          "🖼️ Logos for groups and channels: an admin/moderator taps the photo in group info to set a logo from the gallery or camera, or remove it; the logo shows in the chat list and chat header",
+          "📣 Juzzio Community is an official channel: app logo, verified badge and an \"Official channel · Update announcements only\" header",
+          "ℹ️ \"Channel info\" page clearly lists the channel rules and its only admin (@tugkancr)",
+        ],
+        fixes: [
+          "The community no longer shows the member count or member names; the member list is visible only to the admin",
+          "Reactions, the \"who reacted\" list, voice/video calls, watch party and manual member adding were removed from the community",
+          "Community announcements are always sent as @tugkancr (Juzzio Official)",
+        ],
+        security: [
+          "Members not seeing each other is enforced ON THE SERVER: participant rows, the member cache, the member list, read receipts and the live \"typing\" broadcast are visible only to the person themselves and the admin",
+          "Nobody but @tugkancr can be owner/moderator of the community (a database trigger enforces it); role changes, reactions and calls are rejected by the server",
+          "A group logo must be a file you uploaded yourself, passes the same content review as profile photos and can only be changed by an admin/moderator; external links are rejected",
+        ],
+      ),
+    },
+  ),
+  JuzzioReleaseNote(
+    versionName: '1.2.5',
+    versionCode: 125,
+    publishedAt: DateTime(2026, 11, 10),
+    sections: const {
+      'tr': JuzzioReleaseSection(
+        reason: "Yeni sürüm duyurulduktan hemen sonra \"Güncelle\"ye basınca \"Güncellemenin doğrulama bilgisi henüz yayınlanmadı\" uyarısı çıkabiliyordu. İki nedeni vardı: topluluk duyurusu APK derlenmeden önce gidiyordu ve GitHub, imzalı version.json dosyasını ~5 dakika eski hâliyle sunuyordu. Bu güncelleme ikisini de kökünden çözüyor; güvenlik kuralı (doğrulanmamış APK asla kurulmaz) aynen korunuyor.",
+        features: [
+          "✅ Güncelleme, sürüm kaydındaki imzalı (ML-DSA-65) doğrulama bilgisiyle anında doğrulanır; GitHub önbelleği beklenmez",
+          "🔁 Bilgi henüz yoksa uygulama 20 dakikaya kadar kendisi tekrar dener ve hazır olunca \"✅ Güncelleme hazır\" bildirimi gönderir",
+        ],
+        fixes: [
+          "Juzzio Topluluğu sürüm duyurusu artık APK ve imzalı doğrulama bilgisi yayınlandıktan SONRA gönderiliyor",
+          "İmzalı version.json her sürüme ayrıca ekleniyor (önbelleğe takılmayan sabit adres)",
+        ],
+        security: [
+          "Doğrulanmamış veya imzası tutmayan APK yine indirilmez/kurulmaz (fail-closed); imza sürüm adı, derleme numarası ve SHA-256'yı birlikte kapsar",
+          "Güncelleme kendiliğinden kurulmaz; kullanıcı dokunuşuyla başlar",
+        ],
+      ),
+      'en': JuzzioReleaseSection(
+        reason: "Tapping \"Update\" right after a release was announced could show \"The update's verification data is not published yet\". Two causes: the community announcement was sent before the APK was built, and GitHub served the signed version.json from a ~5 minute cache. Both are fixed at the root; the security rule (an unverified APK is never installed) is unchanged.",
+        features: [
+          "✅ Updates are verified instantly from the signed (ML-DSA-65) data in the release record — no waiting for GitHub's cache",
+          "🔁 If the data is not out yet, the app retries for up to 20 minutes and sends a \"✅ Update ready\" notification",
+        ],
+        fixes: [
+          "The Juzzio Community release announcement is now sent AFTER the APK and signed verification data are published",
+          "The signed version.json is also attached to every release (a fixed, cache-free address)",
+        ],
+        security: [
+          "An unverified or wrongly signed APK is still never downloaded or installed (fail-closed); the signature covers version name, build number and SHA-256 together",
+          "Updates never install by themselves; they start on the user's tap",
+        ],
+      ),
+      'de': JuzzioReleaseSection(
+        reason: "Tapping \"Update\" right after a release was announced could show \"The update's verification data is not published yet\". Two causes: the community announcement was sent before the APK was built, and GitHub served the signed version.json from a ~5 minute cache. Both are fixed at the root; the security rule (an unverified APK is never installed) is unchanged.",
+        features: [
+          "✅ Updates are verified instantly from the signed (ML-DSA-65) data in the release record — no waiting for GitHub's cache",
+          "🔁 If the data is not out yet, the app retries for up to 20 minutes and sends a \"✅ Update ready\" notification",
+        ],
+        fixes: [
+          "The Juzzio Community release announcement is now sent AFTER the APK and signed verification data are published",
+          "The signed version.json is also attached to every release (a fixed, cache-free address)",
+        ],
+        security: [
+          "An unverified or wrongly signed APK is still never downloaded or installed (fail-closed); the signature covers version name, build number and SHA-256 together",
+          "Updates never install by themselves; they start on the user's tap",
+        ],
+      ),
+    },
+  ),
+  JuzzioReleaseNote(
     versionName: '1.2.4',
     versionCode: 124,
     publishedAt: DateTime(2026, 11, 10),

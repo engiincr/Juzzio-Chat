@@ -18,13 +18,20 @@
 </div>
 
 <!-- JUZZIO_DYNAMIC_TITLE_START -->
-### 🚀 Latest update: **v1.2.4 — Offline-first Juzzio, Smooth Chats & Replyable Notifications**
+### 🚀 Latest update: **v1.2.6 — Official Juzzio Community Channel & Group Logos**
 <!-- JUZZIO_DYNAMIC_TITLE_END -->
 
 <!-- JUZZIO_VERIFIED_APK_START -->
 | Version | APK | Size | SHA-256 | Built |
 | :-- | :-- | :-- | :-- | :-- |
+| v1.2.6 (+126) | Waiting for the GitHub Actions build | — | — | — |
+| v1.2.5 (+125) | Waiting for the GitHub Actions build | — | — | — |
 | v1.2.4 (+1061) | [Juzzio-latest.apk](https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk) | 112.18 MB | `c76f065349909384479e1b2f4d29e622b171c72d0a31710cf615d78ea0868264` | 2026-11-10 07:20 UTC |
+| v1.2.3 (+123) | Waiting for the GitHub Actions build | — | — | — |
+| v1.2.2 (+122) | Waiting for the GitHub Actions build | — | — | — |
+| v1.2.1 (+121) | Waiting for the GitHub Actions build | — | — | — |
+| v1.2.0 (+120) | Waiting for the GitHub Actions build | — | — | — |
+| v1.1.1 (+1057) | [Juzzio-latest.apk](https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk) | 109.91 MB | `c1f854315430f9b182eb59c24bcdb405a32502e82d9560d4644fd55b28ed85e2` | 2026-11-09 21:37 UTC |
 <!-- JUZZIO_VERIFIED_APK_END -->
 
 ---
@@ -46,9 +53,57 @@
 
 ## 🆕 Latest updates (November 10, 2026)
 
-**v1.2.4** is the newest release (after v1.2.3, v1.2.2, v1.2.1, v1.2.0, v1.1.1 and the November 9 releases v0.9.4 → v1.1.0). Every update below is also shown inside the app on the first launch after updating ("What's new?"), with the same sections and emojis. Full notes: [release-notes.md](release-notes.md) · [GitHub Releases](https://github.com/engiincr/Juzzio-Chat/releases).
+**v1.2.6** is the newest release (after v1.2.5, v1.2.4, v1.2.3, v1.2.2, v1.2.1, v1.2.0, v1.1.1 and the November 9 releases v0.9.4 → v1.1.0). Every update below is also shown inside the app on the first launch after updating ("What's new?"), with the same sections and emojis. Full notes: [release-notes.md](release-notes.md) · [GitHub Releases](https://github.com/engiincr/Juzzio-Chat/releases).
 
 <details open>
+<summary><b>v1.2.6 — Official Juzzio Community Channel & Group Logos</b></summary>
+
+### 🎯 Why did this update come?
+Juzzio Community behaved like a chat group: members could see each other's names, leave reactions, and extra admins could be assigned. The community is now a real official announcement CHANNEL: the app logo is its logo, members cannot see each other, nobody can post, only update announcements appear, and @tugkancr is the only admin. Groups and channels can now also have a logo.
+
+### ✨ What's new?
+- 🖼️ Logos for groups and channels: an admin/moderator taps the photo in group info to set a logo from the gallery or camera, or remove it; the logo shows in the chat list and chat header
+- 📣 Juzzio Community is an official channel: app logo, verified badge and an "Official channel · Update announcements only" header
+- ℹ️ "Channel info" page clearly lists the channel rules and its only admin (@tugkancr)
+
+### 🛠 Fixes
+- The community no longer shows the member count or member names; the member list is visible only to the admin
+- Reactions, the "who reacted" list, voice/video calls, watch party and manual member adding were removed from the community
+- Community announcements are always sent as @tugkancr (Juzzio Official)
+
+### 🔐 Security & privacy
+- Members not seeing each other is enforced ON THE SERVER: participant rows, the member cache, the member list, read receipts and the live "typing" broadcast are visible only to the person themselves and the admin
+- Nobody but @tugkancr can be owner/moderator of the community (a database trigger enforces it); role changes, reactions and calls are rejected by the server
+- A group logo must be a file you uploaded yourself, passes the same content review as profile photos and can only be changed by an admin/moderator; external links are rejected
+
+### 🧭 How it works (details)
+- **Community = channel** — SQL section 10.35. `juzzio_is_community_room()` drives every rule: `room_participants_select_member` (members see only their own row + the admin), `get_group_members` (non-admins get only the admin and themselves), `sync_room_member_cache` (cache holds only the admin), `message_reads` / `typing_indicators` policies and `juzzio_can_room_activity` (only the admin may broadcast).
+- **Single admin** — trigger `trg_juzzio_guard_community_roles` forces @tugkancr to `owner` and everyone else to `member`; `set_group_member_role` / `add_group_members` raise `community_roles_fixed` / `community_membership_automatic`; `toggle_message_reaction` and `start_call` (trigger on `call_logs`) raise `community_read_only`; `can_join_livekit_room` returns false. Existing communities are migrated idempotently (owner = @tugkancr, old reactions cleared).
+- **Group/channel logo** — the app uploads to `avatars/<uid>/room_<id>_<ts>.jpg`, runs the existing `content-moderation` (avatar) check, then calls `set_room_avatar(room, url)` (owner/moderator only; own folder only; avatars bucket URL only; moderated within 2 h; rate-limited). Direct `UPDATE rooms SET avatar_url` goes through the same checks (`trg_juzzio_guard_room_avatar`). The community logo is fixed to the bundled app logo.
+
+</details>
+
+<details>
+<summary><b>v1.2.5 — Updates Verify Without Waiting</b></summary>
+
+### 🎯 Why did this update come?
+Tapping "Update" right after a release was announced could show "The update's verification data is not published yet". Two causes: the community announcement was sent before the APK was built, and GitHub served the signed version.json from a ~5 minute cache. Both are fixed at the root; the security rule (an unverified APK is never installed) is unchanged.
+
+### ✨ What's new?
+- ✅ Updates are verified instantly from the signed (ML-DSA-65) data in the release record — no waiting for GitHub's cache
+- 🔁 If the data is not out yet, the app retries for up to 20 minutes and sends a "✅ Update ready" notification
+
+### 🛠 Fixes
+- The Juzzio Community release announcement is now sent AFTER the APK and signed verification data are published
+- The signed version.json is also attached to every release (a fixed, cache-free address)
+
+### 🔐 Security & privacy
+- An unverified or wrongly signed APK is still never downloaded or installed (fail-closed); the signature covers version name, build number and SHA-256 together
+- Updates never install by themselves; they start on the user's tap
+
+</details>
+
+<details>
 <summary><b>v1.2.4 — Offline-first Juzzio, Smooth Chats & Replyable Notifications</b></summary>
 
 ### 🎯 Why did this update come?

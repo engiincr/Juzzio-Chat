@@ -2017,6 +2017,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
   Future<void> _launchGroupConferenceCall({required JuzzioGroupRoom group, required bool isVideo}) async {
     final uid = SupabaseService.instance.currentUserId;
+    if (juzzioIsCommunityTitle(group.title)) return; // v1.2.6: resmî duyuru kanalında arama yok
     if (_isInCall && JuzzioActiveCall.instance.isActive) {
       // v0.9.3: zaten bir görüşmedeyken yeni arama yerine süren arama büyütülür
       JuzzioActiveCall.instance.expand();
@@ -3618,7 +3619,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                               isGroup2x2: c.isGroup,
                               groupMemberNames: c.memberNames,
                               isMutedRemote: c.isMuted,
-                              isVerified: !c.isGroup && c.partnerIsVerified,
+                              // v1.2.6: Juzzio Community resmî kanal → onay rozeti
+                              isVerified: (!c.isGroup && c.partnerIsVerified) || c.isCommunity,
                               onVoiceCallTap: () => c.isGroup
                                   ? _launchGroupConferenceCall(group: c.toGroupRoom(), isVideo: false)
                                   : _launchCall(
@@ -4189,6 +4191,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         groupTitle: conv?.title ?? group.title,
         groupType: conv?.groupType ?? 'general',
         groupPurpose: conv?.groupPurpose ?? '',
+        avatarUrl: conv?.avatarUrl,
+        isCommunity: (conv?.isCommunity ?? false) || _inCommunity,
+        isChannel: conv?.isChannel ?? false,
         onChanged: () => SupabaseService.instance.fetchMyConversations().then((list) {
           if (mounted) setState(() => _conversations = list);
         }),
@@ -4264,6 +4269,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                   children: [
                     if (activeGroup != null && _inCommunity)
                       _buildUserAvatar(avatarUrl: kJuzzioLogoAvatar, fallbackName: kJuzzioOfficialName, radius: 20, p: p)
+                    // v1.2.6: grup/kanal logosu varsa logo, yoksa üye ızgarası
+                    else if (activeGroup != null && juzzioHasRoomLogo(_activeConversationData?.avatarUrl))
+                      _buildUserAvatar(avatarUrl: _activeConversationData!.avatarUrl, fallbackName: activeGroup.title, radius: 21, p: p)
                     else if (activeGroup != null)
                       _buildGroup2x2AvatarGrid(activeGroup.groupMembers, activeGroup.title)
                     else
@@ -4317,8 +4325,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                               ),
                             ),
                           ),
-                          if (activeGroup == null &&
-                              ((partnerProfile?.isVerified ?? false) || (_activeConversationData?.partnerIsVerified ?? false))) ...[
+                          if ((activeGroup != null && _inCommunity) ||
+                              (activeGroup == null &&
+                              ((partnerProfile?.isVerified ?? false) || (_activeConversationData?.partnerIsVerified ?? false)))) ...[
                             const SizedBox(width: 4),
                             const JuzzioVerifiedTick(size: 16),
                           ],
@@ -4335,7 +4344,11 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                           return fallback!;
                         },
                         child: Text(
-                        activeGroup != null
+                        activeGroup != null && _inCommunity
+                            // v1.2.6: resmî kanal — üyeler birbirini görmez, üye sayısı gösterilmez
+                            ? appCtrl.trEn('Resmî kanal · Yalnız güncelleme duyuruları', 'Official channel · Update announcements only',
+                                'Offizieller Kanal · Nur Update-Ankündigungen')
+                            : activeGroup != null
                             ? appCtrl.trEn(
                                 '${activeGroup.groupMembers.length} Üye${activeGroup.isCallActive ? " • 📞 Arama sürüyor" : ""}',
                                 '${activeGroup.groupMembers.length} Members${activeGroup.isCallActive ? " • 📞 Call in progress" : ""}', '${activeGroup.groupMembers.length} Mitglieder${activeGroup.isCallActive ? " • 📞 Anruf läuft" : ""}',
@@ -4359,6 +4372,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                   ),
                   ),
                 ),
+                // v1.2.6: Juzzio Community resmî kanalında arama yok (sunucu da kapatır)
+                if (!(activeGroup != null && _inCommunity))
                 IconButton(
                   onPressed: () {
                     if (activeGroup != null) {
@@ -4376,6 +4391,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                   visualDensity: VisualDensity.compact,
                   icon: Icon(Icons.call_rounded, color: p.textPrimary, size: 22),
                 ),
+                if (!(activeGroup != null && _inCommunity))
                 IconButton(
                   onPressed: () {
                     if (activeGroup != null) {
@@ -4585,8 +4601,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                           Expanded(
                             child: Text(
                               (_activeConversationData?.isCommunity ?? false)
-                                  ? appCtrl.trEn('Juzzio Official duyuruları — tepki verebilirsin', 'Juzzio Official announcements — you can react',
-                                      'Juzzio Official Ankündigungen — du kannst reagieren')
+                                  ? appCtrl.trEn('Resmî kanal: yalnız güncelleme duyuruları düşer. Mesaj gönderilemez.',
+                                      'Official channel: only update announcements are posted. Messages cannot be sent.',
+                                      'Offizieller Kanal: nur Update-Ankündigungen. Nachrichten sind nicht möglich.')
                                   : appCtrl.trEn('Bu bir kanal: yalnız yöneticiler paylaşım yapar', 'This is a channel: only admins can post',
                                       'Kanal: nur Admins können posten'),
                               style: TextStyle(color: p.textPrimary, fontWeight: FontWeight.w700, fontSize: 13.5),
@@ -5280,6 +5297,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
               groupTitle: conv?.title ?? group?.title ?? '',
               groupType: conv?.groupType ?? 'general',
               groupPurpose: conv?.groupPurpose ?? '',
+              avatarUrl: conv?.avatarUrl,
+              isCommunity: (conv?.isCommunity ?? false) || _inCommunity,
+              isChannel: conv?.isChannel ?? false,
               onChanged: () => SupabaseService.instance.fetchMyConversations().then((list) {
                 if (mounted) setState(() => _conversations = list);
               }),
@@ -5343,15 +5363,20 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       },
       itemBuilder: (_) => [
         if (group != null) ...[
-          item('members', Icons.manage_accounts_outlined, appCtrl.t('group_members_and_roles')),
-          if (_activeConversationData?.isGroupStaff ?? false)
+          if (_inCommunity)
+            item('members', Icons.info_outline_rounded, appCtrl.trEn('Kanal bilgisi', 'Channel info', 'Kanalinfo'))
+          else
+            item('members', Icons.manage_accounts_outlined, appCtrl.t('group_members_and_roles')),
+          if ((_activeConversationData?.isGroupStaff ?? false) && !_inCommunity)
             item('add_members', Icons.person_add_alt_outlined, appCtrl.trEn('Üye ekle', 'Add members', 'Mitglieder hinzufügen')),
         ] else
           item('profile', Icons.person_outline_rounded, appCtrl.trEn('Profili gör', 'View profile', 'Profil ansehen')),
         // v1.2.0: yalnız bu sohbette ara
         item('search_here', Icons.manage_search_rounded, appCtrl.trEn('Sohbette ara', 'Search in chat', 'Im Chat suchen')),
-        item('watch_party', Icons.live_tv_outlined, appCtrl.trEn('İzleme partisi', 'Watch party', 'Watch-Party')),
-        item('safety', Icons.shield_outlined, appCtrl.trEn('Güvenli takip', 'Safety check', 'Sicherheitscheck')),
+        if (!_inCommunity) ...[
+          item('watch_party', Icons.live_tv_outlined, appCtrl.trEn('İzleme partisi', 'Watch party', 'Watch-Party')),
+          item('safety', Icons.shield_outlined, appCtrl.trEn('Güvenli takip', 'Safety check', 'Sicherheitscheck')),
+        ],
         if (group == null) ...[
           item('safety_number', Icons.verified_user_outlined, appCtrl.trEn('Güvenlik numarası', 'Safety number', 'Sicherheitsnummer')),
           if (JuzzioFeaturesService.instance.lastAppConfig.chickGameEnabled)
@@ -6313,7 +6338,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                           offset: const Offset(0, -8),
                           child: GestureDetector(
                             // v1.2.4: rozete dokununca kimin hangi tepkiyi verdiği; basılı tutunca işlemler
-                            onTap: () => _showReactionsWho(p, msg),
+                            // v1.2.6: toplulukta kimin tepki verdiği gösterilmez (üyeler birbirini görmez)
+                            onTap: _inCommunity ? null : () => _showReactionsWho(p, msg),
                             onLongPress: () => _showMessageActionMenu(p, s, msg, isMe),
                             child: JuzzioReactionBadge(
                               messageId: msg.id,
@@ -6366,6 +6392,13 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   Future<void> _quickReact(JuzzioMessage msg, String emoji, {bool burst = false}) async {
     final myUid = SupabaseService.instance.currentUserId;
     if (myUid == null || msg.isDeleted) return;
+    // v1.2.6: Juzzio Community resmî duyuru kanalıdır — tepki kapalı (sunucu da reddeder)
+    if (_inCommunity || (_activeConversationData?.isCommunity ?? false)) {
+      _showSnack(JuzzioAppController.instance.trEn('Juzzio Topluluğu bir duyuru kanalıdır: tepki gönderilemez.',
+          'Juzzio Community is an announcement channel: reactions cannot be sent.',
+          'Die Juzzio Community ist ein Ankündigungskanal: Reaktionen sind nicht möglich.'));
+      return;
+    }
     HapticFeedback.lightImpact();
     final current = Map<String, String>.from(_localReactions[msg.id] ?? msg.reactions);
     final removing = current[myUid] == emoji;
@@ -6762,7 +6795,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           return Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (!msg.isDeleted)
+              // v1.2.6: Juzzio Community'de tepki yok (resmî duyuru kanalı)
+              if (!msg.isDeleted && !_inCommunity)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
                   child: JuzzioGlass(

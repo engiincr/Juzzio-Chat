@@ -1027,6 +1027,27 @@ class SupabaseService {
           'This photo did not pass content review. Please choose another photo.',
           'Dieses Foto hat die Inhaltsprüfung nicht bestanden. Bitte wähle ein anderes Foto.');
     }
+    // v1.2.6: Juzzio Community resmî kanal kuralları + grup/kanal logosu
+    if (raw.contains('community_logo_fixed')) {
+      return _app.trEn('Juzzio Topluluğu\'nun logosu uygulama logosudur ve değiştirilemez.',
+          'The Juzzio Community logo is the app logo and cannot be changed.',
+          'Das Logo der Juzzio Community ist das App-Logo und kann nicht geändert werden.');
+    }
+    if (raw.contains('community_roles_fixed') || raw.contains('community_membership_automatic')) {
+      return _app.trEn('Juzzio Topluluğu\'nun tek yetkilisi @tugkancr\'dir; rol atama ve elle üye ekleme kapalıdır.',
+          'Juzzio Community has a single admin (@tugkancr); assigning roles and adding members manually are turned off.',
+          'Die Juzzio Community hat nur einen Admin (@tugkancr); Rollenvergabe und manuelles Hinzufügen sind deaktiviert.');
+    }
+    if (raw.contains('community_read_only')) {
+      return _app.trEn('Juzzio Topluluğu bir duyuru kanalıdır: mesaj ve tepki gönderilemez.',
+          'Juzzio Community is an announcement channel: messages and reactions cannot be sent.',
+          'Die Juzzio Community ist ein Ankündigungskanal: Nachrichten und Reaktionen sind nicht möglich.');
+    }
+    if (raw.contains('invalid_avatar_url')) {
+      return _app.trEn('Logo yüklenemedi. Lütfen fotoğrafı yeniden seçin.',
+          'The logo could not be uploaded. Please pick the photo again.',
+          'Das Logo konnte nicht hochgeladen werden. Bitte wähle das Foto erneut.');
+    }
     if (raw.contains('release_reason_required')) {
       return _app.trEn('Güncellemenin neden getirildiğini (Türkçe gerekçe) yazmak zorunludur.',
           'A Turkish reason explaining why this update is released is required.',

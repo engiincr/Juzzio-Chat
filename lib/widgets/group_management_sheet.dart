@@ -3,13 +3,22 @@
 //  • Yönetici (tek kişi): moderatör atar/alır, üye çıkarır, yöneticiliği devreder
 //  • Moderatör: normal üyeleri susturur
 //  • Rol yalnızca grup içinde görünür (profilde "Yönetici" rozeti YOKTUR)
+// v1.2.6
+//  • Grup ve kanal logosu: yönetici/moderatör başlıktaki fotoğrafa dokunup galeriden ya da
+//    kameradan logo koyar veya kaldırır (sunucu denetimi: set_room_avatar).
+//  • Juzzio Community resmî duyuru kanalıdır: logo sabit (uygulama logosu), üyeler
+//    birbirini göremez (liste yalnız yetkiliye açık), tek yetkili @tugkancr.
 // =============================================================================
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../core/app_theme_and_locale.dart';
 import '../core/config.dart';
 import '../core/content_filter.dart';
+import '../core/juzzio_community.dart';
 import '../core/theme/juzzio_colors.dart';
 import '../services/juzzio_features_service.dart';
 import '../services/supabase_service.dart';
@@ -17,6 +26,7 @@ import 'chat_notification_prefs.dart';
 import 'chat_lock_ui.dart';
 import '../screens/saved_messages_page.dart';
 import 'juzzio_motion.dart';
+import 'juzzio_space_kit.dart' show JuzzioSpacePhoto;
 
 Future<void> showJuzzioGroupManagementSheet(
   BuildContext context, {
@@ -24,6 +34,9 @@ Future<void> showJuzzioGroupManagementSheet(
   required String groupTitle,
   String groupType = 'general',
   String groupPurpose = '',
+  String? avatarUrl,
+  bool isCommunity = false,
+  bool isChannel = false,
   VoidCallback? onChanged,
 }) {
   return showJuzzioSheet<void>(
@@ -36,6 +49,9 @@ Future<void> showJuzzioGroupManagementSheet(
       groupTitle: groupTitle,
       groupType: groupType,
       groupPurpose: groupPurpose,
+      avatarUrl: avatarUrl,
+      isCommunity: isCommunity,
+      isChannel: isChannel || isCommunity,
       onChanged: onChanged,
     ),
   );
@@ -46,6 +62,9 @@ class _GroupManagementSheet extends StatefulWidget {
   final String groupTitle;
   final String groupType;
   final String groupPurpose;
+  final String? avatarUrl;
+  final bool isCommunity;
+  final bool isChannel;
   final VoidCallback? onChanged;
 
   const _GroupManagementSheet({
@@ -53,6 +72,9 @@ class _GroupManagementSheet extends StatefulWidget {
     required this.groupTitle,
     required this.groupType,
     required this.groupPurpose,
+    this.avatarUrl,
+    this.isCommunity = false,
+    this.isChannel = false,
     this.onChanged,
   });
 
@@ -66,6 +88,7 @@ class _GroupManagementSheetState extends State<_GroupManagementSheet> {
   bool _loading = true;
   bool _busy = false;
   String? _error;
+  String? _avatar;
 
   String get _myId => SupabaseService.instance.currentUserId ?? '';
   String get _myRole => _members.firstWhere((m) => m.userId == _myId,
@@ -76,7 +99,130 @@ class _GroupManagementSheetState extends State<_GroupManagementSheet> {
   @override
   void initState() {
     super.initState();
+    final a = (widget.avatarUrl ?? '').trim();
+    _avatar = a.isEmpty || a.startsWith('asset:') ? null : a;
     _load();
+  }
+
+  /// Logo değiştirilebilir mi: yalnız yönetici/moderatör ve Juzzio Community DEĞİL
+  bool get _canEditLogo => _iAmStaff && !widget.isCommunity;
+
+  Future<void> _logoFlow() async {
+    if (!_canEditLogo || _busy) return;
+    final app = JuzzioAppController.instance;
+    final pick = await showJuzzioSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: Text(
+                widget.isChannel
+                    ? app.trEn('Kanal logosu', 'Channel logo', 'Kanallogo')
+                    : app.trEn('Grup logosu', 'Group logo', 'Gruppenlogo'),
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+              subtitle: Text(app.trEn('Tüm üyeler bu logoyu görür.', 'All members see this logo.', 'Alle Mitglieder sehen dieses Logo.')),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_rounded),
+              title: Text(app.trEn('Galeriden seç', 'Choose from gallery', 'Aus Galerie wählen')),
+              onTap: () => Navigator.pop(ctx, 'gallery'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_rounded),
+              title: Text(app.trEn('Fotoğraf çek', 'Take a photo', 'Foto aufnehmen')),
+              onTap: () => Navigator.pop(ctx, 'camera'),
+            ),
+            if (_avatar != null)
+              ListTile(
+                leading: const Icon(Icons.delete_outline_rounded, color: JuzzioColors.red500),
+                title: Text(app.trEn('Logoyu kaldır', 'Remove logo', 'Logo entfernen'), style: const TextStyle(color: JuzzioColors.red500)),
+                onTap: () => Navigator.pop(ctx, 'remove'),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (pick == null || !mounted) return;
+    File? file;
+    if (pick != 'remove') {
+      try {
+        final x = await ImagePicker().pickImage(
+          source: pick == 'camera' ? ImageSource.camera : ImageSource.gallery,
+          maxWidth: 1024,
+          maxHeight: 1024,
+          imageQuality: 88,
+        );
+        if (x == null) return;
+        file = File(x.path);
+      } catch (_) {
+        if (!mounted) return;
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(
+          content: Text(app.trEn('Fotoğraf açılamadı. İzinleri kontrol edin.', 'The photo could not be opened. Check permissions.',
+              'Das Foto konnte nicht geöffnet werden. Prüfe die Berechtigungen.')),
+        ));
+        return;
+      }
+    }
+    if (!mounted) return;
+    final chosen = file;
+    await _act(
+      () async {
+        final url = await _f.setRoomAvatar(roomId: widget.roomId, file: chosen);
+        if (mounted) setState(() => _avatar = url);
+      },
+      chosen == null
+          ? app.trEn('Logo kaldırıldı.', 'Logo removed.', 'Logo entfernt.')
+          : app.trEn('Logo güncellendi.', 'Logo updated.', 'Logo aktualisiert.'),
+    );
+  }
+
+  Widget _logo(bool isDark) {
+    final app = JuzzioAppController.instance;
+    const double size = 52;
+    final Widget photo = ClipOval(
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: JuzzioSpacePhoto(
+          url: widget.isCommunity ? kJuzzioLogoAvatar : _avatar,
+          name: widget.groupTitle,
+          size: size,
+        ),
+      ),
+    );
+    if (!_canEditLogo) return photo;
+    return Semantics(
+      button: true,
+      label: app.trEn('Logoyu değiştir', 'Change logo', 'Logo ändern'),
+      child: GestureDetector(
+        onTap: _logoFlow,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            photo,
+            Positioned(
+              right: -2,
+              bottom: -2,
+              child: Container(
+                width: 26,
+                height: 26,
+                decoration: BoxDecoration(
+                  color: JuzzioColors.indigo500,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: isDark ? JuzzioColors.surface141519 : Colors.white, width: 2),
+                ),
+                child: _busy
+                    ? const Padding(padding: EdgeInsets.all(5), child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.photo_camera_rounded, size: 14, color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _load() async {
@@ -164,6 +310,7 @@ class _GroupManagementSheetState extends State<_GroupManagementSheet> {
   void _memberActions(JuzzioGroupMember m) {
     final app = JuzzioAppController.instance;
     if (m.userId == _myId) return;
+    final roles = !widget.isCommunity; // toplulukta tek yetkili: rol atama/devretme yok
     final canMute = _iAmOwner ? !m.isOwner : (_myRole == 'moderator' && m.role == 'member');
     showJuzzioSheet<void>(
       context: context,
@@ -175,7 +322,7 @@ class _GroupManagementSheetState extends State<_GroupManagementSheet> {
               title: Text(m.displayName, style: const TextStyle(fontWeight: FontWeight.w800)),
               subtitle: Text('@${m.username} • ${app.t('group_role_${m.role}')}'),
             ),
-            if (_iAmOwner && m.role == 'member')
+            if (roles && _iAmOwner && m.role == 'member')
               ListTile(
                 leading: const Icon(Icons.shield_rounded, color: JuzzioColors.indigo500),
                 title: Text(app.t('group_make_moderator')),
@@ -185,7 +332,7 @@ class _GroupManagementSheetState extends State<_GroupManagementSheet> {
                       app.t('group_role_changed'));
                 },
               ),
-            if (_iAmOwner && m.role == 'moderator')
+            if (roles && _iAmOwner && m.role == 'moderator')
               ListTile(
                 leading: const Icon(Icons.shield_outlined),
                 title: Text(app.t('group_remove_moderator')),
@@ -195,7 +342,7 @@ class _GroupManagementSheetState extends State<_GroupManagementSheet> {
                       app.t('group_role_changed'));
                 },
               ),
-            if (_iAmOwner && !m.isOwner)
+            if (roles && _iAmOwner && !m.isOwner)
               ListTile(
                 leading: const Icon(Icons.workspace_premium_rounded, color: JuzzioColors.amber500),
                 title: Text(app.t('group_transfer_owner')),
@@ -306,6 +453,48 @@ class _GroupManagementSheetState extends State<_GroupManagementSheet> {
     );
   }
 
+  /// Toplulukta üye listesi yalnız yetkiliye açıktır (üyeler birbirini göremez; sunucu da
+  /// yalnız yetkiliyi döndürür). Diğer grup/kanallarda liste herkese görünür.
+  bool get _showMemberList => !widget.isCommunity || _iAmStaff;
+
+  Widget _communityInfo(bool isDark) {
+    final app = JuzzioAppController.instance;
+    final owner = _members.where((m) => m.isOwner).toList();
+    final adminName = owner.isNotEmpty && owner.first.username.isNotEmpty ? owner.first.username : kJuzzioCommunityAdminUsername;
+    Widget row(IconData icon, String text) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 3),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, size: 17, color: JuzzioColors.indigo500),
+              const SizedBox(width: 8),
+              Expanded(child: Text(text, style: TextStyle(fontSize: 13.5, color: isDark ? Colors.white70 : JuzzioColors.ink))),
+            ],
+          ),
+        );
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: JuzzioColors.indigo500.withValues(alpha: isDark ? 0.14 : 0.07),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          row(Icons.campaign_rounded, app.trEn('Yalnız sürüm güncellemesi duyuruları bu kanala düşer.',
+              'Only app update announcements are posted in this channel.', 'In diesem Kanal erscheinen nur App-Update-Ankündigungen.')),
+          row(Icons.visibility_off_rounded, app.trEn('Üyeler birbirini göremez; üye listesi gizlidir.',
+              'Members cannot see each other; the member list is hidden.', 'Mitglieder sehen einander nicht; die Mitgliederliste ist verborgen.')),
+          row(Icons.do_not_disturb_on_rounded, app.trEn('Kanala mesaj veya tepki gönderilemez.',
+              'Messages and reactions cannot be sent to this channel.', 'In diesem Kanal können keine Nachrichten oder Reaktionen gesendet werden.')),
+          row(Icons.verified_user_rounded, app.trEn('Kanalın tek yetkilisi: @{name}', 'The only admin of this channel: @{name}',
+              'Einziger Admin dieses Kanals: @{name}').replaceAll('{name}', adminName)),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final app = JuzzioAppController.instance;
@@ -319,6 +508,8 @@ class _GroupManagementSheetState extends State<_GroupManagementSheet> {
             const SizedBox(height: 10),
             Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey, borderRadius: BorderRadius.circular(4))),
             ListTile(
+              leading: _logo(isDark),
+              minLeadingWidth: 52,
               title: Text(
                 widget.groupTitle,
                 style: TextStyle(
@@ -329,14 +520,19 @@ class _GroupManagementSheetState extends State<_GroupManagementSheet> {
                 ),
               ),
               subtitle: Text(
-                widget.groupType == 'custom' && widget.groupPurpose.isNotEmpty
-                    ? widget.groupPurpose
-                    : app.t('group_type_${kJuzzioGroupTypes.contains(widget.groupType) ? widget.groupType : 'general'}'),
+                widget.isCommunity
+                    ? app.trEn('Resmî duyuru kanalı', 'Official announcement channel', 'Offizieller Ankündigungskanal')
+                    : widget.isChannel
+                        ? app.trEn('Kanal', 'Channel', 'Kanal')
+                        : widget.groupType == 'custom' && widget.groupPurpose.isNotEmpty
+                            ? widget.groupPurpose
+                            : app.t('group_type_${kJuzzioGroupTypes.contains(widget.groupType) ? widget.groupType : 'general'}'),
               ),
-              trailing: _iAmStaff
+              trailing: _iAmStaff && !widget.isCommunity
                   ? IconButton(tooltip: app.t('group_edit_info'), icon: const Icon(Icons.edit_rounded), onPressed: _editInfo)
                   : null,
             ),
+            if (widget.isCommunity) _communityInfo(isDark),
             // v0.9.0 §6.4: Sohbet Bilgileri > Bildirimleri Özelleştir (her üye kendisi için)
             JuzzioChatNotificationPrefsTile(roomId: widget.roomId),
             JuzzioChatLockTile(roomId: widget.roomId),
@@ -347,6 +543,7 @@ class _GroupManagementSheetState extends State<_GroupManagementSheet> {
               trailing: const Icon(Icons.chevron_right_rounded),
               onTap: () => JuzzioSavedMessagesPage.open(context, roomId: widget.roomId, title: widget.groupTitle),
             ),
+            if (_showMemberList)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Align(
@@ -359,7 +556,7 @@ class _GroupManagementSheetState extends State<_GroupManagementSheet> {
             ),
             if (_loading) const Padding(padding: EdgeInsets.all(24), child: JuzzioOrbitLoader()),
             if (_error != null) Padding(padding: const EdgeInsets.all(16), child: Text(_error!)),
-            if (!_loading)
+            if (!_loading && _showMemberList)
               Flexible(
                 child: ListView.builder(
                   shrinkWrap: true,
