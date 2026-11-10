@@ -22,6 +22,7 @@ import '../core/config.dart';
 import '../core/theme/juzzio_colors.dart';
 import '../services/juzzio_features_service.dart';
 import '../services/supabase_service.dart';
+import '../services/juzzio_media_cache.dart';
 import 'juzzio_motion.dart';
 
 class JuzzioVerifiedTick extends StatelessWidget {
@@ -320,6 +321,27 @@ class JuzzioMusicSearch {
 }
 
 /// Uygulama genelinde tek önizleme oynatıcısı: aynı anda tek şarkı çalar.
+/// v1.2.4: profil müziği çevrimdışı da çalar — dinlenen parça cihazda saklanır, sonraki
+/// açılışlarda (internet olmasa da) dosyadan çalınır. İlk dinleyişte akıştan çalar ve arka
+/// planda indirir.
+Future<void> juzzioSetMusicSource(AudioPlayer p, String url) async {
+  final cache = JuzzioMediaDiskCache.instance;
+  final hit = cache.cachedFile(url);
+  if (hit != null) {
+    await p.setFilePath(hit.path);
+    return;
+  }
+  try {
+    await p.setUrl(url);
+    unawaited(cache.loadFile(url).catchError((_) => null));
+  } catch (e) {
+    // akış açılamadı (çevrimdışı olabilir): kısa sürede indirilebiliyorsa dosyadan çal
+    final f = await cache.loadFile(url).timeout(const Duration(seconds: 8), onTimeout: () => null);
+    if (f == null) rethrow;
+    await p.setFilePath(f.path);
+  }
+}
+
 class JuzzioMusicPlayer {
   JuzzioMusicPlayer._();
   static final JuzzioMusicPlayer instance = JuzzioMusicPlayer._();
@@ -344,7 +366,7 @@ class JuzzioMusicPlayer {
       nowPlaying.value = url;
       loading.value = true;
       await p.stop();
-      await p.setUrl(url);
+      await juzzioSetMusicSource(p, url);
       await p.setLoopMode(loop ? LoopMode.one : LoopMode.off);
       loading.value = false;
       p.playerStateStream.firstWhere((s) => s.processingState == ProcessingState.completed).then((_) {
@@ -878,7 +900,7 @@ class _JuzzioBackgroundMusicState extends State<JuzzioBackgroundMusic> {
         _loadedUrl = url;
         // Profil önizlemesi çalıyorsa durdur: aynı anda tek ses
         await JuzzioMusicPlayer.instance.stop();
-        await p.setUrl(url);
+        await juzzioSetMusicSource(p, url);
         await p.setLoopMode(LoopMode.one);
         if (widget.startSec > 0) await p.seek(Duration(seconds: widget.startSec.clamp(0, 25)));
       }

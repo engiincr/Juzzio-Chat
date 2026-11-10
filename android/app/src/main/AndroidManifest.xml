@@ -154,6 +154,7 @@
             android:exported="false">
             <intent-filter>
                 <action android:name="com.juzzio.app.QUICK_REPLY" />
+                <action android:name="com.juzzio.app.MARK_READ" />
             </intent-filter>
         </receiver>
         <receiver

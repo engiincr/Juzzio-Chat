@@ -2,7 +2,7 @@
 
 const String kJuzzioPrivacyMd = r'''# Juzzio Gizlilik Politikası ve KVKK Aydınlatma Metni
 
-Son güncelleme: 10 Kasım 2026 · Uygulama sürümü: v1.2.3 (BETA · Erken Erişim)
+Son güncelleme: 10 Kasım 2026 · Uygulama sürümü: v1.2.4 (BETA · Erken Erişim)
 
 Bu metin, Juzzio mobil uygulamasının hangi kişisel verileri hangi amaçla işlediğini, kimlerle paylaştığını ve haklarınızı **olduğu gibi** açıklar. Uygulamanın kaynak kodu GitHub'da açıktır; buradaki her ifade koddan doğrulanabilir.
 
@@ -109,6 +109,13 @@ Bu metin, Juzzio mobil uygulamasının hangi kişisel verileri hangi amaçla iş
 - **Ticari elektronik ileti (isteğe bağlı):** Yalnız ayrıca onay verirseniz gönderilir (6563 sayılı Kanun ve Ticari İletişim ve Ticari Elektronik İletiler Hakkında Yönetmelik). Onayı Ayarlar → Bildirimler'den veya her e-postadaki bağlantıdan dilediğiniz an, ücretsiz geri alabilirsiniz; geri alma en geç 3 iş günü içinde işleme alınır. Mevzuat gerektirdiğinde onay ve ret kayıtları İleti Yönetim Sistemi'ne (İYS) iletilir.
 - **Hava durumuna göre tema (varsayılan açık):** Konum izni verdiyseniz yaklaşık konumunuz (yaklaşık 10 km'ye yuvarlanmış enlem/boylam) yalnız hava durumunu öğrenmek için Open-Meteo'ya gönderilir; konum bizim sunucumuza gönderilmez ve saklanmaz. İzin vermezseniz özellik konum kullanmadan kapalı kalır. Görünüm → Hava durumu teması ile kapatabilirsiniz.
 - **Kötüye kullanım önleme:** Mesaj, arkadaşlık isteği, yorum, şikâyet ve giriş denemeleri hız sınırına tabidir; bu sınırlar yalnız istek sayısını sayar, içeriği okumaz.
+
+## 4j. Çevrimdışı önbellek, galeriye kaydetme ve sohbet bildirimleri (v1.2.4)
+
+- **Çevrimdışı önbellek:** İnternet varken Keşfet'in ilk sayfası, arama geçmişi, bildirimler, profil (gönderiler, kaydedilenler, sayaçlar), arkadaşlık listesi, görevler/hatırlatıcılar, hikâyeler ve dinlediğin profil müziği yalnız **senin cihazında, hesabına özel klasörde** saklanır; internet yokken bu kopyalar gösterilir. Oturumu kapatınca silinir. Uçtan uca şifreli içerik diske şifreli hâliyle yazılır.
+- **Çevrimdışı değişiklikler:** İnternet yokken yaptığın profil ve ayar değişiklikleri cihazda bekletilir, bağlantı gelince sunucuya yazılır.
+- **Galeriye kaydetme (varsayılan açık):** Sohbette sana gönderilen fotoğraf, video ve belgeler cihazının galerisine (Resimler/Filmler/İndirilenler › Juzzio) kaydedilir. Bu dosyalar artık cihazının ortak depolamasındadır ve galeriye erişimi olan diğer uygulamalar görebilir. Tek görüntülemelik medya **asla** kaydedilmez. Ayarlar → Sohbetler → "Medyayı galeriye kaydet" ile kapatabilirsin.
+- **Sohbet bildirimleri:** Bildirimde gönderenin adı, herkese açık profil fotoğrafı ve grup adı gösterilir. Bildirim önizlemesini "gizli" yaptıysan bunlar gönderilmez. "Okundu olarak işaretle" yalnız o sohbeti okundu yapar.
 
 ## 5. Verilerin aktarıldığı hizmet sağlayıcılar
 
@@ -290,7 +297,7 @@ the Republic of Türkiye.
 
 const String kJuzzioPrivacyMdEn = r'''# 🔐 Juzzio Privacy Policy
 
-Last updated: November 10, 2026 · App version: v1.2.3 (BETA · Early Access)
+Last updated: November 10, 2026 · App version: v1.2.4 (BETA · Early Access)
 
 > 🇹🇷 The legally binding Turkish version (Privacy Policy and KVKK Disclosure Notice) is in [docs/legal/tr/PRIVACY.md](docs/legal/tr/PRIVACY.md). In the app, the Turkish text is shown when the app language is Turkish.
 
@@ -399,6 +406,13 @@ This document explains, **exactly as it is**, which personal data the Juzzio mob
 - **Marketing e-mails (optional):** sent only with your separate consent (Turkish Law No. 6563). Withdraw any time, free of charge, in Settings → Notifications or via the link in every e-mail; withdrawals are processed within 3 business days.
 - **Weather-based theme (on by default):** If you granted location permission, your approximate location (latitude/longitude rounded to ~10 km) is sent only to Open-Meteo to get the weather; it is never sent to or stored on our servers. Turn it off in Appearance → Weather theme.
 - **Abuse prevention:** Messages, friend requests, comments, reports and sign-in attempts are rate-limited; limits only count requests and never read content.
+
+## 4j. Offline cache, saving to gallery and chat notifications (v1.2.4)
+
+- **Offline cache:** While online, the first page of Explore, call history, notifications, your profile (posts, saved, counters), friends list, tasks/reminders, stories and profile music you listened to are stored **only on your device, in a per-account folder**, and shown when you are offline. They are deleted when you sign out. End-to-end encrypted content is stored encrypted.
+- **Offline changes:** Profile and settings changes made offline are kept on the device and written to the server when you reconnect.
+- **Save to gallery (on by default):** Photos, videos and documents you receive in chats are saved to your device gallery (Pictures/Movies/Downloads › Juzzio). These files are then in shared storage and other apps with gallery access can see them. View-once media is **never** saved. Turn it off in Settings → Chats → "Save media to gallery".
+- **Chat notifications:** Notifications show the sender's name, public profile photo and group name. If your notification preview is set to hidden, none of these are sent. "Mark as read" only marks that chat as read.
 
 ## 5. Service providers that receive data
 

@@ -109,7 +109,15 @@ jobs:
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
       - name: Birim ve widget testleri
-        run: flutter test
+        run: |
+          mkdir -p build
+          flutter test --file-reporter json:build/test-report.json
+
+      # Başarısız testin NEDENİNİ (Expected/Actual, istisna) annotation olarak yazar;
+      # özet yalnız "N failed" dediği için hata herkese görünür olsun.
+      - name: Başarısız test ayrıntıları
+        if: failure()
+        run: python3 scripts/test_failures_annotate.py build/test-report.json
 
       - name: version.json / release betiği kontrolü
         run: |

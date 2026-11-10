@@ -18,6 +18,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'juzzio_media_cache.dart';
+import 'juzzio_net.dart';
+import '../widgets/motion/juzzio_loaders.dart' show JuzzioOrbitLoader;
 
 /// Depolama URL'sinin ayrıştırılmış hâli.
 class JuzzioStorageRef {
@@ -166,10 +168,30 @@ class _JuzzioStorageImageState extends State<JuzzioStorageImage> {
   Object? _error;
   int _generation = 0;
 
+  // v1.2.4: çevrimdışıyken önbellekte olmayan görsel HATA göstermez; yükleme logosu döner
+  // ve bağlantı gelince kendiliğinden yeniden denenir.
+  bool _waitingNet = false;
+  int _retry = 0;
+  StreamSubscription<void>? _regainSub;
+
   @override
   void initState() {
     super.initState();
     _start();
+    _regainSub = JuzzioNet.instance.onRegained.listen((_) {
+      if (!mounted || (!_waitingNet && _error == null)) return;
+      setState(() {
+        _waitingNet = false;
+        _retry++;
+        _start();
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _regainSub?.cancel();
+    super.dispose();
   }
 
   @override
@@ -178,10 +200,39 @@ class _JuzzioStorageImageState extends State<JuzzioStorageImage> {
     if (oldWidget.src != widget.src) _start();
   }
 
+  static bool _looksOffline(Object e) {
+    if (!JuzzioNet.instance.online) return true;
+    final t = e.toString().toLowerCase();
+    return t.contains('socketexception') || t.contains('failed host lookup') || t.contains('network is unreachable') || t.contains('clientexception') || t.contains('timeout');
+  }
+
+  Widget _netWait() => SizedBox(
+        width: widget.width,
+        height: widget.height,
+        child: const Center(child: SizedBox(width: 26, height: 26, child: JuzzioOrbitLoader(strokeWidth: 2.6))),
+      );
+
+  Widget _onImageError(BuildContext context, Object e, StackTrace? st) {
+    if (_looksOffline(e)) {
+      _waitingNet = true;
+      return _netWait();
+    }
+    final eb = widget.errorBuilder;
+    return eb != null ? eb(context, e, st) : SizedBox(width: widget.width, height: widget.height);
+  }
+
   void _start() {
     final gen = ++_generation;
     _error = null;
     _cachedFile = null;
+    // v1.2.4: gönderilmekte olan medya (yerel dosya yolu) — yükleme beklenmeden anında gösterilir
+    if (widget.src.startsWith('/')) {
+      final local = File(widget.src);
+      if (local.existsSync()) {
+        _cachedFile = local;
+        return;
+      }
+    }
     // v0.9.2: daha önce görüntülendiyse internet olmadan diskteki kopyadan gösterilir
     if (JuzzioMediaUrl.parse(widget.src) != null) {
       _cachedFile = JuzzioMediaDiskCache.instance.cachedFile(widget.src);
@@ -222,6 +273,10 @@ class _JuzzioStorageImageState extends State<JuzzioStorageImage> {
     }
     final resolved = _resolved;
     if (_error != null) {
+      if (_looksOffline(_error!)) {
+        _waitingNet = true;
+        return _netWait();
+      }
       final eb = widget.errorBuilder;
       if (eb != null) return eb(context, _error!, null);
       return SizedBox(width: widget.width, height: widget.height);
@@ -237,13 +292,14 @@ class _JuzzioStorageImageState extends State<JuzzioStorageImage> {
     // Juzzio depolama nesneleri indirilirken diske de yazılır (çevrimdışı görüntüleme)
     if (JuzzioMediaUrl.parse(widget.src) != null) {
       return Image(
+        key: ValueKey<int>(_retry),
         image: ResizeImage.resizeIfNeeded(widget.cacheWidth, widget.cacheHeight, JuzzioCachedImageProvider(widget.src, resolvedUrl: resolved)),
         width: widget.width,
         height: widget.height,
         fit: widget.fit,
         alignment: widget.alignment,
         loadingBuilder: widget.loadingBuilder,
-        errorBuilder: widget.errorBuilder,
+        errorBuilder: _onImageError,
         gaplessPlayback: widget.gaplessPlayback,
         filterQuality: widget.filterQuality,
         semanticLabel: widget.semanticLabel,
@@ -256,7 +312,7 @@ class _JuzzioStorageImageState extends State<JuzzioStorageImage> {
       fit: widget.fit,
       alignment: widget.alignment,
       loadingBuilder: widget.loadingBuilder,
-      errorBuilder: widget.errorBuilder,
+      errorBuilder: _onImageError,
       cacheWidth: widget.cacheWidth,
       cacheHeight: widget.cacheHeight,
       gaplessPlayback: widget.gaplessPlayback,

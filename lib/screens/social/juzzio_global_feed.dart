@@ -6,6 +6,8 @@
 //  paylaşımı için içerik stüdyosu açılır. Tamamı nötr cam tasarım dilindedir.
 // =============================================================================
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -22,6 +24,8 @@ import '../../widgets/social_common_widgets.dart';
 import '../../widgets/juzzio_mentions.dart';
 import '../../widgets/juzzio_cloth_refresh.dart';
 import '../../widgets/juzzio_ui_kit.dart';
+import '../../widgets/juzzio_motion.dart';
+import '../../services/juzzio_net.dart';
 
 class JuzzioGlobalFeedView extends StatefulWidget {
   final JuzzioUserProfile currentUser;
@@ -79,6 +83,11 @@ class _JuzzioGlobalFeedViewState extends State<JuzzioGlobalFeedView> {
       if (_scroll.position.pixels > _scroll.position.maxScrollExtent - 600) _loadMore();
     });
     _subscribeRealtime();
+    JuzzioNet.instance.addListener(_onNetChanged);
+    // bağlantı gelince sessizce tazele (kullanıcı hiçbir şey yapmadan)
+    _regainSub = JuzzioNet.instance.onRegained.listen((_) {
+      if (mounted) _load();
+    });
   }
 
   @override
@@ -88,6 +97,8 @@ class _JuzzioGlobalFeedViewState extends State<JuzzioGlobalFeedView> {
     if (ch != null) {
       Supabase.instance.client.removeChannel(ch).catchError((_) => 'error');
     }
+    JuzzioNet.instance.removeListener(_onNetChanged);
+    _regainSub?.cancel();
     _composer.dispose();
     _scroll.dispose();
     super.dispose();
@@ -179,22 +190,46 @@ class _JuzzioGlobalFeedViewState extends State<JuzzioGlobalFeedView> {
       _error = null;
       _pendingNew = 0;
     });
+    // v1.2.4: en son yüklenen akış ANINDA gösterilir; ağdan gelen hâl arka planda yerine geçer
+    final tab = _tab;
+    final topic = _topicFilter;
+    if (_posts.isEmpty) {
+      final cached = await JuzzioSocialService.instance.cachedFeedPosts(filter: tab, topic: topic);
+      if (!mounted || tab != _tab || topic != _topicFilter) return;
+      if (cached.isNotEmpty && _posts.isEmpty) {
+        setState(() => _posts = cached);
+        _translateBatch(cached);
+      }
+    }
     try {
-      final list = await JuzzioSocialService.instance.fetchFeedPosts(filter: _tab, limit: 25, topic: _topicFilter);
-      if (!mounted) return;
+      final list = await JuzzioSocialService.instance.fetchFeedPosts(filter: tab, limit: 25, topic: topic);
+      if (!mounted || tab != _tab || topic != _topicFilter) return;
       setState(() {
         _posts = list;
         _hasMore = list.length >= 25;
         _loading = false;
+        _offline = !JuzzioNet.instance.online;
       });
       _translateBatch(list);
     } catch (e) {
       if (!mounted) return;
+      final net = SupabaseService.isNetworkError(e);
       setState(() {
         _loading = false;
-        _error = SupabaseService.instance.friendlyError(e);
+        _offline = net;
+        // çevrimdışıyken ve elde gönderi varken hata ekranı GÖSTERİLMEZ
+        _error = (_posts.isNotEmpty || net) ? null : SupabaseService.instance.friendlyError(e);
       });
     }
+  }
+
+  bool _offline = false;
+  StreamSubscription<void>? _regainSub;
+
+  void _onNetChanged() {
+    if (!mounted) return;
+    final off = !JuzzioNet.instance.online;
+    if (off != _offline) setState(() => _offline = off);
   }
 
   Future<void> _loadMore() async {
@@ -354,7 +389,23 @@ class _JuzzioGlobalFeedViewState extends State<JuzzioGlobalFeedView> {
             SliverToBoxAdapter(child: _composerCard()),
             SliverToBoxAdapter(child: _tabs()),
             SliverToBoxAdapter(child: _topicChips()),
-            if (_loading && _posts.isEmpty)
+            if (_offline && _posts.isEmpty)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    const SizedBox(width: 34, height: 34, child: JuzzioOrbitLoader()),
+                    const SizedBox(height: 14),
+                    Text(
+                      _app.trEn('İnternet bağlantısı yok — bağlanınca paylaşımlar yüklenecek',
+                          'No internet connection — posts will load once you are back online', 'Keine Internetverbindung — Beiträge laden, sobald du online bist'),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: JuzzioGlassTokens.textSecondary, fontSize: 13.5),
+                    ),
+                  ]),
+                ),
+              )
+            else if (_loading && _posts.isEmpty)
               const SliverToBoxAdapter(child: SizedBox(height: 520, child: JuzzioListSkeleton(count: 5)))
             else if (_error != null && _posts.isEmpty)
               SliverFillRemaining(
@@ -392,15 +443,31 @@ class _JuzzioGlobalFeedViewState extends State<JuzzioGlobalFeedView> {
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(12, 4, 12, 120),
                 sliver: SliverList.separated(
-                  itemCount: _posts.length,
+                  // v1.2.4: önbelleğin bittiği yerde çevrimdışı bilgi satırı
+                  itemCount: _posts.length + (_offline ? 1 : 0),
                   separatorBuilder: (_, __) => const SizedBox(height: 10),
-                  itemBuilder: (_, i) => _postCard(i),
+                  itemBuilder: (_, i) => i < _posts.length ? _postCard(i) : _offlineTail(),
                 ),
               ),
           ],
         ),
     );
   }
+
+  Widget _offlineTail() => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 18),
+        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(Icons.wifi_off_rounded, size: 16, color: JuzzioGlassTokens.textSecondary),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              _app.trEn('İnternet bağlantısı yok — daha fazlası bağlanınca yüklenecek', 'No internet connection — more will load when you are online',
+                  'Keine Internetverbindung — mehr lädt, sobald du online bist'),
+              style: TextStyle(color: JuzzioGlassTokens.textSecondary, fontSize: 12.5),
+            ),
+          ),
+        ]),
+      );
 
   Widget _topicChips() {
     final topics = <String>['all', ...kJuzzioFeedTopics];

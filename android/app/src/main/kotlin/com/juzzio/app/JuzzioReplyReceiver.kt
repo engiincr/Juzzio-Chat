@@ -31,6 +31,7 @@ import java.util.UUID
 class JuzzioReplyReceiver : BroadcastReceiver() {
     companion object {
         const val ACTION_REPLY = "com.juzzio.app.QUICK_REPLY"
+        const val ACTION_MARK_READ = "com.juzzio.app.MARK_READ"
         const val KEY_TEXT = "juzzio_reply_text"
         const val EXTRA_ROOM = "juzzio_reply_room"
         const val EXTRA_NOTIF_ID = "juzzio_reply_notif_id"
@@ -40,6 +41,10 @@ class JuzzioReplyReceiver : BroadcastReceiver() {
     }
 
     override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action == ACTION_MARK_READ) {
+            markRead(context, intent)
+            return
+        }
         if (intent.action != ACTION_REPLY) return
         val text = RemoteInput.getResultsFromIntent(intent)?.getCharSequence(KEY_TEXT)?.toString()?.trim().orEmpty()
         val roomId = intent.getStringExtra(EXTRA_ROOM).orEmpty()
@@ -80,6 +85,43 @@ class JuzzioReplyReceiver : BroadcastReceiver() {
         }
         // 2) Uygulama kapalı: ekransız motor
         main.post { startHeadless(app, args, ::finish) }
+    }
+
+    /** v1.2.4: "Okundu olarak işaretle" — bildirim hemen kalkar, sunucuda sohbet okundu yapılır. */
+    private fun markRead(context: Context, intent: Intent) {
+        val roomId = intent.getStringExtra(EXTRA_ROOM).orEmpty()
+        val notifId = intent.getIntExtra(EXTRA_NOTIF_ID, 0)
+        try {
+            (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(notifId)
+        } catch (_: Exception) {}
+        if (roomId.isEmpty()) return
+        val args = mapOf("op" to "mark_read", "room_id" to roomId)
+        val pending = goAsync()
+        val app = context.applicationContext
+        val main = Handler(Looper.getMainLooper())
+        var finished = false
+        fun finish(@Suppress("UNUSED_PARAMETER") status: String) {
+            if (finished) return
+            finished = true
+            try { pending.finish() } catch (_: Exception) {}
+        }
+        main.postDelayed({ finish("timeout") }, TIMEOUT_MS)
+        val live = MainActivity.activeMethodChannel
+        main.post {
+            if (live != null) {
+                try {
+                    live.invokeMethod("onQuickReply", args, object : MethodChannel.Result {
+                        override fun success(result: Any?) { finish("ok") }
+                        override fun error(code: String, msg: String?, details: Any?) { finish("failed") }
+                        override fun notImplemented() { startHeadless(app, args, ::finish) }
+                    })
+                } catch (_: Exception) {
+                    startHeadless(app, args, ::finish)
+                }
+            } else {
+                startHeadless(app, args, ::finish)
+            }
+        }
     }
 
     /** Dart sonucu: eski sürüm Boolean, v0.9.0 {ok, status}. */
@@ -155,13 +197,22 @@ class JuzzioReplyReceiver : BroadcastReceiver() {
                 .setContentTitle("Juzzio")
                 .setContentText(status)
                 .build()
+            // v1.2.4: sohbet tarzı bildirim varsa yanıt aynı konuşmanın altına eklenir
+            val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val previous = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                try { nm.activeNotifications.firstOrNull { it.id == id }?.notification } catch (_: Exception) { null }
+            } else null
+            val conv = if (ok && previous != null) {
+                try { NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(previous) } catch (_: Exception) { null }
+            } else null
+            conv?.addMessage(NotificationCompat.MessagingStyle.Message(text, System.currentTimeMillis(), null as androidx.core.app.Person?))
             val b = NotificationCompat.Builder(ctx, channelId)
                 .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
                 .setPublicVersion(publicVersion)
                 .setSmallIcon(icon)
                 .setContentTitle(title)
                 .setContentText("Sen: $text")
-                .setStyle(NotificationCompat.BigTextStyle().bigText("Sen: $text\n$status"))
+                .setStyle(conv ?: NotificationCompat.BigTextStyle().bigText("Sen: $text\n$status"))
                 .setOnlyAlertOnce(true)
                 .setSilent(true)
                 .setAutoCancel(true)

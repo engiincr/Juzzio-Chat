@@ -733,11 +733,30 @@ Future<void> showJuzzioSharePostModalSheet({
   required BuildContext context,
   required JuzzioPost post,
   required JuzzioUserProfile currentUser,
+}) {
+  final app = JuzzioAppController.instance;
+  return showJuzzioShareToChatsSheet(
+    context: context,
+    currentUser: currentUser,
+    title: app.loc('Gönderiyi Paylaş', 'Share Post', 'Beitrag teilen'),
+    link: 'juzzio://post/${post.id}',
+    shareText: '📌 @${post.authorUsername}: ${post.caption.isEmpty ? app.loc('Gönderi', 'Post', 'Beitrag') : post.caption} (juzzio://post/${post.id})',
+  );
+}
+
+/// v1.2.4: Küresel gönderi ve hikâyeleri birebir sohbetlere VE gruplara iletir (çoklu seçim).
+/// Birebir sohbette metin uçtan uca şifrelenir (normal mesaj yolu).
+Future<void> showJuzzioShareToChatsSheet({
+  required BuildContext context,
+  required JuzzioUserProfile currentUser,
+  required String title,
+  required String shareText,
+  String? link,
 }) async {
   final app = JuzzioAppController.instance;
   final isDark = app.isDark;
-  // Yalnızca arkadaşlar ve mevcut sohbet ortakları (eskiden tüm kayıtlı kullanıcılar listeleniyordu)
   final recipientIds = <String>{};
+  final groups = <JuzzioConversation>[];
   try {
     final rows = await SupabaseService.instance.client.from('friendships').select().eq('status', 'accepted');
     for (final r in (rows as List)) {
@@ -749,14 +768,21 @@ Future<void> showJuzzioSharePostModalSheet({
     final convs = await SupabaseService.instance.fetchMyConversations();
     for (final c in convs) {
       if (!c.isGroup && c.partnerId != null) recipientIds.add(c.partnerId!);
+      // kanallarda yalnız yöneticiler paylaşabilir
+      if (c.isGroup && (!c.isChannel || c.isGroupStaff)) groups.add(c);
     }
-  } catch (_) {}
+  } catch (_) {
+    for (final c in await SupabaseService.instance.loadCachedConversations()) {
+      if (c.isGroup && (!c.isChannel || c.isGroupStaff)) groups.add(c);
+    }
+  }
   final allUsers = await SupabaseService.instance.fetchProfilesByIds(recipientIds);
   final recipients = allUsers
       .where((u) => u.id != currentUser.id && !JuzzioSocialService.instance.blockedUserIds.contains(u.id))
       .toList()
     ..sort((a, b) => a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()));
-  final selectedIds = <String>{};
+  groups.sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+  final selected = <String>{}; // 'u:<kullanıcı>' | 'g:<oda>'
   bool sending = false;
   String? errorMsg;
 
@@ -765,12 +791,30 @@ Future<void> showJuzzioSharePostModalSheet({
     context: context,
     isScrollControlled: true,
     backgroundColor: JuzzioSocialTokens.cardBg(isDark),
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-    ),
+    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
     builder: (ctx) {
       return StatefulBuilder(
         builder: (ctx, setModalState) {
+          Widget tile({required String key, required Widget leading, required String name, required String sub}) {
+            return CheckboxListTile(
+              value: selected.contains(key),
+              activeColor: JuzzioSocialTokens.royalBlue,
+              contentPadding: EdgeInsets.zero,
+              secondary: leading,
+              title: Text(name, style: TextStyle(color: JuzzioSocialTokens.textPrimary(isDark), fontWeight: FontWeight.w600)),
+              subtitle: Text(sub, style: TextStyle(color: JuzzioSocialTokens.textSecondary(isDark), fontSize: 12)),
+              onChanged: sending
+                  ? null
+                  : (val) => setModalState(() {
+                        if (val == true) {
+                          selected.add(key);
+                        } else {
+                          selected.remove(key);
+                        }
+                      }),
+            );
+          }
+
           return SafeArea(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
@@ -789,123 +833,71 @@ Future<void> showJuzzioSharePostModalSheet({
                     ),
                   ),
                   const SizedBox(height: 14),
-                  Text(
-                    app.loc('Gönderiyi Paylaş', 'Share Post', 'Beitrag teilen'),
-                    style: TextStyle(
-                      color: JuzzioSocialTokens.textPrimary(isDark),
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
+                  Text(title, style: TextStyle(color: JuzzioSocialTokens.textPrimary(isDark), fontSize: 18, fontWeight: FontWeight.w800)),
                   const SizedBox(height: 12),
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Container(
-                      width: 42,
-                      height: 42,
-                      decoration: BoxDecoration(
-                        color: JuzzioSocialTokens.royalBlue.withValues(alpha: 0.12),
-                        shape: BoxShape.circle,
+                  if (link != null) ...[
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(color: JuzzioSocialTokens.royalBlue.withValues(alpha: 0.12), shape: BoxShape.circle),
+                        child: const Icon(Icons.link_rounded, color: JuzzioSocialTokens.royalBlue),
                       ),
-                      child: const Icon(Icons.link_rounded, color: JuzzioSocialTokens.royalBlue),
+                      title: Text(app.loc('Bağlantıyı Kopyala', 'Copy Link', 'Link kopieren'),
+                          style: TextStyle(color: JuzzioSocialTokens.textPrimary(isDark), fontWeight: FontWeight.w700)),
+                      subtitle: Text(link, style: TextStyle(color: JuzzioSocialTokens.textSecondary(isDark), fontSize: 12)),
+                      onTap: () async {
+                        await Clipboard.setData(ClipboardData(text: link));
+                        if (ctx.mounted) {
+                          Navigator.pop(ctx);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(app.loc('Bağlantı kopyalandı.', 'Link copied.', 'Link kopiert.'))),
+                          );
+                        }
+                      },
                     ),
-                    title: Text(
-                      app.loc('Bağlantıyı Kopyala', 'Copy Link', 'Link kopieren'),
-                      style: TextStyle(
-                        color: JuzzioSocialTokens.textPrimary(isDark),
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    subtitle: Text(
-                      'juzzio://post/${post.id}',
-                      style: TextStyle(
-                        color: JuzzioSocialTokens.textSecondary(isDark),
-                        fontSize: 12,
-                      ),
-                    ),
-                    onTap: () async {
-                      await Clipboard.setData(ClipboardData(text: 'juzzio://post/${post.id}'));
-                      if (ctx.mounted) {
-                        Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(app.loc('Gönderi bağlantısı kopyalandı.', 'Post link copied.', 'Beitragslink kopiert.')),
-                          ),
-                        );
-                      }
-                    },
-                  ),
-                  const Divider(),
-                  Text(
-                    app.loc('Sohbete Gönder', 'Send to Chat', 'An Chat senden'),
-                    style: TextStyle(
-                      color: JuzzioSocialTokens.textSecondary(isDark),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+                    const Divider(),
+                  ],
+                  Text(app.loc('Sohbete veya gruba gönder', 'Send to a chat or group', 'An Chat oder Gruppe senden'),
+                      style: TextStyle(color: JuzzioSocialTokens.textSecondary(isDark), fontSize: 13, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 8),
-                  if (recipients.isEmpty)
+                  if (recipients.isEmpty && groups.isEmpty)
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      child: Text(
-                        app.loc('Gönderilecek kişi bulunamadı.', 'No contacts available.', 'Keine Kontakte verfügbar.'),
-                        style: TextStyle(color: JuzzioSocialTokens.textSecondary(isDark)),
-                      ),
+                      child: Text(app.loc('Gönderilecek kişi veya grup bulunamadı.', 'No contacts or groups available.', 'Keine Kontakte oder Gruppen.'),
+                          style: TextStyle(color: JuzzioSocialTokens.textSecondary(isDark))),
                     )
                   else
                     ConstrainedBox(
-                      constraints: const BoxConstraints(maxHeight: 240),
-                      child: ListView.builder(
+                      constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.42),
+                      child: ListView(
                         shrinkWrap: true,
-                        itemCount: recipients.length,
-                        itemBuilder: (_, i) {
-                          final u = recipients[i];
-                          final checked = selectedIds.contains(u.id);
-                          return CheckboxListTile(
-                            value: checked,
-                            activeColor: JuzzioSocialTokens.royalBlue,
-                            contentPadding: EdgeInsets.zero,
-                            secondary: JuzzioUserAvatar(
-                              imageUrl: u.avatarUrl,
-                              displayName: u.displayName,
-                              radius: 20,
-                            ),
-                            title: Text(
-                              u.displayName,
-                              style: TextStyle(
-                                color: JuzzioSocialTokens.textPrimary(isDark),
-                                fontWeight: FontWeight.w600,
+                        children: [
+                          for (final g in groups)
+                            tile(
+                              key: 'g:${g.roomId}',
+                              leading: CircleAvatar(
+                                radius: 20,
+                                backgroundColor: JuzzioSocialTokens.royalBlue.withValues(alpha: 0.15),
+                                child: Icon(g.isChannel ? Icons.campaign_rounded : Icons.groups_rounded, color: JuzzioSocialTokens.royalBlue),
                               ),
+                              name: g.title,
+                              sub: g.isChannel ? app.loc('Kanal', 'Channel', 'Kanal') : app.loc('Grup', 'Group', 'Gruppe'),
                             ),
-                            subtitle: Text(
-                              '@${u.username}',
-                              style: TextStyle(
-                                color: JuzzioSocialTokens.textSecondary(isDark),
-                                fontSize: 12,
-                              ),
+                          for (final u in recipients)
+                            tile(
+                              key: 'u:${u.id}',
+                              leading: JuzzioUserAvatar(imageUrl: u.avatarUrl, displayName: u.displayName, radius: 20),
+                              name: u.displayName,
+                              sub: '@${u.username}',
                             ),
-                            onChanged: sending
-                                ? null
-                                : (val) {
-                                    setModalState(() {
-                                      if (val == true) {
-                                        selectedIds.add(u.id);
-                                      } else {
-                                        selectedIds.remove(u.id);
-                                      }
-                                    });
-                                  },
-                          );
-                        },
+                        ],
                       ),
                     ),
                   if (errorMsg != null) ...[
                     const SizedBox(height: 6),
-                    Text(
-                      errorMsg!,
-                      style: const TextStyle(color: JuzzioSocialTokens.dangerRed, fontSize: 12.5),
-                    ),
+                    Text(errorMsg!, style: const TextStyle(color: JuzzioSocialTokens.dangerRed, fontSize: 12.5)),
                   ],
                   const SizedBox(height: 12),
                   Row(
@@ -915,9 +907,7 @@ Future<void> showJuzzioSharePostModalSheet({
                           onPressed: sending ? null : () => Navigator.pop(ctx),
                           style: OutlinedButton.styleFrom(
                             minimumSize: const Size.fromHeight(46),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                           ),
                           child: Text(app.loc('Vazgeç', 'Cancel', 'Abbrechen')),
                         ),
@@ -925,66 +915,58 @@ Future<void> showJuzzioSharePostModalSheet({
                       const SizedBox(width: 12),
                       Expanded(
                         child: ElevatedButton(
-                          onPressed: (sending || selectedIds.isEmpty)
+                          onPressed: (sending || selected.isEmpty)
                               ? null
                               : () async {
                                   setModalState(() {
                                     sending = true;
                                     errorMsg = null;
                                   });
-                                  try {
-                                    for (final targetUid in selectedIds) {
-                                      final targetUser = recipients.firstWhere((r) => r.id == targetUid);
-                                      final roomId = await SupabaseService.instance.ensureDirectRoomWithFriend(
-                                        friendId: targetUser.id,
-                                        friendName: targetUser.displayName,
-                                      );
-                                      final shareText = '📌 @${post.authorUsername}: ${post.caption.isEmpty ? "Gönderi" : post.caption} (juzzio://post/${post.id})';
-                                      await SupabaseService.instance.sendTextMessage(
-                                        text: shareText,
-                                        senderName: currentUser.displayName,
-                                        targetRoomId: roomId,
-                                        receiverId: targetUser.id,
-                                      );
+                                  var failed = 0;
+                                  for (final key in selected) {
+                                    try {
+                                      if (key.startsWith('g:')) {
+                                        await SupabaseService.instance.sendTextMessage(
+                                          text: shareText,
+                                          senderName: currentUser.displayName,
+                                          targetRoomId: key.substring(2),
+                                        );
+                                      } else {
+                                        final u = recipients.firstWhere((r) => r.id == key.substring(2));
+                                        final roomId = await SupabaseService.instance.ensureDirectRoomWithFriend(friendId: u.id, friendName: u.displayName);
+                                        await SupabaseService.instance.sendTextMessage(
+                                          text: shareText,
+                                          senderName: currentUser.displayName,
+                                          targetRoomId: roomId,
+                                          receiverId: u.id,
+                                        );
+                                      }
+                                    } catch (_) {
+                                      failed++;
                                     }
+                                  }
+                                  if (failed == 0) {
                                     if (ctx.mounted) {
                                       Navigator.pop(ctx);
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            app.loc('Gönderi seçilen sohbetlere iletildi.', 'Post shared to selected chats.', 'Beitrag an die ausgewählten Chats gesendet.'),
-                                          ),
-                                        ),
-                                      );
+                                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                        content: Text(app.loc('Seçilen sohbetlere iletildi.', 'Shared to the selected chats.', 'An die ausgewählten Chats gesendet.')),
+                                      ));
                                     }
-                                  } catch (_) {
+                                  } else {
                                     setModalState(() {
                                       sending = false;
-                                      errorMsg = app.loc(
-                                        'Paylaşım başarısız oldu. Seçiminiz korundu, tekrar deneyebilirsiniz.',
-                                        'Share failed. Your selection is preserved, please retry.', 'Teilen fehlgeschlagen. Deine Auswahl bleibt erhalten, bitte versuche es erneut.',
-                                      );
+                                      errorMsg = app.loc('$failed sohbete gönderilemedi. Tekrar deneyin.', 'Could not send to $failed chat(s). Try again.',
+                                          'An $failed Chat(s) nicht gesendet.');
                                     });
                                   }
                                 },
                           style: ElevatedButton.styleFrom(
+                            minimumSize: const Size.fromHeight(46),
                             backgroundColor: JuzzioSocialTokens.royalBlue,
                             foregroundColor: Colors.white,
-                            minimumSize: const Size.fromHeight(46),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                           ),
-                          child: sending
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: JuzzioOrbitLoader(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : Text('${app.loc("Gönder", "Send", "Senden")} (${selectedIds.length})'),
+                          child: Text(sending ? app.loc('Gönderiliyor…', 'Sending…', 'Wird gesendet…') : app.loc('Gönder', 'Send', 'Senden')),
                         ),
                       ),
                     ],

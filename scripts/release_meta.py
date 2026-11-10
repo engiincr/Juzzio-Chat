@@ -285,6 +285,11 @@ def cmd_publish_sql() -> None:
         details = dict(details)
         details["tr"] = dict(tr, reason=reason)
     apk = f"https://github.com/{REPO}/releases/download/v{data['version']}/juzzio-v{data['version']}-release.apk"
+    # v1.2.4: yönetici panelindeki "geçmiş paketler" seçicisi için güvenlik ayrıntıları
+    sec = {k: str(data.get(k) or "") for k in ("apkSha256", "apkSize", "verifiedAt", "mldsa65Sig", "releaseDate")}
+    sec["verifiedBuild"] = bool(data.get("verifiedBuild"))
+    sec["mldsa65Sig"] = sec["mldsa65Sig"][:64]  # imzanın başı yeterli (parmak izi)
+    details = dict(details, security=sec)
     ch = data.get("changelog") or {}
     print(
         "INSERT INTO public.app_releases (version_name, version_code, apk_url, notes_tr, notes_en, notes_de, is_mandatory, details, published_at) VALUES ("

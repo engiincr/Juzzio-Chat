@@ -190,6 +190,8 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
     ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(content: Text(text)));
   }
 
+  int _plusOneTick = 0;
+
   Future<void> _onFriendButton() async {
     final prof = _profile;
     if (prof == null || _busy) return;
@@ -214,6 +216,8 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
       setState(() => _busy = true);
       try {
         final res = await JuzzioFeaturesService.instance.addFriend(prof.id);
+        // v1.2.4 (video: Follow Button "Plus One" + "Avatar Ring"): düğmeden +1 çipi yükselir
+        if (mounted) setState(() => _plusOneTick++);
         if (res == 'friends') {
           _snack(_l('Artık arkadaşsınız 🎉', 'You are now friends 🎉', 'Ihr seid jetzt befreundet 🎉'));
         } else if (_relation.isPrivate) {
@@ -978,7 +982,48 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
     }
     return Row(
       children: [
-        pill(friendLabel, _busy ? null : _onFriendButton, bg: friendBg, color: friendFg, icon: friendIcon),
+        // pill() kendi Expanded'ını döndürür → Stack bir Expanded içinde, pill bir Row içinde
+        Expanded(
+         child: Stack(
+          clipBehavior: Clip.none,
+          fit: StackFit.passthrough,
+          alignment: Alignment.topCenter,
+          children: [
+            Row(children: [pill(friendLabel, _busy ? null : _onFriendButton, bg: friendBg, color: friendFg, icon: friendIcon)]),
+            if (_plusOneTick > 0)
+              Positioned(
+               top: 0,
+               left: 0,
+               right: 0,
+               child: IgnorePointer(
+                child: Center(
+                 child: TweenAnimationBuilder<double>(
+                  key: ValueKey(_plusOneTick),
+                  tween: Tween(begin: 0, end: 1),
+                  duration: const Duration(milliseconds: 900),
+                  curve: Curves.easeOutCubic,
+                  builder: (context, v, _) => Transform.translate(
+                    offset: Offset(0, -6 - 34 * v),
+                    child: Opacity(
+                      opacity: (v < 0.15 ? v / 0.15 : (1 - v) / 0.85).clamp(0.0, 1.0),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: JuzzioGlassTokens.glow,
+                          borderRadius: BorderRadius.circular(99),
+                          boxShadow: [BoxShadow(color: JuzzioGlassTokens.glow.withValues(alpha: 0.5), blurRadius: 12)],
+                        ),
+                        child: Text('+1', style: TextStyle(color: JuzzioGlassTokens.onGlow, fontWeight: FontWeight.w900, fontSize: 13)),
+                      ),
+                    ),
+                  ),
+                 ),
+                ),
+               ),
+              ),
+          ],
+         ),
+        ),
         const SizedBox(width: 6),
         pill(
           _l('Mesaj', 'Message', 'Nachricht'),

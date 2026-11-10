@@ -463,6 +463,8 @@ class JuzzioAppController extends ChangeNotifier {
   bool _reducedEffects = false;
   // v1.2.1: hava durumuna göre tema ambiyansı (varsayılan AÇIK)
   bool _weatherThemeEnabled = true;
+  // v1.2.4: sohbette gelen fotoğraf/video/belgeleri galeriye otomatik kaydet (varsayılan açık)
+  bool _autoSaveMedia = true;
   bool _weatherPermAsked = false;
   bool _reducedEffectsUserSet = false;
   // v0.8.4: sohbet teması olarak seçilen uygulama teması ('' → sohbet ön ayarı kullanılır)
@@ -485,6 +487,12 @@ class JuzzioAppController extends ChangeNotifier {
 
   // Dil Ayarları (Cihaz Dilini Otomatik Baz Alır, 142 Dili Destekler)
   String _uiLang = 'tr';
+
+  /// v1.2.4: arayüz metinleri değiştikçe artar (dil değişimi / arka planda gelen çeviriler).
+  /// Kök, bu sayı değişince AÇIK OLAN TÜM ekranları yeniden çizer (yönetici paneli, açılır
+  /// pencereler, kayıt/giriş ekranı dahil) — uygulamadan çıkmaya gerek kalmaz.
+  int _uiTextRevision = 0;
+  int get uiTextRevision => _uiTextRevision;
   String _subtitleLang = 'tr';
   final Map<String, String> _dynamicUiCache = {};
   final Set<String> _pendingDynamicKeys = {};
@@ -1065,6 +1073,7 @@ class JuzzioAppController extends ChangeNotifier {
       _reducedEffects = raw['reducedEffects'] == true;
       JuzzioGlassTokens.reducedEffects = _reducedEffects;
       _weatherThemeEnabled = raw['weatherTheme'] != false;
+      _autoSaveMedia = raw['autoSaveMedia'] != false;
       _weatherPermAsked = raw['weatherPermAsked'] == true;
       final gi = raw['glassIntensity'];
       _glassIntensity = (gi is num && gi.isFinite) ? gi.toDouble().clamp(0.6, 1.4) : 1.0;
@@ -1230,6 +1239,7 @@ class JuzzioAppController extends ChangeNotifier {
         'chatPalette': _chatPaletteId,
         'reducedEffects': _reducedEffects,
         'weatherTheme': _weatherThemeEnabled,
+        'autoSaveMedia': _autoSaveMedia,
         'weatherPermAsked': _weatherPermAsked,
         if (_reducedEffectsUserSet) 'reducedEffectsUserSet': true,
         'glassIntensity': _glassIntensity,
@@ -1326,6 +1336,7 @@ class JuzzioAppController extends ChangeNotifier {
     }
     _dynamicUiCache[cacheKey] = out;
     _schedulePackPersist(targetLang);
+    _uiTextRevision++;
     notifyListeners();
   }
 
@@ -1559,6 +1570,14 @@ class JuzzioAppController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// v1.2.4: sohbet medyasını galeriye otomatik kaydet
+  bool get autoSaveMedia => _autoSaveMedia;
+  void setAutoSaveMedia(bool v) {
+    _autoSaveMedia = v;
+    _persistUserPreferences();
+    notifyListeners();
+  }
+
   /// v0.8.2: düşük donanımlı cihaz algılanırsa ve kullanıcı performans modunu kendisi
   /// hiç değiştirmediyse blur otomatik kapatılır (kalıcı seçim değildir).
   bool _autoReducedEffects = false;
@@ -1672,6 +1691,7 @@ class JuzzioAppController extends ChangeNotifier {
       }
     }
     _uiLang = clean;
+    _uiTextRevision++;
     await _saveDeviceUiLang(clean);
     _persistUserPreferences();
     notifyListeners();

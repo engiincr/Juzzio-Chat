@@ -10,6 +10,7 @@
 
 import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter/services.dart';
@@ -143,12 +144,13 @@ class _JuzzioSwipeToReplyState extends State<JuzzioSwipeToReply> with SingleTick
   @override
   Widget build(BuildContext context) {
     if (!widget.enabled) return widget.child;
-    return GestureDetector(
-      behavior: HitTestBehavior.translucent,
-      onHorizontalDragStart: _onStart,
-      onHorizontalDragUpdate: _onUpdate,
-      onHorizontalDragEnd: _onEnd,
-      onHorizontalDragCancel: () => _onEnd(DragEndDetails(primaryVelocity: 0)),
+    // v1.2.4: yön kilitli yatay sürükleme — dikey kaydırmayı ASLA çalmaz (sohbette yukarı
+    // kaydırırken takılma/titreme düzeltmesi)
+    return JuzzioHorizontalSwipeDetector(
+      onStart: _onStart,
+      onUpdate: _onUpdate,
+      onEnd: _onEnd,
+      onCancel: () => _onEnd(DragEndDetails(primaryVelocity: 0)),
       child: AnimatedBuilder(
         animation: _ctrl,
         child: widget.child,
@@ -231,3 +233,78 @@ double juzzioSwipeResistLeft(double dx, double width) {
 
 /// Bırakınca açık mı kalsın? (genişliğin %45'i ya da hızlı fırlatma)
 bool juzzioSwipeShouldOpen(double value, double width, double velocity) => value < -width * 0.45 || velocity < -650;
+
+
+/// v1.2.4 — Yön kilitli yatay sürükleme tanıyıcısı.
+/// Standart yatay sürükleme, parmak biraz çapraz gidince dikey kaydırmadan ÖNCE kazanıp
+/// listeyi kilitliyordu (sohbette yukarı çıkamama, titreme). Bu tanıyıcı yalnız hareket
+/// belirgin biçimde yataysa (|dx| ≥ [ratio]·|dy|) kabul eder; aksi hâlde dikey kaydırma kazanır.
+class JuzzioDirectionalHorizontalDrag extends HorizontalDragGestureRecognizer {
+  JuzzioDirectionalHorizontalDrag({super.debugOwner, this.ratio = 1.8});
+
+  final double ratio;
+  Offset _total = Offset.zero;
+
+  @override
+  void addAllowedPointer(PointerDownEvent event) {
+    _total = Offset.zero;
+    super.addAllowedPointer(event);
+  }
+
+  @override
+  void handleEvent(PointerEvent event) {
+    if (event is PointerMoveEvent) _total += event.delta;
+    super.handleEvent(event);
+  }
+
+  @override
+  bool hasSufficientGlobalDistanceToAccept(PointerDeviceKind pointerDeviceKind, double? deviceTouchSlop) {
+    return juzzioIsHorizontalIntent(_total, ratio: ratio) && super.hasSufficientGlobalDistanceToAccept(pointerDeviceKind, deviceTouchSlop);
+  }
+}
+
+/// Hareket yatay mı? (saf; test edilir)
+bool juzzioIsHorizontalIntent(Offset total, {double ratio = 1.8}) => total.dx.abs() >= ratio * total.dy.abs();
+
+/// Yön kilitli yatay kaydırma algılayıcısı (GestureDetector yerine)
+class JuzzioHorizontalSwipeDetector extends StatelessWidget {
+  const JuzzioHorizontalSwipeDetector({
+    super.key,
+    required this.child,
+    this.onStart,
+    this.onUpdate,
+    this.onEnd,
+    this.onCancel,
+    this.onTap,
+  });
+
+  final Widget child;
+  final GestureDragStartCallback? onStart;
+  final GestureDragUpdateCallback? onUpdate;
+  final GestureDragEndCallback? onEnd;
+  final GestureDragCancelCallback? onCancel;
+  final GestureTapCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return RawGestureDetector(
+      behavior: HitTestBehavior.translucent,
+      gestures: <Type, GestureRecognizerFactory>{
+        JuzzioDirectionalHorizontalDrag: GestureRecognizerFactoryWithHandlers<JuzzioDirectionalHorizontalDrag>(
+          () => JuzzioDirectionalHorizontalDrag(debugOwner: this),
+          (r) => r
+            ..onStart = onStart
+            ..onUpdate = onUpdate
+            ..onEnd = onEnd
+            ..onCancel = onCancel,
+        ),
+        if (onTap != null)
+          TapGestureRecognizer: GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
+            () => TapGestureRecognizer(debugOwner: this),
+            (r) => r.onTap = onTap,
+          ),
+      },
+      child: child,
+    );
+  }
+}

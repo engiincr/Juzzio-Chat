@@ -5,10 +5,12 @@
 //  • JuzzioMediaViewerPage: sohbet fotoğraf/videolarını tam ekran açar.
 // =============================================================================
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import '../services/juzzio_media_url.dart';
+import '../services/juzzio_media_cache.dart';
 import 'package:video_player/video_player.dart';
 import 'juzzio_motion.dart';
 
@@ -88,9 +90,19 @@ class JuzzioVideoController {
     try {
       final remote = _remoteUrl;
       if (_controller == null && remote != null) {
-        final playable = await JuzzioMediaUrl.resolve(remote);
-        if (_disposed) return;
-        _controller = VideoPlayerController.networkUrl(Uri.parse(playable));
+        // v1.2.4: daha önce indirildiyse (hikâye önyükleme / önceki izleme) internetsiz dosyadan oynar
+        final cached = JuzzioMediaUrl.parse(remote) != null ? JuzzioMediaDiskCache.instance.cachedFile(remote) : null;
+        if (cached != null) {
+          _controller = VideoPlayerController.file(cached);
+        } else {
+          final playable = await JuzzioMediaUrl.resolve(remote);
+          if (_disposed) return;
+          _controller = VideoPlayerController.networkUrl(Uri.parse(playable));
+          // izlerken arka planda cihaza da indir → bir dahaki sefere çevrimdışı izlenir
+          if (JuzzioMediaUrl.parse(remote) != null) {
+            unawaited(JuzzioMediaDiskCache.instance.loadFile(remote, resolvedUrl: playable).catchError((_) => null));
+          }
+        }
       }
       final ctrl = _controller;
       if (ctrl == null) {

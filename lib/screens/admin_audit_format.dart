@@ -304,6 +304,13 @@ JuzzioAuditLine juzzioFormatAudit(Map<String, dynamic> a, String lang) {
     case 'storage_queue_retry':
       icon = Icons.refresh_rounded;
       sentence = t('$who depolama temizlik kuyruğunu yeniden denedi', '$who retried the storage cleanup queue', '$who hat die Speicherbereinigung erneut versucht');
+    case 'community_post':
+      // v1.2.0: Juzzio Topluluğu kanalına yönetici duyurusu
+      icon = Icons.campaign_outlined;
+      tone = 1;
+      sentence = t('$who Juzzio Topluluğu\'nda duyuru paylaştı', '$who posted an announcement to Juzzio Community',
+          '$who hat eine Ankündigung in der Juzzio Community geteilt');
+      add(t('Tür', 'Type', 'Typ'), d['kind']);
     case 'orphan_media_scan':
       icon = Icons.cleaning_services_outlined;
       sentence = t('$who sahipsiz medya taraması yaptı', '$who ran an orphan media scan', '$who hat verwaiste Medien gesucht');

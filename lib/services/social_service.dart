@@ -7,6 +7,7 @@
 
 import '../core/juzzio_input_guard.dart';
 import 'juzzio_media_cache.dart';
+import 'juzzio_media_url.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -169,7 +170,14 @@ class JuzzioSocialService {
     }
 
     // v0.9.3: profil gönderileri çevrimdışı da görünsün — son başarılı liste cihazda saklanır
-    final cacheName = (authorId != null && authorId.isNotEmpty && beforeCreatedAt == null) ? 'posts_$authorId' : null;
+    // v1.2.4: Keşfet / küresel akışın ilk sayfası da saklanır → internet yokken en son yüklenen hâli açılır
+    final cacheName = beforeCreatedAt != null
+        ? null
+        : (authorId != null && authorId.isNotEmpty)
+            ? 'posts_$authorId'
+            : (hashtag == null || hashtag.trim().isEmpty)
+                ? feedCacheName(filter, topic)
+                : null;
     List rows;
     try {
       rows = await query
@@ -177,6 +185,7 @@ class JuzzioSocialService {
           .order('id', ascending: false)
           .limit(limit) as List;
       if (cacheName != null) unawaited(SupabaseService.instance.writeLocalCache(cacheName, rows));
+      if (authorId == null && rows.isNotEmpty) prefetchPostMedia(rows);
     } catch (e) {
       final cached = cacheName == null ? null : await SupabaseService.instance.readLocalCache(cacheName);
       if (cached is! List) rethrow;
@@ -215,6 +224,44 @@ class JuzzioSocialService {
     return result;
   }
 
+  /// v1.2.4: akış önbelleğinin adı (sekme + konu)
+  static String feedCacheName(String filter, String? topic) => 'feed_${filter}_${(topic == null || topic.isEmpty) ? 'all' : topic}';
+
+  /// v1.2.4: Önbellekteki akış (ağ kullanmaz) — Keşfet açılır açılmaz gösterilir.
+  Future<List<JuzzioPost>> cachedFeedPosts({String filter = 'all', String? topic}) async {
+    final rows = await SupabaseService.instance.cachedRows(feedCacheName(filter, topic));
+    final out = <JuzzioPost>[];
+    final seen = <String>{};
+    for (final map in rows) {
+      final p = JuzzioPost.fromMap(
+        map,
+        isLikedByMe: _likedPostIdsCache.contains(map['id']?.toString()),
+        isSavedByMe: _savedPostIdsCache.contains(map['id']?.toString()),
+      );
+      if (p.id.isEmpty || !seen.add(p.id) || _blockedUserIdsCache.contains(p.authorId)) continue;
+      out.add(p);
+    }
+    return out;
+  }
+
+  /// v1.2.4: akıştaki ilk gönderilerin görsellerini/kapaklarını arka planda indirir
+  /// (internet yokken de görünsün). Videonun kendisi yalnız izlenince indirilir.
+  void prefetchPostMedia(List rows, {int max = 10}) {
+    var n = 0;
+    for (final r in rows) {
+      if (r is! Map) continue;
+      final isVideo = (r['content_type'] ?? '').toString() == 'video';
+      final urls = r['media_urls'];
+      final first = urls is List && urls.isNotEmpty ? urls.first?.toString() : null;
+      // video gönderide yalnız kapak; diğerlerinde ilk görsel
+      final url = (isVideo ? r['cover_url']?.toString() : first) ?? '';
+      if (url.isEmpty || JuzzioMediaUrl.parse(url) == null) continue;
+      if (JuzzioMediaDiskCache.instance.cachedFile(url) != null) continue;
+      if (++n > max) return;
+      unawaited(JuzzioMediaDiskCache.instance.loadFile(url).catchError((_) => null));
+    }
+  }
+
   /// Tekil gönderiyi postId ile gerçek veritabanından doğrular (Bölüm 21.1)
   Future<JuzzioPost?> fetchPostById(String postId) async {
     if (postId.trim().isEmpty) return null;
@@ -242,27 +289,41 @@ class JuzzioSocialService {
     if (uid == null || uid.isEmpty) return const [];
     await refreshMyInteractionSets();
 
-    final savedRows = await _client
-        .from('saved_posts')
-        .select('post_id, created_at')
-        .eq('user_id', uid)
-        .order('created_at', ascending: false)
-        .limit(limit);
+    // v1.2.4: kaydedilenler çevrimdışı da görünür
+    late final List savedRows;
+    late final List postRowsAll;
+    try {
+      savedRows = await _client
+          .from('saved_posts')
+          .select('post_id, created_at')
+          .eq('user_id', uid)
+          .order('created_at', ascending: false)
+          .limit(limit) as List;
+    } catch (e) {
+      final cached = await SupabaseService.instance.cachedRows('saved_posts_full');
+      if (cached.isEmpty) rethrow;
+      return cached.map((m) => JuzzioPost.fromMap(m, isLikedByMe: _likedPostIdsCache.contains(m['id']?.toString()), isSavedByMe: true)).toList();
+    }
 
     final postIds = (savedRows as List)
         .map((e) => (e['post_id'] ?? '').toString())
         .where((s) => s.isNotEmpty)
         .toList();
-    if (postIds.isEmpty) return const [];
+    if (postIds.isEmpty) {
+      unawaited(SupabaseService.instance.writeLocalCache('saved_posts_full', const <Object>[]));
+      return const [];
+    }
 
-    final postRows = await _client
+    postRowsAll = await _client
         .from('posts')
         .select()
         .inFilter('id', postIds)
-        .eq('is_deleted', false);
+        .eq('is_deleted', false) as List;
+    final byIdRow = <String, Map>{for (final r in postRowsAll.whereType<Map>()) (r['id'] ?? '').toString(): r};
+    unawaited(SupabaseService.instance.writeLocalCache('saved_posts_full', postIds.map((id) => byIdRow[id]).whereType<Map>().toList()));
 
     final byId = <String, JuzzioPost>{};
-    for (final raw in (postRows as List)) {
+    for (final raw in postRowsAll) {
       final map = raw as Map<String, dynamic>;
       final p = JuzzioPost.fromMap(
         map,
@@ -789,6 +850,24 @@ class JuzzioSocialService {
     if (r[0] is List) postsCount = (r[0] as List).length;
     if (r[1] is List) followersCount = (r[1] as List).length;
     if (r[2] is List) followingCount = (r[2] as List).length;
+    // v1.2.4: sayaçlar çevrimdışı da görünür (son başarılı değerler)
+    final countsCache = 'counts_$targetUserId';
+    if (r[0] is List && r[1] is List && r[2] is List) {
+      unawaited(SupabaseService.instance.writeLocalCache(countsCache, {
+        'posts': postsCount,
+        'followers': followersCount,
+        'following': followingCount,
+        if (mine && r.length > 3) 'rel': r[3] is Map ? ((r[3] as Map)['status'] ?? '').toString() : '',
+      }));
+    } else if (r[0] == null && r[1] == null && r[2] == null) {
+      final c = await SupabaseService.instance.cachedMap(countsCache);
+      if (c != null) {
+        postsCount = (c['posts'] as num?)?.toInt() ?? 0;
+        followersCount = (c['followers'] as num?)?.toInt() ?? 0;
+        followingCount = (c['following'] as num?)?.toInt() ?? 0;
+        if (mine && r.length > 3 && r[3] == null) r[3] = {'status': c['rel'] ?? ''};
+      }
+    }
     if (mine && r.length > 3 && r[3] is Map) {
       final st = ((r[3] as Map)['status'] ?? '').toString();
       if (st == 'following') {
@@ -1041,12 +1120,13 @@ class JuzzioSocialService {
     if (unreadOnly) {
       query = query.eq('is_read', false);
     }
-    final rows = await query
-        .order('created_at', ascending: false)
-        .order('id', ascending: false)
-        .limit(limit);
+    // v1.2.4: son bildirimler çevrimdışı da görünür
+    final rows = await SupabaseService.instance.cachedQuery(
+      'notifs_${eventCategory ?? 'all'}_${unreadOnly ? 'u' : 'a'}',
+      () => query.order('created_at', ascending: false).order('id', ascending: false).limit(limit),
+    );
 
-    final list = (rows as List)
+    final list = rows
         .map((e) => JuzzioNotificationItem.fromMap(e as Map<String, dynamic>))
         .where((n) => n.actorId == null || !_blockedUserIdsCache.contains(n.actorId!))
         .toList();
@@ -1073,12 +1153,12 @@ class JuzzioSocialService {
     final uid = currentUserId;
     if (uid == null || uid.isEmpty) return Stream.value(const []);
     try {
-      return _client
-          .from('notifications')
-          .stream(primaryKey: ['id'])
-          .eq('recipient_id', uid)
-          .order('created_at', ascending: false)
-          .limit(200)
+      return SupabaseService.instance
+          .cachedLiveRows(
+            'notifs_live',
+            () => _client.from('notifications').stream(primaryKey: ['id']).eq('recipient_id', uid).order('created_at', ascending: false).limit(200),
+            keepOnEmpty: true,
+          )
           .map((rows) => rows
               .map(JuzzioNotificationItem.fromMap)
               .where((n) => kJuzzioSocialEventTypes.contains(n.eventType))

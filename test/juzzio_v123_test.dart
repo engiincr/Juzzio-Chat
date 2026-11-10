@@ -8,6 +8,13 @@ import 'package:juzzio/widgets/juzzio_consent.dart';
 
 String _src(String p) => File(p).readAsStringSync();
 
+/// pumpAndSettle yerine sınırlı süreli pompalama: sonsuz bir animasyon testi asla askıda bırakmaz
+Future<void> _settle(WidgetTester tester) async {
+  for (var i = 0; i < 20; i++) {
+    await tester.pump(const Duration(milliseconds: 100));
+  }
+}
+
 void main() {
   test('yalnız iki seçenek; yurt dışı aktarım rıza olarak gönderilmez', () {
     const s = JuzzioConsentState();
@@ -45,19 +52,28 @@ void main() {
     expect(t, 'Başlık\n\n1. Kabul\n\n• kalın ve bağlantı\nnot');
   });
 
+  test('sona inildi kuralı', () {
+    expect(juzzioReachedEnd(0), isTrue);
+    expect(juzzioReachedEnd(24), isTrue);
+    expect(juzzioReachedEnd(25), isFalse);
+  });
+
   testWidgets('okuyucu: sona inilmeden onay düğmesi pasif, sonda etkin', (tester) async {
+    tester.view.physicalSize = const Size(1080, 1920);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(tester.view.reset);
     bool? result;
     await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: Builder(
-          builder: (ctx) => Center(
+      home: Builder(
+        builder: (ctx) => Scaffold(
+          body: Center(
             child: ElevatedButton(
               onPressed: () async {
                 result = await Navigator.of(ctx).push<bool>(MaterialPageRoute(
                   builder: (_) => Scaffold(
                     body: JuzzioConsentReader(
                       title: 'T',
-                      sections: [('A', List.filled(400, 'satır').join('\n'))],
+                      sections: [('A', List.generate(150, (i) => 'satır $i').join('\n'))],
                       confirmLabel: 'Okudum ve anladım',
                     ),
                   ),
@@ -70,15 +86,29 @@ void main() {
       ),
     ));
     await tester.tap(find.text('aç'));
-    await tester.pumpAndSettle();
-    FilledButton confirm() => tester.widget<FilledButton>(find.byKey(const ValueKey('consent_confirm')));
-    expect(confirm().onPressed, isNull);
-    await tester.tap(find.byKey(const ValueKey('consent_to_end')));
-    await tester.pumpAndSettle();
-    expect(confirm().onPressed, isNotNull);
-    await tester.tap(find.byKey(const ValueKey('consent_confirm')));
-    await tester.pumpAndSettle();
+    await _settle(tester);
+    final confirmFinder = find.byKey(const ValueKey('consent_confirm'));
+    expect(confirmFinder, findsOneWidget);
+    expect(tester.widget<ButtonStyleButton>(confirmFinder).onPressed, isNull);
+    // elle sona kadar kaydır (fling + gerekirse tekrar)
+    for (var i = 0; i < 12 && tester.widget<ButtonStyleButton>(confirmFinder).onPressed == null; i++) {
+      await tester.drag(find.byType(ListView), const Offset(0, -2000));
+      await _settle(tester);
+    }
+    expect(tester.widget<ButtonStyleButton>(confirmFinder).onPressed, isNotNull);
+    await tester.tap(confirmFinder);
+    await _settle(tester);
     expect(result, isTrue);
+  });
+
+  testWidgets('okuyucu: kısa metinde düğme hemen etkin', (tester) async {
+    await tester.pumpWidget(const MaterialApp(
+      home: Scaffold(
+        body: JuzzioConsentReader(title: 'T', sections: [('A', 'kısa')], confirmLabel: 'Tamam'),
+      ),
+    ));
+    await _settle(tester);
+    expect(tester.widget<ButtonStyleButton>(find.byKey(const ValueKey('consent_confirm'))).onPressed, isNotNull);
   });
 
   test('giriş/kayıt: işaretlenmemişse metin otomatik açılır, sonra devam eder', () {
@@ -93,8 +123,8 @@ void main() {
     expect(last.contains('AND COALESCE(p_cross_border, false)) THEN'), isFalse);
   });
 
-  test('Sürüm notu 1.2.3 en üstte', () {
-    final n = kJuzzioBundledReleaseNotes.first;
+  test('Sürüm notu 1.2.3', () {
+    final n = kJuzzioBundledReleaseNotes.firstWhere((r) => r.versionName == '1.2.3');
     expect(n.versionName, '1.2.3');
     expect(n.versionCode, 123);
   });

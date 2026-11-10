@@ -73,7 +73,16 @@ class JuzzioChatLock extends ChangeNotifier {
   DateTime? _blockedUntil;
 
   bool get loaded => _loaded;
-  bool get isUnlocked => _unlocked;
+
+  /// v1.2.4: PIN doğrulandıktan sonra yalnız KISA bir süre (2 dk) açık sayılır; kilitli sohbetten
+  /// çıkınca, uygulama arka plana geçince ya da süre dolunca yeniden kilitlenir.
+  /// (Önceden PIN oluşturulduğu an kilit "açık" kalıyor ve kilitli sohbete şifresiz giriliyordu.)
+  static const Duration unlockGrace = Duration(minutes: 2);
+  DateTime? _unlockedAt;
+  @visibleForTesting
+  DateTime Function() clock = DateTime.now;
+
+  bool get isUnlocked => juzzioChatUnlockValid(_unlocked, _unlockedAt, clock(), unlockGrace);
   Set<String> get lockedRooms => Set.unmodifiable(_locked);
   bool isLocked(String roomId) => _locked.contains(roomId);
   DateTime? get blockedUntil => _blockedUntil;
@@ -112,7 +121,9 @@ class JuzzioChatLock extends ChangeNotifier {
     final salt = List<int>.generate(16, (_) => math.Random.secure().nextInt(256));
     final hash = await JuzzioChatLockMath.derive(pin, salt);
     await _write(_kHash, '${base64Encode(salt)}:${base64Encode(hash)}');
-    _unlocked = true;
+    // v1.2.4: PIN oluşturmak kilidi AÇMAZ — sohbete girişte PIN yine sorulur
+    _unlocked = false;
+    _unlockedAt = null;
     notifyListeners();
   }
 
@@ -131,6 +142,7 @@ class JuzzioChatLock extends ChangeNotifier {
       _blockedUntil = null;
       await _write(_kFails, '0');
       _unlocked = true;
+      _unlockedAt = clock();
       notifyListeners();
       return true;
     }
@@ -146,6 +158,7 @@ class JuzzioChatLock extends ChangeNotifier {
   void relock() {
     if (!_unlocked) return;
     _unlocked = false;
+    _unlockedAt = null;
     notifyListeners();
   }
 
@@ -168,6 +181,11 @@ class JuzzioChatLock extends ChangeNotifier {
     _failures = 0;
     _blockedUntil = null;
     _unlocked = false;
+    _unlockedAt = null;
     notifyListeners();
   }
 }
+
+/// Kilit hâlâ açık mı (saf; test edilir)
+bool juzzioChatUnlockValid(bool unlocked, DateTime? at, DateTime now, Duration grace) =>
+    unlocked && at != null && now.difference(at) >= Duration.zero && now.difference(at) < grace;

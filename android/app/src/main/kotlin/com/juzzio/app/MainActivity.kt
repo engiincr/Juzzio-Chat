@@ -288,7 +288,12 @@ class MainActivity : FlutterActivity() {
             actorId: String,
             // v0.9.0 N-D: doluysa bildirim gizli (VISIBILITY_PRIVATE) olur; kilit ekranında bu metin görünür
             lockScreenBody: String? = null,
-            vibrate: Boolean = true
+            vibrate: Boolean = true,
+            // v1.2.4: sohbet tarzı (MessagingStyle) bildirim — gönderen adı/fotoğrafı ve grup adı
+            actorName: String = "",
+            avatar: android.graphics.Bitmap? = null,
+            convTitle: String = "",
+            isGroup: Boolean = false
         ) {
             try {
                 ensureChannelsCreated(context)
@@ -379,6 +384,41 @@ class MainActivity : FlutterActivity() {
                 builder.setAutoCancel(true)
                 builder.setContentIntent(pendingIntent)
 
+                // v1.2.4: sohbet tarzı, genişletilebilir mesaj bildirimi (WhatsApp/Discord benzeri):
+                //  • gönderen fotoğrafı + adı, grupta sohbet adı başlıkta
+                //  • aynı sohbetten gelen mesajlar tek bildirimde alt alta birikir
+                val isChatEvent = (eventType == "message" || eventType == "group_activity") && targetId.isNotBlank()
+                if (isChatEvent && title != "Juzzio") {
+                    try {
+                        val lang = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                            .getString(PREF_UI_LANG, null) ?: java.util.Locale.getDefault().language
+                        val meName = when (lang.substringBefore('-')) {
+                            "tr" -> "Sen"; "de" -> "Du"; "es" -> "Tú"; "fr" -> "Vous"; "ru" -> "Вы"; "ar" -> "أنت"
+                            else -> "You"
+                        }
+                        val me = androidx.core.app.Person.Builder().setName(meName).setKey("juzzio_me").build()
+                        val senderBuilder = androidx.core.app.Person.Builder()
+                            .setName(if (actorName.isNotBlank()) actorName else title)
+                            .setKey(if (actorId.isNotBlank()) actorId else title)
+                        if (avatar != null) senderBuilder.setIcon(androidx.core.graphics.drawable.IconCompat.createWithBitmap(avatar))
+                        val sender = senderBuilder.build()
+                        val nmPrev = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                        val previous = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                            nmPrev.activeNotifications.firstOrNull { it.id == id }?.notification
+                        } else null
+                        val style = previous?.let { NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(it) }
+                            ?: NotificationCompat.MessagingStyle(me)
+                        if (isGroup && convTitle.isNotBlank()) {
+                            style.setConversationTitle(convTitle)
+                            style.setGroupConversation(true)
+                        }
+                        style.addMessage(NotificationCompat.MessagingStyle.Message(body, System.currentTimeMillis(), sender))
+                        builder.setStyle(style)
+                        if (avatar != null) builder.setLargeIcon(avatar)
+                        builder.setContentTitle(if (isGroup && convTitle.isNotBlank()) convTitle else (if (actorName.isNotBlank()) actorName else title))
+                    } catch (_: Exception) {}
+                }
+
                 // v0.8.3: mesaj bildiriminde satır içi yanıt (uygulamayı açmadan gönder)
                 if ((eventType == "message" || eventType == "group_activity") && targetId.isNotBlank()) {
                     try {
@@ -420,6 +460,29 @@ class MainActivity : FlutterActivity() {
                             .setShowsUserInterface(false)
                             .build()
                         builder.addAction(action)
+                        // v1.2.4: "Okundu olarak işaretle" — uygulamayı açmadan sohbeti okundu yapar
+                        val markLabel = when (lang.substringBefore('-')) {
+                            "tr" -> "Okundu olarak işaretle"
+                            "de" -> "Als gelesen markieren"
+                            "es" -> "Marcar como leído"
+                            "fr" -> "Marquer comme lu"
+                            "ar" -> "تعليم كمقروء"
+                            "ru" -> "Отметить как прочитанное"
+                            else -> "Mark as read"
+                        }
+                        val readIntent = Intent(context, JuzzioReplyReceiver::class.java).apply {
+                            // yerel `action` değişkeniyle karışmasın diye açık çağrı
+                            setAction(JuzzioReplyReceiver.ACTION_MARK_READ)
+                            putExtra(JuzzioReplyReceiver.EXTRA_ROOM, targetId)
+                            putExtra(JuzzioReplyReceiver.EXTRA_NOTIF_ID, id)
+                        }
+                        val readPending = PendingIntent.getBroadcast(context, id + 7, readIntent, pendingIntentFlags)
+                        builder.addAction(
+                            NotificationCompat.Action.Builder(android.R.drawable.ic_menu_view, markLabel, readPending)
+                                .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_MARK_AS_READ)
+                                .setShowsUserInterface(false)
+                                .build()
+                        )
                     } catch (_: Exception) {}
                 }
 
@@ -673,6 +736,29 @@ class MainActivity : FlutterActivity() {
 
         channel.setMethodCallHandler { call, result ->
             when (call.method) {
+                // v1.2.4: sohbet medyasını galeriye kaydet (arka plan iş parçacığında)
+                "saveToGallery" -> {
+                    val path = call.argument<String>("path") ?: ""
+                    val mime = call.argument<String>("mime") ?: "application/octet-stream"
+                    val name = call.argument<String>("name") ?: ""
+                    val kind = call.argument<String>("kind") ?: "document"
+                    val app = applicationContext
+                    Thread {
+                        val ok = JuzzioGallery.save(app, path, mime, name, kind)
+                        Handler(Looper.getMainLooper()).post { try { result.success(ok) } catch (_: Exception) {} }
+                    }.start()
+                }
+                // v1.2.4: sohbet açılınca o sohbetin biriken bildirimi kaldırılır
+                "cancelRoomNotification" -> {
+                    val room = call.argument<String>("roomId") ?: ""
+                    if (room.isNotBlank()) {
+                        try {
+                            (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+                                .cancel(("room_$room").hashCode() and 0x7FFFFFFF)
+                        } catch (_: Exception) {}
+                    }
+                    result.success(true)
+                }
                 // v0.9.0 N-D: bildirim önizleme kipi ('full' | 'sender' | 'hidden')
                 "setNotificationPreviewMode" -> {
                     val mode = call.argument<String>("mode") ?: "full"

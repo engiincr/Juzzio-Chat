@@ -96,7 +96,7 @@ class JuzzioConsentService {
   }
 }
 
-String _l(String tr, String en, String de) => JuzzioAppController.instance.trEn(tr, en, de);
+String _l(String tr, String en, [String? de]) => JuzzioAppController.instance.trEn(tr, en, de);
 
 /// Onay metinleri (TR/EN; diğer dillerde uygulamanın çeviri katmanı devreye girer)
 class JuzzioConsentTexts {
@@ -172,7 +172,8 @@ While your account exists; on deletion, data and media are queued for removal. R
 Access, information, rectification, erasure, notification of recipients, objection to automated decisions, compensation (KVKK Art. 11) and, in the EU, portability and restriction (GDPR). Contact engiincr@pm.me from your registered e-mail; free reply within 30 days. You can complain to the Personal Data Protection Board (KVKK Art. 14) or your EU supervisory authority.
 
 Full text: Settings → Help & Support → Privacy, data rights & legal.''',
-        'Datenschutzhinweis (Zusammenfassung) — siehe Einstellungen → Hilfe → Datenschutz.',
+        // v1.2.4: Almanca ve diğer diller İngilizce tam metnin otomatik çevirisi (özet değil)
+        null,
       );
 
   /// Kullanım Koşulları'nın tam metni (uygulamaya gömülü yasal metinden, işaretler temizlenmiş)
@@ -195,7 +196,7 @@ I agree to receive commercial e-mails about Juzzio news, campaigns, events and a
 • You can withdraw at any time, free of charge and without giving a reason, in Settings → Notifications or via the link in every e-mail; withdrawals are processed within 3 business days.
 • Your consent and withdrawal are recorded with their date.
 • Details of processing are in the Privacy Notice.''',
-        'Einwilligung in Marketing-E-Mails (optional, jederzeit widerrufbar).',
+        null,
       );
 }
 
@@ -219,21 +220,34 @@ Future<bool> juzzioShowConsentReader(
   required List<(String, String)> sections,
   required String confirmLabel,
   String? footnote,
+  List<(String, String)> Function()? sectionsBuilder,
 }) async {
   final r = await showJuzzioSheet<bool>(
     context: context,
     isScrollControlled: true,
     backgroundColor: JuzzioPalette(JuzzioAppController.instance.isDark).sheetBg,
-    builder: (ctx) => JuzzioConsentReader(title: title, sections: sections, confirmLabel: confirmLabel, footnote: footnote),
+    builder: (ctx) => JuzzioConsentReader(title: title, sections: sections, confirmLabel: confirmLabel, footnote: footnote, sectionsBuilder: sectionsBuilder),
   );
   return r == true;
 }
 
+/// Metin uygulama dilinde elle yazılmış değil, otomatik çevrilmiş mi (saf; test edilir)
+bool juzzioConsentIsMachineTranslated(String uiLang) {
+  final l = uiLang.toLowerCase().split('-').first;
+  return l != 'tr' && l != 'en';
+}
+
+/// Metnin sonuna inildi mi (altta kalan kaydırma payı 24 px'ten az) — saf; test edilir
+bool juzzioReachedEnd(double extentAfter) => extentAfter <= 24;
+
 /// Okuyucu (test edilebilmesi için herkese açık)
 class JuzzioConsentReader extends StatefulWidget {
-  const JuzzioConsentReader({super.key, required this.title, required this.sections, required this.confirmLabel, this.footnote});
+  const JuzzioConsentReader({super.key, required this.title, required this.sections, required this.confirmLabel, this.footnote, this.sectionsBuilder});
   final String title;
   final List<(String, String)> sections;
+
+  /// v1.2.4: verilirse metin her çizimde yeniden üretilir → dil değişince / çeviri gelince canlı güncellenir
+  final List<(String, String)> Function()? sectionsBuilder;
   final String confirmLabel;
   final String? footnote;
 
@@ -255,8 +269,7 @@ class _JuzzioConsentReaderState extends State<JuzzioConsentReader> {
 
   void _check() {
     if (!mounted || !_sc.hasClients || _atEnd) return;
-    final pos = _sc.position;
-    if (pos.pixels >= pos.maxScrollExtent - 24) setState(() => _atEnd = true);
+    if (juzzioReachedEnd(_sc.position.extentAfter)) setState(() => _atEnd = true);
   }
 
   @override
@@ -265,13 +278,28 @@ class _JuzzioConsentReaderState extends State<JuzzioConsentReader> {
     super.dispose();
   }
 
-  void _toEnd() {
-    if (!_sc.hasClients) return;
-    _sc.animateTo(_sc.position.maxScrollExtent, duration: const Duration(milliseconds: 1200), curve: Curves.easeInOutCubic);
+  /// "Sona in": tembel listede toplam uzunluk kaydırdıkça kesinleşir; bu yüzden animasyondan
+  /// sonra gerçek sona atlanır ve gerekirse birkaç kez tekrarlanır (asla yarıda kalmaz).
+  Future<void> _toEnd() async {
+    for (var i = 0; i < 4 && mounted && _sc.hasClients && !_atEnd; i++) {
+      final target = _sc.position.maxScrollExtent;
+      if (i == 0) {
+        await _sc.animateTo(target, duration: const Duration(milliseconds: 900), curve: Curves.easeInOutCubic);
+      } else {
+        _sc.jumpTo(target);
+        await WidgetsBinding.instance.endOfFrame;
+      }
+      _check();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    // v1.2.4: dil / çeviri değişince canlı güncellenir
+    return ListenableBuilder(listenable: JuzzioAppController.instance, builder: (context, _) => _buildReader(context));
+  }
+
+  Widget _buildReader(BuildContext context) {
     final txt = JuzzioGlassTokens.textPrimary;
     final sub = JuzzioGlassTokens.textSecondary;
     return Material(
@@ -300,7 +328,22 @@ class _JuzzioConsentReaderState extends State<JuzzioConsentReader> {
                     controller: _sc,
                     padding: const EdgeInsets.fromLTRB(20, 4, 20, 64),
                     children: [
-                      for (final sec in widget.sections) ...[
+                      if (juzzioConsentIsMachineTranslated(JuzzioAppController.instance.uiLang))
+                        Container(
+                          margin: const EdgeInsets.only(top: 6, bottom: 4),
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: JuzzioGlassTokens.surface,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: JuzzioGlassTokens.border),
+                          ),
+                          child: Text(
+                            _l('Bu metin otomatik çevrilmiştir; bağlayıcı metin Türkçedir.',
+                                'This text is machine-translated; the Turkish text is legally binding.'),
+                            style: TextStyle(color: sub, fontSize: 12, fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      for (final sec in (widget.sectionsBuilder?.call() ?? widget.sections)) ...[
                         Padding(
                           padding: const EdgeInsets.only(top: 10, bottom: 6),
                           child: Text(sec.$1, style: TextStyle(color: JuzzioGlassTokens.glowText, fontSize: 14.5, fontWeight: FontWeight.w900)),
@@ -355,14 +398,21 @@ class _JuzzioConsentReaderState extends State<JuzzioConsentReader> {
   }
 }
 
+List<(String, String)> _requiredSections() => [
+      (_l('1 · KVKK Aydınlatma Metni', '1 · Privacy Notice', '1 · Datenschutzhinweis'), JuzzioConsentTexts.aydinlatma),
+      (_l('2 · Kullanım Koşulları', '2 · Terms of Use', '2 · Nutzungsbedingungen'), JuzzioConsentTexts.terms),
+    ];
+
+List<(String, String)> _marketingSections() => [
+      (_l('İsteğe bağlı onay', 'Optional consent', 'Optionale Einwilligung'), JuzzioConsentTexts.ticariIleti),
+    ];
+
 /// Zorunlu kutunun okuyucusu: Aydınlatma Metni + Kullanım Koşulları (ayrı başlıklar, ayrı beyanlar)
 Future<bool> juzzioOpenRequiredConsent(BuildContext context) => juzzioShowConsentReader(
       context,
       title: _l('Aydınlatma Metni ve Kullanım Koşulları', 'Privacy Notice and Terms of Use', 'Datenschutz und Nutzungsbedingungen'),
-      sections: [
-        (_l('1 · KVKK Aydınlatma Metni', '1 · Privacy Notice', '1 · Datenschutzhinweis'), JuzzioConsentTexts.aydinlatma),
-        (_l('2 · Kullanım Koşulları', '2 · Terms of Use', '2 · Nutzungsbedingungen'), JuzzioConsentTexts.terms),
-      ],
+      sections: _requiredSections(),
+      sectionsBuilder: _requiredSections,
       confirmLabel: _l('Okudum ve anladım', 'I have read and understood', 'Gelesen und verstanden'),
       footnote: _l(
         'Bu düğmeye basarak: (1) Aydınlatma Metni\'ni okuyup anladığınızı beyan edersiniz — bu bir rıza değildir; (2) Kullanım Koşulları\'nı kabul eder ve 15 yaşından büyük olduğunuzu beyan edersiniz.',
@@ -375,7 +425,8 @@ Future<bool> juzzioOpenRequiredConsent(BuildContext context) => juzzioShowConsen
 Future<bool> juzzioOpenMarketingConsent(BuildContext context) => juzzioShowConsentReader(
       context,
       title: _l('Kampanya ve duyuru e-postaları', 'News & campaign e-mails', 'Neuigkeiten per E-Mail'),
-      sections: [(_l('İsteğe bağlı onay', 'Optional consent', 'Optionale Einwilligung'), JuzzioConsentTexts.ticariIleti)],
+      sections: _marketingSections(),
+      sectionsBuilder: _marketingSections,
       confirmLabel: _l('Onay veriyorum', 'I agree', 'Ich willige ein'),
     );
 

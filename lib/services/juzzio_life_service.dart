@@ -12,6 +12,8 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'supabase_service.dart';
+
 class JuzzioLifeTask {
   const JuzzioLifeTask({
     required this.id,
@@ -130,9 +132,13 @@ class JuzzioLifeService extends ChangeNotifier {
   bool isMessageSaved(String messageId) => _savedMessageIds.contains(messageId);
 
   /// Hata durumunda istisna fırlatır (ekran hata durumunu gösterir).
+  /// v1.2.4: görev ve hatırlatıcılar çevrimdışı da görünür (son başarılı liste cihazda saklanır).
   Future<List<JuzzioLifeTask>> refresh() async {
-    final rows = await _c.from('life_tasks').select().order('created_at', ascending: false).limit(1000);
-    _tasks = [for (final r in (rows as List).whereType<Map>()) JuzzioLifeTask.fromMap(Map<String, dynamic>.from(r))];
+    final rows = await SupabaseService.instance.cachedQuery(
+      'life_tasks',
+      () => _c.from('life_tasks').select().order('created_at', ascending: false).limit(1000),
+    );
+    _tasks = [for (final r in rows) JuzzioLifeTask.fromMap(r)];
     _loaded = true;
     notifyListeners();
     return _tasks;

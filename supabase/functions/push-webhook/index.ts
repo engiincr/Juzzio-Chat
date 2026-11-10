@@ -271,6 +271,11 @@ Deno.serve(async (req: Request) => {
     let idempotencyKey = "";
     let isSelfTest = false;
     let recipientLang = "tr";
+    // v1.2.4: sohbet tarzı (MessagingStyle) bildirim için gönderen ve sohbet bilgisi
+    let actorName = "";
+    let actorAvatar = "";
+    let convTitle = "";
+    let convIsGroup = false;
 
     // --- YOL A: SELF TEST ---
     if (bodyJson.action === "self_test") {
@@ -443,6 +448,10 @@ Deno.serve(async (req: Request) => {
       targetId = String(verifiedNotif.target_id ?? "");
       targetSecondaryId = String(verifiedNotif.target_secondary_id ?? "");
       idempotencyKey = `notif_${notificationId}`;
+      actorName = String(verifiedNotif.actor_display_name || verifiedNotif.actor_username || "").slice(0, 80);
+      const av = String(verifiedNotif.actor_avatar_url ?? "");
+      // yalnız herkese açık https adresi (avatars kovası herkese açıktır); başka bir şey gönderilmez
+      actorAvatar = /^https:\/\/[^\s"<>]{1,1500}$/.test(av) ? av : "";
     }
 
     // v0.9.0 §6.4: sohbet bazlı önizleme / titreşim (yalnız mesaj olayları; alıcının kendi satırı)
@@ -457,6 +466,13 @@ Deno.serve(async (req: Request) => {
         .maybeSingle();
       roomPreview = (rp?.notif_preview as string | null) ?? null;
       roomVibrate = rp?.notif_vibrate !== false;
+      const { data: roomRow } = await adminClient
+        .from("rooms")
+        .select("title, is_group")
+        .eq("id", targetId)
+        .maybeSingle();
+      convIsGroup = roomRow?.is_group === true;
+      convTitle = convIsGroup ? String(roomRow?.title ?? "").slice(0, 80) : "";
     }
 
     // v0.7.0: alıcının ses tercihi (varsayılan + kişiye özel) → sese özel Android kanalı
@@ -688,6 +704,11 @@ Deno.serve(async (req: Request) => {
           body: view.body,
           preview_mode: view.mode,
           vibrate: roomVibrate ? "1" : "0",
+          // v1.2.4: genişletilebilir sohbet bildirimi (gizli kipte boş)
+          actor_name: view.mode === "hidden" ? "" : actorName,
+          actor_avatar: view.mode === "hidden" ? "" : actorAvatar,
+          conv_title: view.mode === "hidden" ? "" : convTitle,
+          is_group: convIsGroup ? "1" : "0",
         };
         // Mesaj olayları YALNIZ veri (data-only) gider: bildirimi uygulama kendisi çizer, böylece
         // 'full' kipte metin cihazda çözülür ve kilit ekranı gizliliği (VISIBILITY_PRIVATE) uygulanır.

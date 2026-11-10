@@ -1,6 +1,6 @@
 # 🔐 Juzzio Privacy Policy
 
-Last updated: November 10, 2026 · App version: v1.2.3 (BETA · Early Access)
+Last updated: November 10, 2026 · App version: v1.2.4 (BETA · Early Access)
 
 > 🇹🇷 The legally binding Turkish version (Privacy Policy and KVKK Disclosure Notice) is in [docs/legal/tr/PRIVACY.md](docs/legal/tr/PRIVACY.md). In the app, the Turkish text is shown when the app language is Turkish.
 
@@ -109,6 +109,13 @@ This document explains, **exactly as it is**, which personal data the Juzzio mob
 - **Marketing e-mails (optional):** sent only with your separate consent (Turkish Law No. 6563). Withdraw any time, free of charge, in Settings → Notifications or via the link in every e-mail; withdrawals are processed within 3 business days.
 - **Weather-based theme (on by default):** If you granted location permission, your approximate location (latitude/longitude rounded to ~10 km) is sent only to Open-Meteo to get the weather; it is never sent to or stored on our servers. Turn it off in Appearance → Weather theme.
 - **Abuse prevention:** Messages, friend requests, comments, reports and sign-in attempts are rate-limited; limits only count requests and never read content.
+
+## 4j. Offline cache, saving to gallery and chat notifications (v1.2.4)
+
+- **Offline cache:** While online, the first page of Explore, call history, notifications, your profile (posts, saved, counters), friends list, tasks/reminders, stories and profile music you listened to are stored **only on your device, in a per-account folder**, and shown when you are offline. They are deleted when you sign out. End-to-end encrypted content is stored encrypted.
+- **Offline changes:** Profile and settings changes made offline are kept on the device and written to the server when you reconnect.
+- **Save to gallery (on by default):** Photos, videos and documents you receive in chats are saved to your device gallery (Pictures/Movies/Downloads › Juzzio). These files are then in shared storage and other apps with gallery access can see them. View-once media is **never** saved. Turn it off in Settings → Chats → "Save media to gallery".
+- **Chat notifications:** Notifications show the sender's name, public profile photo and group name. If your notification preview is set to hidden, none of these are sent. "Mark as read" only marks that chat as read.
 
 ## 5. Service providers that receive data
 

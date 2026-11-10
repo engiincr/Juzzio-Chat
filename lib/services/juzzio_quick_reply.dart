@@ -84,12 +84,39 @@ class JuzzioQuickReply {
     }
   }
 
+  /// Test için okundu işaretleyici değiştirilebilir.
+  static Future<void> Function(String roomId)? markReadOverride;
+
+  /// v1.2.4: bildirimden sohbeti okundu işaretler (uygulamayı açmadan).
+  static Future<JuzzioQuickReplyStatus> markReadWithStatus(String roomId) async {
+    if (!_roomRe.hasMatch(roomId)) return JuzzioQuickReplyStatus.invalid;
+    final uidLookup = currentUserOverride;
+    final uid = uidLookup != null ? uidLookup() : Supabase.instance.client.auth.currentUser?.id;
+    if (uid == null) return JuzzioQuickReplyStatus.signedOut;
+    try {
+      final o = markReadOverride;
+      if (o != null) {
+        await o(roomId);
+      } else {
+        await SupabaseService.instance.markRoomRead(roomId);
+      }
+      return JuzzioQuickReplyStatus.ok;
+    } catch (_) {
+      return JuzzioQuickReplyStatus.failed;
+    }
+  }
+
   /// Geriye uyumlu: başarılıysa true.
   static Future<bool> send({required String roomId, required String text, String? clientMsgId}) async =>
       await sendWithStatus(roomId: roomId, text: text, clientMsgId: clientMsgId) == JuzzioQuickReplyStatus.ok;
 
   /// Yerel kanala dönülen yanıt: {ok, status}.
   static Future<Map<String, Object>> handleChannelArgs(Map<dynamic, dynamic> args) async {
+    // v1.2.4: bildirimdeki "Okundu olarak işaretle"
+    if ('${args['op'] ?? ''}' == 'mark_read') {
+      final st = await markReadWithStatus('${args['room_id'] ?? ''}');
+      return {'ok': st == JuzzioQuickReplyStatus.ok, 'status': st.name};
+    }
     final status = await sendWithStatus(
       roomId: '${args['room_id'] ?? ''}',
       text: '${args['text'] ?? ''}',

@@ -97,11 +97,14 @@ class JuzzioFirebaseMessagingService : FirebaseMessagingService() {
                 }
             }
 
-            val notifIntId = if (notificationId.isNotBlank()) {
-                notificationId.hashCode() and 0x7FFFFFFF
-            } else {
-                (System.currentTimeMillis() % 100000).toInt()
+            // v1.2.4: aynı sohbetin mesajları TEK bildirimde birikir (sohbet başına sabit kimlik)
+            val chatEvent = (eventType == "message" || eventType == "group_activity") && targetId.isNotBlank() && title != "Juzzio"
+            val notifIntId = when {
+                chatEvent -> ("room_$targetId").hashCode() and 0x7FFFFFFF
+                notificationId.isNotBlank() -> notificationId.hashCode() and 0x7FFFFFFF
+                else -> (System.currentTimeMillis() % 100000).toInt()
             }
+            val avatar = if (chatEvent) JuzzioNotifAvatar.load(data["actor_avatar"]) else null
 
             MainActivity.displaySystemNotification(
                 context = applicationContext,
@@ -117,7 +120,11 @@ class JuzzioFirebaseMessagingService : FirebaseMessagingService() {
                 targetSecondaryId = targetSecondaryId,
                 actorId = actorId,
                 lockScreenBody = lockScreenBody,
-                vibrate = data["vibrate"] != "0"
+                vibrate = data["vibrate"] != "0",
+                actorName = data["actor_name"] ?: "",
+                avatar = avatar,
+                convTitle = data["conv_title"] ?: "",
+                isGroup = data["is_group"] == "1"
             )
         } catch (_: Exception) {}
     }

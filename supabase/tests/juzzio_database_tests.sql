@@ -2106,6 +2106,13 @@ SELECT pg_temp.check('depolama kuyruğu listesi', jsonb_typeof(admin_storage_que
 DO $$ BEGIN PERFORM admin_legal_export('tok096', current_setting('jz.B')::uuid, ''); RAISE NOTICE 'FAIL gerekçesiz dışa aktarım';
 EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS yasal dışa aktarım gerekçe ister'; END $$;
 SELECT pg_temp.check('yasal dışa aktarım', (admin_legal_export('tok096', :'B', 'Savcılık yazısı 2026/1') -> 'profile' ->> 'id') = :'B');
+-- v1.2.4: kullanıcı adıyla (büyük harf ve @ ön ekiyle de) çalışır
+SELECT pg_temp.check('yasal paket kullanıcı adıyla (büyük harf + @)',
+    (admin_legal_export_by_username('tok096', (SELECT '@' || upper(username) FROM profiles WHERE id = :'B'), 'Savcılık yazısı 2026/2') -> 'profile' ->> 'id') = :'B');
+DO $$ BEGIN PERFORM admin_legal_export_by_username('tok096', 'yok_boyle_biri_123', 'Savcılık yazısı'); RAISE NOTICE 'FAIL olmayan kullanıcı';
+EXCEPTION WHEN OTHERS THEN IF SQLERRM = 'user_not_found' THEN RAISE NOTICE 'PASS olmayan kullanıcı user_not_found'; ELSE RAISE NOTICE 'FAIL beklenmeyen hata %', SQLERRM; END IF; END $$;
+DO $$ BEGIN PERFORM admin_legal_export_by_username('tok096', (SELECT username FROM profiles WHERE id = current_setting('jz.B')::uuid), 'ab'); RAISE NOTICE 'FAIL kısa gerekçe';
+EXCEPTION WHEN OTHERS THEN IF SQLERRM = 'reason_required' THEN RAISE NOTICE 'PASS kısa gerekçe reason_required'; ELSE RAISE NOTICE 'FAIL beklenmeyen hata %', SQLERRM; END IF; END $$;
 DO $$ BEGIN PERFORM admin_legal_export('', current_setting('jz.B')::uuid, 'deneme gerekçe'); RAISE NOTICE 'FAIL belirteçsiz dışa aktarım';
 EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS yasal dışa aktarım yalnız süper yönetici'; END $$;
 DO $$ BEGIN PERFORM admin_kill_all_sessions('tok096', 'evet'); RAISE NOTICE 'FAIL onaysız oturum kapatma';

@@ -1,6 +1,6 @@
 # Juzzio Gizlilik Politikası ve KVKK Aydınlatma Metni
 
-Son güncelleme: 10 Kasım 2026 · Uygulama sürümü: v1.2.3 (BETA · Erken Erişim)
+Son güncelleme: 10 Kasım 2026 · Uygulama sürümü: v1.2.4 (BETA · Erken Erişim)
 
 Bu metin, Juzzio mobil uygulamasının hangi kişisel verileri hangi amaçla işlediğini, kimlerle paylaştığını ve haklarınızı **olduğu gibi** açıklar. Uygulamanın kaynak kodu GitHub'da açıktır; buradaki her ifade koddan doğrulanabilir.
 
@@ -107,6 +107,13 @@ Bu metin, Juzzio mobil uygulamasının hangi kişisel verileri hangi amaçla iş
 - **Ticari elektronik ileti (isteğe bağlı):** Yalnız ayrıca onay verirseniz gönderilir (6563 sayılı Kanun ve Ticari İletişim ve Ticari Elektronik İletiler Hakkında Yönetmelik). Onayı Ayarlar → Bildirimler'den veya her e-postadaki bağlantıdan dilediğiniz an, ücretsiz geri alabilirsiniz; geri alma en geç 3 iş günü içinde işleme alınır. Mevzuat gerektirdiğinde onay ve ret kayıtları İleti Yönetim Sistemi'ne (İYS) iletilir.
 - **Hava durumuna göre tema (varsayılan açık):** Konum izni verdiyseniz yaklaşık konumunuz (yaklaşık 10 km'ye yuvarlanmış enlem/boylam) yalnız hava durumunu öğrenmek için Open-Meteo'ya gönderilir; konum bizim sunucumuza gönderilmez ve saklanmaz. İzin vermezseniz özellik konum kullanmadan kapalı kalır. Görünüm → Hava durumu teması ile kapatabilirsiniz.
 - **Kötüye kullanım önleme:** Mesaj, arkadaşlık isteği, yorum, şikâyet ve giriş denemeleri hız sınırına tabidir; bu sınırlar yalnız istek sayısını sayar, içeriği okumaz.
+
+## 4j. Çevrimdışı önbellek, galeriye kaydetme ve sohbet bildirimleri (v1.2.4)
+
+- **Çevrimdışı önbellek:** İnternet varken Keşfet'in ilk sayfası, arama geçmişi, bildirimler, profil (gönderiler, kaydedilenler, sayaçlar), arkadaşlık listesi, görevler/hatırlatıcılar, hikâyeler ve dinlediğin profil müziği yalnız **senin cihazında, hesabına özel klasörde** saklanır; internet yokken bu kopyalar gösterilir. Oturumu kapatınca silinir. Uçtan uca şifreli içerik diske şifreli hâliyle yazılır.
+- **Çevrimdışı değişiklikler:** İnternet yokken yaptığın profil ve ayar değişiklikleri cihazda bekletilir, bağlantı gelince sunucuya yazılır.
+- **Galeriye kaydetme (varsayılan açık):** Sohbette sana gönderilen fotoğraf, video ve belgeler cihazının galerisine (Resimler/Filmler/İndirilenler › Juzzio) kaydedilir. Bu dosyalar artık cihazının ortak depolamasındadır ve galeriye erişimi olan diğer uygulamalar görebilir. Tek görüntülemelik medya **asla** kaydedilmez. Ayarlar → Sohbetler → "Medyayı galeriye kaydet" ile kapatabilirsin.
+- **Sohbet bildirimleri:** Bildirimde gönderenin adı, herkese açık profil fotoğrafı ve grup adı gösterilir. Bildirim önizlemesini "gizli" yaptıysan bunlar gönderilmez. "Okundu olarak işaretle" yalnız o sohbeti okundu yapar.
 
 ## 5. Verilerin aktarıldığı hizmet sağlayıcılar
 

@@ -26,6 +26,7 @@ import '../core/config.dart';
 import '../core/notification_text.dart';
 import '../main.dart';
 import '../widgets/juzzio_consent.dart';
+import 'creator_reel_page.dart';
 import '../services/juzzio_weather_service.dart';
 import '../models/social_models.dart';
 import '../services/fcm_push_service.dart';
@@ -4332,6 +4333,23 @@ class JuzzioChatsSettingsPage extends StatelessWidget {
                 ),
                 child: Column(
                   children: [
+                    // v1.2.4: gelen medya galeriye + çevrimdışı önbelleğe
+                    JuzzioSwitchListTile(
+                      activeColor: p.amberGlow,
+                      value: appCtrl.autoSaveMedia,
+                      onChanged: appCtrl.setAutoSaveMedia,
+                      secondary: Icon(Icons.photo_library_rounded, color: p.amberGlow),
+                      title: Text(
+                        _l3('Medyayı galeriye kaydet', 'Save media to gallery', 'Medien in Galerie speichern'),
+                        style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w700),
+                      ),
+                      subtitle: Text(
+                        _l3('Sohbette gelen fotoğraf, video ve belgeler Galeri › Juzzio klasörüne kaydedilir ve internet yokken de açılır. Tek görüntülemelik medya kaydedilmez.',
+                            'Photos, videos and documents you receive are saved to Gallery › Juzzio and open offline too. View-once media is never saved.',
+                            'Empfangene Fotos, Videos und Dokumente werden in Galerie › Juzzio gespeichert und sind offline verfügbar.'),
+                        style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textSecondary, fontSize: 12),
+                      ),
+                    ),
                     JuzzioSwitchListTile(
                       activeColor: p.amberGlow,
                       title: Text(
@@ -6170,6 +6188,9 @@ class JuzzioDeveloperPage extends StatelessWidget {
               ],
             ),
           ),
+          const SizedBox(height: 12),
+          // v1.2.4: "Hello…" yapımcı tanıtım videosu (cam düğme → tam ekran oynatıcı)
+          const JuzzioCreatorReelButton(),
           const SizedBox(height: 12),
           Row(children: [
             stat('v${JuzzioConfig.appVersion}', app.trEn('Sürüm (BETA)', 'Version (BETA)', 'Version (BETA)')),

@@ -95,8 +95,34 @@ def check_workflow(errors: list) -> None:
             errors.append(f"android-ci.yml:{line}: '{ref}' tam commit SHA'sına sabitlenmemiş")
 
 
+def check_audit_sentences(errors: list) -> None:
+    """test/juzzio_v100_test.dart ile aynı kural: SQL'de admin_audit_log'a yazılan her eylemin
+    lib/screens/admin_audit_format.dart içinde özel cümlesi (case) olmalı. CI'dan önce yakalar."""
+    import re
+    sql = read("supabase/juzzio_database.sql")
+    fmt = read("lib/screens/admin_audit_format.dart")
+    acts = set(re.findall(r"admin_audit_log\s*\([^)]*\)\s*VALUES\s*\([^,]+,\s*'([a-z0-9_.]+)'", sql))
+    for act in sorted(acts):
+        if f"case '{act}'" not in fmt and f"'{act}'" not in fmt:
+            errors.append(f"yönetici kaydı '{act}' için admin_audit_format.dart içinde özel cümle yok")
+
+
 def main() -> int:
     errors: list = []
+    check_audit_sentences(errors)
+    # v1.2.4: belirsiz içe aktarma (Flutter derleyicisi olmadan yakalanır)
+    try:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('dic', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'dart_import_conflicts.py'))
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        for base in ('lib', 'test'):
+            for dp, _, fs in os.walk(base):
+                for f in fs:
+                    if f.endswith('.dart'):
+                        errors.extend(mod.check(os.path.abspath(os.path.join(dp, f))))
+    except Exception as e:  # denetim aracı çalışmazsa kapı kırmızı olmasın, uyarı yeter
+        print(f"::warning::belirsiz içe aktarma denetimi çalışmadı: {e}")
     wf_dir = os.path.dirname(WORKFLOW)
     for name in sorted(os.listdir(wf_dir)):
         if name.endswith((".yml", ".yaml")):

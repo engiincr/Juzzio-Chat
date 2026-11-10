@@ -24,6 +24,25 @@ class JuzzioNative {
     return false;
   }
 
+  /// v1.2.4: dosyayı galeriye (Resimler/Filmler/İndirilenler › Juzzio) kaydeder. Başarılıysa true.
+  /// [kind]: 'image' | 'video' | 'document'. Dosya uygulamanın kendi klasöründe olmalıdır.
+  static Future<bool> saveToGallery({required String path, required String mime, required String name, required String kind}) async {
+    try {
+      final ok = await _channel.invokeMethod<bool>('saveToGallery', {'path': path, 'mime': mime, 'name': name, 'kind': kind});
+      return ok == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// v1.2.4: sohbet açılınca o sohbetin biriken (sohbet tarzı) bildirimini kaldırır.
+  static Future<void> cancelRoomNotification(String roomId) async {
+    if (roomId.isEmpty) return;
+    try {
+      await _channel.invokeMethod<bool>('cancelRoomNotification', {'roomId': roomId});
+    } catch (_) {}
+  }
+
   /// Sistem paylaşım menüsünü açar (WhatsApp, Instagram, SMS ...). Başarısızsa false.
   static Future<bool> shareText(String text, {String title = 'Juzzio'}) async {
     try {

@@ -15808,3 +15808,26 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION public.record_juzzio_consent(TEXT, BOOLEAN, BOOLEAN, BOOLEAN, BOOLEAN, BOOLEAN, TEXT) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.record_juzzio_consent(TEXT, BOOLEAN, BOOLEAN, BOOLEAN, BOOLEAN, BOOLEAN, TEXT) TO authenticated;
+
+-- =============================================================================
+-- 10.34 v1.2.4 — Yasal paket (Legal Bundle Vault): kullanıcı adıyla, net hata kodlarıyla
+--  P0001 hatasının nedenleri: (1) gerekçe < 5 karakter ("reason_required"), (2) kullanıcı adı
+--  istemcide büyük/küçük harf duyarlı aranıyordu, (3) süresi dolan yönetici oturumu. Bu sürüm
+--  kullanıcı adını SUNUCUDA (büyük/küçük harf duyarsız, @ ön eki temizlenerek) çözer, aynı
+--  güvenlik kurallarını korur (yalnız şifreli süper yönetici oturumu; gerekçe zorunlu; denetim kaydı).
+-- =============================================================================
+CREATE OR REPLACE FUNCTION public.admin_legal_export_by_username(p_token TEXT, p_username TEXT, p_reason TEXT)
+RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+    v_name TEXT := lower(regexp_replace(BTRIM(COALESCE(p_username, '')), '^@+', ''));
+    v_uid UUID;
+BEGIN
+    IF NOT public.admin_check_token(p_token) THEN RAISE EXCEPTION 'super_admin_required'; END IF;
+    IF v_name !~ '^[a-z0-9._]{2,40}$' THEN RAISE EXCEPTION 'invalid_username' USING ERRCODE = '22023'; END IF;
+    IF char_length(BTRIM(COALESCE(p_reason, ''))) < 5 THEN RAISE EXCEPTION 'reason_required' USING ERRCODE = '22023'; END IF;
+    SELECT id INTO v_uid FROM public.profiles WHERE lower(username) = v_name LIMIT 1;
+    IF v_uid IS NULL THEN RAISE EXCEPTION 'user_not_found' USING ERRCODE = '22023'; END IF;
+    RETURN public.admin_legal_export(p_token, v_uid, p_reason);
+END $$;
+REVOKE ALL ON FUNCTION public.admin_legal_export_by_username(TEXT, TEXT, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_legal_export_by_username(TEXT, TEXT, TEXT) TO authenticated;

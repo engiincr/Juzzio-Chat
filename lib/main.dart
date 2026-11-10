@@ -36,6 +36,8 @@ import 'widgets/juzzio_motion.dart';
 import 'widgets/juzzio_splash.dart';
 import 'widgets/juzzio_consent.dart';
 import 'widgets/juzzio_weather_ambience.dart';
+import 'core/juzzio_ui_sync.dart';
+import 'widgets/juzzio_password_strength.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -95,6 +97,8 @@ Future<void> main() async {
   // Düşük donanımlı cihazda blur fallback (kullanıcı seçimi her zaman önceliklidir)
   JuzzioNative.isLowEndDevice().then((low) => appCtrl.applyDeviceProfile(lowEnd: low));
 
+  // v1.2.4: dil değişince açık olan TÜM ekranlar anında yeni dile geçer
+  JuzzioUiSync.attach();
   runApp(const JuzzioApp());
 }
 
@@ -1331,9 +1335,27 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
                     runSpacing: 8,
                     children: [
                       for (final g in const ['female', 'male', 'unspecified'])
+                        // v1.2.4: kadın ♀ pembe, erkek ♂ mavi simge
                         ChoiceChip(
+                          avatar: g == 'unspecified'
+                              ? null
+                              : Icon(
+                                  g == 'female' ? Icons.female_rounded : Icons.male_rounded,
+                                  size: 18,
+                                  color: g == 'female' ? const Color(0xFFFF5FA2) : const Color(0xFF4A9BFF),
+                                ),
                           label: Text(appCtrl.t('gender_$g')),
                           selected: _gender == g,
+                          selectedColor: g == 'female'
+                              ? const Color(0xFFFF5FA2).withValues(alpha: 0.22)
+                              : g == 'male'
+                                  ? const Color(0xFF4A9BFF).withValues(alpha: 0.22)
+                                  : null,
+                          side: BorderSide(
+                            color: _gender == g
+                                ? (g == 'female' ? const Color(0xFFFF5FA2) : g == 'male' ? const Color(0xFF4A9BFF) : p.glassBorder)
+                                : p.glassBorder,
+                          ),
                           onSelected: (_) => setState(() => _gender = g),
                         ),
                     ],
@@ -1422,6 +1444,12 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
                     ),
                   ),
                 ),
+                // v1.2.4: şifre gücü ölçer (kayıtta; 4 parçalı çubuk + etiket)
+                if (_isRegisterMode)
+                  ValueListenableBuilder<TextEditingValue>(
+                    valueListenable: _passwordCtrl,
+                    builder: (context, v, _) => JuzzioPasswordStrengthBar(password: v.text),
+                  ),
                 if (_isRegisterMode) ...[
                   const SizedBox(height: 16),
                   Text(

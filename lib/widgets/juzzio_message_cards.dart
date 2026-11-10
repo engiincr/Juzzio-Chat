@@ -274,3 +274,22 @@ class _JuzzioContactCardState extends State<JuzzioContactCard> {
     );
   }
 }
+
+/// v1.2.4: tepkileri emojiye göre gruplar (en çok verilen önce). Kullanıcı başına TEK tepki
+/// olduğu için her kullanıcı yalnız bir grupta yer alır. Saf; test edilir.
+Map<String, List<String>> juzzioGroupReactions(Map<String, String> byUser) {
+  final out = <String, List<String>>{};
+  byUser.forEach((uid, emoji) {
+    if (emoji.isEmpty) return;
+    (out[emoji] ??= <String>[]).add(uid);
+  });
+  final sorted = out.entries.toList()..sort((a, b) => b.value.length.compareTo(a.value.length));
+  return {for (final e in sorted) e.key: e.value};
+}
+
+/// v1.2.4: mesajdaki iletilmiş gönderi/hikâye bağlantısı → ('post' | 'story', kimlik). Yoksa null.
+(String, String)? juzzioSharedRef(String text) {
+  final m = RegExp(r'juzzio://(post|story)/([0-9a-fA-F-]{8,64})').firstMatch(text);
+  if (m == null) return null;
+  return (m.group(1)!, m.group(2)!);
+}

@@ -18,6 +18,8 @@ import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../core/app_theme_and_locale.dart';
+import '../core/config.dart';
+import '../core/release_notes.dart';
 import '../core/theme/juzzio_colors.dart';
 import '../services/juzzio_features_service.dart';
 import '../services/supabase_service.dart';
@@ -127,8 +129,15 @@ class _JuzzioAdminGodTabState extends State<JuzzioAdminGodTab> {
       final t = e.toString();
       _snack(
         t.contains('super_admin_required')
-            ? _t('Bu işlem yalnız süper yönetici (şifreli oturum) ile yapılabilir.', 'Super admin (password session) required.', 'Nur Super-Admin.')
-            : SupabaseService.instance.friendlyError(e),
+            ? _t('Yönetici oturumunun süresi doldu ya da yetki yok. Paneli kapatıp yönetici şifresiyle yeniden girin.',
+                'Admin session expired or not authorised. Close the panel and sign in with the admin password again.', 'Admin-Sitzung abgelaufen.')
+            : t.contains('user_not_found')
+                ? _t('Bu kullanıcı adıyla bir hesap bulunamadı.', 'No account with this username.', 'Kein Konto mit diesem Namen.')
+                : t.contains('reason_required')
+                    ? _t('Gerekçe en az 5 karakter olmalı.', 'Reason must be at least 5 characters.', 'Begründung zu kurz.')
+                    : t.contains('invalid_username')
+                        ? _t('Geçersiz kullanıcı adı.', 'Invalid username.', 'Ungültiger Benutzername.')
+                        : SupabaseService.instance.friendlyError(e),
         error: true,
       );
     }
@@ -426,6 +435,194 @@ class _JuzzioAdminGodTabState extends State<JuzzioAdminGodTab> {
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // v1.2.4 — Minimum desteklenen sürüm: GEÇMİŞ PAKETLERDEN SEÇİM
+  //  "1.0.2" gibi sürüm adları sayı alanına yazılamıyordu. Artık yayımlanmış paketler
+  //  (app_releases + uygulamaya gömülü sürüm geçmişi) listelenir; her paketin sürüm adı,
+  //  paket (derleme) numarası, kimliği, SHA-256'sı, ML-DSA imza parmak izi, yayın tarihi ve
+  //  zorunluluk bilgisi gösterilir. Seçilen paket ve SONRAKİLER desteklenir.
+  // ---------------------------------------------------------------------------
+  List<Map<String, dynamic>> _releases = const [];
+  bool _releasesLoading = false;
+
+  Future<void> _loadReleases() async {
+    if (_releasesLoading) return;
+    _releasesLoading = true;
+    try {
+      final rows = await _db.from('app_releases').select().order('version_code', ascending: false).limit(300);
+      final list = (rows as List).whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList();
+      _releases = juzzioMergeReleaseHistory(list, kJuzzioBundledReleaseNotes);
+    } catch (_) {
+      _releases = juzzioMergeReleaseHistory(const [], kJuzzioBundledReleaseNotes);
+    } finally {
+      _releasesLoading = false;
+    }
+    if (mounted) setState(() {});
+  }
+
+  String _releaseNameFor(int code) {
+    for (final r in _releases) {
+      if ((r['version_code'] as num?)?.toInt() == code) return 'v${r['version_name']}';
+    }
+    return code == 0 ? _t('Tüm sürümler', 'All versions', 'Alle Versionen') : '#$code';
+  }
+
+  Widget _minBuildPicker(Color fg) {
+    if (_releases.isEmpty && !_releasesLoading) WidgetsBinding.instance.addPostFrameCallback((_) => _loadReleases());
+    final current = _cfgValue('min_supported_build');
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: _card(Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Row(children: [
+          const Icon(Icons.verified_user_rounded),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(_t('Minimum desteklenen sürüm', 'Minimum supported version', 'Mindestversion'), style: TextStyle(fontWeight: FontWeight.w800, color: fg)),
+              const SizedBox(height: 2),
+              Text('${_releaseNameFor(current)} · ${_t('paket no', 'build', 'Build')} $current',
+                  style: TextStyle(fontSize: 12.5, color: fg.withValues(alpha: 0.75))),
+            ]),
+          ),
+        ]),
+        const SizedBox(height: 10),
+        FilledButton.icon(
+          onPressed: _openReleasePicker,
+          icon: const Icon(Icons.history_rounded),
+          label: Text(_t('Geçmiş paketlerden seç', 'Choose from past packages', 'Aus früheren Paketen wählen')),
+        ),
+        TextButton(
+          onPressed: current == 0
+              ? null
+              : () => _run(() => JuzzioFeaturesService.instance.adminSetSetting(widget.token, 'min_supported_build', 0),
+                  ok: _t('Tüm sürümler destekleniyor', 'All versions supported', 'Alle Versionen unterstützt')),
+          child: Text(_t('Sınırı kaldır (tüm sürümler)', 'Remove limit (all versions)', 'Grenze entfernen')),
+        ),
+      ])),
+    );
+  }
+
+  Future<void> _openReleasePicker() async {
+    await _loadReleases();
+    if (!mounted) return;
+    final current = _cfgValue('min_supported_build');
+    final picked = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (ctx) => SizedBox(
+        height: MediaQuery.of(ctx).size.height * 0.82,
+        child: Column(children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+            child: Text(
+              _t('Bir paket seç: o paket ve sonraki tüm sürümler desteklenir; daha eskiler "Güncelleme gerekli" ekranında bekler.',
+                  'Pick a package: it and every later version are supported; older ones see "Update required".',
+                  'Paket wählen: dieses und neuere werden unterstützt.'),
+              style: const TextStyle(fontSize: 12.5),
+            ),
+          ),
+          Expanded(
+            child: _releases.isEmpty
+                ? Center(child: Text(_t('Paket bulunamadı', 'No packages found', 'Keine Pakete')))
+                : ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(14, 4, 14, 24),
+                    itemCount: _releases.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (_, i) {
+                      final r = _releases[i];
+                      final code = (r['version_code'] as num?)?.toInt() ?? 0;
+                      final supported = code >= current;
+                      final isRunning = code == JuzzioConfig.appVersionCode;
+                      return Card(
+                        margin: EdgeInsets.zero,
+                        child: ListTile(
+                          onTap: () => Navigator.pop(ctx, r),
+                          leading: CircleAvatar(child: Text('$code', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800))),
+                          title: Text('v${r['version_name']}${isRunning ? '  ·  ${_t('bu cihaz', 'this device', 'dieses Gerät')}' : ''}',
+                              style: const TextStyle(fontWeight: FontWeight.w800)),
+                          subtitle: Text(
+                            '${_fmtDate(r['published_at'])} · ${supported ? _t('Destekleniyor', 'Supported', 'Unterstützt') : _t('Desteklenmiyor', 'Not supported', 'Nicht unterstützt')}'
+                            '${r['is_mandatory'] == true ? ' · ${_t('Zorunlu', 'Mandatory', 'Pflicht')}' : ''}',
+                          ),
+                          trailing: Icon(supported ? Icons.check_circle_rounded : Icons.block_rounded,
+                              color: supported ? const Color(0xFF22C55E) : JuzzioColors.red500),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ]),
+      ),
+    );
+    if (picked == null || !mounted) return;
+    await _confirmRelease(picked);
+  }
+
+  String _fmtDate(Object? v) {
+    final d = DateTime.tryParse('${v ?? ''}')?.toLocal();
+    if (d == null) return '—';
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${two(d.day)}.${two(d.month)}.${d.year} ${two(d.hour)}:${two(d.minute)}';
+  }
+
+  Future<void> _confirmRelease(Map<String, dynamic> r) async {
+    final code = (r['version_code'] as num?)?.toInt() ?? 0;
+    final sec = r['details'] is Map && (r['details'] as Map)['security'] is Map
+        ? Map<String, dynamic>.from((r['details'] as Map)['security'] as Map)
+        : const <String, dynamic>{};
+    String v(Object? x) => '${x ?? ''}'.trim().isEmpty ? '—' : '$x';
+    final rows = <(String, String)>[
+      (_t('Sürüm', 'Version', 'Version'), 'v${r['version_name']}'),
+      (_t('Paket numarası (derleme)', 'Package number (build)', 'Build-Nummer'), '$code'),
+      (_t('Paket kimliği', 'Package ID', 'Paket-ID'), v(r['id'])),
+      (_t('Yayın tarihi', 'Published', 'Veröffentlicht'), _fmtDate(r['published_at'] ?? sec['releaseDate'])),
+      ('SHA-256', v(sec['apkSha256'])),
+      (_t('ML-DSA-65 imza parmak izi', 'ML-DSA-65 signature fingerprint', 'ML-DSA-65 Signatur'), v(sec['mldsa65Sig'])),
+      (_t('Derleme doğrulandı', 'Build verified', 'Build verifiziert'),
+          sec['verifiedBuild'] == true ? '✓ ${v(sec['verifiedAt'])}' : _t('Bilinmiyor', 'Unknown', 'Unbekannt')),
+      (_t('APK boyutu', 'APK size', 'APK-Größe'), v(sec['apkSize'])),
+      (_t('APK adresi', 'APK URL', 'APK-URL'), v(r['apk_url'])),
+      (_t('Zorunlu güncelleme', 'Mandatory update', 'Pflicht-Update'), r['is_mandatory'] == true ? '✓' : '—'),
+    ];
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: Text('v${r['version_name']} · #$code'),
+        content: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            for (final (k, val) in rows)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(k, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800)),
+                  SelectableText(val, style: const TextStyle(fontSize: 12.5, fontFamily: 'monospace')),
+                ]),
+              ),
+            const Divider(),
+            Text(
+              _t('Onaylarsan v${r['version_name']} ve sonraki tüm sürümler desteklenenler listesine alınır. Daha eski sürümler güncellenene kadar uygulamayı kullanamaz (yöneticiler hariç).',
+                  'If you confirm, v${r['version_name']} and every later version are supported. Older versions must update first (admins excepted).',
+                  'Ältere Versionen müssen aktualisieren.'),
+              style: const TextStyle(fontSize: 12),
+            ),
+          ]),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d, false), child: Text(_t('Vazgeç', 'Cancel', 'Abbrechen'))),
+          FilledButton(onPressed: () => Navigator.pop(d, true), child: Text(_t('Desteklenenlere ekle', 'Add to supported', 'Unterstützen'))),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    if (code > JuzzioConfig.appVersionCode) {
+      _snack(_t('Uyarı: bu paket bu cihazdaki sürümden yeni; kullanıcılar güncellemeden giremeyecek.',
+          'Warning: this package is newer than this device\'s version.', 'Warnung: neuer als diese Version.'));
+    }
+    await _run(() => JuzzioFeaturesService.instance.adminSetSetting(widget.token, 'min_supported_build', code),
+        ok: _t('v${r['version_name']} ve sonrası destekleniyor', 'v${r['version_name']} and later supported', 'Gespeichert'));
+  }
+
   List<Widget> _buildLimits(Color fg) => [
         Text(_t('Ses ve medya', 'Voice & media', 'Sprache & Medien'), style: TextStyle(fontWeight: FontWeight.w800, color: fg)),
         _numberField('voice_max_seconds', _t('Sesli mesaj azami süresi (sn)', 'Max voice message length (s)', 'Max. Sprachnachricht (s)'), 15, 900),
@@ -449,7 +646,8 @@ class _JuzzioAdminGodTabState extends State<JuzzioAdminGodTab> {
               'Mindest-Build: ältere Apps müssen aktualisieren.'),
           style: const TextStyle(fontSize: 12),
         ),
-        _numberField('min_supported_build', _t('Minimum desteklenen derleme', 'Minimum supported build', 'Mindest-Build'), 0, 100000),
+        // v1.2.4: sayı yazmak yerine geçmiş paketler listesinden ayrıntılı seçim
+        _minBuildPicker(fg),
         _numberField('admin_bruteforce_max_fails', _t('Yönetici girişi: hatalı deneme sınırı', 'Admin login: max failed attempts', 'Max. Fehlversuche'), 3, 20),
         _numberField('admin_bruteforce_window_min', _t('Yönetici girişi: kilit penceresi (dk)', 'Admin login: lock window (min)', 'Sperrfenster (min)'), 5, 1440),
         JuzzioSwitchListTile(
@@ -497,11 +695,20 @@ class _JuzzioAdminGodTabState extends State<JuzzioAdminGodTab> {
     );
     if (ok != true) return;
     final uname = userCtrl.text.trim().replaceAll('@', '').toLowerCase();
-    if (uname.isEmpty) return;
+    final reason = reasonCtrl.text.trim();
+    // v1.2.4: P0001 düzeltmesi — eksik alan sunucuya gitmeden açıkça söylenir
+    if (uname.isEmpty) {
+      _snack(_t('Kullanıcı adı girin.', 'Enter a username.', 'Benutzernamen eingeben.'), error: true);
+      return;
+    }
+    if (reason.length < 5) {
+      _snack(_t('Gerekçe en az 5 karakter olmalı (ör. resmî yazı no).', 'Reason must be at least 5 characters (e.g. official request no.).',
+          'Begründung mindestens 5 Zeichen.'), error: true);
+      return;
+    }
     await _run(() async {
-      final row = await _db.from('profiles').select('id').eq('username', uname).maybeSingle();
-      if (row == null) throw Exception('user_not_found');
-      final res = await _db.rpc('admin_legal_export', params: {'p_token': widget.token, 'p_user': row['id'], 'p_reason': reasonCtrl.text.trim()});
+      // kullanıcı adı SUNUCUDA çözülür (büyük/küçük harf duyarsız; RLS'ye takılmaz)
+      final res = await _db.rpc('admin_legal_export_by_username', params: {'p_token': widget.token, 'p_username': uname, 'p_reason': reason});
       final json = const JsonEncoder.withIndent('  ').convert(res);
       final dir = await getApplicationDocumentsDirectory();
       final f = File('${dir.path}/juzzio_legal_${uname}_${DateTime.now().millisecondsSinceEpoch}.json');
@@ -569,4 +776,29 @@ class _JuzzioAdminGodTabState extends State<JuzzioAdminGodTab> {
           style: const TextStyle(fontSize: 12),
         )),
       ];
+}
+
+
+/// v1.2.4: sunucudaki sürüm kayıtları + uygulamaya gömülü sürüm geçmişi birleştirilir
+/// (aynı derleme numarası tekrar edilmez; en yeni üstte). Saf; test edilir.
+List<Map<String, dynamic>> juzzioMergeReleaseHistory(List<Map<String, dynamic>> server, List<JuzzioReleaseNote> bundled) {
+  final byCode = <int, Map<String, dynamic>>{};
+  for (final r in server) {
+    final c = (r['version_code'] as num?)?.toInt();
+    if (c != null && c > 0) byCode[c] = r;
+  }
+  for (final n in bundled) {
+    byCode.putIfAbsent(n.versionCode, () => <String, dynamic>{
+          'id': '',
+          'version_name': n.versionName,
+          'version_code': n.versionCode,
+          'published_at': n.publishedAt?.toIso8601String(),
+          'is_mandatory': n.mandatory,
+          'apk_url': 'https://github.com/engiincr/Juzzio-Chat/releases/download/v${n.versionName}/juzzio-v${n.versionName}-release.apk',
+          'details': const <String, dynamic>{},
+        });
+  }
+  final out = byCode.values.toList()
+    ..sort((a, b) => ((b['version_code'] as num?)?.toInt() ?? 0).compareTo((a['version_code'] as num?)?.toInt() ?? 0));
+  return out;
 }

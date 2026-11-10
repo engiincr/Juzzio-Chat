@@ -171,7 +171,8 @@ class _AdminUnlockDialogState extends State<_AdminUnlockDialog> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      Text('Hoşgeldin Engin ÇIRPAN',
+                      Text(app.trEn('Hoşgeldin! ${(_me?.displayName ?? '').trim().isEmpty ? 'Engin ÇIRPAN' : _me!.displayName.trim()}',
+                          'Welcome! ${(_me?.displayName ?? '').trim().isEmpty ? 'Engin ÇIRPAN' : _me!.displayName.trim()}'),
                           textAlign: TextAlign.center,
                           style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: t, fontSize: 26, fontWeight: FontWeight.w900, letterSpacing: -0.3)),
                       const SizedBox(height: 6),
@@ -479,11 +480,12 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> with Si
     } catch (_) {}
   }
 
-  String get _welcomeName {
+  /// v1.2.4: başlıkta görünen tam ad (profildeki güncel görünen ad)
+  String get _welcomeFullName {
     final dn = (_me?.displayName ?? '').trim();
-    if (dn.isNotEmpty) return dn.split(RegExp(r'\s+')).first;
+    if (dn.isNotEmpty) return dn;
     final un = (_me?.username ?? '').trim();
-    return un.isNotEmpty ? un : 'Admin';
+    return un.isNotEmpty ? '@$un' : 'Engin ÇIRPAN';
   }
 
   @override
@@ -987,6 +989,17 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> with Si
               ),
               const SizedBox(width: 12),
             ],
+            // v1.2.4: yöneticinin GÜNCEL profil fotoğrafı + "Hoşgeldin! <tam ad>"
+            Container(
+              padding: const EdgeInsets.all(2.5),
+              decoration: BoxDecoration(shape: BoxShape.circle, gradient: kJuzzioStoryRing),
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(shape: BoxShape.circle, color: JuzzioGlassTokens.surfaceSolid),
+                child: JuzzioGlassAvatar(imageUrl: _me?.avatarUrl, name: _welcomeFullName, radius: 21),
+              ),
+            ),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -994,7 +1007,11 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> with Si
                 children: [
                   JuzzioSpaceEyebrow(app.t('admin_title')),
                   const SizedBox(height: 4),
-                  JuzzioSpaceBrand(text: _al('Merhaba, $_welcomeName', 'Hi, $_welcomeName', 'Hallo, $_welcomeName'), size: 24),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: JuzzioSpaceBrand(text: _al('Hoşgeldin! $_welcomeFullName', 'Welcome! $_welcomeFullName', 'Willkommen! $_welcomeFullName'), size: 22),
+                  ),
                 ],
               ),
             ),

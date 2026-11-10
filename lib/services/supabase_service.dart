@@ -29,6 +29,8 @@ import 'juzzio_features_service.dart';
 import 'juzzio_media_crypto.dart';
 import 'juzzio_media_cache.dart';
 import 'juzzio_media_url.dart';
+import 'juzzio_net.dart';
+import '../core/native_bridge.dart';
 
 // -----------------------------------------------------------------------------
 // MODELLER
@@ -1499,12 +1501,19 @@ class SupabaseService {
         'fields': {...Map<String, dynamic>.from(ops[key]!['fields'] as Map), ...Map<String, dynamic>.from(op['fields'] as Map)},
       };
     }
+    void patch() {
+      if (effective['t'] == 'profile' && effective['fields'] is Map) {
+        unawaited(_patchCachedMyProfile(Map<String, dynamic>.from(effective['fields'] as Map)));
+      }
+    }
     try {
       await _runOp(effective);
+      patch();
       if (ops.remove(key) != null) await _savePendingOps();
       return true;
     } catch (e) {
       if (!isNetworkError(e)) rethrow;
+      patch(); // çevrimdışı: cihazda hemen görünsün, bağlantı gelince sunucuya yazılır
       ops[key] = effective;
       await _savePendingOps();
       return false;
@@ -1620,16 +1629,32 @@ class SupabaseService {
   }
 
   /// Görüntülenen kişinin çevrimiçi / son görülme bilgisi (gizlilik sunucuda uygulanır).
+  /// v1.2.4: internet yokken "Son görülme gizli" yerine en son bilinen gerçek son görülme gösterilir
+  /// (son başarılı yanıt cihazda saklanır; o an çevrimiçi idiyse son görülme = o an).
   Future<({bool isOnline, DateTime? lastSeen})> fetchUserPresence(String userId) async {
+    final cacheName = 'presence_${userId.replaceAll(RegExp(r'[^A-Za-z0-9-]'), '')}';
     try {
       final res = await client.rpc('get_user_presence', params: {'p_user': userId});
       if (res is Map) {
-        return (
-          isOnline: res['is_online'] == true,
-          lastSeen: DateTime.tryParse(res['last_seen']?.toString() ?? ''),
-        );
+        final online = res['is_online'] == true;
+        final seen = DateTime.tryParse(res['last_seen']?.toString() ?? '');
+        final hidden = res['hidden'] == true || (!online && seen == null);
+        unawaited(_writeCache(cacheName, {
+          'last_seen': (online ? DateTime.now().toUtc() : seen)?.toIso8601String(),
+          'hidden': hidden,
+        }));
+        return (isOnline: online, lastSeen: seen);
       }
-    } catch (_) {}
+    } catch (_) {
+      final c = await _readCache(cacheName);
+      if (c is Map) {
+        if (c['hidden'] == true) return (isOnline: false, lastSeen: null);
+        final seen = DateTime.tryParse('${c['last_seen'] ?? ''}');
+        if (seen != null) return (isOnline: false, lastSeen: seen);
+      }
+      final prof = await cachedUserProfile(userId);
+      if (prof?.lastSeen != null) return (isOnline: false, lastSeen: prof!.lastSeen);
+    }
     return (isOnline: false, lastSeen: null);
   }
 
@@ -1688,6 +1713,16 @@ class SupabaseService {
       // v0.9.2: çevrimdışı → en son görülen profil
       return cachedUserProfile(userId);
     }
+  }
+
+  /// v1.2.4: cihazdaki kendi profil kopyasına alan yamalar (çevrimdışı düzenleme anında görünsün)
+  Future<void> _patchCachedMyProfile(Map<String, dynamic> fields) async {
+    try {
+      final raw = await _readCache('my_profile');
+      if (raw is Map) {
+        await _writeCache('my_profile', {...Map<String, dynamic>.from(raw), ...fields});
+      }
+    } catch (_) {}
   }
 
   static String profileCacheName(String userId) => 'profile_${userId.replaceAll(RegExp(r'[^A-Za-z0-9-]'), '')}';
@@ -2033,6 +2068,19 @@ class SupabaseService {
       }
       if (newBio != null) updateMap['bio'] = newBio.trim();
 
+      // v1.2.4: e-posta/şifre değişmiyorsa internet yokken de kaydedilir; bağlantı gelince
+      // sunucuya yazılır. Cihazdaki profil hemen güncellenir (değişiklik kaybolmaz).
+      if (!wantsEmail && !wantsPassword) {
+        final fields = Map<String, dynamic>.from(updateMap)..remove('updated_at');
+        final sent = await writeOrQueue('profile', {'t': 'profile', 'fields': fields});
+        if (!sent) {
+          return _app.trEn('İnternet yok — değişiklikler kaydedildi, bağlantı gelince uygulanacak.',
+              'Offline — your changes are saved and will be applied when you reconnect.',
+              'Offline — Änderungen gespeichert, sie werden bei Verbindung übernommen.');
+        }
+        return _app.trEn('Kişisel bilgileriniz başarıyla güncellendi!', 'Your personal information has been updated!', 'Deine persönlichen Daten wurden aktualisiert!');
+      }
+
       await client.from('profiles').update(updateMap).eq('id', uid);
       return wantsEmail
           ? _app.trEn(
@@ -2354,6 +2402,8 @@ class SupabaseService {
 
   Future<void> markRoomRead(String roomId) async {
     if (roomId.isEmpty || currentUserId == null) return;
+    // v1.2.4: sohbet okununca o sohbetin biriken bildirimi de kalkar
+    unawaited(JuzzioNative.cancelRoomNotification(roomId));
     try {
       await client.rpc('mark_room_read', params: {'p_room': roomId});
     } catch (_) {}
@@ -2500,7 +2550,107 @@ class SupabaseService {
   ///
   /// v0.9.6 sayfalama: yalnız EN YENİ [limit] mesaj canlı izlenir (varsayılan 50). Kullanıcı
   /// "Daha eski mesajlar"a dokundukça pencere 50'şer büyür. Realtime yalnız açık sohbet için açılır.
-  Stream<List<JuzzioMessage>> watchRoomMessages(String roomId, {int limit = 50}) {
+  /// v1.2.4 — ÖNBELLEKLİ CANLI AKIŞ (çevrimdışı öncelikli)
+  ///  1) Cihazdaki son liste ANINDA yayınlanır (internet beklenmez).
+  ///  2) Canlı akış bağlanır; her güncelleme önbelleğe yazılır.
+  ///  3) Bağlantı koparsa son liste ekranda KALIR (hata/boş liste gösterilmez); 5 sn'de bir
+  ///     ve bağlantı geri geldiği an yeniden bağlanılır.
+  ///  4) [keepOnEmpty]: yeniden bağlanırken gelen geçici BOŞ liste, elde veri varken yok
+  ///     sayılır ("İnterneti aç-kapa → arama yok" hatası). Silme işlemleri yerelde yapılır.
+  Stream<List<Map<String, dynamic>>> cachedLiveRows(
+    String cacheName,
+    Stream<List<Map<String, dynamic>>> Function() open, {
+    bool keepOnEmpty = false,
+    int keep = 200,
+  }) {
+    final name = safeCacheName(cacheName);
+    return Stream<List<Map<String, dynamic>>>.multi((out) {
+      StreamSubscription<List<Map<String, dynamic>>>? sub;
+      StreamSubscription<void>? regainSub;
+      Timer? retry;
+      var closed = false;
+      var gotNetwork = false;
+      var lastCount = 0;
+
+      void connect() {
+        if (closed) return;
+        retry?.cancel();
+        sub?.cancel();
+        try {
+          sub = open().listen((rows) {
+            final list = List<Map<String, dynamic>>.from(rows);
+            if (keepOnEmpty && list.isEmpty && lastCount > 0) return;
+            gotNetwork = true;
+            lastCount = list.length;
+            JuzzioNet.instance.setOnline(true);
+            unawaited(_writeCache(name, list.length > keep ? list.sublist(0, keep) : list));
+            if (!closed) out.add(list);
+          }, onError: (Object e) {
+            sub?.cancel();
+            sub = null;
+            if (closed) return;
+            if (isNetworkError(e)) JuzzioNet.instance.setOnline(false);
+            retry?.cancel();
+            retry = Timer(const Duration(seconds: 5), connect);
+          }, cancelOnError: true);
+        } catch (_) {
+          retry = Timer(const Duration(seconds: 5), connect);
+        }
+      }
+
+      unawaited(_readCache(name).then((cached) {
+        if (closed || gotNetwork || cached is! List) return;
+        final rows = cached.whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList();
+        if (rows.isEmpty) return;
+        lastCount = rows.length;
+        out.add(rows);
+      }).catchError((_) {}));
+      connect();
+      regainSub = JuzzioNet.instance.onRegained.listen((_) => connect());
+
+      out.onCancel = () {
+        closed = true;
+        retry?.cancel();
+        regainSub?.cancel();
+        sub?.cancel();
+      };
+    });
+  }
+
+  /// v1.2.4 — önbellekli tek seferlik sorgu: başarılıysa önbelleğe yazar; ağ hatasında
+  /// son başarılı sonucu döndürür (yoksa hatayı aynen fırlatır).
+  Future<List<Map<String, dynamic>>> cachedQuery(String cacheName, Future<Object?> Function() fetch) async {
+    final name = safeCacheName(cacheName);
+    try {
+      final rows = await fetch();
+      final list = rows is List ? rows.whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList() : <Map<String, dynamic>>[];
+      unawaited(_writeCache(name, list));
+      JuzzioNet.instance.setOnline(true);
+      return list;
+    } catch (e) {
+      final cached = await _readCache(name);
+      if (cached is List) {
+        if (isNetworkError(e)) JuzzioNet.instance.setOnline(false);
+        return cached.whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList();
+      }
+      rethrow;
+    }
+  }
+
+  /// Önbellekteki satırlar (ağ kullanmaz).
+  Future<List<Map<String, dynamic>>> cachedRows(String cacheName) async {
+    final cached = await _readCache(safeCacheName(cacheName));
+    if (cached is! List) return const [];
+    return cached.whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList();
+  }
+
+  /// Önbellekteki tek kayıt (ağ kullanmaz).
+  Future<Map<String, dynamic>?> cachedMap(String cacheName) async {
+    final cached = await _readCache(safeCacheName(cacheName));
+    return cached is Map ? Map<String, dynamic>.from(cached) : null;
+  }
+
+  Stream<List<JuzzioMessage>> watchRoomMessages(String roomId, {int limit = 50, bool skipCache = false}) {
     final cacheName = messageCacheName(roomId);
     return Stream<List<JuzzioMessage>>.multi((out) {
       StreamSubscription<List<Map<String, dynamic>>>? sub;
@@ -2541,6 +2691,7 @@ class SupabaseService {
       }
 
       chain = chain.then((_) async {
+        if (skipCache) return;
         final cached = await _readCache(cacheName, messageLimit: limit);
         if (closed || gotNetwork || cached is! List) return;
         final rows = cached.whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList();
@@ -2828,6 +2979,8 @@ class SupabaseService {
     required bool isVideo,
     String caption = '',
     bool viewOnce = false,
+    // v1.2.4: anında görünen yerel balonla eşleşmek için (çift mesaj da engellenir)
+    String? clientMsgId,
   }) async {
     final uid = currentUserId;
     if (uid == null) return;
@@ -2848,7 +3001,7 @@ class SupabaseService {
     final direct = await JuzzioE2ee.instance.isDirectRoom(roomId);
     if (direct == null) throw const JuzzioE2eeRequiredException(JuzzioE2eeStatus.unavailable);
     if (!isVideo && direct) {
-      await _sendEncryptedImage(uid: uid, roomId: roomId, file: file, ext: ext, caption: caption.trim(), viewOnce: viewOnce);
+      await _sendEncryptedImage(uid: uid, roomId: roomId, file: file, ext: ext, caption: caption.trim(), viewOnce: viewOnce, clientMsgId: clientMsgId);
       return;
     }
     // v0.9.6: birebir sohbette video da uçtan uca şifrelenir (önceden şifresiz gidiyordu)
@@ -2861,6 +3014,7 @@ class SupabaseService {
       try {
         await client.from('messages').insert({
           'room_id': roomId,
+        if (clientMsgId != null) 'client_msg_id': clientMsgId,
           'sender_id': uid,
           'message_type': 'video',
           'source_lang': _app.subtitleLang,
@@ -2894,6 +3048,7 @@ class SupabaseService {
         : await translateText(text: cleanCaption, sourceLang: 'auto', targetLang: _defaultTargetLang);
     await client.from('messages').insert({
       'room_id': roomId,
+        if (clientMsgId != null) 'client_msg_id': clientMsgId,
       'sender_id': uid,
       'message_type': isVideo ? 'video' : 'image',
       'source_lang': _app.subtitleLang,
@@ -2921,7 +3076,7 @@ class SupabaseService {
   /// v0.9.4: sohbete belge/dosya gönderir (PDF, ZIP, DOCX …, en fazla 25 MB).
   ///  Birebir sohbette dosya ve DOSYA ADI uçtan uca şifrelenir (fail-closed; şifresiz yedek yok).
   ///  Grup sohbetlerinde dosya chat-media kovasına özel olarak yüklenir.
-  Future<void> sendDocumentMessage({required String roomId, required File file, required String fileName}) async {
+  Future<void> sendDocumentMessage({required String roomId, required File file, required String fileName, String? clientMsgId}) async {
     final uid = currentUserId;
     if (uid == null) return;
     if (!file.existsSync()) {
@@ -2952,6 +3107,7 @@ class SupabaseService {
       try {
         await client.from('messages').insert({
           'room_id': roomId,
+        if (clientMsgId != null) 'client_msg_id': clientMsgId,
           'sender_id': uid,
           'message_type': 'document',
           'source_lang': _app.subtitleLang,
@@ -2980,6 +3136,7 @@ class SupabaseService {
     }
     await client.from('messages').insert({
       'room_id': roomId,
+        if (clientMsgId != null) 'client_msg_id': clientMsgId,
       'sender_id': uid,
       'message_type': 'document',
       'source_lang': _app.subtitleLang,
@@ -3030,6 +3187,7 @@ class SupabaseService {
     required String ext,
     required String caption,
     bool viewOnce = false,
+    String? clientMsgId,
   }) async {
     final sealed = await JuzzioMediaCrypto.seal(await file.readAsBytes(), mime: _mimeFor(ext, isVideo: false));
     final outcome = await JuzzioE2ee.instance.encryptForRoomStrict(roomId, text: caption, translated: '', media: sealed.key.toJson());
@@ -3049,6 +3207,7 @@ class SupabaseService {
     try {
       await client.from('messages').insert({
         'room_id': roomId,
+        if (clientMsgId != null) 'client_msg_id': clientMsgId,
         'sender_id': uid,
         'message_type': 'image',
         'source_lang': _app.subtitleLang,
@@ -3389,11 +3548,13 @@ class SupabaseService {
   /// Yalnızca kullanıcının dahil olduğu arkadaşlık kayıtları (RLS).
   Stream<List<JuzzioFriendship>> watchFriendships() {
     final uid = currentUserId;
-    return client
-        .from('friendships')
-        .stream(primaryKey: ['id'])
-        .order('created_at', ascending: false)
-        .map((rows) => rows
+    // v1.2.4: arkadaş listesi ve sayaçları çevrimdışı da görünür
+    return cachedLiveRows(
+      'friendships',
+      () => client.from('friendships').stream(primaryKey: ['id']).order('created_at', ascending: false),
+      keepOnEmpty: true,
+      keep: 1000,
+    ).map((rows) => rows
             .map(JuzzioFriendship.fromMap)
             .where((f) => uid != null && (f.requesterId == uid || f.receiverId == uid))
             .toList());
@@ -3609,13 +3770,35 @@ class SupabaseService {
   }
 
   /// Kullanıcının görebildiği (RLS: arkadaş / herkes / kendi) aktif hikâyeler
+  /// v1.2.4: hikâyeler çevrimdışı da listelenir (süresi dolanlar her zaman elenir) ve
+  /// medyaları arka planda cihaza indirilir → internet yokken de izlenebilir.
   Stream<List<JuzzioStory>> watchActiveStories() {
-    return client
-        .from('stories')
-        .stream(primaryKey: ['id'])
-        .gt('expires_at', DateTime.now().toUtc().toIso8601String())
-        .order('created_at', ascending: false)
-        .map((rows) => rows.map(JuzzioStory.fromMap).where((s) => !s.isExpired).toList());
+    return cachedLiveRows(
+      'stories_active',
+      () => client
+          .from('stories')
+          .stream(primaryKey: ['id'])
+          .gt('expires_at', DateTime.now().toUtc().toIso8601String())
+          .order('created_at', ascending: false),
+    ).map((rows) {
+      final list = rows.map(JuzzioStory.fromMap).where((s) => !s.isExpired).toList();
+      prefetchStoryMedia(list);
+      return list;
+    });
+  }
+
+  /// Hikâye medyasını (fotoğraf/video/ses) arka planda önbelleğe indirir; zaten
+  /// indirilmiş olanlar atlanır. Mobil veride de çalışır ama tek seferde en fazla 12 dosya.
+  void prefetchStoryMedia(List<JuzzioStory> stories) {
+    var n = 0;
+    for (final st in stories) {
+      for (final url in <String?>[st.mediaUrl, st.musicUrl]) {
+        if (url == null || url.isEmpty || JuzzioMediaUrl.parse(url) == null) continue;
+        if (JuzzioMediaDiskCache.instance.cachedFile(url) != null) continue;
+        if (++n > 12) return;
+        unawaited(JuzzioMediaDiskCache.instance.loadFile(url).catchError((_) => null));
+      }
+    }
   }
 
   Future<bool> fetchMyStoryLike(String storyId) async {
@@ -3889,13 +4072,15 @@ class SupabaseService {
   }
 
   /// Arama geçmişi (RLS: yalnızca arayan veya aranan olduğum kayıtlar)
+  /// v1.2.4: çevrimdışı öncelikli — son arama geçmişi cihazdan anında gelir; internet
+  /// açılıp kapatıldığında liste boşalmaz, bağlantı gelince kendiliğinden yenilenir.
   Stream<List<JuzzioCallLog>> watchCallLogs() {
-    return client
-        .from('call_logs')
-        .stream(primaryKey: ['id'])
-        .order('created_at', ascending: false)
-        .limit(80)
-        .map((rows) {
+    return cachedLiveRows(
+      'call_logs',
+      () => client.from('call_logs').stream(primaryKey: ['id']).order('created_at', ascending: false).limit(80),
+      keepOnEmpty: true,
+      keep: 80,
+    ).map((rows) {
       // Konferanslarda arayanın her davetli için ayrı satırı olur: oturum başına tek satır göster.
       final seen = <String>{};
       final out = <JuzzioCallLog>[];
