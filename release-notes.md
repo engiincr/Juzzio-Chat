@@ -40,3 +40,16 @@ Explore, chats, stories, calls, notifications, profile and tasks now open in the
 - Legal bundle still requires the super-admin password session, a reason and is audit-logged
 - End-to-end encryption, RLS and storage rules unchanged
 
+## ⬇️ Download
+
+- Latest: [Juzzio-latest.apk](https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk)
+- This version: `juzzio-v1.2.4-release.apk` (112.18 MB)
+
+## ✅ Verify the APK
+
+```bash
+sha256sum Juzzio-latest.apk
+# c76f065349909384479e1b2f4d29e622b171c72d0a31710cf615d78ea0868264  Juzzio-latest.apk
+```
+
+Built: 2026-11-10 07:20 UTC — GitHub Actions
