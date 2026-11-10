@@ -1,16 +1,16 @@
 {
   "version": "1.2.7",
-  "buildNumber": 127,
+  "buildNumber": 1062,
   "releaseDate": "2026-11-10",
   "releaseTitle": "Tanıtım Videosu, 3B Doğum Günü ve Akıcı Gönderme",
   "mandatory": false,
   "minSupportedVersion": "0.1.0",
   "apkUrl": "https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk",
   "versionedApkUrl": "https://github.com/engiincr/Juzzio-Chat/releases/download/v1.2.7/juzzio-v1.2.7-release.apk",
-  "apkSha256": "",
-  "apkSize": "",
-  "verifiedBuild": false,
-  "verifiedAt": "",
+  "apkSha256": "94c8301fe387bf10eb4be38069329acf83688942667c20d1ac39c0afbb8af4f6",
+  "apkSize": "114.55 MB",
+  "verifiedBuild": true,
+  "verifiedAt": "2026-11-10 19:29 UTC",
   "developer": {
     "name": "Engin ÇIRPAN",
     "instagram": "https://ig.me/tugkancr",
@@ -22,8 +22,8 @@
     "en": "v1.2.7: First-time users had no introduction to Juzzio; the birthday celebration felt flat and short; a yellow line appeared under the flying text while sending; and the pull-to-refresh hand only grabbed the page on the second try. This update fixes all of that and adds tiny time-of-day icons to the weather theme.",
     "de": "v1.2.7: First-time users had no introduction to Juzzio; the birthday celebration felt flat and short; a yellow line appeared under the flying text while sending; and the pull-to-refresh hand only grabbed the page on the second try. This update fixes all of that and adds tiny time-of-day icons to the weather theme."
   },
-  "build": 127,
-  "versionCode": 127,
+  "build": 1062,
+  "versionCode": 1062,
   "url": "https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk",
   "changelog_tr": "v1.2.7: Uygulamayı ilk kez açanlar Juzzio'yu tanıyamıyordu; doğum günü kutlaması düz ve kısa kalıyordu; mesaj gönderirken uçan metnin altında sarı çizgi çıkıyordu; aşağı çekip yenilemede el ancak ikinci denemede sayfayı tutuyordu. Bu güncelleme hepsini düzeltir ve hava durumu temasına saate göre minik simgeler ekler.",
   "changelog_en": "v1.2.7: First-time users had no introduction to Juzzio; the birthday celebration felt flat and short; a yellow line appeared under the flying text while sending; and the pull-to-refresh hand only grabbed the page on the second try. This update fixes all of that and adds tiny time-of-day icons to the weather theme.",
@@ -85,5 +85,6 @@
     }
   },
   "releaseTitleEn": "Intro Video, 3D Birthday & Smooth Sending",
-  "signatureAlg": "ML-DSA-65 (FIPS 204)"
+  "signatureAlg": "ML-DSA-65 (FIPS 204)",
+  "mldsa65Sig": "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"
 }
