@@ -338,6 +338,21 @@ jobs:
             echo "✅ $DB_NAME uygulandı"
           fi
 
+      # v1.2.0: her sürüm Juzzio Topluluğu kanalında "Juzzio Official" olarak otomatik duyurulur
+      # (yönetici emeği gerekmez; aynı sürüm iki kez paylaşılmaz — fonksiyon idempotenttir).
+      - name: Juzzio Topluluğu sürüm duyurusu
+        if: env.SUPABASE_DB_URL != ''
+        run: |
+          set -euo pipefail
+          DB_URL="$(python3 scripts/resolve_db_url.py)"
+          echo "::add-mask::$DB_URL"
+          VER="$(python3 scripts/community_release_post.py ver)"
+          TR="$(python3 scripts/community_release_post.py tr)"
+          EN="$(python3 scripts/community_release_post.py en)"
+          echo "SELECT public.juzzio_community_post_release(:'ver', :'tr', :'en') IS NOT NULL AS paylasildi;" \
+            | psql "$DB_URL" -X -q -v ON_ERROR_STOP=1 -At -v ver="$VER" -v tr="$TR" -v en="$EN" \
+            || echo "::warning::Topluluk duyurusu gönderilemedi (yayın etkilenmez)."
+
       - name: Migration atlandı
         if: env.SUPABASE_DB_URL == ''
         run: echo "::warning::SUPABASE_DB_URL secret tanımlı değil; veritabanı migration'ları atlandı."

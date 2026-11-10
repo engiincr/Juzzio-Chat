@@ -65,6 +65,16 @@ String juzzioLocalizedNotificationText(JuzzioNotificationItem item) {
       return _l('Arkadaşlık isteğini kabul etti.', 'Accepted your friend request.', 'Hat deine Freundschaftsanfrage angenommen.');
     case 'story_like':
       return _l('Hikâyeni beğendi.', 'Liked your story.', 'Gefällt deine Story.');
+    // v1.2.0: Instagram benzeri hikâye tepki / yorum bildirimi
+    case 'story_reply':
+      final st = juzzioParseStoryReplyPreview(preview);
+      if (st == null) return _l('Hikâyene yanıt verdi.', 'Replied to your story.', 'Hat auf deine Story geantwortet.');
+      if (st.$1 == 'react') {
+        return _l('Hikâyene ${st.$2} tepkisi verdi.', 'Reacted ${st.$2} to your story.', 'Hat mit ${st.$2} auf deine Story reagiert.');
+      }
+      return st.$2.isEmpty
+          ? _l('Hikâyene yorum ekledi.', 'Commented on your story.', 'Hat deine Story kommentiert.')
+          : _l('Hikâyene "${st.$2}" yorumunu ekledi.', 'Commented on your story: "${st.$2}"', 'Hat deine Story kommentiert: „${st.$2}“');
     // v0.9.3: yorum yanıtı / beğenisi
     case 'reply':
       final r = juzzioParseReplyPreview(preview);
@@ -174,3 +184,15 @@ List<String>? juzzioPreviewParts(String preview, String prefix) {
   if (!preview.startsWith('$prefix|')) return null;
   return preview.substring(prefix.length + 1).split('|');
 }
+
+/// v1.2.0: "storyreact|🌸" → ('react', '🌸'), "storycomment|metin" → ('comment', 'metin') (saf; test edilir)
+(String, String)? juzzioParseStoryReplyPreview(String preview) {
+  final p = preview.trim();
+  if (p.startsWith('storyreact|')) {
+    final v = p.substring(11).trim();
+    return ('react', v.isEmpty ? '❤️' : v);
+  }
+  if (p.startsWith('storycomment|')) return ('comment', p.substring(13).trim());
+  return null;
+}
+

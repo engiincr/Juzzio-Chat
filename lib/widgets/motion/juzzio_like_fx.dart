@@ -153,7 +153,8 @@ class _JuzzioReactionBurstState extends State<JuzzioReactionBurst> with SingleTi
     super.dispose();
   }
 
-  bool get _isHeart => widget.emoji.startsWith('❤') || widget.emoji == '♥️';
+  // v1.2.0: yalnız düz kalp çizilir; ❤️‍🔥, ❤️‍🩹 gibi birleşik emojiler kendi görünümüyle patlar
+  bool get _isHeart => juzzioIsPlainHeart(widget.emoji);
 
   @override
   Widget build(BuildContext context) {
@@ -239,6 +240,7 @@ class JuzzioFloatingReactionsController extends ChangeNotifier {
   final math.Random _rnd = math.Random();
 
   void add(String emoji) {
+    if (JuzzioGlassTokens.reducedEffects && _items.length >= 3) return; // v1.2.0: performans modu — en fazla 3 uçan tepki
     if (_items.length > 40) _items.removeAt(0);
     _items.add(_Floater(emoji, DateTime.now(), 0.15 + _rnd.nextDouble() * 0.7, _rnd.nextDouble() * math.pi * 2, 0.9 + _rnd.nextDouble() * 0.5));
     notifyListeners();
@@ -420,3 +422,10 @@ class _SparklePainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _SparklePainter o) => o.t != t;
 }
+
+/// Düz kırmızı kalp mi? (❤️‍🔥 / ❤️‍🩹 gibi ZWJ birleşimleri hariç) — saf, test edilir
+bool juzzioIsPlainHeart(String emoji) {
+  final e = emoji.trim();
+  return e == '❤️' || e == '❤' || e == '♥️' || e == '♥';
+}
+

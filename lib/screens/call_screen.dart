@@ -909,7 +909,16 @@ class _CallScreenState extends State<CallScreen> {
         fit: StackFit.expand,
         children: [
           body,
-          Positioned(left: 0, right: 0, bottom: 96, height: 380, child: JuzzioFloatingReactions(controller: _reactions)),
+          // v1.2.0: Material ata → emojilerin altında sarı çift çizgi / tek aralıklı yazı tipi olmaz
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 96,
+            height: 380,
+            child: IgnorePointer(
+              child: Material(type: MaterialType.transparency, child: JuzzioFloatingReactions(controller: _reactions)),
+            ),
+          ),
         ],
       );
 
@@ -933,8 +942,12 @@ class _CallScreenState extends State<CallScreen> {
                     width: 56,
                     height: 56,
                     alignment: Alignment.center,
-                    decoration: BoxDecoration(color: JuzzioGlassTokens.spaceButton, shape: BoxShape.circle),
-                    child: Text(e, style: const TextStyle(fontSize: 28)),
+                    decoration: BoxDecoration(
+                      color: e == _callReaction ? JuzzioGlassTokens.glow.withValues(alpha: 0.22) : JuzzioGlassTokens.spaceButton,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: e == _callReaction ? JuzzioGlassTokens.glow : Colors.transparent, width: 1.6),
+                    ),
+                    child: Text(e, style: juzzioEmojiStyle(28)),
                   ),
                 ),
             ],
@@ -944,9 +957,14 @@ class _CallScreenState extends State<CallScreen> {
     );
     if (picked != null) {
       JuzzioHaptics.send();
+      // v1.2.0: seçilen emoji artık dokunuşla tekrar tekrar gönderilen tepki olur
+      setState(() => _callReaction = picked);
       await _controller.sendCallReaction(picked);
     }
   }
+
+  /// Dokunuşla gönderilen tepki (basılı tutup seçilen son emoji; varsayılan ❤️)
+  String _callReaction = '❤️';
 
   void dispose() {
     JuzzioIsland.instance.clear('call');
@@ -1464,33 +1482,131 @@ class _CallScreenState extends State<CallScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // v0.9.5: pil dostu mod — OLED ekranda siyah piksel kapalıdır; arama ve altyazı sürer
-    if (!_blackout) {
-      if (!_showDataSaverPrompt) return _withReactions(_buildCallBody(context));
-      return Stack(children: [_withReactions(_buildCallBody(context)), _dataSaverBanner()]);
-    }
-    return Stack(children: [
-      _buildCallBody(context),
-      Positioned.fill(
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () => setState(() => _blackout = false),
-          child: ColoredBox(
-            color: Colors.black,
-            child: Center(
-              child: ValueListenableBuilder<int>(
-                valueListenable: _elapsed,
-                builder: (_, sec, __) => Text(
-                  '${_formatDuration(sec)}\n${_app.loc('Pil tasarrufu · geri dönmek için dokun', 'Battery saver · tap to return', 'Akkusparen · zum Zurückkehren tippen')}',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Color(0xFF3A3A3A), fontSize: 13, height: 1.6),
+    // v1.2.0: tüm katmanlar bir Material altında (sarı alt çizgi / tek aralıklı yazı tipi olmaz)
+    return Material(
+      type: MaterialType.transparency,
+      child: DefaultTextStyle.merge(
+        style: const TextStyle(decoration: TextDecoration.none, fontFamilyFallback: kJuzzioEmojiFallback),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            _withReactions(_buildCallBody(context)),
+            if (_showDataSaverPrompt && !_blackout) _dataSaverBanner(),
+            // v1.2.0: pil dostu mod yeniden tasarlandı — OLED siyah zemin, soluk saat ve CANLI altyazı/çeviri
+            if (_blackout) Positioned.fill(child: _batterySaverView()),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _batterySaverView() {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onDoubleTap: () => setState(() => _blackout = false),
+      child: ColoredBox(
+        color: Colors.black,
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(22, 18, 22, 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.battery_saver_rounded, color: Color(0xFF3F7A4A), size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        widget.partnerName ?? _app.loc('Arama sürüyor', 'Call in progress', 'Anruf läuft'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Color(0xFF8A8A8E), fontSize: 14, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    ValueListenableBuilder<int>(
+                      valueListenable: _elapsed,
+                      builder: (_, sec, __) => Text(
+                        _formatDuration(sec),
+                        style: const TextStyle(color: Color(0xFF8A8A8E), fontSize: 14, fontFeatures: [FontFeature.tabularFigures()]),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
+                const SizedBox(height: 18),
+                Expanded(
+                  child: AnimatedBuilder(
+                    animation: _controller,
+                    builder: (context, _) {
+                      final segs = _controller.recentSegments(count: 4);
+                      if (segs.isEmpty) {
+                        return Center(
+                          child: Text(
+                            _app.loc('Konuşmalar burada altyazı olarak görünecek', 'Speech will appear here as captions', 'Gesprochenes erscheint hier als Untertitel'),
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Color(0xFF55555A), fontSize: 15, height: 1.4),
+                          ),
+                        );
+                      }
+                      return Column(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          for (var i = 0; i < segs.length; i++)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 14),
+                              child: _batterySaverLine(segs[i], newest: i == segs.length - 1),
+                            ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Center(
+                  child: Material(
+                    color: const Color(0xFF111114),
+                    shape: const StadiumBorder(side: BorderSide(color: Color(0xFF26262B))),
+                    child: InkWell(
+                      customBorder: const StadiumBorder(),
+                      onTap: () => setState(() => _blackout = false),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                        child: Text(
+                          _app.loc('Pil tasarrufundan çık', 'Exit battery saver', 'Akkusparen beenden'),
+                          style: const TextStyle(color: Color(0xFFB4B4BA), fontSize: 13.5, fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
       ),
-    ]);
+    );
+  }
+
+  Widget _batterySaverLine(LiveSubtitlePacket seg, {required bool newest}) {
+    final translated = seg.translatedText.trim();
+    final original = seg.originalText.trim();
+    final main = _isTranslatorVisible && translated.isNotEmpty ? translated : (original.isNotEmpty ? original : translated);
+    final alt = _isTranslatorVisible && translated.isNotEmpty && original.isNotEmpty && original != translated ? original : null;
+    final c = newest ? const Color(0xFFE6E6EA) : const Color(0xFF77777D);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(seg.formattedHandle, style: const TextStyle(color: Color(0xFF5E8F6A), fontSize: 12, fontWeight: FontWeight.w700)),
+        const SizedBox(height: 3),
+        Text(main, style: TextStyle(color: c, fontSize: newest ? 22 : 17, height: 1.3, fontWeight: newest ? FontWeight.w600 : FontWeight.w500)),
+        if (alt != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 3),
+            child: Text(alt, style: const TextStyle(color: Color(0xFF5A5A60), fontSize: 13.5, height: 1.3, fontStyle: FontStyle.italic)),
+          ),
+      ],
+    );
   }
 
   bool _blackout = false;
@@ -1516,42 +1632,96 @@ class _CallScreenState extends State<CallScreen> {
     }
   }
 
+  /// v1.2.0: Veri Koruma önerisi — tema uyumlu cam kart, düzgün yazı tipi, net iki eylem
   Widget _dataSaverBanner() => SafeArea(
         child: Align(
           alignment: Alignment.topCenter,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(14, 120, 14, 0),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-                child: Container(
-                  padding: const EdgeInsets.fromLTRB(14, 10, 6, 10),
-                  decoration: BoxDecoration(
-                    color: _callGlassTint(0.5),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white24),
+            padding: const EdgeInsets.fromLTRB(14, 108, 14, 0),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 460),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: JuzzioGlassTokens.blurModal, sigmaY: JuzzioGlassTokens.blurModal),
+                  child: Container(
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                    decoration: BoxDecoration(
+                      color: _callGlassTint(0.55),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+                      boxShadow: const [BoxShadow(color: Color(0x40000000), blurRadius: 24, offset: Offset(0, 10))],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                color: JuzzioGlassTokens.glow.withValues(alpha: 0.22),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(Icons.data_saver_on_rounded, color: JuzzioGlassTokens.glow, size: 21),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _app.loc('Mobil veridesin', 'You are on mobile data', 'Mobile Daten aktiv'),
+                                    style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800),
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    _app.loc('Veri Koruma görüntü kalitesini düşürerek kotanı korur. Ses ve altyazı etkilenmez.',
+                                        'Data Saver lowers video quality to protect your quota. Audio and captions are not affected.',
+                                        'Der Datensparmodus senkt die Videoqualität. Ton und Untertitel bleiben gleich.'),
+                                    style: const TextStyle(color: Color(0xD9FFFFFF), fontSize: 13, height: 1.35),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextButton(
+                                onPressed: () => setState(() => _showDataSaverPrompt = false),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: Colors.white,
+                                  backgroundColor: Colors.white.withValues(alpha: 0.10),
+                                  shape: const StadiumBorder(),
+                                  padding: const EdgeInsets.symmetric(vertical: 11),
+                                ),
+                                child: Text(_app.loc('Şimdi değil', 'Not now', 'Nicht jetzt'), style: const TextStyle(fontWeight: FontWeight.w700)),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: TextButton(
+                                onPressed: _applyDataSaver,
+                                style: TextButton.styleFrom(
+                                  backgroundColor: JuzzioGlassTokens.accentFill,
+                                  foregroundColor: JuzzioGlassTokens.onAccent,
+                                  shape: const StadiumBorder(),
+                                  padding: const EdgeInsets.symmetric(vertical: 11),
+                                ),
+                                child: Text(_app.loc('Veri Koruma\'yı aç', 'Turn on Data Saver', 'Datensparen an'), style: const TextStyle(fontWeight: FontWeight.w800)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                  child: Row(children: [
-                    const Icon(Icons.signal_cellular_alt_rounded, color: Colors.white),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        _app.loc('Mobil verinizi korumak için Veri Koruma modunda devam etmek ister misiniz?',
-                            'Continue in Data Saver mode to protect your mobile data?', 'Im Datensparmodus fortfahren, um mobile Daten zu sparen?'),
-                        style: const TextStyle(color: Colors.white, fontSize: 13, height: 1.3),
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: _applyDataSaver,
-                      style: TextButton.styleFrom(backgroundColor: JuzzioGlassTokens.accentFill, foregroundColor: JuzzioGlassTokens.onAccent),
-                      child: Text(_app.loc('Uygula', 'Apply', 'Anwenden'), style: const TextStyle(fontWeight: FontWeight.w800)),
-                    ),
-                    IconButton(
-                      onPressed: () => setState(() => _showDataSaverPrompt = false),
-                      icon: const Icon(Icons.close_rounded, color: Colors.white70, size: 20),
-                    ),
-                  ]),
                 ),
               ),
             ),
@@ -2752,17 +2922,14 @@ class _CallScreenState extends State<CallScreen> {
               );
             },
           ),
-        // v1.1.0 (#04 Floating hearts): dokun ❤️ · basılı tut → tepki seç
+        // v1.2.0: dokun → seçili tepki (varsayılan ❤️) · basılı tut → tepki seç; seçim kalıcıdır
         GestureDetector(
           onLongPress: _pickCallReaction,
-          child: _bottomCircleBtn(
-            icon: Icons.favorite_rounded,
-            isMutedOrOff: false,
-            onTap: () {
-              JuzzioHaptics.send();
-              _controller.sendCallReaction('❤️');
-            },
-          ),
+          onTap: () {
+            JuzzioHaptics.send();
+            _controller.sendCallReaction(_callReaction);
+          },
+          child: _reactionCircleBtn(),
         ),
         // 5. Aramayı Kapat 'X' (Canlı Kırmızı #EA3423 Yuvarlak — Görsel ile Birebir!)
         GestureDetector(
@@ -2797,6 +2964,31 @@ class _CallScreenState extends State<CallScreen> {
         await _controller.setBeautyLevel(on ? level : 0);
         if (mounted) setState(() {});
       },
+    );
+  }
+
+  Widget _reactionCircleBtn() {
+    return ClipOval(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: JuzzioGlassTokens.blurNavigation, sigmaY: JuzzioGlassTokens.blurNavigation),
+        child: Container(
+          width: 46,
+          height: 46,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0x40FFFFFF), Color(0x10FFFFFF)],
+            ),
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
+          ),
+          child: JuzzioSymbolSwap(
+            child: Text(_callReaction, key: ValueKey(_callReaction), style: juzzioEmojiStyle(22), textScaler: TextScaler.noScaling),
+          ),
+        ),
+      ),
     );
   }
 

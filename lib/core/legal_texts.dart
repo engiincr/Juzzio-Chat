@@ -2,7 +2,7 @@
 
 const String kJuzzioPrivacyMd = r'''# Juzzio Gizlilik Politikası ve KVKK Aydınlatma Metni
 
-Son güncelleme: 9 Kasım 2026 · Uygulama sürümü: v1.1.1 (BETA · Erken Erişim)
+Son güncelleme: 10 Kasım 2026 · Uygulama sürümü: v1.2.3 (BETA · Erken Erişim)
 
 Bu metin, Juzzio mobil uygulamasının hangi kişisel verileri hangi amaçla işlediğini, kimlerle paylaştığını ve haklarınızı **olduğu gibi** açıklar. Uygulamanın kaynak kodu GitHub'da açıktır; buradaki her ifade koddan doğrulanabilir.
 
@@ -99,9 +99,20 @@ Bu metin, Juzzio mobil uygulamasının hangi kişisel verileri hangi amaçla iş
 - İçerik, belirlediğiniz en az 8 karakterlik şifreden **Argon2id** ile türetilen anahtarla **AES-256-GCM** ile şifrelenir. Şifre hiçbir yere gönderilmez ve saklanmaz; unutulursa yedek açılamaz.
 - Yedek hesap kimliğinize bağlıdır; hesap silinip yeniden açılırsa eski yedek yüklenmez.
 
+## 4i. Kayıt ve giriş onayları, yurt dışı aktarım, ticari ileti ve hava durumu teması (v1.2.3)
+
+- **Kayıt ve giriş ekranında yalnız iki kutu vardır.** KVKK Kurulu'nun 18.02.2026 tarihli ve 2026/347 sayılı İlke Kararı gereği aydınlatma metni ile açık rıza metni ayrı tutulur, aydınlatma metni için onay değil yalnız "okudum ve anladım" beyanı alınır ve gerekmeyen yerde açık rıza istenmez.
+  1. **Zorunlu:** "Kullanım Koşulları'nı kabul ediyorum ve 15 yaşından büyük olduğumu beyan ederim. KVKK Aydınlatma Metni'ni okudum ve anladım." Kutuya dokununca Aydınlatma Metni ve Kullanım Koşulları açılır; metnin sonuna inildiğinde "Okudum ve anladım" düğmesi etkinleşir. Bu kutu işaretlenmeden kayıt olunamaz ve giriş yapılamaz.
+  2. **İsteğe bağlı:** Kampanya, yenilik ve duyuru e-postaları (ticari elektronik ileti onayı ve bu amaçla açık rıza). Kendi metni ayrı açılır; önceden işaretli gelmez ve vermemek uygulamayı kullanmanızı etkilemez.
+- **Kayıt:** Beyanın metin sürümü, zamanı ve uygulama sürümü hesabınıza kaydedilir (bir hakkın tesisi, kullanılması veya korunması, KVKK m.5/2-e). IP adresi bu kayda yazılmaz. Metinler değişirse bir sonraki açılışta yeniden gösterilir.
+- **Yurt dışına aktarım (KVKK m.9):** Supabase, LiveKit, Google Firebase, Deepgram, çeviri hizmetleri ve Open-Meteo'nun sunucuları Türkiye dışındadır. Hizmetin sürekli işleyişi için yapılan bu aktarım, 7499 sayılı Kanun ile değişik KVKK m.9 uyarınca **uygun güvencelere (Kurul tarafından ilan edilen standart sözleşme)** dayanır; bu yüzden ayrıca "yurt dışı aktarım açık rızası" istenmez. Uçtan uca şifreli içerikler bu sağlayıcılarda yalnız okunamaz şifreli veri olarak bulunur.
+- **Ticari elektronik ileti (isteğe bağlı):** Yalnız ayrıca onay verirseniz gönderilir (6563 sayılı Kanun ve Ticari İletişim ve Ticari Elektronik İletiler Hakkında Yönetmelik). Onayı Ayarlar → Bildirimler'den veya her e-postadaki bağlantıdan dilediğiniz an, ücretsiz geri alabilirsiniz; geri alma en geç 3 iş günü içinde işleme alınır. Mevzuat gerektirdiğinde onay ve ret kayıtları İleti Yönetim Sistemi'ne (İYS) iletilir.
+- **Hava durumuna göre tema (varsayılan açık):** Konum izni verdiyseniz yaklaşık konumunuz (yaklaşık 10 km'ye yuvarlanmış enlem/boylam) yalnız hava durumunu öğrenmek için Open-Meteo'ya gönderilir; konum bizim sunucumuza gönderilmez ve saklanmaz. İzin vermezseniz özellik konum kullanmadan kapalı kalır. Görünüm → Hava durumu teması ile kapatabilirsiniz.
+- **Kötüye kullanım önleme:** Mesaj, arkadaşlık isteği, yorum, şikâyet ve giriş denemeleri hız sınırına tabidir; bu sınırlar yalnız istek sayısını sayar, içeriği okumaz.
+
 ## 5. Verilerin aktarıldığı hizmet sağlayıcılar
 
-Juzzio'nun çalışması için aşağıdaki hizmetler kullanılır. Bunların bir kısmı yurt dışında bulunduğundan veriler yurt dışına aktarılabilir (KVKK m.9).
+Juzzio'nun çalışması için aşağıdaki hizmetler kullanılır. Bunların bir kısmı yurt dışında bulunduğundan veriler yurt dışına aktarılır; aktarım KVKK m.9 kapsamında uygun güvencelere (standart sözleşme) dayanır.
 
 - **Supabase** (veritabanı, dosya depolama, kimlik doğrulama): hesap, mesaj ve medya verileri.
 - **LiveKit Cloud** (sesli/görüntülü arama sunucusu): arama sırasında ses ve görüntü akışı. Kayıt yapılmaz.
@@ -110,6 +121,7 @@ Juzzio'nun çalışması için aşağıdaki hizmetler kullanılır. Bunların bi
 - **MyMemory** (Google çevirisi çalışmazsa yedek çeviri).
 - **Apple iTunes Search** (müzik ekle ekranında yazdığınız şarkı adı aranır, 30 sn önizleme dinletilir).
 - **GitHub** (uygulama güncellemeleri ve sürüm notları).
+- **Open-Meteo** (yalnız hava durumu teması açıksa; yuvarlanmış konum, kimliğiniz gönderilmez).
 
 ## 6. Yöneticinin görebildikleri ve göremedikleri
 
@@ -134,11 +146,13 @@ Juzzio'nun çalışması için aşağıdaki hizmetler kullanılır. Bunların bi
 
 ## 9. KVKK m.11 kapsamındaki haklarınız
 
-Kişisel verilerinizin işlenip işlenmediğini öğrenme, bilgi talep etme, amacını öğrenme, aktarıldığı kişileri bilme, eksik/yanlış verinin düzeltilmesini, silinmesini veya yok edilmesini isteme, itiraz etme ve zarara uğramanız hâlinde zararın giderilmesini talep etme haklarına sahipsiniz. Başvurularınızı engiincr@pm.me adresine iletebilirsiniz; en geç 30 gün içinde yanıtlanır. Avrupa Birliği'ndeyseniz GDPR kapsamındaki erişim, düzeltme, silme, taşınabilirlik ve itiraz haklarınız da geçerlidir.
+Kişisel verilerinizin işlenip işlenmediğini öğrenme, işlenmişse buna ilişkin bilgi talep etme, işlenme amacını ve amacına uygun kullanılıp kullanılmadığını öğrenme, yurt içinde veya yurt dışında aktarıldığı üçüncü kişileri bilme, eksik veya yanlış işlenmişse düzeltilmesini isteme, KVKK m.7'deki şartlar çerçevesinde silinmesini veya yok edilmesini isteme, bu işlemlerin aktarıldığı üçüncü kişilere bildirilmesini isteme, münhasıran otomatik sistemlerle analiz edilmesi sonucu aleyhinize bir sonucun ortaya çıkmasına itiraz etme ve kanuna aykırı işleme nedeniyle zarara uğramanız hâlinde zararın giderilmesini talep etme haklarına sahipsiniz.
+
+**Başvuru:** Veri Sorumlusuna Başvuru Usul ve Esasları Hakkında Tebliğ'e uygun olarak, uygulamada kayıtlı e-posta adresinizden engiincr@pm.me adresine yazılı olarak başvurabilirsiniz. Başvurular en geç 30 gün içinde ücretsiz yanıtlanır (işlem ayrıca bir maliyet gerektirirse Kurul'un belirlediği tarife uygulanabilir). Başvurunuz reddedilirse, verilen cevabı yetersiz bulursanız veya süresinde cevap verilmezse cevabı öğrendiğiniz tarihten itibaren 30 gün ve her hâlde başvuru tarihinden itibaren 60 gün içinde Kişisel Verileri Koruma Kurulu'na şikâyette bulunabilirsiniz (KVKK m.14). Avrupa Birliği'ndeyseniz GDPR kapsamındaki erişim, düzeltme, silme, kısıtlama, taşınabilirlik ve itiraz haklarınız ile denetim makamına şikâyet hakkınız da geçerlidir.
 
 ## 10. Çocuklar
 
-Juzzio 13 yaşından küçükler için tasarlanmamıştır.
+Juzzio 15 yaşından küçükler için tasarlanmamıştır. Kayıt sırasında 15 yaşından büyük olduğunuzu beyan edersiniz; yaş doğrulaması yapılmaz, beyanınız esas alınır. 18 yaşından küçükseniz Juzzio'yu veli veya vasinizin bilgisi dahilinde kullanmalısınız. 15 yaşından küçük olduğu anlaşılan hesaplar kapatılır ve verileri silinir; bunu bildirmek için engiincr@pm.me adresine yazabilirsiniz.
 
 ## 11. Değişiklikler
 
@@ -147,14 +161,15 @@ Bu politika değiştiğinde uygulamadaki "Güncelleme notları" bölümünde ve 
 
 const String kJuzzioTermsMd = r'''# Juzzio Kullanım Koşulları
 
-Son güncelleme: 1 Kasım 2026 · v0.7.0 (BETA · Erken Erişim)
+Son güncelleme: 10 Kasım 2026 · v1.2.3 (BETA · Erken Erişim)
 
 ## 1. Kabul
 
-Juzzio'yu kullanarak bu koşulları kabul etmiş olursunuz. Juzzio bir **BETA (Erken Erişim)** uygulamasıdır; özellikler değişebilir, hatalar olabilir.
+Kayıt ve giriş ekranındaki zorunlu kutuyu işaretleyerek bu koşulları kabul etmiş olursunuz. Kişisel verilerinizin işlenmesine ilişkin bilgiler ayrı bir metin olan Aydınlatma Metni'nde (Gizlilik Politikası) yer alır. Juzzio bir **BETA (Erken Erişim)** uygulamasıdır; özellikler değişebilir, hatalar olabilir.
 
 ## 2. Hesap
 
+- Juzzio'yu kullanmak için **en az 15 yaşında** olmalısınız; kayıt sırasında bunu beyan edersiniz. 18 yaşından küçükseniz Juzzio'yu veli veya vasinizin bilgisi dahilinde kullanmalısınız.
 - Kayıt olurken doğru bilgi vermelisiniz; hesabınızın güvenliğinden siz sorumlusunuz.
 - Uygunsuz kullanıcı adı, ad veya profil fotoğrafı kullanılamaz; sahte veya trol hesap açmak yasaktır.
 
@@ -275,7 +290,7 @@ the Republic of Türkiye.
 
 const String kJuzzioPrivacyMdEn = r'''# 🔐 Juzzio Privacy Policy
 
-Last updated: November 9, 2026 · App version: v1.1.1 (BETA · Early Access)
+Last updated: November 10, 2026 · App version: v1.2.3 (BETA · Early Access)
 
 > 🇹🇷 The legally binding Turkish version (Privacy Policy and KVKK Disclosure Notice) is in [docs/legal/tr/PRIVACY.md](docs/legal/tr/PRIVACY.md). In the app, the Turkish text is shown when the app language is Turkish.
 
@@ -374,9 +389,20 @@ This document explains, **exactly as it is**, which personal data the Juzzio mob
 - **Notification stack, theme transitions and cloth refresh** run entirely on your device and collect no new data.
 - **Call power profile:** in the background or on a weak network, video quality is temporarily reduced to 360p; no additional data is processed for this.
 
+## 4i. Sign-up and sign-in consents, cross-border transfer, marketing and weather theme (v1.2.3)
+
+- **Only two boxes at sign-up and sign-in.** Following the Turkish Data Protection Board's Principle Decision No. 2026/347 (18 Feb 2026), the privacy notice and explicit-consent texts are kept separate, the privacy notice only asks for a "read and understood" statement (not consent), and consent is not requested where it is not required.
+  1. **Required:** "I accept the Terms of Use and confirm I am over 15. I have read and understood the Privacy Notice." Tapping the box opens the Privacy Notice and Terms; the "I have read and understood" button becomes active once you reach the end. You cannot register or sign in without it.
+  2. **Optional:** News, campaign and announcement e-mails (marketing consent). It opens its own text, is never pre-ticked and declining does not affect the app.
+- **Record:** the text version, time and app version are stored on your account (establishing or defending rights). Your IP address is not stored. If the texts change, they are shown again on the next launch.
+- **Cross-border transfer (KVKK Art. 9 / GDPR Chapter V):** Supabase, LiveKit, Google Firebase, Deepgram, translation services and Open-Meteo run outside Türkiye. These continuous transfers rely on **appropriate safeguards (standard contractual clauses)**, so no separate "consent to cross-border transfer" is requested. End-to-end encrypted content exists there only as ciphertext.
+- **Marketing e-mails (optional):** sent only with your separate consent (Turkish Law No. 6563). Withdraw any time, free of charge, in Settings → Notifications or via the link in every e-mail; withdrawals are processed within 3 business days.
+- **Weather-based theme (on by default):** If you granted location permission, your approximate location (latitude/longitude rounded to ~10 km) is sent only to Open-Meteo to get the weather; it is never sent to or stored on our servers. Turn it off in Appearance → Weather theme.
+- **Abuse prevention:** Messages, friend requests, comments, reports and sign-in attempts are rate-limited; limits only count requests and never read content.
+
 ## 5. Service providers that receive data
 
-The following services are used to run Juzzio. Some are located abroad, so data may be transferred abroad (KVKK Art. 9).
+The following services are used to run Juzzio. Some are located abroad, so data is transferred abroad based on appropriate safeguards (standard contractual clauses, KVKK Art. 9).
 
 - **Supabase** (database, file storage, authentication): account, message and media data.
 - **LiveKit Cloud** (voice/video call server): audio and video streams during calls. Nothing is recorded.
@@ -385,6 +411,7 @@ The following services are used to run Juzzio. Some are located abroad, so data 
 - **MyMemory** (fallback translation if Google Translate fails).
 - **Apple iTunes Search** (the song name you type in the add-music screen is searched and a 30-second preview is played).
 - **GitHub** (app updates and release notes).
+- **Open-Meteo** (only when the weather theme is on; rounded location, no identity).
 
 ## 6. What administrators can and cannot see
 
@@ -409,11 +436,11 @@ The following services are used to run Juzzio. Some are located abroad, so data 
 
 ## 9. Your rights (KVKK Art. 11 and GDPR)
 
-You have the right to learn whether your personal data is processed, request information about it, learn its purpose, know who it is transferred to, request correction of incomplete or inaccurate data, request its deletion or destruction, object, and claim compensation for damages. Send your requests to engiincr@pm.me; they are answered within 30 days at the latest. If you are in the European Union, your GDPR rights of access, rectification, erasure, portability and objection also apply.
+You have the right to learn whether your personal data is processed, request information about it, learn its purpose and whether it is used accordingly, know the third parties in Türkiye or abroad it is transferred to, request correction, deletion or destruction, request that these be notified to recipients, object to a decision based solely on automated processing, and claim compensation. Send your request from your registered e-mail to engiincr@pm.me; it is answered free of charge within 30 days. If your request is rejected, the answer is insufficient or not given in time, you may complain to the Personal Data Protection Board (KVKK Art. 14). In the EU, your GDPR rights of access, rectification, erasure, restriction, portability and objection, and the right to complain to a supervisory authority, also apply.
 
 ## 10. Children
 
-Juzzio is not designed for children under 13.
+Juzzio is not designed for children under 15. At sign-up you confirm that you are over 15; no age verification is performed and your statement is relied on. If you are under 18, use Juzzio with your parent's or guardian's knowledge. Accounts found to belong to children under 15 are closed and their data deleted; you can report this to engiincr@pm.me.
 
 ## 11. Changes
 
@@ -422,16 +449,17 @@ Changes to this policy are announced in the in-app "Release notes" section and o
 
 const String kJuzzioTermsMdEn = r'''# 📜 Juzzio Terms of Use
 
-Last updated: November 9, 2026 · v0.9.7 (BETA · Early Access)
+Last updated: November 10, 2026 · v1.2.3 (BETA · Early Access)
 
 > 🇹🇷 The legally binding Turkish version is in [docs/legal/tr/TERMS.md](docs/legal/tr/TERMS.md). In the app, the Turkish text is shown when the app language is Turkish.
 
 ## 1. Acceptance
 
-By using Juzzio you accept these terms. Juzzio is a **BETA (Early Access)** app; features may change and bugs may occur.
+By ticking the required box on the sign-up and sign-in screen you accept these terms. How your personal data is processed is explained separately in the Privacy Notice (Privacy Policy). Juzzio is a **BETA (Early Access)** app; features may change and bugs may occur.
 
 ## 2. Account
 
+- You must be **at least 15 years old** to use Juzzio and you confirm this at sign-up. If you are under 18, use Juzzio with your parent's or guardian's knowledge.
 - You must provide accurate information when signing up; you are responsible for the security of your account.
 - Inappropriate usernames, names or profile photos may not be used; creating fake or troll accounts is prohibited.
 

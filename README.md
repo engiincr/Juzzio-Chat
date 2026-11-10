@@ -18,20 +18,24 @@
 </div>
 
 <!-- JUZZIO_DYNAMIC_TITLE_START -->
-### 🚀 Latest update: **v1.1.1 — New Refresh Hand & Faster Profile**
+### 🚀 Latest update: **v1.2.3 — Simpler Sign-up Consent (per KVKK 2026 guidance)**
 <!-- JUZZIO_DYNAMIC_TITLE_END -->
 
 <!-- JUZZIO_VERIFIED_APK_START -->
 | Version | APK | Size | SHA-256 | Built |
 | :-- | :-- | :-- | :-- | :-- |
-| v1.1.1 (+1058) | [Juzzio-latest.apk](https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk) | 109.91 MB | `2579b9df6fe823947a96a3304e27c721166f1b9c39dccf0825b81d7723bd6d63` | 2026-11-10 02:52 UTC |
+| v1.2.3 (+123) | Waiting for the GitHub Actions build | — | — | — |
+| v1.2.2 (+122) | Waiting for the GitHub Actions build | — | — | — |
+| v1.2.1 (+121) | Waiting for the GitHub Actions build | — | — | — |
+| v1.2.0 (+120) | Waiting for the GitHub Actions build | — | — | — |
+| v1.1.1 (+1057) | [Juzzio-latest.apk](https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk) | 109.91 MB | `c1f854315430f9b182eb59c24bcdb405a32502e82d9560d4644fd55b28ed85e2` | 2026-11-09 21:37 UTC |
 <!-- JUZZIO_VERIFIED_APK_END -->
 
 ---
 
 ## 📑 Contents
 
-- [🆕 Today's updates (November 9, 2026)](#-todays-updates-november-9-2026)
+- [🆕 Latest updates (November 10, 2026)](#-latest-updates-november-10-2026)
 - [✨ What can you do?](#-what-can-you-do)
 - [🔐 Privacy & security](#-privacy--security)
 - [📦 Download & install](#-download--install)
@@ -44,11 +48,182 @@
 
 ---
 
-## 🆕 Today's updates (November 9, 2026)
+## 🆕 Latest updates (November 10, 2026)
 
-Eight releases shipped today — **v0.9.4, v0.9.5, v0.9.6, v0.9.7, v0.9.8, v0.9.9, v1.0.0 and v1.1.0**. Every update below is also shown inside the app on the first launch after updating ("What's new?"), with the same sections and emojis. Full notes: [release-notes.md](release-notes.md) · [GitHub Releases](https://github.com/engiincr/Juzzio-Chat/releases).
+**v1.2.3** is the newest release (after v1.2.2, v1.2.1, v1.2.0, v1.1.1 and the November 9 releases v0.9.4 → v1.1.0). Every update below is also shown inside the app on the first launch after updating ("What's new?"), with the same sections and emojis. Full notes: [release-notes.md](release-notes.md) · [GitHub Releases](https://github.com/engiincr/Juzzio-Chat/releases).
 
 <details open>
+<summary><b>v1.2.3 — Simpler Sign-up Consent (per KVKK 2026 guidance)</b></summary>
+
+### 🎯 Why did this update come?
+The four separate consent boxes on the sign-up and sign-in screen were reduced to two, in line with the Turkish Data Protection Board's Principle Decision No. 2026/347 (privacy notice and consent kept separate, no consent taken in the notice) and the 2024 amendment of KVKK Art. 9 (continuous transfers abroad rely on standard contracts). Tapping the box opens the text automatically; scroll to the end, tap "I have read and understood" and sign-up or sign-in completes.
+
+### ✨ What's new?
+- ✅ Only two boxes: (1) required — "I accept the Terms of Use and confirm I am over 15. I have read and understood the Privacy Notice." (2) optional — news and campaign e-mails
+- 📖 Tapping the box opens the Privacy Notice and Terms; "Scroll to end" takes you to the bottom, where "I have read and understood" becomes active and ticks the box
+- 🚀 Tapping "Sign up" / "Sign in" without the tick opens the text automatically; after confirming, the action continues and completes
+- 📧 Marketing consent opens its own text, is never pre-ticked and is given with "I agree"
+
+### 🛠 Fixes
+- Privacy Notice rewritten with every element required by the Turkish notice regulation: controller, data, collection method, purposes and legal bases, recipients, basis for transfers abroad, retention, rights, how to apply and the right to complain to the Board
+- Removed the separate "consent to cross-border transfer": continuous transfers rely on appropriate safeguards (standard contracts) under KVKK Art. 9 and are explained in the notice
+- Age requirement added to the Terms (15+, under 18 with a parent's or guardian's knowledge); Privacy Policy children and rights sections updated
+- Existing users see the updated texts once
+
+### 🔐 Security & privacy
+- The server only requires the mandatory statement (terms + age 15+ + notice read); cross-border consent is no longer required
+- Consent records keep version, time and app version (no IP); clients cannot write the consent columns directly
+
+</details>
+
+<details>
+<summary><b>v1.2.2 — The Send-Message Flight Is Back</b></summary>
+
+### 🎯 Why did this update come?
+In v1.2.0 the font change, pink glow and bounce when sending were 'fixed' by turning the flight effect off instead of fixing the cause. This update fixes all three causes at the source and brings back the message flight from the composer to the bubble.
+
+### ✨ What's new?
+- 🕊 The send-message flight is back: your text lifts off the composer, glides like a droplet and becomes the chat bubble
+
+### 🛠 Fixes
+- No more font change: the flying text uses exactly the bubble's font, size, weight and line height, laid out at the bubble's width so line breaks don't change mid-flight
+- No more pink glow: the capsule is no longer painted with the accent colour and a pink shadow; it blends from the composer colour into the bubble's own colour
+- No more bounce: the capsule lands on the real bubble's position (tracked every frame, even while the list scrolls) with a non-overshooting curve; the bubble no longer scales in separately, it takes over on the exact landing frame
+- No double bubble if the server confirms before the flight ends
+- Still off with Reduce motion and Performance mode; no flight for big emoji, replies, contact cards and locations
+
+### 🔐 Security & privacy
+- Visual-only change; encryption, sending and server rules are unchanged
+
+</details>
+
+<details>
+<summary><b>v1.2.1 — Consent at Sign-up, Weather Theme & New Refresh Hand</b></summary>
+
+### 🎯 Why did this update come?
+This update adds a clear consent form at sign-up and login (privacy notice, explicit consent, age 15+, cross-border transfer, optional marketing e-mails), server-side rate limits and input validation, a theme that follows your local weather and a pull-to-refresh rewritten with a chubby 3D baby hand like the reference image. The call-history arrows and the truncated profile buttons seen in the v1.0.0 recording are fixed too.
+
+### ✨ What's new?
+- ✅ Sign-up / login consent form with custom animated ticks; privacy notice, Terms, "I am over 15" and cross-border transfer (Supabase, LiveKit, Firebase, Open-Meteo) are required — you can't register or log in without them
+- 📧 Optional "Campaign and news e-mails" (marketing consent); withdraw any time in Settings → Notifications
+- 🔐 The form explains end-to-end encryption (E2EE) and the security measures in plain words; "Read" links open the full texts
+- 🔄 If the consent text changes, existing users see a one-time re-consent dialog (declining signs you out)
+- 🌦 Weather theme (on by default): sun/moon glow, clouds, fog, drizzle, rain, snow and lightning effects from your local weather. Turn it off in Appearance → Weather theme
+- 👶 Pull-to-refresh rewritten: a chubby 3D clay baby hand with 4 fingers and a thumb, staying in the gap between the Dynamic Island and the header (max 80 dp), a soft 3D cloth-pinch shade at the threshold, a 200 ms elastic snap back on release, then a minimal spinner in the gap
+
+### 🛠 Fixes
+- Refresh fires exactly once (duplicate lock); releasing below the threshold cancels cleanly; all controllers are disposed
+- With Reduce motion on, the hand animation is skipped and only the standard spinner is shown
+- Removed the old 2D fan / radial lines and the white nail circles; the hand no longer touches the header, search bar or avatars
+- Call history: no more double arrows — one icon with the incoming ↙ / outgoing ↗ direction
+- Your profile's "Edit profile" / "Share profile" buttons are no longer truncated: "Edit" and "Share"
+- Clearer profile photo zoom option: "Turn off/on zoom for others"
+
+### 🔐 Security & privacy
+- Consents are recorded on the server with their version (you only see your own; clients can't write the consent columns directly)
+- Server-side rate limits: messages 40/min and 3000/day, comments 20/min, posts 30/hour, stories 60/day, friend requests 40/hour, reports 20/hour, group creation 20/hour, consent records 20/hour
+- Input validation: control and invisible/bidi characters are stripped, length limits enforced on the server; dangerous links such as javascript:, data:, file: are rejected; user search terms are limited to letters/digits/_/-
+- For the weather theme your location is rounded to ~10 km and sent only to Open-Meteo — never to Juzzio's server and never stored. Location permission is asked only once
+- End-to-end encryption behaviour unchanged (fail-closed); RLS not weakened; storage buckets not made public
+
+</details>
+
+<details>
+<summary><b>v1.2.0 — Birthday Celebration, Juzzio Community & Channels</b></summary>
+
+### 🎯 Why did this update come?
+This update closes all 18 issues you reported: a birthday celebration, real channels and a Juzzio Community everyone joins automatically, all Appearance settings on one page, fixed message and call reactions, redesigned message cards, in-chat search and working locked chats.
+
+### ✨ What's new?
+- 🎂 Birthday celebration: when a message contains "Happy Birthday", "Doğum günün kutlu olsun" (and similar), two hands with party poppers come in from the left and right and pop, 🌸🎂😍⚡🥳💖❤️ rise and fade smoothly and an electric wave runs around the bubble — 4 seconds in total
+- 📣 Real channels: "New channel" now opens its own flow (name + description + live preview → pick people). Only owners and admins post; members read and react (enforced on the server)
+- 🌍 Juzzio Community: an official channel named in your app language. Every existing user and every new sign-up joins automatically; posts appear as "Juzzio Official" with a blue tick and the app logo
+- 🚀 Release notes are posted to Juzzio Community automatically on every update (no admin effort, never twice for the same version)
+- 🛠 New "Juzzio Community" admin page: text, link, image, video, music or any file → "Share" to every user
+- 🎨 Appearance on one page: Light/Dark (Light · Dark · System · Scheduled), app theme, glass theme, Theme Studio, chat theme and brightness, font size with live preview, performance mode
+- 🕰 Scheduled light/dark mode: choose when dark mode starts and ends
+- 🗂 Settings reorganised: Account & security · Chats & notifications · Appearance & language · Storage & battery · Support
+- 🔍 New message search: glass search field, filter chips with icons, date headers, highlighted matches; opened from a chat (⋮ → Search in chat) it searches only that chat and jumps to the message
+- 🔒 Locked chats completed: creates a PIN if needed, lists locked chats, lock/unlock chats right there
+- 🪪 Contact card: tappable, with the shared person's photo, name, blue tick and "View profile"
+- 💣 View-once media: blurred preview, glass "View once" label and glass bomb icon; modern "Opened" state afterwards, can't be reopened
+- 📸 Story replies redesigned: full thumbnail, big reaction emoji in the corner, tap opens the story
+- 💬 Story notifications: "Fikret39 reacted 🌸 to your story" and "Fikret39 commented on your story: …"
+- 📅 Shared shift plans are tappable cards with a day-by-day viewer (hours and days off)
+- 🗓 My shifts page redesigned: month header with summary, next-shift card, gradient calendar cells, colour chips, card-style team calendar
+- ⏰ Schedule message: write the message right in the sheet; separate date and time pickers and quick presets
+- ✨ "What would you like to share?": stronger blur, readable text, new Post and Story/Status icons
+- 🫧 The live activity pill now sits below the header as transparent glass and no longer covers the profile photo and name
+
+### 🛠️ What was fixed?
+- Removed the font change, pink glow and bounce when sending; the bubble appears instantly and calmly
+- Message reactions no longer shrink or break; the badge is larger, colourful and never clipped; ❤️‍🔥 is no longer drawn as a plain heart
+- Call reactions: the emoji you pick by long-press is sent on every tap (it used to revert to ❤️); yellow lines under the hearts are gone
+- Call screen: modern glass data-saver card; the battery-saver black screen now shows live captions and translation
+- On Notifications the refresh hand grabs the top edge of the list, not the header
+- Fixed the light/dark mismatch and the two conflicting controls in Appearance
+- Tapping "Font size" no longer jumps to chat settings
+- Performance mode really works: blur, confetti/particle and celebration effects and springy entrances are turned off
+
+### 🔐 Security & privacy
+- Channel posting rule enforced on the server (stricter RLS); the community channel can't be created or changed by clients and its name is reserved
+- Community posts and release announcements can only be made by the admin/server
+- In encrypted chats the text of a story comment is never written to the server or notification (only the reaction emoji, like message reactions)
+
+<details>
+<summary>🇹🇷 Türkçe — Bu güncelleme neden geldi?</summary>
+
+Bu güncelleme bildirdiğin 18 eksiğin tamamını kapatıyor: doğum günü kutlaması, gerçek kanallar ve herkesin otomatik üye olduğu Juzzio Topluluğu, tek sayfada toplanan Görünüm ayarları, düzeltilen mesaj ve arama tepkileri, yenilenen mesaj kartları, sohbet içi arama ve çalışan kilitli sohbetler.
+
+**Yenilikler**
+- 🎂 Doğum günü kutlaması: "Happy Birthday", "Doğum günün kutlu olsun", "İyi ki doğdun" (ve benzerleri) geçen mesajda soldan ve sağdan konfeti patlatıcılı iki el girip patlatır, 🌸🎂😍⚡🥳💖❤️ yumuşakça yükselip kaybolur, balonun çevresinde elektrik dalgası dolaşır — toplam 4 saniye
+- 📣 Gerçek kanallar: "Yeni kanal" artık grup formunu değil kendi akışını açar (ad + açıklama + canlı önizleme → kişi seçimi). Kanalda yalnız sahip ve yöneticiler paylaşır; üyeler okur, tepki verir (sunucuda da zorunlu)
+- 🌍 Juzzio Topluluğu: uygulama dilinde adlandırılan resmî kanal (TR "Juzzio Topluluğu", EN "Juzzio Community"). Tüm mevcut kullanıcılar ve her yeni kayıt otomatik üye; paylaşımlar "Juzzio Official" adı, mavi tik ve uygulama logosuyla görünür
+- 🚀 Her güncelleme yayınlandığında sürüm notları Juzzio Topluluğu'nda otomatik paylaşılır (yönetici emeği yok, aynı sürüm iki kez paylaşılmaz)
+- 🛠 Yönetici paneline "Juzzio Community" sayfası: metin, bağlantı, görsel, video, müzik veya herhangi bir dosya seçip "Paylaş" ile tüm kullanıcılara duyuru
+- 🎨 Görünüm tek sayfada: Gece/Gündüz (Gündüz · Gece · Sistem · Zamanlı), uygulama teması, cam teması, Tema Stüdyosu, sohbet teması ve parlaklığı, canlı önizlemeli yazı boyutu, performans modu
+- 🕰 Zamanlı gece/gündüz modu: gece modunun başlayıp biteceği saati seç, uygulama kendisi geçer
+- 🗂 Ayarlar yeniden düzenlendi: Hesap ve güvenlik · Sohbetler ve bildirimler · Görünüm ve dil · Depolama ve pil · Destek
+- 🔍 Mesaj araması yenilendi: cam arama kutusu, simgeli filtreler, tarih başlıkları, eşleşen kelime vurgusu; sohbet içinden açılınca (⋮ → Sohbette ara) yalnız o sohbette arar, sonuca dokununca mesaja kaydırıp vurgular
+- 🔒 Kilitli sohbetler tamamlandı: PIN yoksa oluşturur, varsa açar; kilitli sohbetler listelenir, buradan sohbet kilitlenir/kilidi kaldırılır
+- 🪪 Kişi kartı: dokunulabilir, paylaşılan kişinin profil fotoğrafı, adı, mavi tiki ve "Profili Görüntüle" düğmesi
+- 💣 Tek görüntülemelik medya: bulanık önizleme, cam "Tek görüntülemelik" etiketi ve cam bomba simgesi; açıldıktan sonra modern "Açıldı" durumu, tekrar açılamaz
+- 📸 Hikâye yanıtları yeni tasarım: tam küçük görsel, köşede büyük tepki emojisi, dokununca hikâye açılır (eski çerçeve ve "İzle" düğmesi kaldırıldı)
+- 💬 Hikâye bildirimleri: "Fikret39 hikâyene 🌸 tepkisi verdi" ve "Fikret39 hikâyene "…" yorumunu ekledi" (Instagram gibi)
+- 📅 Paylaşılan vardiya planı artık dokunulabilir kart: gün gün hangi saatler çalışılacağı ve hangi günlerin izin olduğu ayrıntılı görüntüleyicide
+- 🗓 Vardiya planım sayfası baştan tasarlandı: ay başlık kartı ve özet (çalışma günü, izin, saat), sıradaki vardiya kartı, degrade takvim hücreleri, renk etiketleri, kart görünümlü ekip takvimi
+- ⏰ Mesajı zamanla: mesaj bu sayfada yazılır; ayrı tarih ve saat seçici, hızlı seçenekler (1 saat, 3 saat, yarın 09:00)
+- ✨ "Ne paylaşmak istersin?": güçlü bulanıklık, okunur metin, yeni Gönderi ve Hikâye/Durum simgeleri
+- 🫧 Canlı durum kapsülü ("Ses kaydediliyor", "Fotoğraf gönderiliyor") artık başlığın altında, şeffaf cam görünümünde — profil fotoğrafını ve adı örtmüyor
+
+**Düzeltmeler**
+- Mesaj gönderirken yazı tipinin değişmesi, pembe parıltı ve zıplama tamamen kaldırıldı; balon beklemeden ve sakin şekilde belirir
+- Mesaj tepkileri: emoji küçülüp bozulmuyor, rozet büyük, renkli ve kırpılmadan görünüyor; ❤️‍🔥 artık düz kalp olarak çizilmiyor
+- Arama tepkileri: basılı tutup seçtiğin emoji (⚡, 🎉 …) artık her dokunuşta gönderilir (önceden bir kez gidip ❤️'ye dönüyordu); kalplerin altındaki sarı çizgiler giderildi
+- Arama ekranı: mobil veri uyarısı modern cam kart oldu (sarı alt çizgi ve bozuk yazı tipi yok); pil tasarrufu siyah ekranı canlı altyazı ve çeviriyi gösteriyor
+- Bildirimlerde yenileme eli başlık yazısının üstünden değil listenin üst kenarından tutuyor
+- Görünüm'deki gece/gündüz uyuşmazlığı ve birbiriyle çakışan iki kontrol giderildi (tek seçici; özel tema etkinken seçim artık uygulanıyor)
+- "Yazı boyutu"na dokununca sohbet ayarlarına atma sorunu giderildi
+- Performans modu gerçekten çalışıyor: bulanıklık, konfeti/parçacık ve kutlama efektleri ile yaylı girişler kapanıyor
+
+**Güvenlik**
+- Kanallarda paylaşım kuralı sunucuda zorunlu (RLS sıkılaştırıldı); topluluk kanalı istemciden oluşturulamaz/değiştirilemez, adı rezervedir
+- Topluluk paylaşımı ve sürüm duyurusu yalnız yönetici/sunucu tarafından yapılabilir
+- Şifreli sohbette hikâye yorumunun metni sunucuya ve bildirime yazılmaz (yalnız tepki emojisi, mesaj tepkileri gibi)
+
+</details>
+
+### 🧭 How it works (details)
+- **Birthday** — detection is local (TR/EN/DE/ES/FR/IT/RU phrases); plays once per new message (last 8 s), never while scrolling old messages, not at all with *Reduce motion* or *Performance mode*. Everything is vector-drawn (no image assets).
+- **Channels** — `rooms.is_channel`; the `messages_insert_member` RLS policy now rejects posts from members who are not owner/moderator.
+- **Juzzio Community** — a single `rooms.is_community` channel (unique index). `juzzio_ensure_community()` creates it once the admin profile exists and backfills every user; `trg_juzzio_profile_join_community` adds each new sign-up (users who left are not re-added). The name is reserved by trigger and shown per app language.
+- **Release announcement** — CI step *"Juzzio Topluluğu sürüm duyurusu"* runs `scripts/community_release_post.py` → `juzzio_community_post_release(version, tr, en)` (server role only, idempotent per version).
+- **Admin composer** — Admin → *Juzzio Community* → `admin_community_post()` (admin only; https media only; audited).
+- **Story notifications** — preview keys `storyreact|🌸` / `storycomment|text`; encrypted comments keep an empty preview.
+
+</details>
+
+<details>
 <summary><b>v1.1.1 — New Refresh Hand & Faster Profile</b></summary>
 
 ### 🎯 Why did this update come?

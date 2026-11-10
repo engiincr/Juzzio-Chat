@@ -34,6 +34,8 @@ import 'core/theme/juzzio_aurora.dart';
 import 'core/theme/juzzio_glass.dart';
 import 'widgets/juzzio_motion.dart';
 import 'widgets/juzzio_splash.dart';
+import 'widgets/juzzio_consent.dart';
+import 'widgets/juzzio_weather_ambience.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -301,6 +303,8 @@ class JuzzioApp extends StatelessWidget {
                       fit: StackFit.expand,
                       children: [
                         child ?? const SizedBox.shrink(),
+                        // v1.2.1: hava durumuna göre tema ambiyansı (dokunmayı engellemez)
+                        const Positioned.fill(child: JuzzioWeatherAmbience()),
                         const JuzzioLiveIsland(),
                       ],
                     ),
@@ -441,11 +445,36 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
     setState(() => _step = 2);
   }
 
+  // v1.2.3: iki kutu — zorunlu (koşullar + 15 yaş + aydınlatma beyanı) ve isteğe bağlı ticari ileti
+  JuzzioConsentState _consent = const JuzzioConsentState();
+  bool _consentError = false;
+
   Future<void> _submitAuth() async {
     final appCtrl = JuzzioAppController.instance;
     final s = JuzzioStrings(appCtrl.uiLang);
 
     setState(() => _errorText = null);
+
+    // v1.2.3: zorunlu kutu (Kullanım Koşulları + 15 yaş + Aydınlatma "okudum ve anladım") verilmeden
+    // kayıt olunamaz ve giriş yapılamaz. İşaretlenmemişse metin otomatik açılır; sonuna inip
+    // "Okudum ve anladım"a basınca işlem kaldığı yerden devam eder.
+    if (!_consent.requiredAccepted) {
+      setState(() => _consentError = true);
+      final ok = await juzzioOpenRequiredConsent(context);
+      if (!mounted) return;
+      if (!ok) {
+        setState(() => _errorText = appCtrl.trEn(
+              'Devam etmek için Kullanım Koşulları ve Aydınlatma Metni\'ni okuyup onaylayın.',
+              'To continue, read and confirm the Terms of Use and Privacy Notice.',
+              'Bitte lies und bestätige die Nutzungsbedingungen und den Datenschutzhinweis.',
+            ));
+        return;
+      }
+      setState(() {
+        _consent = _consent.copyWith(termsNotice: true);
+        _consentError = false;
+      });
+    }
 
     final password = _passwordCtrl.text;
     if (password.length < 6) {
@@ -481,6 +510,7 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
           preferredLang: appCtrl.subtitleLang,
         );
 
+        await JuzzioConsentService.instance.record(_consent);
         if (!mounted) return;
         final uname = (result['username'] ?? rawUser).toString();
         Navigator.of(context).pushReplacement(
@@ -498,6 +528,7 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
           fallbackLang: appCtrl.subtitleLang,
         );
 
+        await JuzzioConsentService.instance.record(_consent);
         if (!mounted) return;
         final uname = (result['username'] ?? _usernameCtrl.text.trim()).toString().replaceAll('@', '');
         final lang = (result['preferredLang'] ?? appCtrl.subtitleLang).toString();
@@ -1439,6 +1470,15 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
                     ),
                   ),
                 ],
+                const SizedBox(height: 16),
+                JuzzioConsentPanel(
+                  state: _consent,
+                  showError: _consentError,
+                  onChanged: (v) => setState(() {
+                    _consent = v;
+                    if (v.requiredAccepted) _consentError = false;
+                  }),
+                ),
                 if (_errorText != null) ...[
                   const SizedBox(height: 14),
                   Container(

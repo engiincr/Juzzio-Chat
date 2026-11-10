@@ -1,15 +1,16 @@
 # 📜 Juzzio Terms of Use
 
-Last updated: November 9, 2026 · v0.9.7 (BETA · Early Access)
+Last updated: November 10, 2026 · v1.2.3 (BETA · Early Access)
 
 > 🇹🇷 The legally binding Turkish version is in [docs/legal/tr/TERMS.md](docs/legal/tr/TERMS.md). In the app, the Turkish text is shown when the app language is Turkish.
 
 ## 1. Acceptance
 
-By using Juzzio you accept these terms. Juzzio is a **BETA (Early Access)** app; features may change and bugs may occur.
+By ticking the required box on the sign-up and sign-in screen you accept these terms. How your personal data is processed is explained separately in the Privacy Notice (Privacy Policy). Juzzio is a **BETA (Early Access)** app; features may change and bugs may occur.
 
 ## 2. Account
 
+- You must be **at least 15 years old** to use Juzzio and you confirm this at sign-up. If you are under 18, use Juzzio with your parent's or guardian's knowledge.
 - You must provide accurate information when signing up; you are responsible for the security of your account.
 - Inappropriate usernames, names or profile photos may not be used; creating fake or troll accounts is prohibited.
 

@@ -6,6 +6,7 @@
 // =============================================================================
 
 import 'dart:async';
+import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import '../../core/app_theme_and_locale.dart';
 import '../../models/social_models.dart';
@@ -18,140 +19,193 @@ import '../../widgets/juzzio_cloth_refresh.dart';
 import '../../widgets/juzzio_motion.dart';
 
 /// Merkezdeki "+" Oluşturma Seçim Menüsü (Gönderi / Hikâye / İptal)
+/// v1.2.0: güçlü arka plan bulanıklığı, yüksek kontrastlı okunur metin, modern
+/// Gönderi (fotoğraf ızgarası) ve Hikâye/Durum (hikâye halkası) simgeleri.
 Future<String?> showJuzzioCreateContentBottomSheet(BuildContext context) async {
   final app = JuzzioAppController.instance;
   final isDark = app.isDark;
+  final fg = isDark ? Colors.white : const Color(0xFF111116);
+  final fg2 = isDark ? const Color(0xD9FFFFFF) : const Color(0xCC111116);
 
   return showJuzzioSheet<String>(
     context: context,
-    backgroundColor: JuzzioSocialTokens.cardBg(isDark),
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
-    ),
+    backgroundColor: Colors.transparent,
+    barrierBlur: 26,
+    barrierColor: Colors.black.withValues(alpha: isDark ? 0.45 : 0.25),
     builder: (ctx) {
-      Widget item({
-        required String value,
-        required IconData icon,
-        required Color color,
-        required String title,
-        required String subtitle,
-      }) {
-        return ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-          leading: Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(15),
+      Widget option({required String value, required Widget icon, required String title, required String subtitle}) {
+        return Expanded(
+          child: Material(
+            color: isDark ? const Color(0x1FFFFFFF) : const Color(0xB3FFFFFF),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+              side: BorderSide(color: isDark ? const Color(0x33FFFFFF) : const Color(0x1A000000)),
             ),
-            child: Icon(icon, color: color, size: 24),
-          ),
-          title: Text(
-            title,
-            style: TextStyle(
-              color: JuzzioSocialTokens.textPrimary(isDark),
-              fontSize: 15.5,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          subtitle: Text(
-            subtitle,
-            style: TextStyle(
-              color: JuzzioSocialTokens.textSecondary(isDark),
-              fontSize: 12.5,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(24),
+              onTap: () {
+                JuzzioHaptics.toggle();
+                Navigator.pop(ctx, value);
+              },
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 18, 14, 16),
+                child: Column(children: [
+                  icon,
+                  const SizedBox(height: 12),
+                  Text(title, textAlign: TextAlign.center, style: TextStyle(color: fg, fontSize: 16, fontWeight: FontWeight.w900)),
+                  const SizedBox(height: 4),
+                  Text(subtitle, textAlign: TextAlign.center, style: TextStyle(color: fg2, fontSize: 12.5, height: 1.35, fontWeight: FontWeight.w500)),
+                ]),
+              ),
             ),
           ),
-          trailing: Icon(
-            Icons.chevron_right_rounded,
-            color: JuzzioSocialTokens.textSecondary(isDark),
-          ),
-          onTap: () => Navigator.pop(ctx, value),
         );
       }
 
       return SafeArea(
         child: Padding(
-          padding: const EdgeInsets.only(top: 12, bottom: 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 42,
-                height: 4,
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(32),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0x59FFFFFF) : const Color(0x40000000),
-                  borderRadius: BorderRadius.circular(4),
+                  color: isDark ? const Color(0xB3121218) : const Color(0xD9F6F6FA),
+                  borderRadius: BorderRadius.circular(32),
+                  border: Border.all(color: isDark ? const Color(0x2EFFFFFF) : const Color(0x14000000)),
                 ),
-              ),
-              const SizedBox(height: 16),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  children: [
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(color: fg.withValues(alpha: 0.25), borderRadius: BorderRadius.circular(4)),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(children: [
                     Expanded(
                       child: Text(
                         app.loc('Ne paylaşmak istersin?', 'What would you like to share?', 'Was möchtest du teilen?'),
-                        style: TextStyle(
-                          color: JuzzioSocialTokens.textPrimary(isDark),
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                        ),
+                        style: TextStyle(color: fg, fontSize: 19, fontWeight: FontWeight.w900, letterSpacing: -0.2),
                       ),
                     ),
                     IconButton(
                       onPressed: () => Navigator.pop(ctx, null),
-                      icon: Icon(
-                        Icons.close_rounded,
-                        color: JuzzioSocialTokens.textSecondary(isDark),
-                      ),
+                      icon: Icon(Icons.close_rounded, color: fg2),
                       tooltip: app.loc('Kapat', 'Close', 'Schließen'),
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 6),
-              item(
-                value: 'post',
-                icon: Icons.grid_on_rounded,
-                color: JuzzioSocialTokens.royalBlue,
-                title: app.loc('Gönderi', 'Post', 'Beitrag'),
-                subtitle: app.loc(
-                  'Profilinde ve ana akışta fotoğraf, video veya çoklu medya paylaş.',
-                  'Share a photo, video, or multi-media post on your feed and profile.', 'Teile einen Foto-, Video- oder Multimedia-Beitrag in deinem Feed und Profil.',
-                ),
-              ),
-              item(
-                value: 'story',
-                icon: Icons.auto_awesome_motion_rounded,
-                color: JuzzioSocialTokens.onlineEmerald,
-                title: app.loc('Hikâye / Durum', 'Story / Status', 'Story / Status'),
-                subtitle: app.loc(
-                  '24 saat sonra süresi dolan fotoğraf, video veya metin durumu paylaş.',
-                  'Share a 24-hour photo, video, or text status update.', 'Teile ein 24-Stunden-Foto, -Video oder einen Text-Status.',
-                ),
-              ),
-              const SizedBox(height: 8),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: OutlinedButton(
-                  onPressed: () => Navigator.pop(ctx, null),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(46),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                  ]),
+                  const SizedBox(height: 10),
+                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    option(
+                      value: 'post',
+                      icon: const _CreatePostIcon(),
+                      title: app.loc('Gönderi', 'Post', 'Beitrag'),
+                      subtitle: app.loc('Akışında ve profilinde fotoğraf, video, çoklu medya', 'Photo, video or multi-media on your feed and profile',
+                          'Foto, Video oder Multimedia in Feed und Profil'),
                     ),
-                  ),
-                  child: Text(app.loc('İptal / Kapat', 'Cancel / Close', 'Abbrechen / Schließen')),
-                ),
+                    const SizedBox(width: 10),
+                    option(
+                      value: 'story',
+                      icon: const _CreateStoryIcon(),
+                      title: app.loc('Hikâye / Durum', 'Story / Status', 'Story / Status'),
+                      subtitle: app.loc('24 saat görünen fotoğraf, video veya yazı', 'Photo, video or text for 24 hours', 'Foto, Video oder Text für 24 Stunden'),
+                    ),
+                  ]),
+                ]),
               ),
-            ],
+            ),
           ),
         ),
       );
     },
   );
 }
+
+/// Gönderi simgesi: degrade kare içinde 2×2 fotoğraf ızgarası + artı rozeti
+class _CreatePostIcon extends StatelessWidget {
+  const _CreatePostIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 64,
+      height: 64,
+      child: Stack(clipBehavior: Clip.none, children: [
+        Container(
+          width: 64,
+          height: 64,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFF4F7CFF), Color(0xFF8B5CF6)]),
+            boxShadow: const [BoxShadow(color: Color(0x554F7CFF), blurRadius: 16, offset: Offset(0, 6))],
+          ),
+          child: GridView.count(
+            crossAxisCount: 2,
+            mainAxisSpacing: 4,
+            crossAxisSpacing: 4,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: EdgeInsets.zero,
+            children: [
+              for (var i = 0; i < 4; i++)
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: i == 0 ? 0.95 : 0.55),
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        Positioned(right: -4, bottom: -4, child: _plusBadge()),
+      ]),
+    );
+  }
+}
+
+/// Hikâye simgesi: degrade hikâye halkası içinde artı
+class _CreateStoryIcon extends StatelessWidget {
+  const _CreateStoryIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 64,
+      height: 64,
+      child: Stack(clipBehavior: Clip.none, children: [
+        Container(
+          width: 64,
+          height: 64,
+          padding: const EdgeInsets.all(3.5),
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: SweepGradient(colors: [Color(0xFFFFC23D), Color(0xFFFF4D8D), Color(0xFF8B5CF6), Color(0xFFFFC23D)]),
+            boxShadow: [BoxShadow(color: Color(0x55FF4D8D), blurRadius: 16, offset: Offset(0, 6))],
+          ),
+          child: Container(
+            decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFF1C1C24)),
+            child: const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 26),
+          ),
+        ),
+        Positioned(right: -4, bottom: -4, child: _plusBadge()),
+      ]),
+    );
+  }
+}
+
+Widget _plusBadge() => Container(
+      width: 24,
+      height: 24,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.white,
+        border: Border.all(color: const Color(0x22000000)),
+        boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius: 6)],
+      ),
+      child: const Icon(Icons.add_rounded, size: 18, color: Color(0xFF111116)),
+    );
 
 /// Gönderi Detayı ve Yorumlar Ekranı (Bölüm 6.11 & 21)
 class JuzzioPostDetailAndCommentsPage extends StatefulWidget {

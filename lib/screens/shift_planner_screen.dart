@@ -11,7 +11,6 @@
 import 'package:flutter/material.dart';
 
 import '../core/app_theme_and_locale.dart';
-import '../core/theme/juzzio_colors.dart';
 import '../core/theme/juzzio_glass.dart';
 import '../services/supabase_service.dart';
 import '../widgets/juzzio_cloth_refresh.dart';
@@ -562,6 +561,23 @@ class _JuzzioShiftPlannerScreenState extends State<JuzzioShiftPlannerScreen> {
     }
   }
 
+  String _monthName(DateTime m) {
+    final tr = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+    final en = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    final de = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+    final l = _app.uiLang;
+    final list = l.startsWith('tr') ? tr : (l.startsWith('de') ? de : en);
+    return '${list[m.month - 1]} ${m.year}';
+  }
+
+  void _shiftMonth(int delta) {
+    JuzzioHaptics.toggle();
+    setState(() => _month = DateTime(_month.year, _month.month + delta));
+    _load();
+  }
+
+  /// v1.2.0: modern tasarım — degrade başlık kartı (ay + özet), cam takvim hücreleri,
+  /// "Bugün / sıradaki vardiya" kartı, renk açıklamaları ve kart görünümlü ekip takvimi.
   @override
   Widget build(BuildContext context) {
     final p = JuzzioPalette(_app.isDark);
@@ -570,106 +586,293 @@ class _JuzzioShiftPlannerScreenState extends State<JuzzioShiftPlannerScreen> {
     final lead = (first.weekday + 6) % 7; // Pazartesi başlangıç
     final today = DateTime.now();
     final counts = <String, int>{};
+    var minutes = 0;
     for (final s in _mine.values) {
       counts[s.code] = (counts[s.code] ?? 0) + 1;
+      if (s.startsAt != null && s.endsAt != null) minutes += s.endsAt!.difference(s.startsAt!).inMinutes.abs();
     }
+    final offCount = (counts['off_day'] ?? 0) + (counts['annual_leave'] ?? 0);
+    final workCount = _mine.length - offCount;
+    final upcoming = (_mine.values.where((s) => !s.date.isBefore(DateTime(today.year, today.month, today.day))).toList()
+          ..sort((a, b) => a.date.compareTo(b.date)))
+        .take(1)
+        .toList();
+    final weekNames = [
+      _app.trEn('Pt', 'Mo', 'Mo'), _app.trEn('Sa', 'Tu', 'Di'), _app.trEn('Ça', 'We', 'Mi'), _app.trEn('Pe', 'Th', 'Do'),
+      _app.trEn('Cu', 'Fr', 'Fr'), _app.trEn('Ct', 'Sa', 'Sa'), _app.trEn('Pz', 'Su', 'So'),
+    ];
+    final accent = JuzzioGlassTokens.glow;
     return Scaffold(
       backgroundColor: p.bgPrimary,
-      appBar: AppBar(title: Text(_app.trEn('Vardiya planım', 'My shifts', 'Meine Schichten'))),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _addRange,
-        icon: const Icon(Icons.date_range_rounded),
-        label: Text(_app.trEn('Aralık planla', 'Plan range', 'Zeitraum')),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        title: Text(_app.trEn('Vardiya planım', 'My shifts', 'Meine Schichten'),
+            style: TextStyle(color: p.textPrimary, fontWeight: FontWeight.w900, fontSize: 19)),
+        actions: [
+          IconButton(
+            tooltip: _app.trEn('Bugüne git', 'Go to today', 'Heute'),
+            onPressed: () {
+              setState(() => _month = DateTime(today.year, today.month));
+              _load();
+            },
+            icon: Icon(Icons.today_rounded, color: p.textPrimary),
+          ),
+        ],
+      ),
+      floatingActionButton: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: [BoxShadow(color: accent.withValues(alpha: 0.45), blurRadius: 22, offset: const Offset(0, 8))],
+        ),
+        child: FloatingActionButton.extended(
+          onPressed: _addRange,
+          backgroundColor: JuzzioGlassTokens.accentFill,
+          foregroundColor: JuzzioGlassTokens.onAccent,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+          icon: const Icon(Icons.auto_awesome_motion_rounded),
+          label: Text(_app.trEn('Aralık planla', 'Plan range', 'Zeitraum'), style: const TextStyle(fontWeight: FontWeight.w800)),
+        ),
       ),
       body: JuzzioClothRefresh(
         onRefresh: _load,
-        child: ListView(padding: const EdgeInsets.fromLTRB(16, 16, 16, 96), children: [
-          Row(children: [
-            IconButton(icon: const Icon(Icons.chevron_left_rounded), onPressed: () {
-              setState(() => _month = DateTime(_month.year, _month.month - 1));
-              _load();
-            }),
-            Expanded(child: Text('${_month.month.toString().padLeft(2, '0')}.${_month.year}', textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17))),
-            IconButton(icon: const Icon(Icons.chevron_right_rounded), onPressed: () {
-              setState(() => _month = DateTime(_month.year, _month.month + 1));
-              _load();
-            }),
-          ]),
-          if (_error != null) Padding(padding: const EdgeInsets.all(8), child: Text(_error!, style: const TextStyle(color: Colors.redAccent))),
-          if (_loading) const JuzzioSparklerBar(minHeight: 2),
-          GridView.count(
-            crossAxisCount: 7,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 6,
-            crossAxisSpacing: 6,
-            children: [
-              for (final w in [_app.trEn('Pt', 'Mo', 'Mo'), _app.trEn('Sa', 'Tu', 'Di'), _app.trEn('Ça', 'We', 'Mi'), _app.trEn('Pe', 'Th', 'Do'), _app.trEn('Cu', 'Fr', 'Fr'), _app.trEn('Ct', 'Sa', 'Sa'), _app.trEn('Pz', 'Su', 'So')])
-                Center(child: Text(w, style: TextStyle(color: p.textSecondary, fontWeight: FontWeight.w700, fontSize: 12))),
-              for (var i = 0; i < lead; i++) const SizedBox.shrink(),
-              for (var d = 1; d <= days; d++)
-                Builder(builder: (_) {
-                  final day = DateTime(_month.year, _month.month, d);
-                  final s = _mine[_ymd(day)];
-                  final isToday = day.year == today.year && day.month == today.month && day.day == today.day;
-                  final c = s == null ? null : juzzioShiftColor(s.code);
-                  return InkWell(
-                    borderRadius: BorderRadius.circular(12),
-                    onTap: () => _editDay(day),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: c?.withValues(alpha: 0.85) ?? p.textMuted.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(12),
-                        border: isToday ? Border.all(color: JuzzioColors.blue600, width: 2) : null,
-                      ),
-                      alignment: Alignment.center,
-                      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                        Text('$d', style: TextStyle(color: c != null ? Colors.white : p.textPrimary, fontWeight: FontWeight.w700)),
-                        if (s != null && s.startsAt != null)
-                          FittedBox(
-                            child: Text(
-                              '${s.startsAt!.hour.toString().padLeft(2, '0')}-${s.endsAt!.hour.toString().padLeft(2, '0')}',
-                              style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700),
-                            ),
-                          ),
-                      ]),
-                    ),
-                  );
-                }),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Wrap(spacing: 10, runSpacing: 6, children: [
-            for (final c in kJuzzioShiftCodes)
-              Row(mainAxisSize: MainAxisSize.min, children: [
-                CircleAvatar(radius: 5, backgroundColor: juzzioShiftColor(c)),
-                const SizedBox(width: 4),
-                Text('${juzzioShiftLabel(c, _app)}${counts[c] != null ? ' (${counts[c]})' : ''}', style: TextStyle(color: p.textSecondary, fontSize: 12)),
+        child: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 110), children: [
+          // ---- başlık kartı: ay seçici + özet ----
+          Container(
+            padding: const EdgeInsets.fromLTRB(8, 10, 8, 16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(28),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [accent.withValues(alpha: 0.38), accent.withValues(alpha: 0.08)],
+              ),
+              border: Border.all(color: accent.withValues(alpha: 0.35)),
+            ),
+            child: Column(children: [
+              Row(children: [
+                _roundBtn(p, Icons.chevron_left_rounded, () => _shiftMonth(-1)),
+                Expanded(
+                  child: JuzzioSymbolSwap(
+                    child: Text(_monthName(_month),
+                        key: ValueKey(_month),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: p.textPrimary, fontWeight: FontWeight.w900, fontSize: 20, letterSpacing: -0.3)),
+                  ),
+                ),
+                _roundBtn(p, Icons.chevron_right_rounded, () => _shiftMonth(1)),
               ]),
+              const SizedBox(height: 14),
+              Row(children: [
+                _summary(p, Icons.work_rounded, '$workCount', _app.trEn('çalışma günü', 'work days', 'Arbeitstage')),
+                _summary(p, Icons.beach_access_rounded, '$offCount', _app.trEn('izin', 'days off', 'frei')),
+                _summary(p, Icons.schedule_rounded, minutes == 0 ? '—' : '${(minutes / 60).round()}', _app.trEn('saat', 'hours', 'Stunden')),
+              ]),
+            ]),
+          ),
+          if (_loading) const Padding(padding: EdgeInsets.only(top: 10), child: JuzzioSparklerBar(minHeight: 2)),
+          if (_error != null)
+            Padding(padding: const EdgeInsets.all(8), child: Text(_error!, style: const TextStyle(color: Colors.redAccent))),
+          // ---- sıradaki vardiya ----
+          if (upcoming.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            _nextCard(p, upcoming.first, today),
+          ],
+          const SizedBox(height: 16),
+          // ---- takvim ----
+          Container(
+            padding: const EdgeInsets.fromLTRB(10, 12, 10, 12),
+            decoration: BoxDecoration(
+              color: JuzzioGlassTokens.surfaceStrong,
+              borderRadius: BorderRadius.circular(26),
+              border: Border.all(color: JuzzioGlassTokens.border),
+            ),
+            child: GridView.count(
+              crossAxisCount: 7,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              mainAxisSpacing: 6,
+              crossAxisSpacing: 6,
+              childAspectRatio: 0.82,
+              children: [
+                for (final w in weekNames)
+                  Center(child: Text(w, style: TextStyle(color: p.textSecondary, fontWeight: FontWeight.w800, fontSize: 11.5))),
+                for (var i = 0; i < lead; i++) const SizedBox.shrink(),
+                for (var d = 1; d <= days; d++) _dayCell(p, DateTime(_month.year, _month.month, d), today),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          // ---- açıklamalar ----
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            for (final c in kJuzzioShiftCodes)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: juzzioShiftColor(c).withValues(alpha: counts[c] != null ? 0.18 : 0.08),
+                  borderRadius: BorderRadius.circular(99),
+                  border: Border.all(color: juzzioShiftColor(c).withValues(alpha: 0.4)),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Container(width: 8, height: 8, decoration: BoxDecoration(color: juzzioShiftColor(c), shape: BoxShape.circle)),
+                  const SizedBox(width: 6),
+                  Text('${juzzioShiftLabel(c, _app)}${counts[c] != null ? ' · ${counts[c]}' : ''}',
+                      style: TextStyle(color: p.textPrimary, fontSize: 12, fontWeight: FontWeight.w700)),
+                ]),
+              ),
           ]),
+          // ---- ekip takvimi ----
           if (_groups.isNotEmpty) ...[
-            const SizedBox(height: 20),
-            Text(_app.trEn('Ekip takvimi (14 gün)', 'Team calendar (14 days)', 'Teamkalender (14 Tage)'), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
-            DropdownButton<String?>(
-              value: _teamRoom,
-              isExpanded: true,
-              hint: Text(_app.trEn('Grup seç', 'Choose a group', 'Gruppe wählen')),
-              items: [for (final g in _groups) DropdownMenuItem<String?>(value: g.key, child: Text(g.value))],
-              onChanged: (v) {
-                setState(() => _teamRoom = v);
-                _load();
-              },
+            const SizedBox(height: 22),
+            Row(children: [
+              Icon(Icons.groups_rounded, color: p.textPrimary),
+              const SizedBox(width: 8),
+              Text(_app.trEn('Ekip takvimi', 'Team calendar', 'Teamkalender'), style: TextStyle(color: p.textPrimary, fontWeight: FontWeight.w900, fontSize: 17)),
+              const SizedBox(width: 6),
+              Text(_app.trEn('· 14 gün', '· 14 days', '· 14 Tage'), style: TextStyle(color: p.textSecondary, fontSize: 13)),
+            ]),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 40,
+              child: ListView(scrollDirection: Axis.horizontal, children: [
+                for (final g in _groups)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text(g.value, overflow: TextOverflow.ellipsis),
+                      selected: _teamRoom == g.key,
+                      showCheckmark: false,
+                      shape: const StadiumBorder(),
+                      selectedColor: accent.withValues(alpha: 0.25),
+                      onSelected: (_) {
+                        setState(() => _teamRoom = _teamRoom == g.key ? null : g.key);
+                        _load();
+                      },
+                    ),
+                  ),
+              ]),
             ),
             if (_teamRoom != null && _team.isEmpty)
-              Padding(padding: const EdgeInsets.all(8), child: Text(_app.trEn('Bu grupta paylaşılmış vardiya yok.', 'No shared shifts in this group.', 'Keine geteilten Schichten.'), style: TextStyle(color: p.textSecondary))),
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Text(_app.trEn('Bu grupta paylaşılmış vardiya yok.', 'No shared shifts in this group.', 'Keine geteilten Schichten.'),
+                    style: TextStyle(color: p.textSecondary)),
+              ),
             for (final s in _team)
-              ListTile(
-                dense: true,
-                leading: CircleAvatar(radius: 8, backgroundColor: juzzioShiftColor(s.code)),
-                title: Text('${s.ownerName} · ${juzzioShiftLabel(s.code, _app)}${s.hoursLabel.isEmpty ? '' : ' · ${s.hoursLabel}'}'),
-                subtitle: Text('${s.date.day}.${s.date.month}${s.note.isNotEmpty ? ' · ${s.note}' : ''}'),
+              Container(
+                margin: const EdgeInsets.only(top: 8),
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                decoration: BoxDecoration(
+                  color: JuzzioGlassTokens.surfaceStrong,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: JuzzioGlassTokens.border),
+                ),
+                child: Row(children: [
+                  Container(width: 4, height: 36, decoration: BoxDecoration(color: juzzioShiftColor(s.code), borderRadius: BorderRadius.circular(4))),
+                  const SizedBox(width: 10),
+                  SizedBox(
+                    width: 44,
+                    child: Text('${s.date.day}.${s.date.month}', style: TextStyle(color: p.textPrimary, fontWeight: FontWeight.w900)),
+                  ),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(s.ownerName, style: TextStyle(color: p.textPrimary, fontWeight: FontWeight.w800)),
+                      Text('${juzzioShiftLabel(s.code, _app)}${s.hoursLabel.isEmpty ? '' : ' · ${s.hoursLabel}'}${s.note.isNotEmpty ? ' · ${s.note}' : ''}',
+                          maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.textSecondary, fontSize: 12.5)),
+                    ]),
+                  ),
+                ]),
               ),
           ],
+        ]),
+      ),
+    );
+  }
+
+  Widget _roundBtn(JuzzioPalette p, IconData icon, VoidCallback onTap) => Material(
+        color: JuzzioGlassTokens.surfaceStrong,
+        shape: const CircleBorder(),
+        child: InkWell(customBorder: const CircleBorder(), onTap: onTap, child: Padding(padding: const EdgeInsets.all(8), child: Icon(icon, color: p.textPrimary))),
+      );
+
+  Widget _summary(JuzzioPalette p, IconData icon, String value, String label) => Expanded(
+        child: Column(children: [
+          Icon(icon, size: 18, color: JuzzioGlassTokens.glowText),
+          const SizedBox(height: 4),
+          Text(value, style: TextStyle(color: p.textPrimary, fontSize: 22, fontWeight: FontWeight.w900)),
+          Text(label, style: TextStyle(color: p.textSecondary, fontSize: 11.5, fontWeight: FontWeight.w600)),
+        ]),
+      );
+
+  Widget _nextCard(JuzzioPalette p, JuzzioShift s, DateTime today) {
+    final isToday = DateUtils.isSameDay(s.date, today);
+    final c = juzzioShiftColor(s.code);
+    return Material(
+      color: c.withValues(alpha: 0.14),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22), side: BorderSide(color: c.withValues(alpha: 0.45))),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(22),
+        onTap: () => _editDay(s.date),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(children: [
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(color: c, borderRadius: BorderRadius.circular(15)),
+              child: const Icon(Icons.work_history_rounded, color: Colors.white),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(isToday ? _app.trEn('Bugün', 'Today', 'Heute') : _app.trEn('Sıradaki vardiya · ${s.date.day}.${s.date.month}', 'Next shift · ${s.date.day}.${s.date.month}', 'Nächste Schicht · ${s.date.day}.${s.date.month}'),
+                    style: TextStyle(color: p.textSecondary, fontSize: 12, fontWeight: FontWeight.w700)),
+                Text('${juzzioShiftLabel(s.code, _app)}${s.hoursLabel.isEmpty ? '' : '  ${s.hoursLabel}'}',
+                    style: TextStyle(color: p.textPrimary, fontSize: 16, fontWeight: FontWeight.w900)),
+              ]),
+            ),
+            Icon(Icons.edit_calendar_rounded, color: p.textSecondary),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _dayCell(JuzzioPalette p, DateTime day, DateTime today) {
+    final s = _mine[_ymd(day)];
+    final isToday = DateUtils.isSameDay(day, today);
+    final c = s == null ? null : juzzioShiftColor(s.code);
+    final weekend = day.weekday >= 6;
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: () {
+        JuzzioHaptics.toggle();
+        _editDay(day);
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        decoration: BoxDecoration(
+          gradient: c == null
+              ? null
+              : LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [c, Color.lerp(c, Colors.black, 0.18)!]),
+          color: c == null ? p.textMuted.withValues(alpha: weekend ? 0.10 : 0.06) : null,
+          borderRadius: BorderRadius.circular(14),
+          border: isToday ? Border.all(color: JuzzioGlassTokens.glow, width: 2) : null,
+          boxShadow: c == null ? null : [BoxShadow(color: c.withValues(alpha: 0.35), blurRadius: 8, offset: const Offset(0, 3))],
+        ),
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Text('${day.day}',
+              style: TextStyle(color: c != null ? Colors.white : (weekend ? p.textSecondary : p.textPrimary), fontWeight: FontWeight.w800, fontSize: 14)),
+          if (s != null && s.startsAt != null && s.endsAt != null)
+            FittedBox(
+              child: Text(
+                '${s.startsAt!.hour.toString().padLeft(2, '0')}–${s.endsAt!.hour.toString().padLeft(2, '0')}',
+                style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700),
+              ),
+            )
+          else if (s != null && (s.code == 'off_day' || s.code == 'annual_leave'))
+            const Icon(Icons.beach_access_rounded, size: 11, color: Colors.white),
         ]),
       ),
     );

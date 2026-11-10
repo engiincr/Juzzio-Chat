@@ -461,6 +461,9 @@ class JuzzioAppController extends ChangeNotifier {
   // v0.6 Glassmorphism: seçili aurora cam teması (boşsa yöneticinin varsayılanı / ilk palet)
   String _glassPaletteId = '';
   bool _reducedEffects = false;
+  // v1.2.1: hava durumuna göre tema ambiyansı (varsayılan AÇIK)
+  bool _weatherThemeEnabled = true;
+  bool _weatherPermAsked = false;
   bool _reducedEffectsUserSet = false;
   // v0.8.4: sohbet teması olarak seçilen uygulama teması ('' → sohbet ön ayarı kullanılır)
   String _chatPaletteId = '';
@@ -1061,6 +1064,8 @@ class JuzzioAppController extends ChangeNotifier {
       _chatPaletteId = kJuzzioAuroraPalettes.any((p) => p.id == cp) ? cp : '';
       _reducedEffects = raw['reducedEffects'] == true;
       JuzzioGlassTokens.reducedEffects = _reducedEffects;
+      _weatherThemeEnabled = raw['weatherTheme'] != false;
+      _weatherPermAsked = raw['weatherPermAsked'] == true;
       final gi = raw['glassIntensity'];
       _glassIntensity = (gi is num && gi.isFinite) ? gi.toDouble().clamp(0.6, 1.4) : 1.0;
       JuzzioGlassTokens.intensity = _glassIntensity;
@@ -1224,6 +1229,8 @@ class JuzzioAppController extends ChangeNotifier {
         'glassPalette': _glassPaletteId,
         'chatPalette': _chatPaletteId,
         'reducedEffects': _reducedEffects,
+        'weatherTheme': _weatherThemeEnabled,
+        'weatherPermAsked': _weatherPermAsked,
         if (_reducedEffectsUserSet) 'reducedEffectsUserSet': true,
         'glassIntensity': _glassIntensity,
         'customThemes': _customThemes.map((t) => t.toJson()).toList(),
@@ -1536,6 +1543,21 @@ class JuzzioAppController extends ChangeNotifier {
 
   /// v0.8.1 Performans modu: blur kapalı, statik yarı saydam yüzeyler
   bool get reducedEffects => _reducedEffects;
+
+  /// v1.2.1: hava durumu teması (konum + Open-Meteo); Görünüm'den kapatılabilir
+  bool get weatherThemeEnabled => _weatherThemeEnabled;
+  /// Konum izni hava teması için bir kez istendi mi (her açılışta sorulmaz)
+  bool get weatherPermAsked => _weatherPermAsked;
+  void markWeatherPermAsked() {
+    _weatherPermAsked = true;
+    _persistUserPreferences();
+  }
+
+  void setWeatherThemeEnabled(bool v) {
+    _weatherThemeEnabled = v;
+    _persistUserPreferences();
+    notifyListeners();
+  }
 
   /// v0.8.2: düşük donanımlı cihaz algılanırsa ve kullanıcı performans modunu kendisi
   /// hiç değiştirmediyse blur otomatik kapatılır (kalıcı seçim değildir).
@@ -4149,13 +4171,7 @@ class JuzzioModernThemeSelector extends StatelessWidget {
                   ),
                 ),
               ),
-              // v1.1.0: güneşin aya dönüştüğü gece/gündüz anahtarı (dairesel tema geçişiyle)
-              JuzzioSwitch(
-                style: JuzzioToggleStyle.dayNight,
-                value: ctrl.isDark,
-                semanticLabel: s.t('theme_mode_title'),
-                onChanged: (v) => ctrl.setThemeMode(v ? ThemeMode.dark : ThemeMode.light),
-              ),
+              // v1.2.0: ayrı gece/gündüz anahtarı kaldırıldı — aşağıdaki seçiciyle çakışıyordu (iki işleyici)
             ],
           ),
           const SizedBox(height: 14),
@@ -4163,7 +4179,7 @@ class JuzzioModernThemeSelector extends StatelessWidget {
             children: [
               Expanded(
                 child: GestureDetector(
-                  onTap: () => ctrl.setThemeMode(ThemeMode.light),
+                  onTap: () => ctrl.setThemeSelectionMode('light'),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 240),
                     padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
@@ -4201,7 +4217,7 @@ class JuzzioModernThemeSelector extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: GestureDetector(
-                  onTap: () => ctrl.setThemeMode(ThemeMode.dark),
+                  onTap: () => ctrl.setThemeSelectionMode('dark'),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 240),
                     padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),

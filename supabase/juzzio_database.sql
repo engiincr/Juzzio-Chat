@@ -15203,3 +15203,608 @@ INSERT INTO public.chick_accessories (code, slot, price, min_stage, sort_order) 
     ('theme_snow', 'theme', 340, 0, 43), ('theme_sakura', 'theme', 480, 0, 44), ('theme_space', 'theme', 640, 0, 45),
     ('theme_castle', 'theme', 900, 0, 46)
 ON CONFLICT (code) DO UPDATE SET slot = EXCLUDED.slot, price = EXCLUDED.price, min_stage = EXCLUDED.min_stage, sort_order = EXCLUDED.sort_order;
+
+-- =============================================================================
+-- 10.31 v1.2.0 — Kanallar, Juzzio Topluluğu ve hikâye tepki/yorum bildirimleri
+--  (a) Hikâye yanıtı bildirimi: tepki → "storyreact|🌸", yorum → "storycomment|metin".
+--      Tepki emojisi mesaj tepkileri gibi sunucuda görünür; ŞİFRELİ yorumun metni sunucuya
+--      hiç yazılmaz (önizleme boş kalır, E2EE korunur).
+--  (b) Kanallar gerçek kanaldır: yalnız sahip/moderatör paylaşım yapar (RLS sıkılaştırıldı).
+--  (c) Juzzio Topluluğu: tek resmî kanal (rooms.is_community). Tüm mevcut kullanıcılar bir kez
+--      eklenir, her yeni kayıt otomatik katılır. Ad rezervedir; is_community istemciden
+--      yazılamaz. Paylaşımları yalnız Juzzio yöneticisi (kanal sahibi) yapar.
+--  (d) Sürüm duyurusu: CI her yayında juzzio_community_post_release() çağırır; aynı sürüm
+--      iki kez paylaşılmaz. Yalnız sunucu rolü çağırabilir (authenticated/anon çağıramaz).
+-- =============================================================================
+CREATE OR REPLACE FUNCTION public.after_new_message()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_room RECORD;
+    v_preview TEXT;
+    v_sender RECORD;
+    rp RECORD;
+    v_notif TEXT;
+    v_kind TEXT;
+    v_react TEXT;
+BEGIN
+    v_preview := CASE NEW.message_type
+        WHEN 'voice' THEN '🎤 Sesli mesaj'
+        WHEN 'image' THEN '📷 Fotoğraf'
+        WHEN 'video' THEN '🎬 Video'
+        WHEN 'document' THEN '📄 ' || COALESCE(NEW.document_name, 'Belge')
+        WHEN 'location' THEN '📍 Konum'
+        WHEN 'contact' THEN '👤 Kişi'
+        WHEN 'sticker' THEN 'Çıkartma'
+        WHEN 'call' THEN '📞 Arama'
+        ELSE COALESCE(NULLIF(NEW.original_text, ''), 'Mesaj')
+    END;
+    IF NEW.story_id IS NOT NULL THEN
+        v_preview := '📸 Hikâye yanıtı: ' || COALESCE(NULLIF(NEW.original_text, ''), '');
+    END IF;
+    -- v0.7.0: uçtan uca şifreli mesajın içeriği sunucuda yoktur
+    IF COALESCE(NEW.metadata, '{}'::jsonb) ? 'e2ee' THEN
+        v_preview := '🔒 Şifreli mesaj';
+    END IF;
+    v_notif := v_preview;
+    -- v1.2.0: hikâye tepkisi / yorumu → Instagram benzeri bildirim önizlemesi
+    --   "storyreact|🌸"     → "X hikâyene 🌸 tepkisi verdi"
+    --   "storycomment|metin" → "X hikâyene "metin" yorumunu ekledi" (şifreli sohbette metin boş kalır)
+    IF NEW.story_id IS NOT NULL THEN
+        v_kind := COALESCE(NEW.metadata -> 'story' ->> 'replyKind', '');
+        v_react := LEFT(BTRIM(COALESCE(NEW.metadata -> 'story' ->> 'reaction', '')), 16);
+        IF v_kind = 'reaction' AND v_react <> '' THEN
+            v_notif := 'storyreact|' || v_react;
+            v_preview := v_react || ' Hikâye tepkisi';
+        ELSIF v_kind IN ('comment', '') THEN
+            v_notif := 'storycomment|' || CASE WHEN COALESCE(NEW.metadata, '{}'::jsonb) ? 'e2ee' THEN ''
+                                               ELSE LEFT(REPLACE(COALESCE(NEW.original_text, ''), '|', ' '), 120) END;
+        END IF;
+    END IF;
+
+    UPDATE public.rooms
+    SET last_message_at = NEW.created_at,
+        last_message_sender = NEW.sender_id,
+        last_message_type = NEW.message_type,
+        last_message_preview = LEFT(v_preview, 160),
+        updated_at = NOW()
+    WHERE id = NEW.room_id
+    RETURNING id, is_group, title INTO v_room;
+
+    -- 1'e 1 sohbette gizlenmiş/silinmiş sohbet yeni mesajla tekrar görünsün
+    UPDATE public.room_participants SET hidden_at = NULL
+    WHERE room_id = NEW.room_id AND hidden_at IS NOT NULL AND left_at IS NULL;
+
+    -- Gönderenin kendi okunma zamanı
+    UPDATE public.room_participants SET last_read_at = NEW.created_at
+    WHERE room_id = NEW.room_id AND user_id = NEW.sender_id;
+
+    -- v0.7.0: arama kayıtları (call) sohbette görünür ama ayrıca mesaj bildirimi üretmez
+    IF NEW.message_type IN ('system', 'call') THEN
+        RETURN NEW;
+    END IF;
+
+    SELECT username, display_name, avatar_url INTO v_sender FROM public.profiles WHERE id = NEW.sender_id;
+
+    FOR rp IN
+        -- v0.9.0: süreli sohbet sessize alma (notif_muted_until, Bölüm 10.15) de uygulanır
+        SELECT user_id, is_muted, notif_muted_until FROM public.room_participants
+        WHERE room_id = NEW.room_id AND user_id <> NEW.sender_id AND left_at IS NULL
+    LOOP
+        IF rp.is_muted OR COALESCE(rp.notif_muted_until > NOW(), false)
+           OR public.is_blocked_between(NEW.sender_id, rp.user_id) THEN
+            CONTINUE;
+        END IF;
+        BEGIN
+            INSERT INTO public.notifications (
+                recipient_id, actor_id, actor_username, actor_display_name, actor_avatar_url,
+                event_type, target_id, target_secondary_id, preview_text, dedupe_key
+            ) VALUES (
+                rp.user_id, NEW.sender_id,
+                COALESCE(v_sender.username, ''), COALESCE(NULLIF(v_sender.display_name, ''), NEW.sender_name, 'Juzzio'),
+                v_sender.avatar_url,
+                CASE WHEN COALESCE(v_room.is_group, false) THEN 'group_activity'
+                     WHEN NEW.story_id IS NOT NULL THEN 'story_reply'
+                     ELSE 'message' END,
+                NEW.room_id::text, NEW.id::text,
+                LEFT(CASE WHEN COALESCE(v_room.is_group, false) THEN COALESCE(v_room.title, '') || ': ' || v_preview ELSE v_notif END, 160),
+                'msg_' || NEW.id::text
+            )
+            ON CONFLICT (recipient_id, dedupe_key) DO NOTHING;
+        EXCEPTION WHEN OTHERS THEN
+            NULL;
+        END;
+    END LOOP;
+    RETURN NEW;
+END;
+$$;
+
+-- (b) kanal paylaşım kuralı
+DROP POLICY IF EXISTS messages_insert_member ON public.messages;
+CREATE POLICY messages_insert_member ON public.messages FOR INSERT TO authenticated
+    WITH CHECK (
+        sender_id = auth.uid()
+        AND public.is_room_member(room_id)
+        AND NOT public.juzzio_is_banned(auth.uid())
+        AND NOT EXISTS (
+            SELECT 1 FROM public.room_participants me
+            WHERE me.room_id = messages.room_id AND me.user_id = auth.uid() AND me.muted_until > NOW()
+        )
+        AND NOT EXISTS (
+            SELECT 1 FROM public.room_participants o
+            JOIN public.rooms r ON r.id = o.room_id
+            WHERE o.room_id = messages.room_id AND NOT r.is_group AND o.user_id <> auth.uid()
+              AND public.is_blocked_between(auth.uid(), o.user_id)
+        )
+        AND NOT EXISTS (
+            SELECT 1 FROM public.rooms ch
+            WHERE ch.id = messages.room_id AND COALESCE(ch.is_channel, false)
+              AND COALESCE(public.group_role_of(ch.id, auth.uid()), '') NOT IN ('owner', 'moderator')
+        )
+    );
+
+-- (c) Juzzio Topluluğu
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS is_community BOOLEAN NOT NULL DEFAULT false;
+CREATE UNIQUE INDEX IF NOT EXISTS rooms_single_community_idx ON public.rooms ((is_community)) WHERE is_community;
+
+CREATE OR REPLACE FUNCTION public.juzzio_guard_community_room()
+RETURNS TRIGGER LANGUAGE plpgsql SET search_path = public AS $$
+BEGIN
+    IF COALESCE(current_setting('juzzio.community', true), '') <> '1' THEN
+        IF TG_OP = 'INSERT' THEN
+            NEW.is_community := false;
+        ELSE
+            NEW.is_community := OLD.is_community;
+        END IF;
+    END IF;
+    IF NEW.is_community THEN
+        NEW.title := 'Juzzio Community';
+        NEW.is_group := true;
+        NEW.is_channel := true;
+    ELSIF LOWER(BTRIM(COALESCE(NEW.title, ''))) IN ('juzzio community', 'juzzio topluluğu', 'juzzio official')
+          AND (TG_OP = 'INSERT' OR NEW.title IS DISTINCT FROM OLD.title) THEN
+        RAISE EXCEPTION 'title_reserved' USING ERRCODE = '22023';
+    END IF;
+    RETURN NEW;
+END $$;
+DROP TRIGGER IF EXISTS trg_00_juzzio_guard_community_room ON public.rooms;
+CREATE TRIGGER trg_00_juzzio_guard_community_room BEFORE INSERT OR UPDATE ON public.rooms
+    FOR EACH ROW EXECUTE FUNCTION public.juzzio_guard_community_room();
+
+-- Topluluk odası kimliği (istemci "Juzzio Official" görünümü için)
+CREATE OR REPLACE FUNCTION public.juzzio_community_room_id()
+RETURNS UUID LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+    SELECT id FROM public.rooms WHERE is_community LIMIT 1;
+$$;
+REVOKE ALL ON FUNCTION public.juzzio_community_room_id() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.juzzio_community_room_id() TO authenticated;
+
+-- Bir kullanıcıyı topluluğa ekler (daha önce kendi isteğiyle ayrıldıysa geri EKLEMEZ)
+CREATE OR REPLACE FUNCTION public.juzzio_join_community(p_user UUID)
+RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+    v_room UUID := public.juzzio_community_room_id();
+BEGIN
+    IF v_room IS NULL OR p_user IS NULL THEN RETURN; END IF;
+    INSERT INTO public.room_participants (room_id, user_id, role)
+    VALUES (v_room, p_user, 'member')
+    ON CONFLICT (room_id, user_id) DO NOTHING;
+    PERFORM public.sync_room_member_cache(v_room);
+END $$;
+REVOKE ALL ON FUNCTION public.juzzio_join_community(UUID) FROM PUBLIC, anon, authenticated;
+
+-- Topluluğu kurar (yönetici profili varsa) ve mevcut tüm kullanıcıları bir kez ekler
+CREATE OR REPLACE FUNCTION public.juzzio_ensure_community()
+RETURNS UUID LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+    v_room UUID := public.juzzio_community_room_id();
+    v_admin UUID;
+BEGIN
+    IF v_room IS NOT NULL THEN RETURN v_room; END IF;
+    SELECT id INTO v_admin FROM public.profiles WHERE LOWER(username) = 'tugkancr' LIMIT 1;
+    IF v_admin IS NULL THEN RETURN NULL; END IF;
+    PERFORM set_config('juzzio.community', '1', true);
+    INSERT INTO public.rooms (room_code, title, livekit_room_name, is_group, is_channel, is_community,
+                              disappearing_timer, created_by, group_type, group_purpose, description)
+    VALUES ('juzzio-community', 'Juzzio Community', 'lk_juzzio_community', true, true, true,
+            'off', v_admin, 'general', '', 'Juzzio resmî duyuru kanalı · Official Juzzio announcements')
+    ON CONFLICT (room_code) DO UPDATE SET is_community = true, is_channel = true, is_group = true
+    RETURNING id INTO v_room;
+    PERFORM set_config('juzzio.community', '', true);
+    INSERT INTO public.room_participants (room_id, user_id, role) VALUES (v_room, v_admin, 'owner')
+    ON CONFLICT (room_id, user_id) DO UPDATE SET role = 'owner', left_at = NULL;
+    INSERT INTO public.room_participants (room_id, user_id, role)
+    SELECT v_room, p.id, 'member' FROM public.profiles p
+    WHERE p.id <> v_admin AND NOT public.juzzio_is_banned(p.id)
+    ON CONFLICT (room_id, user_id) DO NOTHING;
+    PERFORM public.sync_room_member_cache(v_room);
+    RETURN v_room;
+END $$;
+REVOKE ALL ON FUNCTION public.juzzio_ensure_community() FROM PUBLIC, anon, authenticated;
+
+-- Yeni kayıt → topluluğa otomatik katılım (yönetici kaydolunca topluluk kurulur)
+CREATE OR REPLACE FUNCTION public.juzzio_profile_join_community()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+    BEGIN
+        IF LOWER(COALESCE(NEW.username, '')) = 'tugkancr' THEN
+            PERFORM public.juzzio_ensure_community();
+        ELSE
+            PERFORM public.juzzio_join_community(NEW.id);
+        END IF;
+    EXCEPTION WHEN OTHERS THEN
+        NULL; -- kayıt hiçbir koşulda topluluk yüzünden başarısız olmaz
+    END;
+    RETURN NEW;
+END $$;
+DROP TRIGGER IF EXISTS trg_juzzio_profile_join_community ON public.profiles;
+CREATE TRIGGER trg_juzzio_profile_join_community AFTER INSERT ON public.profiles
+    FOR EACH ROW EXECUTE FUNCTION public.juzzio_profile_join_community();
+
+-- Yönetici paylaşımı (Admin → Juzzio Community sayfası; metin/bağlantı + isteğe bağlı medya/dosya)
+CREATE OR REPLACE FUNCTION public.admin_community_post(
+    p_text TEXT,
+    p_kind TEXT DEFAULT 'text',
+    p_media_url TEXT DEFAULT NULL,
+    p_file_name TEXT DEFAULT NULL,
+    p_file_size INTEGER DEFAULT NULL)
+RETURNS UUID LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+    v_uid UUID := auth.uid();
+    v_room UUID;
+    v_id UUID;
+    v_kind TEXT := COALESCE(NULLIF(p_kind, ''), 'text');
+    v_text TEXT := LEFT(BTRIM(COALESCE(p_text, '')), 4000);
+BEGIN
+    IF v_uid IS NULL OR NOT public.is_juzzio_admin(v_uid) THEN RAISE EXCEPTION 'not_allowed' USING ERRCODE = '42501'; END IF;
+    IF v_kind NOT IN ('text', 'image', 'video', 'audio', 'document') THEN RAISE EXCEPTION 'invalid_kind' USING ERRCODE = '22023'; END IF;
+    IF v_kind <> 'text' AND (COALESCE(BTRIM(p_media_url), '') = '' OR p_media_url !~* '^https://') THEN
+        RAISE EXCEPTION 'invalid_media_url' USING ERRCODE = '22023';
+    END IF;
+    IF v_kind = 'text' AND v_text = '' THEN RAISE EXCEPTION 'empty_post' USING ERRCODE = '22023'; END IF;
+    v_room := public.juzzio_ensure_community();
+    IF v_room IS NULL THEN RAISE EXCEPTION 'community_unavailable'; END IF;
+    INSERT INTO public.room_participants (room_id, user_id, role) VALUES (v_room, v_uid, 'owner')
+    ON CONFLICT (room_id, user_id) DO UPDATE SET role = 'owner', left_at = NULL;
+    INSERT INTO public.messages (room_id, sender_id, sender_name, message_type, source_lang, target_lang,
+                                 original_text, translated_text, image_url, video_url, document_url, document_name,
+                                 document_size, metadata)
+    VALUES (v_room, v_uid, 'Juzzio Official',
+            CASE v_kind WHEN 'image' THEN 'image' WHEN 'video' THEN 'video' WHEN 'text' THEN 'text' ELSE 'document' END,
+            'auto', 'tr', v_text, '',
+            CASE WHEN v_kind = 'image' THEN BTRIM(p_media_url) END,
+            CASE WHEN v_kind = 'video' THEN BTRIM(p_media_url) END,
+            CASE WHEN v_kind IN ('audio', 'document') THEN BTRIM(p_media_url) END,
+            CASE WHEN v_kind IN ('audio', 'document') THEN LEFT(COALESCE(NULLIF(BTRIM(p_file_name), ''), 'dosya'), 120) END,
+            CASE WHEN v_kind IN ('audio', 'document') THEN p_file_size END,
+            jsonb_build_object('community', jsonb_build_object('kind', v_kind)))
+    RETURNING id INTO v_id;
+    INSERT INTO public.admin_audit_log (admin_id, action, target, details)
+    VALUES (v_uid, 'community_post', v_id::text, jsonb_build_object('kind', v_kind));
+    RETURN v_id;
+END $$;
+REVOKE ALL ON FUNCTION public.admin_community_post(TEXT, TEXT, TEXT, TEXT, INTEGER) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_community_post(TEXT, TEXT, TEXT, TEXT, INTEGER) TO authenticated;
+
+-- (d) Sürüm duyurusu (CI; aynı sürüm için tek gönderi)
+CREATE OR REPLACE FUNCTION public.juzzio_community_post_release(p_version TEXT, p_text_tr TEXT, p_text_en TEXT DEFAULT '')
+RETURNS UUID LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+    v_room UUID := public.juzzio_ensure_community();
+    v_owner UUID;
+    v_id UUID;
+    v_ver TEXT := LEFT(BTRIM(COALESCE(p_version, '')), 24);
+BEGIN
+    IF v_room IS NULL OR v_ver !~ '^[0-9]+\.[0-9]+\.[0-9]+' THEN RETURN NULL; END IF;
+    SELECT id INTO v_id FROM public.messages
+    WHERE room_id = v_room AND metadata -> 'release' ->> 'version' = v_ver LIMIT 1;
+    IF v_id IS NOT NULL THEN RETURN v_id; END IF; -- bu sürüm zaten duyuruldu
+    SELECT created_by INTO v_owner FROM public.rooms WHERE id = v_room;
+    IF v_owner IS NULL THEN RETURN NULL; END IF;
+    INSERT INTO public.messages (room_id, sender_id, sender_name, message_type, source_lang, target_lang,
+                                 original_text, translated_text, metadata)
+    VALUES (v_room, v_owner, 'Juzzio Official', 'text', 'tr', 'en',
+            LEFT(BTRIM(COALESCE(p_text_tr, '')), 4000), LEFT(BTRIM(COALESCE(p_text_en, '')), 4000),
+            jsonb_build_object('release', jsonb_build_object('version', v_ver)))
+    RETURNING id INTO v_id;
+    RETURN v_id;
+END $$;
+REVOKE ALL ON FUNCTION public.juzzio_community_post_release(TEXT, TEXT, TEXT) FROM PUBLIC, anon, authenticated;
+
+-- Kurulum: yönetici profili varsa topluluğu oluştur ve mevcut kullanıcıları ekle
+SELECT public.juzzio_ensure_community();
+
+-- =============================================================================
+-- 10.32 v1.2.1 — Kayıt onayları (KVKK), hız sınırları ve girdi doğrulama
+--  (a) Uygulama onayları: aydınlatma, koşullar, 15 yaş, yurt dışı aktarım (zorunlu) + ticari ileti
+--      (isteğe bağlı). Kayıt sürüm/zaman/uygulama sürümüyle tutulur; IP saklanmaz. Onay ve ticari
+--      ileti tercihi istemciden doğrudan yazılamaz — yalnız RPC.
+--  (b) Hız sınırları: mesaj, arkadaşlık isteği, yorum, gönderi, hikâye, şikâyet ve grup kurma.
+--      Yalnız istemci isteklerine uygulanır (zamanlanmış görevler / sunucu işleri etkilenmez).
+--  (c) Girdi doğrulama: görünmez kontrol ve yön değiştirme (bidi) karakterleri reddedilir/temizlenir,
+--      uzunluk sınırları, bağlantı alanlarında yalnız http(s) (javascript:, data:, file: yok).
+-- =============================================================================
+
+-- (a) Onaylar
+CREATE TABLE IF NOT EXISTS public.juzzio_app_consents (
+    id BIGSERIAL PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    version TEXT NOT NULL CHECK (char_length(version) BETWEEN 1 AND 32),
+    privacy_notice BOOLEAN NOT NULL,
+    terms BOOLEAN NOT NULL,
+    age_over_15 BOOLEAN NOT NULL,
+    cross_border BOOLEAN NOT NULL,
+    marketing BOOLEAN NOT NULL DEFAULT false,
+    app_version TEXT NOT NULL DEFAULT '' CHECK (char_length(app_version) <= 24),
+    accepted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS juzzio_app_consents_user_idx ON public.juzzio_app_consents (user_id, accepted_at DESC);
+ALTER TABLE public.juzzio_app_consents ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.juzzio_app_consents FROM anon, authenticated;
+GRANT SELECT ON public.juzzio_app_consents TO authenticated;
+DROP POLICY IF EXISTS juzzio_app_consents_own ON public.juzzio_app_consents;
+CREATE POLICY juzzio_app_consents_own ON public.juzzio_app_consents FOR SELECT TO authenticated USING (user_id = auth.uid());
+
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS consent_version TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS marketing_opt_in BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS marketing_opt_in_at TIMESTAMPTZ;
+
+CREATE OR REPLACE FUNCTION public.juzzio_guard_consent_columns()
+RETURNS TRIGGER LANGUAGE plpgsql SET search_path = public AS $$
+BEGIN
+    IF public.juzzio_is_client_request() AND COALESCE(current_setting('juzzio.consent', true), '') <> '1' THEN
+        IF TG_OP = 'INSERT' THEN
+            NEW.consent_version := NULL;
+            NEW.marketing_opt_in := false;
+            NEW.marketing_opt_in_at := NULL;
+        ELSE
+            NEW.consent_version := OLD.consent_version;
+            NEW.marketing_opt_in := OLD.marketing_opt_in;
+            NEW.marketing_opt_in_at := OLD.marketing_opt_in_at;
+        END IF;
+    END IF;
+    RETURN NEW;
+END $$;
+DROP TRIGGER IF EXISTS trg_00_juzzio_guard_consent_columns ON public.profiles;
+CREATE TRIGGER trg_00_juzzio_guard_consent_columns BEFORE INSERT OR UPDATE ON public.profiles
+    FOR EACH ROW EXECUTE FUNCTION public.juzzio_guard_consent_columns();
+
+CREATE OR REPLACE FUNCTION public.record_juzzio_consent(
+    p_version TEXT, p_privacy BOOLEAN, p_terms BOOLEAN, p_age BOOLEAN, p_cross_border BOOLEAN,
+    p_marketing BOOLEAN DEFAULT false, p_app_version TEXT DEFAULT '')
+RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+    v_uid UUID := auth.uid();
+    v_ver TEXT := LEFT(BTRIM(COALESCE(p_version, '')), 32);
+BEGIN
+    IF v_uid IS NULL THEN RAISE EXCEPTION 'not_authenticated'; END IF;
+    IF v_ver !~ '^[0-9A-Za-z._-]{1,32}$' THEN RAISE EXCEPTION 'invalid_input' USING ERRCODE = '22023'; END IF;
+    IF NOT (COALESCE(p_privacy, false) AND COALESCE(p_terms, false) AND COALESCE(p_age, false) AND COALESCE(p_cross_border, false)) THEN
+        RAISE EXCEPTION 'consent_required' USING ERRCODE = '22023';
+    END IF;
+    IF NOT public.juzzio_rate_check(v_uid, 'app_consent', 20, 3600) THEN RAISE EXCEPTION 'rate_limited'; END IF;
+    INSERT INTO public.juzzio_app_consents (user_id, version, privacy_notice, terms, age_over_15, cross_border, marketing, app_version)
+    VALUES (v_uid, v_ver, true, true, true, true, COALESCE(p_marketing, false),
+            LEFT(regexp_replace(COALESCE(p_app_version, ''), '[^0-9A-Za-z.+-]', '', 'g'), 24));
+    PERFORM set_config('juzzio.consent', '1', true);
+    UPDATE public.profiles
+       SET consent_version = v_ver,
+           marketing_opt_in = COALESCE(p_marketing, false),
+           marketing_opt_in_at = CASE WHEN COALESCE(p_marketing, false) THEN NOW() ELSE NULL END
+     WHERE id = v_uid;
+    PERFORM set_config('juzzio.consent', '', true);
+    RETURN true;
+END $$;
+REVOKE ALL ON FUNCTION public.record_juzzio_consent(TEXT, BOOLEAN, BOOLEAN, BOOLEAN, BOOLEAN, BOOLEAN, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.record_juzzio_consent(TEXT, BOOLEAN, BOOLEAN, BOOLEAN, BOOLEAN, BOOLEAN, TEXT) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.my_consent_version()
+RETURNS TEXT LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+    SELECT consent_version FROM public.profiles WHERE id = auth.uid();
+$$;
+REVOKE ALL ON FUNCTION public.my_consent_version() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.my_consent_version() TO authenticated;
+
+-- Ticari elektronik ileti onayını verme / geri alma (6563 s. Kanun) — kayıt altına alınır
+CREATE OR REPLACE FUNCTION public.set_marketing_consent(p_on BOOLEAN)
+RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+    v_uid UUID := auth.uid();
+    v_ver TEXT;
+BEGIN
+    IF v_uid IS NULL THEN RAISE EXCEPTION 'not_authenticated'; END IF;
+    IF NOT public.juzzio_rate_check(v_uid, 'marketing_consent', 20, 3600) THEN RAISE EXCEPTION 'rate_limited'; END IF;
+    SELECT consent_version INTO v_ver FROM public.profiles WHERE id = v_uid;
+    PERFORM set_config('juzzio.consent', '1', true);
+    UPDATE public.profiles
+       SET marketing_opt_in = COALESCE(p_on, false),
+           marketing_opt_in_at = CASE WHEN COALESCE(p_on, false) THEN NOW() ELSE NULL END
+     WHERE id = v_uid;
+    PERFORM set_config('juzzio.consent', '', true);
+    IF v_ver IS NOT NULL THEN
+        INSERT INTO public.juzzio_app_consents (user_id, version, privacy_notice, terms, age_over_15, cross_border, marketing, app_version)
+        VALUES (v_uid, v_ver, true, true, true, true, COALESCE(p_on, false), 'settings');
+    END IF;
+    RETURN COALESCE(p_on, false);
+END $$;
+REVOKE ALL ON FUNCTION public.set_marketing_consent(BOOLEAN) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.set_marketing_consent(BOOLEAN) TO authenticated;
+
+-- (b) Hız sınırları (istemci istekleri). Sınırlar normal kullanımın çok üstünde, otomasyon/spam'in altında.
+-- Yalnız çağıranın kendi kotasını sayar (auth.uid()); doğrudan çağrılsa da başkasını etkileyemez.
+CREATE OR REPLACE FUNCTION public.juzzio_rate_hit(p_action TEXT, p_limit INTEGER, p_window_seconds INTEGER)
+RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+    IF auth.uid() IS NULL THEN RETURN true; END IF;
+    IF p_action !~ '^[a-z_]{2,32}$' THEN RETURN false; END IF;
+    RETURN public.juzzio_rate_check(auth.uid(), p_action, GREATEST(1, p_limit), GREATEST(1, p_window_seconds));
+END $$;
+REVOKE ALL ON FUNCTION public.juzzio_rate_hit(TEXT, INTEGER, INTEGER) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.juzzio_rate_hit(TEXT, INTEGER, INTEGER) TO authenticated;
+
+-- Tetikleyici çağıranın yetkisiyle çalışır: yalnız uygulama istemcisinin doğrudan eklemeleri sayılır;
+-- SECURITY DEFINER RPC'ler, zamanlanmış görevler ve sunucu işleri (current_user = sahip) sayılmaz.
+CREATE OR REPLACE FUNCTION public.juzzio_client_rate_guard()
+RETURNS TRIGGER LANGUAGE plpgsql SET search_path = public AS $$
+BEGIN
+    IF NOT public.juzzio_is_client_request() OR auth.uid() IS NULL THEN
+        RETURN NEW;
+    END IF;
+    IF NOT public.juzzio_rate_hit(TG_ARGV[0], TG_ARGV[1]::int, TG_ARGV[2]::int) THEN
+        RAISE EXCEPTION 'rate_limited' USING ERRCODE = '54000', HINT = TG_ARGV[0];
+    END IF;
+    RETURN NEW;
+END $$;
+
+DROP TRIGGER IF EXISTS trg_rate_messages_min ON public.messages;
+CREATE TRIGGER trg_rate_messages_min BEFORE INSERT ON public.messages
+    FOR EACH ROW EXECUTE FUNCTION public.juzzio_client_rate_guard('msg_min', '40', '60');
+DROP TRIGGER IF EXISTS trg_rate_messages_day ON public.messages;
+CREATE TRIGGER trg_rate_messages_day BEFORE INSERT ON public.messages
+    FOR EACH ROW EXECUTE FUNCTION public.juzzio_client_rate_guard('msg_day', '3000', '86400');
+DROP TRIGGER IF EXISTS trg_rate_friend_requests ON public.friendships;
+CREATE TRIGGER trg_rate_friend_requests BEFORE INSERT ON public.friendships
+    FOR EACH ROW EXECUTE FUNCTION public.juzzio_client_rate_guard('friend_req', '40', '3600');
+DROP TRIGGER IF EXISTS trg_rate_comments ON public.post_comments;
+CREATE TRIGGER trg_rate_comments BEFORE INSERT ON public.post_comments
+    FOR EACH ROW EXECUTE FUNCTION public.juzzio_client_rate_guard('comment', '20', '60');
+DROP TRIGGER IF EXISTS trg_rate_posts ON public.posts;
+CREATE TRIGGER trg_rate_posts BEFORE INSERT ON public.posts
+    FOR EACH ROW EXECUTE FUNCTION public.juzzio_client_rate_guard('post', '30', '3600');
+DROP TRIGGER IF EXISTS trg_rate_stories ON public.stories;
+CREATE TRIGGER trg_rate_stories BEFORE INSERT ON public.stories
+    FOR EACH ROW EXECUTE FUNCTION public.juzzio_client_rate_guard('story', '60', '86400');
+DROP TRIGGER IF EXISTS trg_rate_reports ON public.reports;
+CREATE TRIGGER trg_rate_reports BEFORE INSERT ON public.reports
+    FOR EACH ROW EXECUTE FUNCTION public.juzzio_client_rate_guard('report', '20', '3600');
+
+-- Grup/kanal kurma (RPC içinde; definer olduğu için rol kontrolü yerine doğrudan sayılır)
+CREATE OR REPLACE FUNCTION public.juzzio_rate_group_create()
+RETURNS TRIGGER LANGUAGE plpgsql SET search_path = public AS $$
+BEGIN
+    IF NEW.is_group AND auth.uid() IS NOT NULL AND NOT COALESCE(NEW.is_community, false)
+       AND NOT public.juzzio_rate_hit('group_create', 20, 3600) THEN
+        RAISE EXCEPTION 'rate_limited' USING ERRCODE = '54000';
+    END IF;
+    RETURN NEW;
+END $$;
+DROP TRIGGER IF EXISTS trg_rate_group_create ON public.rooms;
+CREATE TRIGGER trg_rate_group_create BEFORE INSERT ON public.rooms
+    FOR EACH ROW EXECUTE FUNCTION public.juzzio_rate_group_create();
+
+-- (c) Girdi doğrulama
+-- Kontrol (NUL dahil) ve yön değiştirme karakterlerini temizler; \n ve \t korunur.
+CREATE OR REPLACE FUNCTION public.juzzio_clean_text(p TEXT)
+RETURNS TEXT LANGUAGE sql IMMUTABLE AS $$
+    SELECT regexp_replace(COALESCE(p, ''), '[\x01-\x08\x0B\x0C\x0E-\x1F\x7F‪-‮⁦-⁩​‎‏⁠﻿]', '', 'g');
+$$;
+
+-- Bağlantı alanı güvenli mi (boş, http(s) veya depolama yolu; script/data/file şemaları yok)
+CREATE OR REPLACE FUNCTION public.juzzio_url_ok(p TEXT)
+RETURNS BOOLEAN LANGUAGE sql IMMUTABLE AS $$
+    SELECT p IS NULL OR p = ''
+        OR (char_length(p) <= 2048
+            AND p !~* '^\s*(javascript|data|file|vbscript|blob|content|intent):'
+            AND p !~ '[\s<>"]');
+$$;
+
+CREATE OR REPLACE FUNCTION public.juzzio_validate_message()
+RETURNS TRIGGER LANGUAGE plpgsql SET search_path = public AS $$
+BEGIN
+    IF public.juzzio_is_client_request() THEN
+        NEW.original_text := public.juzzio_clean_text(NEW.original_text);
+        NEW.sender_name := LEFT(public.juzzio_clean_text(NEW.sender_name), 80);
+        IF char_length(COALESCE(NEW.original_text, '')) > 8000 OR char_length(COALESCE(NEW.translated_text, '')) > 16000 THEN
+            RAISE EXCEPTION 'invalid_input' USING ERRCODE = '22023', HINT = 'text_too_long';
+        END IF;
+        IF pg_column_size(NEW.metadata) > 131072 THEN
+            RAISE EXCEPTION 'invalid_input' USING ERRCODE = '22023', HINT = 'metadata_too_large';
+        END IF;
+        IF NOT (public.juzzio_url_ok(NEW.image_url) AND public.juzzio_url_ok(NEW.video_url)
+                AND public.juzzio_url_ok(NEW.audio_url) AND public.juzzio_url_ok(NEW.document_url)) THEN
+            RAISE EXCEPTION 'invalid_input' USING ERRCODE = '22023', HINT = 'bad_url';
+        END IF;
+        IF NEW.document_name IS NOT NULL THEN
+            NEW.document_name := LEFT(public.juzzio_clean_text(NEW.document_name), 200);
+        END IF;
+    END IF;
+    RETURN NEW;
+END $$;
+DROP TRIGGER IF EXISTS trg_01_juzzio_validate_message ON public.messages;
+CREATE TRIGGER trg_01_juzzio_validate_message BEFORE INSERT OR UPDATE ON public.messages
+    FOR EACH ROW EXECUTE FUNCTION public.juzzio_validate_message();
+
+CREATE OR REPLACE FUNCTION public.juzzio_validate_comment()
+RETURNS TRIGGER LANGUAGE plpgsql SET search_path = public AS $$
+BEGIN
+    IF public.juzzio_is_client_request() THEN
+        NEW.content := public.juzzio_clean_text(NEW.content);
+        IF char_length(BTRIM(NEW.content)) = 0 OR char_length(NEW.content) > 2000 THEN
+            RAISE EXCEPTION 'invalid_input' USING ERRCODE = '22023', HINT = 'comment_length';
+        END IF;
+    END IF;
+    RETURN NEW;
+END $$;
+DROP TRIGGER IF EXISTS trg_01_juzzio_validate_comment ON public.post_comments;
+CREATE TRIGGER trg_01_juzzio_validate_comment BEFORE INSERT OR UPDATE OF content ON public.post_comments
+    FOR EACH ROW EXECUTE FUNCTION public.juzzio_validate_comment();
+
+CREATE OR REPLACE FUNCTION public.juzzio_validate_profile_text()
+RETURNS TRIGGER LANGUAGE plpgsql SET search_path = public AS $$
+BEGIN
+    IF public.juzzio_is_client_request() THEN
+        NEW.display_name := LEFT(BTRIM(regexp_replace(public.juzzio_clean_text(NEW.display_name), '[\n\t]+', ' ', 'g')), 60);
+        NEW.bio := LEFT(public.juzzio_clean_text(NEW.bio), 500);
+        IF NOT public.juzzio_url_ok(NEW.avatar_url) THEN
+            RAISE EXCEPTION 'invalid_input' USING ERRCODE = '22023', HINT = 'bad_url';
+        END IF;
+    END IF;
+    RETURN NEW;
+END $$;
+DROP TRIGGER IF EXISTS trg_01_juzzio_validate_profile_text ON public.profiles;
+CREATE TRIGGER trg_01_juzzio_validate_profile_text BEFORE INSERT OR UPDATE ON public.profiles
+    FOR EACH ROW EXECUTE FUNCTION public.juzzio_validate_profile_text();
+
+-- =============================================================================
+-- 10.33 v1.2.3 — Onaylar iki kutuya indirildi (KVKK Kurulu 2026/347 İlke Kararı; KVKK m.9)
+--  • Yurt dışı aktarım artık zorunlu "açık rıza" DEĞİL: sürekli aktarım m.9 uygun güvencelere
+--    (standart sözleşme) dayanır; aydınlatma metninde açıklanır. cross_border sütunu geriye dönük
+--    uyumluluk için kalır, yalnız eski (v1.2.1) kayıtlarda true olabilir.
+--  • Zorunlu: aydınlatma "okudum ve anladım" beyanı + Kullanım Koşulları + 15 yaş beyanı.
+--  • İsteğe bağlı: ticari elektronik ileti onayı (6563 s. Kanun).
+-- =============================================================================
+COMMENT ON COLUMN public.juzzio_app_consents.privacy_notice IS 'Aydınlatma Metni okundu ve anlaşıldı beyanı (rıza değildir)';
+COMMENT ON COLUMN public.juzzio_app_consents.cross_border IS 'v1.2.1 eski açık rıza işareti; v1.2.3 itibarıyla aktarım KVKK m.9 uygun güvencelere dayanır';
+
+CREATE OR REPLACE FUNCTION public.record_juzzio_consent(
+    p_version TEXT, p_privacy BOOLEAN, p_terms BOOLEAN, p_age BOOLEAN, p_cross_border BOOLEAN,
+    p_marketing BOOLEAN DEFAULT false, p_app_version TEXT DEFAULT '')
+RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+    v_uid UUID := auth.uid();
+    v_ver TEXT := LEFT(BTRIM(COALESCE(p_version, '')), 32);
+BEGIN
+    IF v_uid IS NULL THEN RAISE EXCEPTION 'not_authenticated'; END IF;
+    IF v_ver !~ '^[0-9A-Za-z._-]{1,32}$' THEN RAISE EXCEPTION 'invalid_input' USING ERRCODE = '22023'; END IF;
+    -- zorunlu: aydınlatma beyanı + koşullar + 15 yaş (yurt dışı aktarım rızası ARTIK İSTENMEZ)
+    IF NOT (COALESCE(p_privacy, false) AND COALESCE(p_terms, false) AND COALESCE(p_age, false)) THEN
+        RAISE EXCEPTION 'consent_required' USING ERRCODE = '22023';
+    END IF;
+    IF NOT public.juzzio_rate_check(v_uid, 'app_consent', 20, 3600) THEN RAISE EXCEPTION 'rate_limited'; END IF;
+    INSERT INTO public.juzzio_app_consents (user_id, version, privacy_notice, terms, age_over_15, cross_border, marketing, app_version)
+    VALUES (v_uid, v_ver, true, true, true, COALESCE(p_cross_border, false), COALESCE(p_marketing, false),
+            LEFT(regexp_replace(COALESCE(p_app_version, ''), '[^0-9A-Za-z.+-]', '', 'g'), 24));
+    PERFORM set_config('juzzio.consent', '1', true);
+    UPDATE public.profiles
+       SET consent_version = v_ver,
+           marketing_opt_in = COALESCE(p_marketing, false),
+           marketing_opt_in_at = CASE WHEN COALESCE(p_marketing, false) THEN NOW() ELSE NULL END
+     WHERE id = v_uid;
+    PERFORM set_config('juzzio.consent', '', true);
+    RETURN true;
+END $$;
+REVOKE ALL ON FUNCTION public.record_juzzio_consent(TEXT, BOOLEAN, BOOLEAN, BOOLEAN, BOOLEAN, BOOLEAN, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.record_juzzio_consent(TEXT, BOOLEAN, BOOLEAN, BOOLEAN, BOOLEAN, BOOLEAN, TEXT) TO authenticated;

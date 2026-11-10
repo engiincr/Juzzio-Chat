@@ -21,6 +21,7 @@ import '../services/supabase_service.dart';
 import '../services/juzzio_features_service.dart';
 import 'admin_extra_tabs.dart';
 import 'admin_story_tab.dart';
+import 'admin_community_tab.dart';
 import 'admin_god_tab.dart';
 import 'admin_trust_tab.dart';
 import 'admin_theme_studio_page.dart';
@@ -292,6 +293,7 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> with Si
     'broadcast', // 13: v0.9.3 Juzzio Story
     'reports', // 14: v0.9.5 Güven puanı
     'stats.read', // 15: v0.9.6 Sistem (Tanrı modu); kritik işlemler sunucuda süper yönetici ister
+    'broadcast', // 16: v1.2.0 Juzzio Community (resmî kanal paylaşımı)
   ];
   bool _can(String perm) => widget.permissions.contains('*') || widget.permissions.contains(perm);
   late final List<int> _visibleTabs = [
@@ -1063,6 +1065,7 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> with Si
             const Tab(icon: Icon(Icons.auto_awesome_rounded, size: 20), text: 'Juzzio Story'),
             Tab(icon: const Icon(Icons.verified_user_rounded, size: 20), text: _al('Güven', 'Trust', 'Vertrauen')),
             Tab(icon: const Icon(Icons.admin_panel_settings_rounded, size: 20), text: _al('Sistem', 'System', 'System')),
+            const Tab(icon: Icon(Icons.campaign_rounded, size: 20), text: 'Juzzio Community'),
       ];
 
   Widget _tabView(int i, JuzzioAppController app, bool isDark) {
@@ -1099,6 +1102,8 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> with Si
         return JuzzioAdminTrustTab(token: widget.token);
       case 15:
         return JuzzioAdminGodTab(token: widget.token);
+      case 16:
+        return const JuzzioAdminCommunityTab();
       default:
         return const SizedBox.shrink();
     }

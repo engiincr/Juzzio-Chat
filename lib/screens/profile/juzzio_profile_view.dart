@@ -436,8 +436,9 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
                           _glassAction(
                             icon: prof.profileZoomEnabled ? Icons.zoom_out_map_rounded : Icons.block_rounded,
                             label: prof.profileZoomEnabled
-                                ? _l('Yakınlaştırma açık', 'Zoom on', 'Zoom an')
-                                : _l('Başkalarına kapalı', 'Off for others', 'Für andere aus'),
+                                // v1.2.1: durum değil eylem olarak yazılır
+                                ? _l('Başkalarının yakınlaştırmasını kapat', 'Turn off zoom for others', 'Zoom für andere aus')
+                                : _l('Başkalarının yakınlaştırmasını aç', 'Allow zoom for others', 'Zoom für andere an'),
                             onTap: () async {
                               Navigator.of(ctx).pop();
                               await _toggleZoom();
@@ -915,8 +916,9 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
     if (_isOwn) {
       return Row(
         children: [
+          // v1.2.1: dar ekranda "Profili düz…" kesilmesin → kısa etiket
           pill(
-              _l('Profili düzenle', 'Edit profile', 'Profil bearbeiten'),
+              _l('Düzenle', 'Edit', 'Bearbeiten'),
               widget.onEditProfile == null
                   ? null
                   : () async {
@@ -927,7 +929,7 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
               color: JuzzioGlassTokens.onGlow,
               icon: Icons.edit_outlined),
           const SizedBox(width: 6),
-          pill(_l('Profili paylaş', 'Share profile', 'Profil teilen'), _openProfileCard),
+          pill(_l('Paylaş', 'Share', 'Teilen'), _openProfileCard, icon: Icons.ios_share_rounded),
           const SizedBox(width: 6),
           SizedBox(
             width: 42,

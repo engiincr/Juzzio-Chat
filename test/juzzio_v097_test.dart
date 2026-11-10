@@ -12,18 +12,16 @@ import 'package:juzzio/widgets/juzzio_notification_stack.dart';
 import 'package:juzzio/widgets/juzzio_ui_kit.dart';
 
 void main() {
-  test('Kumaş: içerik kayması monoton, 156 px ile sınırlı (v0.9.9)', () {
-    expect(juzzioClothExtent(0), 0);
-    expect(juzzioClothExtent(-20), 0);
+  test('Kompakt yenileme: el yolu monoton, 80 dp ile sınırlı (v1.2.1)', () {
+    expect(juzzioRefreshTravel(0), 0);
+    expect(juzzioRefreshTravel(-20), 0);
     var last = 0.0;
-    for (final p in [10.0, 50.0, 120.0, 300.0, 900.0]) {
-      final e = juzzioClothExtent(p);
+    for (final p in [10.0, 50.0, 120.0]) {
+      final e = juzzioRefreshTravel(p);
       expect(e, greaterThan(last));
-      expect(e, lessThanOrEqualTo(156));
       last = e;
     }
-    // Tetikleme eşiğine (dinlenme kaymasının %80'i ≈ 121) makul bir çekişle ulaşılır
-    expect(juzzioClothExtent(240), greaterThan(JuzzioClothGeometry(screenWidth: 360, topInset: 47).threshold - 4));
+    expect(juzzioRefreshTravel(900), kJuzzioRefreshMaxTravel);
   });
 
   test('Bildirim yığını: arkadaki kartlar küçülür, aşağı kayar ve solar', () {

@@ -43,6 +43,8 @@ class JuzzioSpringCurve extends Curve {
 
 bool juzzioReduceMotion(BuildContext? context) {
   if (JuzzioAppController.instance.reduceMotion) return true;
+  // v1.2.0: Performans modu süs animasyonlarını da kapatır (konfeti, parçacık, yaylı girişler)
+  if (JuzzioGlassTokens.reducedEffects) return true;
   if (context == null) return false;
   return MediaQuery.maybeOf(context)?.disableAnimations ?? false;
 }
@@ -216,7 +218,11 @@ class JuzzioBlurSheetRoute<T> extends ModalBottomSheetRoute<T> {
     super.showDragHandle,
     super.useSafeArea,
     super.settings,
+    this.barrierBlur = 10,
   });
+
+  /// v1.2.0: arka plan bulanıklığı (sigma); seçim sayfaları daha güçlü bulanıklık kullanır
+  final double barrierBlur;
 
   @override
   Duration get transitionDuration => const Duration(milliseconds: 460);
@@ -236,7 +242,7 @@ class JuzzioBlurSheetRoute<T> extends ModalBottomSheetRoute<T> {
         final t = a.value.clamp(0.0, 1.0);
         if (t <= 0.01) return child!;
         return BackdropFilter(
-          filter: ui.ImageFilter.blur(sigmaX: 10 * t, sigmaY: 10 * t),
+          filter: ui.ImageFilter.blur(sigmaX: barrierBlur * t, sigmaY: barrierBlur * t),
           child: child,
         );
       },
@@ -274,6 +280,7 @@ Future<T?> showJuzzioSheet<T>({
   bool useSafeArea = false,
   bool useRootNavigator = false,
   RouteSettings? routeSettings,
+  double barrierBlur = 10,
 }) {
   final nav = Navigator.of(context, rootNavigator: useRootNavigator);
   final loc = MaterialLocalizations.of(context);
@@ -291,6 +298,7 @@ Future<T?> showJuzzioSheet<T>({
     showDragHandle: showDragHandle,
     useSafeArea: useSafeArea,
     settings: routeSettings,
+    barrierBlur: barrierBlur,
   ));
 }
 
@@ -623,8 +631,13 @@ class _JuzzioLiveIslandState extends State<JuzzioLiveIsland> {
   @override
   Widget build(BuildContext context) {
     final a = JuzzioIsland.instance.current;
-    final top = MediaQuery.of(context).padding.top + 6;
+    // v1.2.0: kapsül artık başlığın (profil fotoğrafı + ad) ALTINDA durur; başlığı örtmez
+    final top = MediaQuery.paddingOf(context).top + 66;
     final accent = a?.color ?? JuzzioGlassTokens.glow;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final ink = dark ? Colors.white : const Color(0xFF15151A);
+    final inkSoft = dark ? Colors.white70 : const Color(0xB315151A);
+    final radius = BorderRadius.circular(_expanded ? 26 : 999);
     final elapsed = a?.startedAt == null ? null : juzzioFormatElapsed(DateTime.now().difference(a!.startedAt!));
     return Positioned(
       top: top,
@@ -647,15 +660,31 @@ class _JuzzioLiveIslandState extends State<JuzzioLiveIsland> {
                       setState(() => _expanded = !_expanded);
                     }
                   },
-                  child: AnimatedContainer(
+                  // v1.2.0: şeffaf cam (glassmorphism) — karanlık ve aydınlık modda okunur
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: radius,
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: dark ? 0.30 : 0.12), blurRadius: 20, offset: const Offset(0, 6))],
+                    ),
+                    child: ClipRRect(
+                    borderRadius: radius,
+                    child: BackdropFilter(
+                    // v1.2.0: performans modunda bulanıklık yok (yalnız yarı saydam zemin)
+                    filter: JuzzioGlassTokens.reducedEffects ? ui.ImageFilter.blur(sigmaX: 0, sigmaY: 0) : ui.ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+                    child: AnimatedContainer(
                     duration: const Duration(milliseconds: 420),
                     curve: kJuzzioSpring,
-                    constraints: BoxConstraints(minWidth: _expanded ? 280 : 128, maxWidth: _expanded ? 340 : 240),
+                    constraints: BoxConstraints(minWidth: _expanded ? 280 : 128, maxWidth: _expanded ? 340 : 260),
                     padding: EdgeInsets.symmetric(horizontal: 14, vertical: _expanded ? 14 : 8),
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.92),
-                      borderRadius: BorderRadius.circular(_expanded ? 26 : 999),
-                      boxShadow: [BoxShadow(color: accent.withValues(alpha: 0.32), blurRadius: 18)],
+                      color: dark ? const Color(0x52141418) : const Color(0x8CFFFFFF),
+                      borderRadius: radius,
+                      border: Border.all(color: dark ? const Color(0x33FFFFFF) : const Color(0x1F000000)),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [accent.withValues(alpha: dark ? 0.16 : 0.10), Colors.transparent],
+                      ),
                     ),
                     child: Material(
                       type: MaterialType.transparency,
@@ -675,7 +704,7 @@ class _JuzzioLiveIslandState extends State<JuzzioLiveIsland> {
                                   child: Text(a.label,
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
+                                      style: TextStyle(color: ink, fontSize: 13, fontWeight: FontWeight.w700)),
                                 ),
                                 if (elapsed != null) ...[
                                   const SizedBox(width: 10),
@@ -693,7 +722,7 @@ class _JuzzioLiveIslandState extends State<JuzzioLiveIsland> {
                             if (_expanded) ...[
                               if ((a.detail ?? '').isNotEmpty) ...[
                                 const SizedBox(height: 8),
-                                Text(a.detail!, style: const TextStyle(color: Colors.white70, fontSize: 12.5)),
+                                Text(a.detail!, style: TextStyle(color: inkSoft, fontSize: 12.5)),
                               ],
                               if (a.progress != null) ...[
                                 const SizedBox(height: 10),
@@ -703,7 +732,7 @@ class _JuzzioLiveIslandState extends State<JuzzioLiveIsland> {
                                     value: a.progress!.clamp(0.0, 1.0),
                                     minHeight: 4,
                                     color: accent,
-                                    backgroundColor: Colors.white12,
+                                    backgroundColor: ink.withValues(alpha: 0.12),
                                   ),
                                 ),
                               ],
@@ -717,6 +746,9 @@ class _JuzzioLiveIslandState extends State<JuzzioLiveIsland> {
                         ),
                       ),
                     ),
+                  ),
+                  ),
+                  ),
                   ),
                 ),
         ),

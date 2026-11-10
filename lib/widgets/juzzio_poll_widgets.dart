@@ -372,11 +372,21 @@ class _ScheduleSheetState extends State<_ScheduleSheet> {
   List<JuzzioScheduledMessage> _pending = const [];
   DateTime _at = DateTime.now().add(const Duration(hours: 1));
   bool _busy = false;
+  // v1.2.0: mesaj artık bu sayfada yazılır (önce yazma kutusuna yazmak gerekmez)
+  late final TextEditingController _text = TextEditingController(text: widget.text.trim());
 
   @override
   void initState() {
     super.initState();
+    _at = DateTime(_at.year, _at.month, _at.day, _at.hour, (_at.minute ~/ 5) * 5);
+    _text.addListener(() => setState(() {}));
     _load();
+  }
+
+  @override
+  void dispose() {
+    _text.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -388,22 +398,42 @@ class _ScheduleSheetState extends State<_ScheduleSheet> {
 
   void _snack(String t) => ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(content: Text(t)));
 
-  Future<void> _pick() async {
+  Future<void> _pickDate() async {
     final d = await showDatePicker(context: context, initialDate: _at, firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 365)));
     if (d == null || !mounted) return;
-    final t = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(_at));
-    if (t == null) return;
-    setState(() => _at = DateTime(d.year, d.month, d.day, t.hour, t.minute));
+    setState(() => _at = DateTime(d.year, d.month, d.day, _at.hour, _at.minute));
+  }
+
+  Future<void> _pickTime() async {
+    final t = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_at),
+      builder: (c, child) => MediaQuery(data: MediaQuery.of(c).copyWith(alwaysUse24HourFormat: true), child: child!),
+    );
+    if (t == null || !mounted) return;
+    setState(() => _at = DateTime(_at.year, _at.month, _at.day, t.hour, t.minute));
+  }
+
+  void _preset(Duration d) => setState(() => _at = DateTime.now().add(d));
+
+  void _tomorrowMorning() {
+    final n = DateTime.now().add(const Duration(days: 1));
+    setState(() => _at = DateTime(n.year, n.month, n.day, 9, 0));
   }
 
   Future<void> _schedule() async {
+    final text = _text.text.trim();
+    if (text.isEmpty) {
+      _snack(_app.trEn('Zamanlanacak mesajı yaz', 'Write the message to schedule', 'Nachricht eingeben'));
+      return;
+    }
     if (_at.isBefore(DateTime.now().add(const Duration(minutes: 1)))) {
       _snack(_app.trEn('En az 1 dakika sonrası seçilmeli', 'Pick a time at least 1 minute ahead', 'Mindestens 1 Minute in der Zukunft'));
       return;
     }
     setState(() => _busy = true);
     try {
-      await JuzzioPollsService.instance.schedule(roomId: widget.roomId, sendAt: _at, text: widget.text);
+      await JuzzioPollsService.instance.schedule(roomId: widget.roomId, sendAt: _at, text: text);
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       _snack(SupabaseService.instance.friendlyError(e));
@@ -411,53 +441,144 @@ class _ScheduleSheetState extends State<_ScheduleSheet> {
     }
   }
 
-  String _fmt(DateTime t) => '${t.day}.${t.month}.${t.year} ${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+  String _two(int v) => v.toString().padLeft(2, '0');
+  String _fmt(DateTime t) => '${t.day}.${t.month}.${t.year} ${_two(t.hour)}:${_two(t.minute)}';
+  String _dateLabel(DateTime t) {
+    final now = DateTime.now();
+    if (DateUtils.isSameDay(t, now)) return _app.trEn('Bugün', 'Today', 'Heute');
+    if (DateUtils.isSameDay(t, now.add(const Duration(days: 1)))) return _app.trEn('Yarın', 'Tomorrow', 'Morgen');
+    return '${_two(t.day)}.${_two(t.month)}.${t.year}';
+  }
+
+  Widget _picker({required IconData icon, required String label, required String value, required VoidCallback onTap}) {
+    return Expanded(
+      child: Material(
+        color: JuzzioGlassTokens.surfaceStrong,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18), side: BorderSide(color: JuzzioGlassTokens.border)),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+            child: Row(children: [
+              Icon(icon, color: JuzzioGlassTokens.glowText, size: 22),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(label, style: TextStyle(color: JuzzioGlassTokens.textSecondary, fontSize: 11.5, fontWeight: FontWeight.w700)),
+                  Text(value, style: TextStyle(color: JuzzioGlassTokens.textPrimary, fontSize: 16, fontWeight: FontWeight.w900)),
+                ]),
+              ),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    final tc = JuzzioGlassTokens.textPrimary;
+    final t2 = JuzzioGlassTokens.textSecondary;
     return Padding(
-      padding: EdgeInsets.only(left: 16, right: 16, top: 16, bottom: MediaQuery.of(context).viewInsets.bottom + 16),
-      child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Text(_app.trEn('Mesajı zamanla', 'Schedule message', 'Nachricht planen'), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
-        if (widget.text.trim().isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Text(widget.text.trim(), maxLines: 3, overflow: TextOverflow.ellipsis),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.schedule_rounded),
-            title: Text(_fmt(_at)),
-            trailing: TextButton(onPressed: _pick, child: Text(_app.trEn('Değiştir', 'Change', 'Ändern'))),
-          ),
-          FilledButton(onPressed: _busy ? null : _schedule, child: Text(_app.trEn('Zamanla', 'Schedule', 'Planen'))),
-        ] else
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Text(_app.trEn('Zamanlamak için önce mesajı yaz.', 'Type a message first to schedule it.', 'Zuerst Nachricht eingeben.')),
-          ),
-        if (_pending.isNotEmpty) ...[
-          const Divider(),
-          Text(_app.trEn('Bekleyen planlar', 'Pending', 'Ausstehend'), style: const TextStyle(fontWeight: FontWeight.w700)),
-          for (final s in _pending)
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(s.encrypted ? Icons.lock_clock_rounded : Icons.schedule_send_rounded),
-              title: Text(s.encrypted ? _app.trEn('Şifreli mesaj', 'Encrypted message', 'Verschlüsselte Nachricht') : s.preview, maxLines: 1, overflow: TextOverflow.ellipsis),
-              subtitle: Text(_fmt(s.sendAt)),
-              trailing: IconButton(
-                tooltip: _app.trEn('İptal et', 'Cancel', 'Abbrechen'),
-                icon: const Icon(Icons.close_rounded),
-                onPressed: () async {
-                  try {
-                    await JuzzioPollsService.instance.cancel(s.id);
-                    await _load();
-                  } catch (e) {
-                    _snack(SupabaseService.instance.friendlyError(e));
-                  }
-                },
-              ),
+      padding: EdgeInsets.only(left: 18, right: 18, top: 8, bottom: MediaQuery.of(context).viewInsets.bottom + 18),
+      child: SingleChildScrollView(
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Row(children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(color: JuzzioGlassTokens.glow.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(13)),
+              child: Icon(Icons.schedule_send_rounded, color: JuzzioGlassTokens.glowText),
             ),
-        ],
-      ]),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(_app.trEn('Mesajı zamanla', 'Schedule message', 'Nachricht planen'), style: TextStyle(color: tc, fontWeight: FontWeight.w900, fontSize: 18)),
+                Text(_app.trEn('Seçtiğin anda otomatik gönderilir', 'Sent automatically at the chosen time', 'Wird zur gewählten Zeit gesendet'),
+                    style: TextStyle(color: t2, fontSize: 12.5)),
+              ]),
+            ),
+          ]),
+          const SizedBox(height: 14),
+          TextField(
+            controller: _text,
+            autofocus: widget.text.trim().isEmpty,
+            minLines: 3,
+            maxLines: 6,
+            maxLength: 4000,
+            textCapitalization: TextCapitalization.sentences,
+            style: TextStyle(color: tc, fontSize: 15, height: 1.4),
+            decoration: InputDecoration(
+              hintText: _app.trEn('Mesajını yaz…', 'Write your message…', 'Nachricht schreiben…'),
+              hintStyle: TextStyle(color: t2),
+              filled: true,
+              fillColor: JuzzioGlassTokens.surfaceStrong,
+              counterStyle: TextStyle(color: t2),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide.none),
+              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide(color: JuzzioGlassTokens.glow, width: 1.4)),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(children: [
+            _picker(icon: Icons.calendar_month_rounded, label: _app.trEn('Tarih', 'Date', 'Datum'), value: _dateLabel(_at), onTap: _pickDate),
+            const SizedBox(width: 10),
+            _picker(icon: Icons.access_time_filled_rounded, label: _app.trEn('Saat', 'Time', 'Uhrzeit'), value: '${_two(_at.hour)}:${_two(_at.minute)}', onTap: _pickTime),
+          ]),
+          const SizedBox(height: 10),
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            ActionChip(label: Text(_app.trEn('1 saat sonra', 'In 1 hour', 'In 1 Std.')), onPressed: () => _preset(const Duration(hours: 1))),
+            ActionChip(label: Text(_app.trEn('3 saat sonra', 'In 3 hours', 'In 3 Std.')), onPressed: () => _preset(const Duration(hours: 3))),
+            ActionChip(label: Text(_app.trEn('Yarın 09:00', 'Tomorrow 09:00', 'Morgen 09:00')), onPressed: _tomorrowMorning),
+          ]),
+          const SizedBox(height: 14),
+          SizedBox(
+            height: 50,
+            child: FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: JuzzioGlassTokens.accentFill,
+                foregroundColor: JuzzioGlassTokens.onAccent,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+              onPressed: _busy || _text.text.trim().isEmpty ? null : _schedule,
+              icon: _busy
+                  ? const SizedBox(width: 18, height: 18, child: JuzzioOrbitLoader(strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.schedule_send_rounded),
+              label: Text('${_app.trEn('Zamanla', 'Schedule', 'Planen')} · ${_dateLabel(_at)} ${_two(_at.hour)}:${_two(_at.minute)}',
+                  style: const TextStyle(fontWeight: FontWeight.w800)),
+            ),
+          ),
+          if (_pending.isNotEmpty) ...[
+            const SizedBox(height: 18),
+            Text(_app.trEn('Bekleyen planlar', 'Pending', 'Ausstehend'), style: TextStyle(color: tc, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 6),
+            for (final s in _pending)
+              Container(
+                margin: const EdgeInsets.only(bottom: 6),
+                decoration: BoxDecoration(color: JuzzioGlassTokens.surface, borderRadius: BorderRadius.circular(14)),
+                child: ListTile(
+                  dense: true,
+                  leading: Icon(s.encrypted ? Icons.lock_clock_rounded : Icons.schedule_send_rounded, color: JuzzioGlassTokens.glowText),
+                  title: Text(s.encrypted ? _app.trEn('Şifreli mesaj', 'Encrypted message', 'Verschlüsselte Nachricht') : s.preview,
+                      maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: tc)),
+                  subtitle: Text(_fmt(s.sendAt), style: TextStyle(color: t2)),
+                  trailing: IconButton(
+                    tooltip: _app.trEn('İptal et', 'Cancel', 'Abbrechen'),
+                    icon: Icon(Icons.close_rounded, color: t2),
+                    onPressed: () async {
+                      try {
+                        await JuzzioPollsService.instance.cancel(s.id);
+                        await _load();
+                      } catch (e) {
+                        _snack(SupabaseService.instance.friendlyError(e));
+                      }
+                    },
+                  ),
+                ),
+              ),
+          ],
+        ]),
+      ),
     );
   }
 }

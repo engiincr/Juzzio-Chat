@@ -1,6 +1,6 @@
 # Juzzio Gizlilik Politikası ve KVKK Aydınlatma Metni
 
-Son güncelleme: 9 Kasım 2026 · Uygulama sürümü: v1.1.1 (BETA · Erken Erişim)
+Son güncelleme: 10 Kasım 2026 · Uygulama sürümü: v1.2.3 (BETA · Erken Erişim)
 
 Bu metin, Juzzio mobil uygulamasının hangi kişisel verileri hangi amaçla işlediğini, kimlerle paylaştığını ve haklarınızı **olduğu gibi** açıklar. Uygulamanın kaynak kodu GitHub'da açıktır; buradaki her ifade koddan doğrulanabilir.
 
@@ -97,9 +97,20 @@ Bu metin, Juzzio mobil uygulamasının hangi kişisel verileri hangi amaçla iş
 - İçerik, belirlediğiniz en az 8 karakterlik şifreden **Argon2id** ile türetilen anahtarla **AES-256-GCM** ile şifrelenir. Şifre hiçbir yere gönderilmez ve saklanmaz; unutulursa yedek açılamaz.
 - Yedek hesap kimliğinize bağlıdır; hesap silinip yeniden açılırsa eski yedek yüklenmez.
 
+## 4i. Kayıt ve giriş onayları, yurt dışı aktarım, ticari ileti ve hava durumu teması (v1.2.3)
+
+- **Kayıt ve giriş ekranında yalnız iki kutu vardır.** KVKK Kurulu'nun 18.02.2026 tarihli ve 2026/347 sayılı İlke Kararı gereği aydınlatma metni ile açık rıza metni ayrı tutulur, aydınlatma metni için onay değil yalnız "okudum ve anladım" beyanı alınır ve gerekmeyen yerde açık rıza istenmez.
+  1. **Zorunlu:** "Kullanım Koşulları'nı kabul ediyorum ve 15 yaşından büyük olduğumu beyan ederim. KVKK Aydınlatma Metni'ni okudum ve anladım." Kutuya dokununca Aydınlatma Metni ve Kullanım Koşulları açılır; metnin sonuna inildiğinde "Okudum ve anladım" düğmesi etkinleşir. Bu kutu işaretlenmeden kayıt olunamaz ve giriş yapılamaz.
+  2. **İsteğe bağlı:** Kampanya, yenilik ve duyuru e-postaları (ticari elektronik ileti onayı ve bu amaçla açık rıza). Kendi metni ayrı açılır; önceden işaretli gelmez ve vermemek uygulamayı kullanmanızı etkilemez.
+- **Kayıt:** Beyanın metin sürümü, zamanı ve uygulama sürümü hesabınıza kaydedilir (bir hakkın tesisi, kullanılması veya korunması, KVKK m.5/2-e). IP adresi bu kayda yazılmaz. Metinler değişirse bir sonraki açılışta yeniden gösterilir.
+- **Yurt dışına aktarım (KVKK m.9):** Supabase, LiveKit, Google Firebase, Deepgram, çeviri hizmetleri ve Open-Meteo'nun sunucuları Türkiye dışındadır. Hizmetin sürekli işleyişi için yapılan bu aktarım, 7499 sayılı Kanun ile değişik KVKK m.9 uyarınca **uygun güvencelere (Kurul tarafından ilan edilen standart sözleşme)** dayanır; bu yüzden ayrıca "yurt dışı aktarım açık rızası" istenmez. Uçtan uca şifreli içerikler bu sağlayıcılarda yalnız okunamaz şifreli veri olarak bulunur.
+- **Ticari elektronik ileti (isteğe bağlı):** Yalnız ayrıca onay verirseniz gönderilir (6563 sayılı Kanun ve Ticari İletişim ve Ticari Elektronik İletiler Hakkında Yönetmelik). Onayı Ayarlar → Bildirimler'den veya her e-postadaki bağlantıdan dilediğiniz an, ücretsiz geri alabilirsiniz; geri alma en geç 3 iş günü içinde işleme alınır. Mevzuat gerektirdiğinde onay ve ret kayıtları İleti Yönetim Sistemi'ne (İYS) iletilir.
+- **Hava durumuna göre tema (varsayılan açık):** Konum izni verdiyseniz yaklaşık konumunuz (yaklaşık 10 km'ye yuvarlanmış enlem/boylam) yalnız hava durumunu öğrenmek için Open-Meteo'ya gönderilir; konum bizim sunucumuza gönderilmez ve saklanmaz. İzin vermezseniz özellik konum kullanmadan kapalı kalır. Görünüm → Hava durumu teması ile kapatabilirsiniz.
+- **Kötüye kullanım önleme:** Mesaj, arkadaşlık isteği, yorum, şikâyet ve giriş denemeleri hız sınırına tabidir; bu sınırlar yalnız istek sayısını sayar, içeriği okumaz.
+
 ## 5. Verilerin aktarıldığı hizmet sağlayıcılar
 
-Juzzio'nun çalışması için aşağıdaki hizmetler kullanılır. Bunların bir kısmı yurt dışında bulunduğundan veriler yurt dışına aktarılabilir (KVKK m.9).
+Juzzio'nun çalışması için aşağıdaki hizmetler kullanılır. Bunların bir kısmı yurt dışında bulunduğundan veriler yurt dışına aktarılır; aktarım KVKK m.9 kapsamında uygun güvencelere (standart sözleşme) dayanır.
 
 - **Supabase** (veritabanı, dosya depolama, kimlik doğrulama): hesap, mesaj ve medya verileri.
 - **LiveKit Cloud** (sesli/görüntülü arama sunucusu): arama sırasında ses ve görüntü akışı. Kayıt yapılmaz.
@@ -108,6 +119,7 @@ Juzzio'nun çalışması için aşağıdaki hizmetler kullanılır. Bunların bi
 - **MyMemory** (Google çevirisi çalışmazsa yedek çeviri).
 - **Apple iTunes Search** (müzik ekle ekranında yazdığınız şarkı adı aranır, 30 sn önizleme dinletilir).
 - **GitHub** (uygulama güncellemeleri ve sürüm notları).
+- **Open-Meteo** (yalnız hava durumu teması açıksa; yuvarlanmış konum, kimliğiniz gönderilmez).
 
 ## 6. Yöneticinin görebildikleri ve göremedikleri
 
@@ -132,11 +144,13 @@ Juzzio'nun çalışması için aşağıdaki hizmetler kullanılır. Bunların bi
 
 ## 9. KVKK m.11 kapsamındaki haklarınız
 
-Kişisel verilerinizin işlenip işlenmediğini öğrenme, bilgi talep etme, amacını öğrenme, aktarıldığı kişileri bilme, eksik/yanlış verinin düzeltilmesini, silinmesini veya yok edilmesini isteme, itiraz etme ve zarara uğramanız hâlinde zararın giderilmesini talep etme haklarına sahipsiniz. Başvurularınızı engiincr@pm.me adresine iletebilirsiniz; en geç 30 gün içinde yanıtlanır. Avrupa Birliği'ndeyseniz GDPR kapsamındaki erişim, düzeltme, silme, taşınabilirlik ve itiraz haklarınız da geçerlidir.
+Kişisel verilerinizin işlenip işlenmediğini öğrenme, işlenmişse buna ilişkin bilgi talep etme, işlenme amacını ve amacına uygun kullanılıp kullanılmadığını öğrenme, yurt içinde veya yurt dışında aktarıldığı üçüncü kişileri bilme, eksik veya yanlış işlenmişse düzeltilmesini isteme, KVKK m.7'deki şartlar çerçevesinde silinmesini veya yok edilmesini isteme, bu işlemlerin aktarıldığı üçüncü kişilere bildirilmesini isteme, münhasıran otomatik sistemlerle analiz edilmesi sonucu aleyhinize bir sonucun ortaya çıkmasına itiraz etme ve kanuna aykırı işleme nedeniyle zarara uğramanız hâlinde zararın giderilmesini talep etme haklarına sahipsiniz.
+
+**Başvuru:** Veri Sorumlusuna Başvuru Usul ve Esasları Hakkında Tebliğ'e uygun olarak, uygulamada kayıtlı e-posta adresinizden engiincr@pm.me adresine yazılı olarak başvurabilirsiniz. Başvurular en geç 30 gün içinde ücretsiz yanıtlanır (işlem ayrıca bir maliyet gerektirirse Kurul'un belirlediği tarife uygulanabilir). Başvurunuz reddedilirse, verilen cevabı yetersiz bulursanız veya süresinde cevap verilmezse cevabı öğrendiğiniz tarihten itibaren 30 gün ve her hâlde başvuru tarihinden itibaren 60 gün içinde Kişisel Verileri Koruma Kurulu'na şikâyette bulunabilirsiniz (KVKK m.14). Avrupa Birliği'ndeyseniz GDPR kapsamındaki erişim, düzeltme, silme, kısıtlama, taşınabilirlik ve itiraz haklarınız ile denetim makamına şikâyet hakkınız da geçerlidir.
 
 ## 10. Çocuklar
 
-Juzzio 13 yaşından küçükler için tasarlanmamıştır.
+Juzzio 15 yaşından küçükler için tasarlanmamıştır. Kayıt sırasında 15 yaşından büyük olduğunuzu beyan edersiniz; yaş doğrulaması yapılmaz, beyanınız esas alınır. 18 yaşından küçükseniz Juzzio'yu veli veya vasinizin bilgisi dahilinde kullanmalısınız. 15 yaşından küçük olduğu anlaşılan hesaplar kapatılır ve verileri silinir; bunu bildirmek için engiincr@pm.me adresine yazabilirsiniz.
 
 ## 11. Değişiklikler
 

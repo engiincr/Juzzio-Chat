@@ -25,6 +25,8 @@ import '../core/app_theme_and_locale.dart';
 import '../core/config.dart';
 import '../core/notification_text.dart';
 import '../main.dart';
+import '../widgets/juzzio_consent.dart';
+import '../services/juzzio_weather_service.dart';
 import '../models/social_models.dart';
 import '../services/fcm_push_service.dart';
 import '../services/social_service.dart';
@@ -262,6 +264,8 @@ class _JuzzioSettingsMainPageState extends State<JuzzioSettingsMainPage> {
                         Divider(height: 1, color: p.glassBorder),
                         const SizedBox(height: 10),
 
+                        // v1.2.0: ayarlar başlıklar altında gruplandı (her seçenek kendi başlığında)
+                        _groupHeader(p, appCtrl.trEn('Hesap ve güvenlik', 'Account & security', 'Konto & Sicherheit')),
                         // KATEGORİ 1: HESAP
                         _cleanCategoryTile(
                           p: p,
@@ -298,6 +302,16 @@ class _JuzzioSettingsMainPageState extends State<JuzzioSettingsMainPage> {
                           ),
                         ),
 
+                        _groupHeader(p, appCtrl.trEn('Sohbetler ve bildirimler', 'Chats & notifications', 'Chats & Mitteilungen')),
+                        _cleanCategoryTile(
+                          p: p,
+                          icon: Icons.chat_bubble_outline_rounded,
+                          title: appCtrl.trEn('Sohbetler', 'Chats', 'Chats'),
+                          subtitle: appCtrl.trEn('Gönderme, çift dokunuş, arşiv, yedek ve geçmiş', 'Sending, double-tap, archive, backup & history', 'Senden, Archiv, Backup'),
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const JuzzioChatsSettingsPage()),
+                          ),
+                        ),
                         // KATEGORİ 3: BİLDİRİMLER (Bildirim Merkezi, Sessiz Mod ve Pil/Performans Optimizasyonu dahil)
                         _cleanCategoryTile(
                           p: p,
@@ -312,14 +326,15 @@ class _JuzzioSettingsMainPageState extends State<JuzzioSettingsMainPage> {
                           ),
                         ),
 
-                        // KATEGORİ 4: GÖRÜNÜM (Gece/Gündüz Modu, 10 Sohbet Teması, Yazı Tipi, Erişilebilirlik dahil)
+                        _groupHeader(p, appCtrl.trEn('Görünüm ve dil', 'Appearance & language', 'Darstellung & Sprache')),
+                        // KATEGORİ 4: GÖRÜNÜM (Gece/Gündüz + zamanlı, uygulama/sohbet temaları, yazı tipi, performans)
                         _cleanCategoryTile(
                           p: p,
-                          icon: Icons.sentiment_satisfied_alt_rounded,
+                          icon: Icons.palette_outlined,
                           title: appCtrl.trEn('Görünüm', 'Appearance', 'Darstellung'),
                           subtitle: appCtrl.trEn(
-                            'Tema, yazı tipi',
-                            'Theme, font style', 'Design, Schriftart',
+                            'Gece/gündüz, temalar, sohbet teması, yazı boyutu',
+                            'Light/dark, themes, chat theme, font size', 'Hell/Dunkel, Designs, Schriftgröße',
                           ),
                           onTap: () => Navigator.of(context).push(
                             MaterialPageRoute(builder: (_) => const JuzzioAppearanceSettingsPage()),
@@ -337,7 +352,27 @@ class _JuzzioSettingsMainPageState extends State<JuzzioSettingsMainPage> {
                           ),
                         ),
 
-                        // KATEGORİ 6: YARDIM & DESTEK (OTA Güncelleme, Yedekleme/Geçmiş, Depolama, Davet, Yapımcı)
+                        _groupHeader(p, appCtrl.trEn('Depolama ve pil', 'Storage & battery', 'Speicher & Akku')),
+                        _cleanCategoryTile(
+                          p: p,
+                          icon: Icons.storage_rounded,
+                          title: appCtrl.loc('Depolama ve veriler', 'Storage and data', 'Speicher und Daten'),
+                          subtitle: appCtrl.trEn('Ağ kullanımı ve medya önbelleği', 'Network usage & media cache', 'Netzwerk & Mediencache'),
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const JuzzioStorageSettingsPage()),
+                          ),
+                        ),
+                        _cleanCategoryTile(
+                          p: p,
+                          icon: Icons.battery_charging_full_rounded,
+                          title: appCtrl.trEn('Pil ve arka plan', 'Battery & background', 'Akku & Hintergrund'),
+                          subtitle: appCtrl.trEn('Pil optimizasyonu, kesintisiz bildirim, veri tasarrufu', 'Battery optimization, reliable notifications, data saver', 'Akkuoptimierung, Datensparen'),
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const JuzzioBatteryOptimizationPage()),
+                          ),
+                        ),
+                        _groupHeader(p, appCtrl.trEn('Destek', 'Support', 'Support')),
+                        // KATEGORİ 6: YARDIM & DESTEK (OTA güncelleme, geri bildirim, yasal, davet)
                         _cleanCategoryTile(
                           p: p,
                           icon: Icons.help_outline_rounded,
@@ -450,6 +485,14 @@ class _JuzzioSettingsMainPageState extends State<JuzzioSettingsMainPage> {
       },
     );
   }
+
+  Widget _groupHeader(JuzzioPalette p, String text) => Padding(
+        padding: const EdgeInsets.fromLTRB(10, 14, 10, 4),
+        child: Text(
+          text.toUpperCase(),
+          style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textSecondary, fontSize: 11.5, fontWeight: FontWeight.w800, letterSpacing: 0.8),
+        ),
+      );
 
   Widget _cleanCategoryTile({
     required JuzzioPalette p,
@@ -4254,193 +4297,23 @@ class JuzzioChatsSettingsPage extends StatelessWidget {
           body: ListView(
             padding: const EdgeInsets.fromLTRB(18, 16, 18, 36),
             children: [
-              // GÖRÜNTÜLEME
-              Padding(
-                padding: const EdgeInsets.only(left: 6, bottom: 8),
-                child: Text(
-                  _l3('Görüntüleme', 'Display', 'Anzeige'),
-                  style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.amberGlow, fontWeight: FontWeight.w800, fontSize: 13.5),
-                ),
-              ),
+              // v1.2.0: tüm tema / sohbet teması / yazı boyutu ayarları Görünüm sayfasına taşındı
               Container(
                 decoration: BoxDecoration(
                   color: p.cardBg,
                   borderRadius: BorderRadius.circular(22),
                   border: Border.all(color: p.glassBorder),
                 ),
-                child: Column(
-                  children: [
-                    // v0.7.0: modern üçlü tema seçici (Gündüz · Gece · Sistem)
-                    const Padding(
-                      padding: EdgeInsets.fromLTRB(12, 12, 12, 10),
-                      child: JuzzioThemeModeSelector(),
-                    ),
-                    Divider(height: 1, color: p.glassBorder),
-                    // v0.8.3: yöneticinin yayınladığı Juzzio teması (isteğe bağlı)
-                    if (appCtrl.globalTheme != null) ...[
-                      JuzzioSwitchListTile(
-                        value: appCtrl.followGlobalTheme && appCtrl.activeCustomTheme == null,
-                        onChanged: appCtrl.setFollowGlobalTheme,
-                        secondary: Icon(Icons.public_rounded, color: p.amberGlow),
-                        title: Text(
-                          appCtrl.trEn('Juzzio\'nun önerdiği tema', 'Juzzio recommended theme', 'Empfohlenes Design'),
-                          style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w700),
-                        ),
-                        subtitle: Text(
-                          '${appCtrl.globalTheme!.name} · v${appCtrl.globalThemeVersion}',
-                          style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textSecondary, fontSize: 12),
-                        ),
-                      ),
-                      Divider(height: 1, color: p.glassBorder),
-                    ],
-                    // v0.8.1 tema motoru: cam yoğunluğu (güvenli 0.6–1.4 aralığı) + varsayılana dön
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 8, 0),
-                      child: Row(children: [
-                        Icon(Icons.blur_linear_rounded, color: p.textPrimary),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Text(
-                            appCtrl.trEn('Cam yoğunluğu', 'Glass intensity', 'Glasintensität'),
-                            style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w700),
-                          ),
-                        ),
-                        Text('${(appCtrl.glassIntensity * 100).round()}%',
-                            style: TextStyle(color: p.textSecondary, fontWeight: FontWeight.w800)),
-                        IconButton(
-                          tooltip: appCtrl.trEn('Varsayılana dön', 'Reset to default', 'Zurücksetzen'),
-                          icon: Icon(Icons.restart_alt_rounded, color: p.textSecondary),
-                          onPressed: appCtrl.glassIntensity == 1.0 ? null : () => appCtrl.setGlassIntensity(1.0),
-                        ),
-                      ]),
-                    ),
-                    Slider(
-                      value: appCtrl.glassIntensity,
-                      min: 0.6,
-                      max: 1.4,
-                      divisions: 8,
-                      label: appCtrl.glassIntensity < 0.9
-                          ? appCtrl.trEn('Sade', 'Subtle', 'Dezent')
-                          : (appCtrl.glassIntensity > 1.1 ? appCtrl.trEn('Belirgin', 'Prominent', 'Ausgeprägt') : appCtrl.trEn('Standart', 'Standard', 'Standard')),
-                      onChanged: (v) => appCtrl.setGlassIntensity(v, persist: false),
-                      onChangeEnd: (v) => appCtrl.setGlassIntensity(v),
-                    ),
-                    Divider(height: 1, color: p.glassBorder),
-                    // v0.8.1 şartname §16: performans modu
-                    JuzzioSwitchListTile(
-                      value: appCtrl.reducedEffects,
-                      onChanged: appCtrl.setReducedEffects,
-                      secondary: Icon(Icons.bolt_rounded, color: p.textPrimary),
-                      title: Text(
-                        appCtrl.trEn('Performans modu', 'Performance mode', 'Leistungsmodus'),
-                        style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w700),
-                      ),
-                      subtitle: Text(
-                        appCtrl.trEn('Cam bulanıklığını kapatır; pil ve akıcılık için', 'Turns off glass blur for battery and smoothness', 'Schaltet Glasunschärfe aus'),
-                        style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textSecondary, fontSize: 12),
-                      ),
-                    ),
-                    Divider(height: 1, color: p.glassBorder),
-                    ListTile(
-                      leading: JuzzioThemeSwatch(palette: appCtrl.glassPalette, size: 28),
-                      title: Text(
-                        _l3('Cam teması', 'Glass theme', 'Glas-Design'),
-                        style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w700),
-                      ),
-                      subtitle: Text(
-                        appCtrl.glassPalette.label(appCtrl.uiLang),
-                        style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textSecondary, fontSize: 12),
-                      ),
-                      trailing: Icon(Icons.chevron_right_rounded, color: p.textMuted),
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const JuzzioGlassThemePage()),
-                      ),
-                    ),
-                    Divider(height: 1, color: p.glassBorder),
-                    ListTile(
-                      leading: Icon(Icons.brush_rounded, color: p.amberGlow),
-                      title: Text(
-                        appCtrl.trEn('Tema Stüdyosu', 'Theme Studio', 'Design-Studio'),
-                        style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w700),
-                      ),
-                      subtitle: Text(
-                        appCtrl.activeCustomTheme != null
-                            ? appCtrl.trEn('Etkin: ${appCtrl.activeCustomTheme!.name}', 'Active: ${appCtrl.activeCustomTheme!.name}', 'Aktiv')
-                            : appCtrl.trEn('Kendi temanı oluştur, içe/dışa aktar', 'Create, import & export your own theme', 'Eigenes Design erstellen'),
-                        style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textSecondary, fontSize: 12),
-                      ),
-                      trailing: Icon(Icons.chevron_right_rounded, color: p.textMuted),
-                      onTap: () => JuzzioThemeStudioPage.open(context),
-                    ),
-                    Divider(height: 1, color: p.glassBorder),
-                    ListTile(
-                      leading: Container(
-                        width: 28,
-                        height: 28,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: LinearGradient(colors: [appCtrl.chatPalette?.swatchA ?? appCtrl.currentChatTheme.primaryColor, appCtrl.chatPalette?.swatchB ?? appCtrl.currentChatTheme.secondaryColor]),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.6)),
-                        ),
-                      ),
-                      title: Text(
-                        JuzzioAppController.instance.loc('Varsayılan sohbet teması', 'Default chat theme', 'Standard-Chatdesign'),
-                        style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w700),
-                      ),
-                      subtitle: Text(
-                        _l3('$chatThemeName • Parlaklık: ${(appCtrl.chatThemeIntensity * 100).round()}%', '$chatThemeName • Brightness: ${(appCtrl.chatThemeIntensity * 100).round()}%', '$chatThemeName • Helligkeit: ${(appCtrl.chatThemeIntensity * 100).round()}%'),
-                        style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textSecondary, fontSize: 12),
-                      ),
-                      trailing: Icon(Icons.chevron_right_rounded, color: p.textMuted),
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const JuzzioChatThemeCustomizerPage()),
-                      ),
-                    ),
-                  ],
+                child: ListTile(
+                  leading: Icon(Icons.palette_rounded, color: p.amberGlow),
+                  title: Text(_l3('Görünüm, temalar ve yazı boyutu', 'Appearance, themes & font size', 'Darstellung, Designs & Schrift'),
+                      style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w700)),
+                  subtitle: Text('$chatThemeName · ${_fontSizeText(appCtrl.fontSizeOption)}',
+                      style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textSecondary, fontSize: 12)),
+                  trailing: Icon(Icons.chevron_right_rounded, color: p.textMuted),
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const JuzzioAppearanceSettingsPage())),
                 ),
               ),
-
-              const SizedBox(height: 20),
-
-              // v0.8.4 TEMA GALERİSİ: tüm uygulama ve sohbet temaları
-              Padding(
-                padding: const EdgeInsets.only(left: 6, bottom: 8),
-                child: Text(
-                  _l3('Uygulama arayüz teması', 'App interface theme', 'App-Oberflächendesign'),
-                  style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.amberGlow, fontWeight: FontWeight.w800, fontSize: 13.5),
-                ),
-              ),
-              Container(
-                decoration: BoxDecoration(
-                  color: p.cardBg,
-                  borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: p.glassBorder),
-                ),
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 6),
-                  child: JuzzioAppThemeGallery(),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Padding(
-                padding: const EdgeInsets.only(left: 6, bottom: 8),
-                child: Text(
-                  _l3('Sohbet teması', 'Chat theme', 'Chatdesign'),
-                  style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.amberGlow, fontWeight: FontWeight.w800, fontSize: 13.5),
-                ),
-              ),
-              Container(
-                decoration: BoxDecoration(
-                  color: p.cardBg,
-                  borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: p.glassBorder),
-                ),
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 6),
-                  child: JuzzioChatThemeGallery(),
-                ),
-              ),
-
               const SizedBox(height: 20),
 
               // SOHBET AYARLARI
@@ -4517,18 +4390,6 @@ class JuzzioChatsSettingsPage extends StatelessWidget {
                       ),
                       value: appCtrl.mediaVisibility,
                       onChanged: appCtrl.setMediaVisibility,
-                    ),
-                    Divider(height: 1, color: p.glassBorder),
-                    ListTile(
-                      title: Text(
-                        JuzzioAppController.instance.loc('Yazı tipi boyutu', 'Font size', 'Schriftgröße'),
-                        style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w700),
-                      ),
-                      subtitle: Text(
-                        _fontSizeText(appCtrl.fontSizeOption),
-                        style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textSecondary, fontSize: 12),
-                      ),
-                      onTap: () => _showFontSizeDialog(context, p, appCtrl),
                     ),
                   ],
                 ),
@@ -4630,38 +4491,6 @@ class JuzzioChatsSettingsPage extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-
-
-  void _showFontSizeDialog(BuildContext context, JuzzioPalette p, JuzzioAppController appCtrl) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: p.sheetBg,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-        title: Text(JuzzioAppController.instance.loc('Yazı tipi boyutu', 'Font size', 'Schriftgröße'), style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w800)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final item in [
-              MapEntry('small', _l3('Küçük', 'Small', 'Klein')),
-              MapEntry('medium', _l3('Orta', 'Medium', 'Mittel')),
-              MapEntry('large', _l3('Büyük', 'Large', 'Groß')),
-            ])
-              RadioListTile<String>(
-                activeColor: p.amberGlow,
-                title: Text(item.value, style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary)),
-                value: item.key,
-                groupValue: appCtrl.fontSizeOption,
-                onChanged: (v) {
-                  if (v != null) appCtrl.setFontSizeOption(v);
-                  Navigator.of(ctx).pop();
-                },
-              ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -5129,14 +4958,29 @@ class JuzzioChatHistoryPage extends StatelessWidget {
 // =============================================================================
 // 4 - 8. GÖRÜNÜM, DEPOLAMA, BİLDİRİMLER VE ERİŞİLEBİLİRLİK SAYFALARI
 // =============================================================================
+/// v1.2.0: Görünüm — tüm tema, sohbet teması ve yazı ayarları TEK sayfada (sayfa içinde sayfa yok).
+///  Bölümler: Gece / Gündüz (tek kontrol; Gündüz · Gece · Sistem · Zamanlı) → Uygulama teması →
+///  Sohbet teması → Yazı tipi boyutu (canlı önizleme) → Performans ve erişilebilirlik.
 class JuzzioAppearanceSettingsPage extends StatelessWidget {
   const JuzzioAppearanceSettingsPage({super.key});
 
-  String _fontSizeText(String code, JuzzioAppController appCtrl) {
-    if (code == 'small') return appCtrl.trEn('Küçük', 'Small', 'Klein');
-    if (code == 'large') return appCtrl.trEn('Büyük', 'Large', 'Groß');
-    return appCtrl.trEn('Orta', 'Medium', 'Mittel');
-  }
+  Widget _section(JuzzioPalette p, String title, IconData icon, List<Widget> children) => Padding(
+        padding: const EdgeInsets.only(bottom: 18),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 6, bottom: 8),
+            child: Row(children: [
+              Icon(icon, size: 16, color: p.amberGlow),
+              const SizedBox(width: 6),
+              Text(title, style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.amberGlow, fontWeight: FontWeight.w800, fontSize: 13.5)),
+            ]),
+          ),
+          Container(
+            decoration: BoxDecoration(color: p.cardBg, borderRadius: BorderRadius.circular(24), border: Border.all(color: p.glassBorder)),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children),
+          ),
+        ]),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -5145,88 +4989,229 @@ class JuzzioAppearanceSettingsPage extends StatelessWidget {
       listenable: appCtrl,
       builder: (context, _) {
         final p = JuzzioPalette(appCtrl.isDark);
+        final title = TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w700);
+        final sub = TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textSecondary, fontSize: 12);
+        final divider = Divider(height: 1, color: p.glassBorder);
+        final chatThemeName = appCtrl.chatPalette?.label(appCtrl.uiLang) ?? appCtrl.currentChatTheme.localizedName;
         return Scaffold(
           backgroundColor: p.bgPrimary,
           appBar: AppBar(
             backgroundColor: p.sheetBg,
             foregroundColor: p.textPrimary,
             elevation: 0,
-            title: Text(
-              appCtrl.loc('Görünüm', 'Appearance', 'Darstellung'),
-              style: const TextStyle(fontFamily: JuzzioConfig.fontRegularBold, fontWeight: FontWeight.w800),
-            ),
+            title: Text(appCtrl.loc('Görünüm', 'Appearance', 'Darstellung'),
+                style: const TextStyle(fontFamily: JuzzioConfig.fontRegularBold, fontWeight: FontWeight.w800)),
           ),
           body: ListView(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.fromLTRB(18, 16, 18, 36),
             children: [
-              const JuzzioModernThemeSelector(),
-              const SizedBox(height: 16),
-              Container(
-                decoration: BoxDecoration(
-                  color: p.cardBg,
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: p.glassBorder),
+              // ---- 1) GECE / GÜNDÜZ (tek kontrol) ----
+              _section(p, _l3('Gece / Gündüz', 'Light / Dark', 'Hell / Dunkel'), Icons.contrast_rounded, const [
+                Padding(padding: EdgeInsets.all(12), child: JuzzioThemeModeSelector()),
+              ]),
+              // ---- 1b) HAVA DURUMU TEMASI (v1.2.1, varsayılan açık) ----
+              _section(p, _l3('Hava durumu teması', 'Weather theme', 'Wetter-Design'), Icons.wb_cloudy_rounded, [
+                JuzzioSwitchListTile(
+                  value: appCtrl.weatherThemeEnabled,
+                  onChanged: (v) {
+                    appCtrl.setWeatherThemeEnabled(v);
+                    if (v) JuzzioWeatherService.instance.refresh();
+                  },
+                  secondary: Icon(Icons.thunderstorm_rounded, color: p.amberGlow),
+                  title: Text(_l3('Hava durumuna göre tema', 'Theme follows the weather', 'Design folgt dem Wetter'), style: title),
+                  subtitle: Text(
+                    _l3('Bulunduğun yerin havasına göre güneş, bulut, yağmur, kar ve sis efektleri. Konum ~10 km yuvarlanıp yalnız Open-Meteo\'ya gider, saklanmaz.',
+                        'Sun, clouds, rain, snow and fog effects from your local weather. Location is rounded to ~10 km, sent only to Open-Meteo and never stored.',
+                        'Sonne, Wolken, Regen, Schnee je nach Wetter.'),
+                    style: sub,
+                  ),
                 ),
-                child: Column(
-                  children: [
-                    ListTile(
-                      leading: Container(
-                        width: 28,
-                        height: 28,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: LinearGradient(colors: [appCtrl.chatPalette?.swatchA ?? appCtrl.currentChatTheme.primaryColor, appCtrl.chatPalette?.swatchB ?? appCtrl.currentChatTheme.secondaryColor]),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.6)),
+                ListenableBuilder(
+                  listenable: JuzzioWeatherService.instance,
+                  builder: (context, _) {
+                    final w = JuzzioWeatherService.instance.state;
+                    if (!appCtrl.weatherThemeEnabled) return const SizedBox.shrink();
+                    final label = w == null
+                        ? _l3('Hava durumu alınamadı (konum izni veya bağlantı yok)', 'Weather unavailable (no location permission or connection)', 'Wetter nicht verfügbar')
+                        : '${juzzioWeatherLabel(w.kind)}${w.temperature == null ? '' : ' · ${w.temperature!.round()}°C'}';
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                      child: Text(label, style: sub),
+                    );
+                  },
+                ),
+              ]),
+              // ---- 2) UYGULAMA TEMASI ----
+              _section(p, _l3('Uygulama teması', 'App theme', 'App-Design'), Icons.palette_rounded, [
+                const Padding(padding: EdgeInsets.symmetric(vertical: 6), child: JuzzioAppThemeGallery()),
+                divider,
+                ListTile(
+                  leading: JuzzioThemeSwatch(palette: appCtrl.glassPalette, size: 28),
+                  title: Text(_l3('Cam teması', 'Glass theme', 'Glas-Design'), style: title),
+                  subtitle: Text(appCtrl.glassPalette.label(appCtrl.uiLang), style: sub),
+                  trailing: Icon(Icons.chevron_right_rounded, color: p.textMuted),
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const JuzzioGlassThemePage())),
+                ),
+                divider,
+                ListTile(
+                  leading: Icon(Icons.brush_rounded, color: p.amberGlow),
+                  title: Text(appCtrl.trEn('Tema Stüdyosu', 'Theme Studio', 'Design-Studio'), style: title),
+                  subtitle: Text(
+                    appCtrl.activeCustomTheme != null
+                        ? appCtrl.trEn('Etkin: ${appCtrl.activeCustomTheme!.name}', 'Active: ${appCtrl.activeCustomTheme!.name}', 'Aktiv: ${appCtrl.activeCustomTheme!.name}')
+                        : appCtrl.trEn('Kendi temanı oluştur, içe/dışa aktar', 'Create, import & export your own theme', 'Eigenes Design erstellen'),
+                    style: sub,
+                  ),
+                  trailing: Icon(Icons.chevron_right_rounded, color: p.textMuted),
+                  onTap: () => JuzzioThemeStudioPage.open(context),
+                ),
+                if (appCtrl.globalTheme != null) ...[
+                  divider,
+                  JuzzioSwitchListTile(
+                    value: appCtrl.followGlobalTheme && appCtrl.activeCustomTheme == null,
+                    onChanged: appCtrl.setFollowGlobalTheme,
+                    secondary: Icon(Icons.public_rounded, color: p.amberGlow),
+                    title: Text(appCtrl.trEn('Juzzio\'nun önerdiği tema', 'Juzzio recommended theme', 'Empfohlenes Design'), style: title),
+                    subtitle: Text('${appCtrl.globalTheme!.name} · v${appCtrl.globalThemeVersion}', style: sub),
+                  ),
+                ],
+                divider,
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 8, 0),
+                  child: Row(children: [
+                    Icon(Icons.blur_linear_rounded, color: p.textPrimary),
+                    const SizedBox(width: 16),
+                    Expanded(child: Text(appCtrl.trEn('Cam yoğunluğu', 'Glass intensity', 'Glasintensität'), style: title)),
+                    Text('${(appCtrl.glassIntensity * 100).round()}%', style: TextStyle(color: p.textSecondary, fontWeight: FontWeight.w800)),
+                    IconButton(
+                      tooltip: appCtrl.trEn('Varsayılana dön', 'Reset to default', 'Zurücksetzen'),
+                      icon: Icon(Icons.restart_alt_rounded, color: p.textSecondary),
+                      onPressed: appCtrl.glassIntensity == 1.0 ? null : () => appCtrl.setGlassIntensity(1.0),
+                    ),
+                  ]),
+                ),
+                Slider(
+                  value: appCtrl.glassIntensity,
+                  min: 0.6,
+                  max: 1.4,
+                  divisions: 8,
+                  onChanged: (v) => appCtrl.setGlassIntensity(v, persist: false),
+                  onChangeEnd: (v) => appCtrl.setGlassIntensity(v),
+                ),
+              ]),
+              // ---- 3) SOHBET TEMASI ----
+              _section(p, _l3('Sohbet teması', 'Chat theme', 'Chatdesign'), Icons.forum_rounded, [
+                const Padding(padding: EdgeInsets.symmetric(vertical: 6), child: JuzzioChatThemeGallery()),
+                divider,
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                  child: Row(children: [
+                    Container(
+                      width: 26,
+                      height: 26,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(colors: [
+                          appCtrl.chatPalette?.swatchA ?? appCtrl.currentChatTheme.primaryColor,
+                          appCtrl.chatPalette?.swatchB ?? appCtrl.currentChatTheme.secondaryColor,
+                        ]),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.6)),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(child: Text('$chatThemeName · ${_l3('parlaklık', 'brightness', 'Helligkeit')}', style: title)),
+                    Text('${(appCtrl.chatThemeIntensity * 100).round()}%', style: TextStyle(color: p.textSecondary, fontWeight: FontWeight.w800)),
+                  ]),
+                ),
+                Slider(
+                  value: appCtrl.chatThemeIntensity.clamp(0.6, 1.4),
+                  min: 0.6,
+                  max: 1.4,
+                  divisions: 8,
+                  onChanged: appCtrl.setChatThemeIntensity,
+                ),
+                divider,
+                ListTile(
+                  leading: Icon(Icons.tune_rounded, color: p.amberGlow),
+                  title: Text(_l3('Tüm sohbet temaları ve önizleme', 'All chat themes & preview', 'Alle Chatdesigns'), style: title),
+                  subtitle: Text(_l3('${kJuzzioChatThemes.length} sıvı cam tema, canlı balon önizlemesi', '${kJuzzioChatThemes.length} liquid glass themes, live bubble preview', '${kJuzzioChatThemes.length} Designs mit Vorschau'), style: sub),
+                  trailing: Icon(Icons.chevron_right_rounded, color: p.textMuted),
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const JuzzioChatThemeCustomizerPage())),
+                ),
+              ]),
+              // ---- 4) YAZI TİPİ BOYUTU (canlı önizleme) ----
+              _section(p, _l3('Yazı tipi boyutu', 'Font size', 'Schriftgröße'), Icons.format_size_rounded, [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
+                  child: SegmentedButton<String>(
+                    showSelectedIcon: false,
+                    segments: [
+                      ButtonSegment(value: 'small', label: Text(_l3('Küçük', 'Small', 'Klein'))),
+                      ButtonSegment(value: 'medium', label: Text(_l3('Orta', 'Medium', 'Mittel'))),
+                      ButtonSegment(value: 'large', label: Text(_l3('Büyük', 'Large', 'Groß'))),
+                    ],
+                    selected: {appCtrl.fontSizeOption},
+                    onSelectionChanged: (v) => appCtrl.setFontSizeOption(v.first),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 6, 16, 14),
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(colors: [
+                          appCtrl.chatPalette?.swatchA ?? appCtrl.currentChatTheme.primaryColor,
+                          appCtrl.chatPalette?.swatchB ?? appCtrl.currentChatTheme.secondaryColor,
+                        ]),
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(18),
+                          topRight: Radius.circular(18),
+                          bottomLeft: Radius.circular(18),
+                          bottomRight: Radius.circular(6),
                         ),
                       ),
-                      title: Text(
-                        appCtrl.trEn('Sohbet Temaları (${kJuzzioChatThemes.length} Sıvı Cam)', 'Chat Themes (${kJuzzioChatThemes.length} Liquid Glass)', 'Chatdesigns (${kJuzzioChatThemes.length} Liquid Glass)'),
-                        style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w800),
-                      ),
-                      subtitle: Text(
-                        '${appCtrl.currentChatTheme.localizedName} • ${(appCtrl.chatThemeIntensity * 100).round()}%',
-                        style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textSecondary, fontSize: 12),
-                      ),
-                      trailing: Icon(Icons.chevron_right_rounded, color: p.textMuted),
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const JuzzioChatThemeCustomizerPage()),
+                      child: Text(
+                        _l3('Merhaba! Yazı boyutu böyle görünecek 👋', 'Hi! This is how text will look 👋', 'Hallo! So sieht der Text aus 👋'),
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14.5 * appCtrl.messageFontScale),
                       ),
                     ),
-                    Divider(height: 1, color: p.glassBorder),
-                    ListTile(
-                      leading: Icon(Icons.format_size_rounded, color: p.amberGlow),
-                      title: Text(
-                        appCtrl.loc('Yazı tipi boyutu', 'Font size', 'Schriftgröße'),
-                        style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w800),
-                      ),
-                      subtitle: Text(
-                        _fontSizeText(appCtrl.fontSizeOption, appCtrl),
-                        style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textSecondary, fontSize: 12),
-                      ),
-                      trailing: Icon(Icons.chevron_right_rounded, color: p.textMuted),
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const JuzzioChatsSettingsPage()),
-                      ),
-                    ),
-                    Divider(height: 1, color: p.glassBorder),
-                    ListTile(
-                      leading: Icon(Icons.accessibility_new_rounded, color: p.amberGlow),
-                      title: Text(
-                        appCtrl.loc('Erişilebilirlik', 'Accessibility', 'Barrierefreiheit'),
-                        style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w800),
-                      ),
-                      subtitle: Text(
-                        appCtrl.trEn('Yüksek kontrast modu ve animasyon azaltma', 'High contrast mode & reduce motion', 'Hoher Kontrast & reduzierte Bewegung'),
-                        style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textSecondary, fontSize: 12),
-                      ),
-                      trailing: Icon(Icons.chevron_right_rounded, color: p.textMuted),
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const JuzzioAccessibilitySettingsPage()),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
+              ]),
+              // ---- 5) PERFORMANS VE ERİŞİLEBİLİRLİK ----
+              _section(p, _l3('Performans ve erişilebilirlik', 'Performance & accessibility', 'Leistung & Barrierefreiheit'), Icons.bolt_rounded, [
+                JuzzioSwitchListTile(
+                  value: appCtrl.reducedEffects,
+                  onChanged: appCtrl.setReducedEffects,
+                  secondary: Icon(Icons.bolt_rounded, color: p.textPrimary),
+                  title: Text(appCtrl.trEn('Performans modu', 'Performance mode', 'Leistungsmodus'), style: title),
+                  subtitle: Text(
+                    appCtrl.trEn(
+                        'Cam bulanıklığını, konfeti/parçacık ve kutlama efektlerini, yaylı balon girişlerini kapatır; pil ve akıcılık için. Açık: ${appCtrl.reducedEffects ? 'evet' : 'hayır'}',
+                        'Turns off glass blur, confetti/particle & celebration effects and springy bubble entrances for battery and smoothness.',
+                        'Schaltet Unschärfe, Konfetti- und Feiereffekte aus.'),
+                    style: sub,
+                  ),
+                ),
+                divider,
+                ListTile(
+                  leading: Icon(Icons.accessibility_new_rounded, color: p.amberGlow),
+                  title: Text(appCtrl.loc('Erişilebilirlik', 'Accessibility', 'Barrierefreiheit'), style: title),
+                  subtitle: Text(appCtrl.trEn('Yüksek kontrast ve animasyonları azalt', 'High contrast & reduce motion', 'Hoher Kontrast & reduzierte Bewegung'), style: sub),
+                  trailing: Icon(Icons.chevron_right_rounded, color: p.textMuted),
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const JuzzioAccessibilitySettingsPage())),
+                ),
+                divider,
+                ListTile(
+                  leading: Icon(Icons.nightlight_round, color: p.amberGlow),
+                  title: Text(_l3('Göz Konforu', 'Eye Comfort', 'Augenkomfort'), style: title),
+                  subtitle: Text(_l3('Mavi ışık filtresi: elle, zamanlanmış veya gün batımında', 'Blue-light filter: manual, scheduled or at sunset', 'Blaulichtfilter'), style: sub),
+                  trailing: Icon(Icons.chevron_right_rounded, color: p.textMuted),
+                  onTap: () => JuzzioEyeComfortPage.open(context),
+                ),
+              ]),
             ],
           ),
         );
@@ -5441,6 +5426,9 @@ class JuzzioNotificationsSettingsPage extends StatelessWidget {
           body: ListView(
             padding: const EdgeInsets.all(20),
             children: [
+              // v1.2.1: ticari elektronik ileti (kampanya/duyuru e-postaları) onayı — istendiği an geri alınır
+              const JuzzioMarketingConsentTile(),
+              const SizedBox(height: 14),
               Container(
                 decoration: BoxDecoration(
                   color: p.cardBg,
@@ -5906,41 +5894,7 @@ class JuzzioHelpAndSupportPage extends StatelessWidget {
                       trailing: Icon(Icons.chevron_right_rounded, color: p.textMuted),
                       onTap: () => JuzzioLegalPage.open(context),
                     ),
-                    Divider(height: 1, color: p.glassBorder),
-                    ListTile(
-                      leading: Icon(Icons.backup_outlined, color: p.amberGlow),
-                      title: Text(
-                        appCtrl.trEn('Sohbet Yedekleme, Aktarma & Geçmiş', 'Chat Backup, Transfer & History', 'Chat-Backup, Übertragung & Verlauf'),
-                        style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w800),
-                      ),
-                      subtitle: Text(
-                        appCtrl.trEn(
-                          'Verilerin nerede saklanır, telefon değişince ne olur, sohbet geçmişi',
-                          'Where your data is stored, changing phones, chat history', 'Verschlüsseltes Cloud-Backup, Geräteübertragung & Chatverlauf',
-                        ),
-                        style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textSecondary, fontSize: 12),
-                      ),
-                      trailing: Icon(Icons.chevron_right_rounded, color: p.textMuted),
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const JuzzioChatsSettingsPage()),
-                      ),
-                    ),
-                    Divider(height: 1, color: p.glassBorder),
-                    ListTile(
-                      leading: Icon(Icons.data_usage_rounded, color: p.amberGlow),
-                      title: Text(
-                        appCtrl.loc('Depolama ve veriler', 'Storage and data', 'Speicher und Daten'),
-                        style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w800),
-                      ),
-                      subtitle: Text(
-                        appCtrl.trEn('Ağ kullanımı ve ses/medya önbelleği yönetimi', 'Network usage & voice/media cache management', 'Netzwerknutzung & Verwaltung des Sprach-/Mediencaches'),
-                        style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textSecondary, fontSize: 12),
-                      ),
-                      trailing: Icon(Icons.chevron_right_rounded, color: p.textMuted),
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const JuzzioStorageSettingsPage()),
-                      ),
-                    ),
+                    // v1.2.0: Sohbetler ve Depolama ana Ayarlar'daki kendi başlıklarına taşındı
                     Divider(height: 1, color: p.glassBorder),
                     ListTile(
                       leading: Icon(Icons.person_add_alt_rounded, color: p.amberGlow),
@@ -7136,13 +7090,17 @@ class JuzzioThemeModeSelector extends StatelessWidget {
         String hm(int m) => '${(m ~/ 60).toString().padLeft(2, '0')}:${(m % 60).toString().padLeft(2, '0')}';
         Future<void> pickTime(bool start) async {
           final cur = start ? app.darkStartMinutes : app.darkEndMinutes;
-          final r = await showTimePicker(context: context, initialTime: TimeOfDay(hour: cur ~/ 60, minute: cur % 60));
+          final r = await showTimePicker(
+            context: context,
+            initialTime: TimeOfDay(hour: cur ~/ 60, minute: cur % 60),
+            builder: (c, child) => MediaQuery(data: MediaQuery.of(c).copyWith(alwaysUse24HourFormat: true), child: child!),
+          );
           if (r == null) return;
           final m = r.hour * 60 + r.minute;
           start ? app.setThemeSchedule(startMinutes: m) : app.setThemeSchedule(endMinutes: m);
         }
-        // v0.8.2: özel tema etkinken açık/koyu modu temanın kendisi belirler
-        final customNote = app.activeCustomTheme != null;
+        // v0.8.2: özel tema etkinken açık/koyu modu temanın kendisi belirler (v1.2.0: seçim yapılınca kapanır)
+        final customNote = app.effectiveCustomTheme != null;
         return Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -7166,6 +7124,12 @@ class JuzzioThemeModeSelector extends StatelessWidget {
                       behavior: HitTestBehavior.opaque,
                       onTap: () {
                         HapticFeedback.mediumImpact();
+                        // v1.2.0: özel/önerilen tema etkinken seçim görünmüyordu (gece/gündüz uyuşmazlığı) —
+                        // artık seçim her zaman uygulanır: özel tema kapatılır, hazır cam temasına dönülür.
+                        if (app.effectiveCustomTheme != null) {
+                          app.clearCustomTheme();
+                          if (app.followGlobalTheme) app.setFollowGlobalTheme(false);
+                        }
                         app.setThemeSelectionMode(it.$1);
                       },
                       child: AnimatedContainer(
@@ -7211,6 +7175,16 @@ class JuzzioThemeModeSelector extends StatelessWidget {
             if (app.themeSelectionMode == 'scheduled')
               Padding(
                 padding: const EdgeInsets.only(top: 10),
+                child: Text(
+                  _l3('Gece modu ${hm(app.darkStartMinutes)}–${hm(app.darkEndMinutes)} arasında otomatik açılır · şu an ${app.isDark ? 'Gece' : 'Gündüz'}',
+                      'Dark mode turns on automatically ${hm(app.darkStartMinutes)}–${hm(app.darkEndMinutes)} · now ${app.isDark ? 'Dark' : 'Light'}',
+                      'Dunkel automatisch ${hm(app.darkStartMinutes)}–${hm(app.darkEndMinutes)}'),
+                  style: TextStyle(color: p.textSecondary, fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+              ),
+            if (app.themeSelectionMode == 'scheduled')
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
                 child: Row(children: [
                   Expanded(
                     child: OutlinedButton.icon(
@@ -7233,8 +7207,9 @@ class JuzzioThemeModeSelector extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
-                  _l3('Özel tema etkin: açık/koyu görünümü temanın kendisi belirler.',
-                      'A custom theme is active: it defines light/dark itself.', 'Eigenes Design aktiv.'),
+                  _l3('Özel tema etkin; şu an görünümü tema belirliyor. Yukarıdan bir mod seçersen varsayılan cam temasına dönülür ve seçimin hemen uygulanır.',
+                      'A custom theme is active and currently decides the look. Picking a mode above switches back to the default glass theme and applies it instantly.',
+                      'Eigenes Design aktiv. Eine Auswahl oben wechselt zum Standard-Design.'),
                   style: TextStyle(color: p.textSecondary, fontSize: 12),
                 ),
               ),

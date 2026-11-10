@@ -848,6 +848,10 @@ class JuzzioSpacePhoto extends StatelessWidget {
         style: TextStyle(color: juzzioReadableOn(pair.first), fontWeight: FontWeight.w900, fontSize: size * 0.42),
       ),
     );
+    // v1.2.0: "asset:" → uygulama içi görsel (Juzzio Topluluğu logosu)
+    if (u.startsWith('asset:')) {
+      return Image.asset(u.substring(6), width: size, height: size, fit: BoxFit.cover, errorBuilder: (_, __, ___) => fallback);
+    }
     if (!u.startsWith('http')) return fallback;
     return JuzzioStorageImage(
       u,

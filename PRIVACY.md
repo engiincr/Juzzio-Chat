@@ -1,6 +1,6 @@
 # 🔐 Juzzio Privacy Policy
 
-Last updated: November 9, 2026 · App version: v1.1.1 (BETA · Early Access)
+Last updated: November 10, 2026 · App version: v1.2.3 (BETA · Early Access)
 
 > 🇹🇷 The legally binding Turkish version (Privacy Policy and KVKK Disclosure Notice) is in [docs/legal/tr/PRIVACY.md](docs/legal/tr/PRIVACY.md). In the app, the Turkish text is shown when the app language is Turkish.
 
@@ -99,9 +99,20 @@ This document explains, **exactly as it is**, which personal data the Juzzio mob
 - **Notification stack, theme transitions and cloth refresh** run entirely on your device and collect no new data.
 - **Call power profile:** in the background or on a weak network, video quality is temporarily reduced to 360p; no additional data is processed for this.
 
+## 4i. Sign-up and sign-in consents, cross-border transfer, marketing and weather theme (v1.2.3)
+
+- **Only two boxes at sign-up and sign-in.** Following the Turkish Data Protection Board's Principle Decision No. 2026/347 (18 Feb 2026), the privacy notice and explicit-consent texts are kept separate, the privacy notice only asks for a "read and understood" statement (not consent), and consent is not requested where it is not required.
+  1. **Required:** "I accept the Terms of Use and confirm I am over 15. I have read and understood the Privacy Notice." Tapping the box opens the Privacy Notice and Terms; the "I have read and understood" button becomes active once you reach the end. You cannot register or sign in without it.
+  2. **Optional:** News, campaign and announcement e-mails (marketing consent). It opens its own text, is never pre-ticked and declining does not affect the app.
+- **Record:** the text version, time and app version are stored on your account (establishing or defending rights). Your IP address is not stored. If the texts change, they are shown again on the next launch.
+- **Cross-border transfer (KVKK Art. 9 / GDPR Chapter V):** Supabase, LiveKit, Google Firebase, Deepgram, translation services and Open-Meteo run outside Türkiye. These continuous transfers rely on **appropriate safeguards (standard contractual clauses)**, so no separate "consent to cross-border transfer" is requested. End-to-end encrypted content exists there only as ciphertext.
+- **Marketing e-mails (optional):** sent only with your separate consent (Turkish Law No. 6563). Withdraw any time, free of charge, in Settings → Notifications or via the link in every e-mail; withdrawals are processed within 3 business days.
+- **Weather-based theme (on by default):** If you granted location permission, your approximate location (latitude/longitude rounded to ~10 km) is sent only to Open-Meteo to get the weather; it is never sent to or stored on our servers. Turn it off in Appearance → Weather theme.
+- **Abuse prevention:** Messages, friend requests, comments, reports and sign-in attempts are rate-limited; limits only count requests and never read content.
+
 ## 5. Service providers that receive data
 
-The following services are used to run Juzzio. Some are located abroad, so data may be transferred abroad (KVKK Art. 9).
+The following services are used to run Juzzio. Some are located abroad, so data is transferred abroad based on appropriate safeguards (standard contractual clauses, KVKK Art. 9).
 
 - **Supabase** (database, file storage, authentication): account, message and media data.
 - **LiveKit Cloud** (voice/video call server): audio and video streams during calls. Nothing is recorded.
@@ -110,6 +121,7 @@ The following services are used to run Juzzio. Some are located abroad, so data 
 - **MyMemory** (fallback translation if Google Translate fails).
 - **Apple iTunes Search** (the song name you type in the add-music screen is searched and a 30-second preview is played).
 - **GitHub** (app updates and release notes).
+- **Open-Meteo** (only when the weather theme is on; rounded location, no identity).
 
 ## 6. What administrators can and cannot see
 
@@ -134,11 +146,11 @@ The following services are used to run Juzzio. Some are located abroad, so data 
 
 ## 9. Your rights (KVKK Art. 11 and GDPR)
 
-You have the right to learn whether your personal data is processed, request information about it, learn its purpose, know who it is transferred to, request correction of incomplete or inaccurate data, request its deletion or destruction, object, and claim compensation for damages. Send your requests to engiincr@pm.me; they are answered within 30 days at the latest. If you are in the European Union, your GDPR rights of access, rectification, erasure, portability and objection also apply.
+You have the right to learn whether your personal data is processed, request information about it, learn its purpose and whether it is used accordingly, know the third parties in Türkiye or abroad it is transferred to, request correction, deletion or destruction, request that these be notified to recipients, object to a decision based solely on automated processing, and claim compensation. Send your request from your registered e-mail to engiincr@pm.me; it is answered free of charge within 30 days. If your request is rejected, the answer is insufficient or not given in time, you may complain to the Personal Data Protection Board (KVKK Art. 14). In the EU, your GDPR rights of access, rectification, erasure, restriction, portability and objection, and the right to complain to a supervisory authority, also apply.
 
 ## 10. Children
 
-Juzzio is not designed for children under 13.
+Juzzio is not designed for children under 15. At sign-up you confirm that you are over 15; no age verification is performed and your statement is relied on. If you are under 18, use Juzzio with your parent's or guardian's knowledge. Accounts found to belong to children under 15 are closed and their data deleted; you can report this to engiincr@pm.me.
 
 ## 11. Changes
 

@@ -16,6 +16,9 @@ import 'dart:math' as math;
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../widgets/motion/juzzio_send_fx.dart' show juzzioBigEmojiCount;
+import '../core/juzzio_community.dart';
+import '../core/juzzio_input_guard.dart';
 import 'juzzio_e2ee.dart';
 import 'juzzio_local_db.dart';
 import '../core/app_theme_and_locale.dart';
@@ -756,7 +759,7 @@ class JuzzioGroupRoom {
     return JuzzioGroupRoom(
       id: (map['id'] ?? map['room_id'] ?? '').toString(),
       roomCode: (map['room_code'] ?? '').toString(),
-      title: (map['title'] ?? JuzzioAppController.instance.trEn('Grup', 'Group', 'Gruppe')).toString(),
+      title: juzzioLocalizedRoomTitle((map['title'] ?? JuzzioAppController.instance.trEn('Grup', 'Group', 'Gruppe')).toString()),
       livekitRoomName: (map['livekit_room_name'] ?? '').toString(),
       isGroup: map['is_group'] == true,
       disappearingTimer: (map['disappearing_timer'] ?? 'off').toString(),
@@ -808,6 +811,12 @@ class JuzzioConversation {
   /// Gizli hesaba arkadaş olmayan birinden gelen sohbet (Mesaj istekleri)
   final bool isMessageRequest;
 
+  /// v1.2.0: Juzzio Topluluğu resmî kanalı
+  final bool isCommunity;
+
+  /// v1.2.0: kanal (yalnız sahip/yöneticiler paylaşır — sunucuda da zorunlu)
+  final bool isChannel;
+
   bool get isGroupOwner => isGroup && myRole == 'owner';
   bool get isGroupStaff => isGroup && (myRole == 'owner' || myRole == 'moderator');
   bool get isMutedByModerator => myMutedUntil != null && myMutedUntil!.isAfter(DateTime.now());
@@ -846,18 +855,24 @@ class JuzzioConversation {
     this.description = '',
     this.partnerIsVerified = false,
     this.isMessageRequest = false,
+    this.isCommunity = false,
+    this.isChannel = false,
   });
 
   factory JuzzioConversation.fromMap(Map<String, dynamic> map) {
     Map<String, dynamic>? call;
     if (map['active_call'] is Map) call = Map<String, dynamic>.from(map['active_call'] as Map);
+    // v1.2.0: Juzzio Topluluğu → yerelleştirilmiş ad + uygulama logosu
+    final rawTitle = (map['title'] ?? 'Juzzio').toString();
+    final community = map['is_community'] == true ||
+        (map['is_group'] == true && map['is_channel'] != false && juzzioIsCommunityTitle(rawTitle));
     return JuzzioConversation(
       roomId: (map['room_id'] ?? '').toString(),
-      title: (map['title'] ?? 'Juzzio').toString(),
+      title: community ? juzzioCommunityDisplayTitle() : rawTitle,
       isGroup: map['is_group'] == true,
       livekitRoomName: (map['livekit_room_name'] ?? '').toString(),
       disappearingTimer: (map['disappearing_timer'] ?? 'off').toString(),
-      avatarUrl: map['avatar_url']?.toString(),
+      avatarUrl: community ? kJuzzioLogoAvatar : map['avatar_url']?.toString(),
       partnerId: map['partner_id']?.toString(),
       partnerUsername: map['partner_username']?.toString(),
       partnerDisplayName: map['partner_display_name']?.toString(),
@@ -885,6 +900,8 @@ class JuzzioConversation {
       description: (map['description'] ?? '').toString(),
       partnerIsVerified: map['partner_is_verified'] == true,
       isMessageRequest: map['is_message_request'] == true,
+      isCommunity: community,
+      isChannel: map['is_channel'] == true || community,
     );
   }
 
@@ -1057,6 +1074,8 @@ class SupabaseService {
       'email_not_confirmed': 'err_email_not_confirmed',
       'Email not confirmed': 'err_email_not_confirmed',
       'rate_limited': 'err_rate_limited',
+      'invalid_input': 'err_inappropriate',
+      'consent_required': 'err_not_allowed',
       'over_email_send_rate_limit': 'err_rate_limited',
       'over_request_rate_limit': 'err_rate_limited',
       'rate limit': 'err_rate_limited',
@@ -1149,7 +1168,7 @@ class SupabaseService {
     if (status == 'inappropriate') throw AuthException(_app.t('err_inappropriate'));
     if (status == 'invalid') throw AuthException(_app.t('err_username_invalid'));
 
-    final cleanDisplay = (displayName ?? '').trim().isEmpty ? cleanUsername : displayName!.trim();
+    final cleanDisplay = juzzioCleanDisplayName(displayName ?? '').isEmpty ? cleanUsername : juzzioCleanDisplayName(displayName!);
     // v0.6: kalıcı engelli e-posta / cihaz ve uygunsuz adlar kayıttan önce reddedilir
     final blockReason = await JuzzioFeaturesService.instance
         .checkSignupAllowed(email: cleanEmail, username: cleanUsername, displayName: cleanDisplay);
@@ -1845,7 +1864,8 @@ class SupabaseService {
   }
 
   Future<List<JuzzioUserProfile>> searchUsersByUsername(String query) async {
-    final clean = query.trim().replaceAll('@', '').replaceAll(RegExp(r'[%,()*\\]'), '');
+    // v1.2.1: PostgREST filtre enjeksiyonu önlenir (yalnız harf/rakam/_ . - boşluk)
+    final clean = juzzioSafeSearchTerm(query);
     try {
       final List rows;
       if (clean.isEmpty) {
@@ -2568,7 +2588,8 @@ class SupabaseService {
     bool allowPlaintextFallback = false,
   }) async {
     final uid = currentUserId;
-    final clean = text.trim();
+    // v1.2.1: girdi doğrulama — kontrol/yön değiştirme karakterleri temizlenir, uzunluk sınırlanır
+    final clean = juzzioCleanText(text, maxLength: 4000);
     if (uid == null || clean.isEmpty) return;
     final roomId = targetRoomId ??
         (receiverId != null && receiverId.isNotEmpty
@@ -3489,6 +3510,68 @@ class SupabaseService {
   }
 
   /// v0.9.3: Admin → Juzzio Story: "Juzzio Official" adına herkese görünen hikâye paylaşır.
+  /// v1.2.0: Juzzio Topluluğu kanal kimliği (önbellekli)
+  String? _communityRoomId;
+  Future<String?> communityRoomId({bool force = false}) async {
+    if (_communityRoomId != null && !force) return _communityRoomId;
+    try {
+      final r = await client.rpc('juzzio_community_room_id');
+      _communityRoomId = r?.toString();
+    } catch (_) {}
+    return _communityRoomId;
+  }
+
+  /// v1.2.0: Admin → Juzzio Community: metin/bağlantı + isteğe bağlı görsel, video, müzik veya dosya.
+  ///  Dosya önce kanal klasörüne yüklenir, ardından admin_community_post (yalnız yönetici) çağrılır.
+  Future<String> postCommunity({required String text, File? file}) async {
+    final uid = currentUserId;
+    if (uid == null) throw JuzzioServiceException(_app.trEn('Oturum açılmamış.', 'Not signed in.', 'Nicht angemeldet.'));
+    final roomId = await communityRoomId(force: true);
+    String kind = 'text';
+    String? url;
+    String? name;
+    int? size;
+    if (file != null) {
+      if (!file.existsSync()) {
+        throw JuzzioServiceException(_app.trEn('Dosya okunamadı.', 'File could not be read.', 'Datei konnte nicht gelesen werden.'));
+      }
+      kind = juzzioCommunityKindFor(file.path);
+      size = file.lengthSync();
+      final limit = kind == 'video' ? 100 * 1024 * 1024 : 25 * 1024 * 1024;
+      if (size > limit) {
+        throw JuzzioServiceException(_app.trEn(kind == 'video' ? 'Video en fazla 100 MB olabilir.' : 'Dosya en fazla 25 MB olabilir.',
+            kind == 'video' ? 'Video must be under 100 MB.' : 'Files must be under 25 MB.', 'Datei zu groß.'));
+      }
+      name = juzzioSafeFileName(file.path.split(Platform.pathSeparator).last);
+      final ext = name.contains('.') ? name.split('.').last.toLowerCase() : 'bin';
+      final mime = kind == 'image'
+          ? _mimeFor(_storageExt(file.path, isVideo: false), isVideo: false)
+          : kind == 'video'
+              ? _mimeFor(_storageExt(file.path, isVideo: true), isVideo: true)
+              : juzzioDocumentMime(name);
+      final path = '$uid/${roomId ?? 'community'}/community_${DateTime.now().millisecondsSinceEpoch}.$ext';
+      final bucket = client.storage.from(JuzzioConfig.chatMediaBucket);
+      try {
+        await bucket.upload(path, file, fileOptions: FileOptions(contentType: mime, upsert: false));
+      } catch (e) {
+        throw JuzzioServiceException(_app.trEn('Yükleme başarısız: ${_friendlyError(e)}', 'Upload failed: ${_friendlyError(e)}', 'Hochladen fehlgeschlagen: ${_friendlyError(e)}'));
+      }
+      url = bucket.getPublicUrl(path);
+    }
+    try {
+      final id = await client.rpc('admin_community_post', params: {
+        'p_text': text.trim(),
+        'p_kind': kind,
+        'p_media_url': url,
+        'p_file_name': name,
+        'p_file_size': size,
+      });
+      return id.toString();
+    } catch (e) {
+      throw JuzzioServiceException(_friendlyError(e));
+    }
+  }
+
   Future<String> postOfficialStory({required File mediaFile, required bool isVideo, String caption = '', int videoDurationSec = 15, int hours = 24}) async {
     final uid = currentUserId;
     if (uid == null) throw JuzzioServiceException(_app.trEn('Oturum açık değil.', 'Not signed in.', 'Nicht angemeldet.'));
@@ -3615,6 +3698,7 @@ class SupabaseService {
       'replierUsername': me?.username ?? '',
       'replierName': me?.displayName ?? '',
       'createdAt': story.createdAt.toIso8601String(),
+      ...juzzioStoryReplyKindMeta(cleanComment, hasImage: uploadedImgUrl != null),
     };
 
     await client.from('messages').insert({
@@ -3657,7 +3741,14 @@ class SupabaseService {
     final me = await fetchUserProfile(uid);
     // Hikâye kartı (kime ait, hangi medya) sunucuda zaten bilinen bilgidir; YANIT metni ve görseli şifrelidir.
     // Hikâye açıklaması gibi içerik metinleri karta konmaz.
-    final meta = <String, dynamic>{'story': _storyMetaFor(story, uid, me)};
+    // v1.2.0: yanıt türü (tepki/yorum/medya) ve tepki emojisi — mesaj tepkileri gibi sunucuda görünür;
+    // yorum METNİ şifreli kalır (bildirimde gösterilmez).
+    final meta = <String, dynamic>{
+      'story': {
+        ..._storyMetaFor(story, uid, me),
+        ...juzzioStoryReplyKindMeta(replyText, hasImage: replyImageFile != null && replyImageFile.existsSync()),
+      },
+    };
     if (replyImageFile != null && replyImageFile.existsSync()) {
       final ext = _storageExt(replyImageFile.path, isVideo: false);
       final (url, path, payload) = await _sealAndUpload(uid: uid, roomId: roomId, bytes: await replyImageFile.readAsBytes(), mime: _mimeFor(ext, isVideo: false), text: replyText);
@@ -4027,3 +4118,23 @@ String juzzioFormatBytes(int bytes) {
 
 /// v0.9.6: birebir sohbette şifreli video sınırı (şifreleme bellekte yapılır)
 const int juzzioEncryptedVideoMaxBytes = 40 * 1024 * 1024;
+
+/// v1.2.0: hikâye yanıtının türü → {'replyKind': 'reaction'|'comment'|'media', 'reaction': emoji?} (saf; test edilir)
+Map<String, dynamic> juzzioStoryReplyKindMeta(String text, {bool hasImage = false}) {
+  final t = text.trim();
+  if (hasImage) return const <String, dynamic>{'replyKind': 'media'};
+  if (t.isNotEmpty && t.runes.length <= 12 && juzzioBigEmojiCount(t) == 1) {
+    return <String, dynamic>{'replyKind': 'reaction', 'reaction': t};
+  }
+  return const <String, dynamic>{'replyKind': 'comment'};
+}
+
+/// v1.2.0: topluluk paylaşımında dosya türü (saf; test edilir)
+String juzzioCommunityKindFor(String path) {
+  final ext = path.contains('.') ? path.split('.').last.toLowerCase() : '';
+  if (const ['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic'].contains(ext)) return 'image';
+  if (const ['mp4', 'mov', 'webm', 'mkv', '3gp'].contains(ext)) return 'video';
+  if (const ['mp3', 'm4a', 'aac', 'wav', 'ogg', 'flac', 'opus'].contains(ext)) return 'audio';
+  return 'document';
+}
+

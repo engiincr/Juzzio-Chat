@@ -1,13 +1,14 @@
 # Juzzio Kullanım Koşulları
 
-Son güncelleme: 1 Kasım 2026 · v0.7.0 (BETA · Erken Erişim)
+Son güncelleme: 10 Kasım 2026 · v1.2.3 (BETA · Erken Erişim)
 
 ## 1. Kabul
 
-Juzzio'yu kullanarak bu koşulları kabul etmiş olursunuz. Juzzio bir **BETA (Erken Erişim)** uygulamasıdır; özellikler değişebilir, hatalar olabilir.
+Kayıt ve giriş ekranındaki zorunlu kutuyu işaretleyerek bu koşulları kabul etmiş olursunuz. Kişisel verilerinizin işlenmesine ilişkin bilgiler ayrı bir metin olan Aydınlatma Metni'nde (Gizlilik Politikası) yer alır. Juzzio bir **BETA (Erken Erişim)** uygulamasıdır; özellikler değişebilir, hatalar olabilir.
 
 ## 2. Hesap
 
+- Juzzio'yu kullanmak için **en az 15 yaşında** olmalısınız; kayıt sırasında bunu beyan edersiniz. 18 yaşından küçükseniz Juzzio'yu veli veya vasinizin bilgisi dahilinde kullanmalısınız.
 - Kayıt olurken doğru bilgi vermelisiniz; hesabınızın güvenliğinden siz sorumlusunuz.
 - Uygunsuz kullanıcı adı, ad veya profil fotoğrafı kullanılamaz; sahte veya trol hesap açmak yasaktır.
 

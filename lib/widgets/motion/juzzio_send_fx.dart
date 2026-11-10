@@ -154,59 +154,197 @@ class _SwooshPainter extends CustomPainter {
 // -----------------------------------------------------------------------------
 // Input morph + Droplet uçuşu (yazma kutusu → balon)
 // -----------------------------------------------------------------------------
+/// v1.2.2: Uçuşun görünümü — balonla BİREBİR aynı yazı stili, renk ve köşe yarıçapları.
+/// (v1.1.0'daki "font değişimi" uçan metnin varsayılan yazı tipiyle çizilmesinden,
+///  "pembe parlama" kapsülün vurgu rengine/gölgesine boyanmasından kaynaklanıyordu.)
+class JuzzioSendFlightStyle {
+  const JuzzioSendFlightStyle({
+    required this.textStyle,
+    required this.bubbleColor,
+    required this.composerColor,
+    required this.composerTextColor,
+    this.padding = const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    this.bubbleRadius = const BorderRadius.only(
+      topLeft: Radius.circular(20),
+      topRight: Radius.circular(20),
+      bottomLeft: Radius.circular(20),
+      bottomRight: Radius.circular(6),
+    ),
+  });
+
+  final TextStyle textStyle;
+  final Color bubbleColor;
+  final Color composerColor;
+  final Color composerTextColor;
+  final EdgeInsets padding;
+  final BorderRadius bubbleRadius;
+}
+
+/// Uçuş ↔ gerçek balon el sıkışması (anahtar = clientMsgId)
+class JuzzioFlightHandle {
+  JuzzioFlightHandle._(this.key);
+  final String key;
+
+  /// Gerçek balonun bağlamı (her karede konumu buradan okunur → kaydırma sırasında da doğru iner)
+  BuildContext? targetContext;
+
+  /// true olunca gerçek balon görünür olur (aynı karede uçuş katmanı kaldırılır)
+  final ValueNotifier<bool> landed = ValueNotifier<bool>(false);
+}
+
 class JuzzioSendFlight {
   JuzzioSendFlight._();
 
-  /// [from]: yazma kutusunun ekran kutusu, [to]: balonun varacağı kutu (tahmini)
+  static const Duration duration = Duration(milliseconds: 440);
+  static final Map<String, JuzzioFlightHandle> _pending = <String, JuzzioFlightHandle>{};
+
+  /// Bu mesaj için uçuş sürüyor mu (balon girişi bu durumda kendi animasyonunu oynatmaz)
+  static bool isPending(String key) => _pending.containsKey(key) && !_pending[key]!.landed.value;
+  static JuzzioFlightHandle? handleFor(String key) => _pending[key];
+
+  /// [from]: yazma kutusunun ekran kutusu. Varış noktası gerçek balondan okunur;
+  /// balon henüz çizilmediyse [estimateBubbleRect] ile tahmin edilir.
   static void launch(
     BuildContext context, {
+    required String key,
     required Rect from,
-    required Rect to,
     required String text,
+    required JuzzioSendFlightStyle style,
   }) {
-    if (juzzioReduceMotion(context)) return;
-    final overlay = Overlay.maybeOf(context);
+    if (juzzioReduceMotion(context) || JuzzioGlassTokens.reducedEffects) return;
+    final overlay = Overlay.maybeOf(context, rootOverlay: true);
     if (overlay == null) return;
+    final handle = JuzzioFlightHandle._(key);
+    _pending[key] = handle;
+    final estimate = estimateBubbleRect(context, from, text, style);
     late OverlayEntry entry;
+    var removed = false;
+    void finish() {
+      if (removed) return;
+      removed = true;
+      handle.landed.value = true; // balon bu karede görünür olur
+      // katman bir sonraki karede kalkar → arada boş kare / çift görüntü yok
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (entry.mounted) entry.remove();
+        Future<void>.delayed(const Duration(seconds: 2), () {
+          if (identical(_pending[key], handle)) _pending.remove(key);
+        });
+      });
+    }
+
     entry = OverlayEntry(
       builder: (_) => _FlightView(
         from: from,
-        to: to,
+        estimate: estimate,
+        handle: handle,
         text: text,
-        onDone: () {
-          if (entry.mounted) entry.remove();
-        },
+        style: style,
+        onDone: finish,
       ),
     );
     overlay.insert(entry);
   }
 
-  /// Sağ hizalı giden balonun tahmini kutusu (yazma çubuğunun hemen üstü)
-  static Rect estimateBubbleRect(BuildContext context, Rect composer, String text) {
+  /// Sağ hizalı giden balonun tahmini kutusu (balonla aynı yazı stiliyle ölçülür)
+  static Rect estimateBubbleRect(BuildContext context, Rect composer, String text, [JuzzioSendFlightStyle? style]) {
     final width = MediaQuery.sizeOf(context).width;
+    final pad = style?.padding ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 12);
     final tp = TextPainter(
-      text: TextSpan(text: text, style: const TextStyle(fontSize: 15)),
+      text: TextSpan(text: text, style: style?.textStyle ?? const TextStyle(fontSize: 15)),
       textDirection: TextDirection.ltr,
-      maxLines: 4,
-    )..layout(maxWidth: width * 0.72 - 28);
-    final w = (tp.width + 28 + 44).clamp(64.0, width * 0.78);
-    final h = (tp.height + 26).clamp(40.0, 140.0);
+      textScaler: MediaQuery.textScalerOf(context),
+      maxLines: 6,
+    )..layout(maxWidth: width * 0.72 - pad.horizontal);
+    final w = (tp.width + pad.horizontal + 44).clamp(64.0, width * 0.78);
+    final h = (tp.height + pad.vertical + 18).clamp(40.0, 180.0);
     return Rect.fromLTWH(width - 16 - w, composer.top - 10 - h, w, h);
   }
 }
 
+/// Gerçek balonu sarar: uçuş sürerken balon yerini korur ama görünmez; uçuş indiği karede
+/// anında (solma/ölçek olmadan) görünür. Uçuş yoksa çocuğu olduğu gibi döndürür.
+class JuzzioFlightTarget extends StatefulWidget {
+  const JuzzioFlightTarget({super.key, required this.flightKey, required this.child});
+  final String? flightKey;
+  final Widget child;
+
+  @override
+  State<JuzzioFlightTarget> createState() => _JuzzioFlightTargetState();
+}
+
+class _JuzzioFlightTargetState extends State<JuzzioFlightTarget> {
+  JuzzioFlightHandle? _h;
+
+  void _attach() {
+    final k = widget.flightKey;
+    final h = k == null ? null : JuzzioSendFlight.handleFor(k);
+    if (identical(h, _h)) {
+      _h?.targetContext = context;
+      return;
+    }
+    _h?.landed.removeListener(_onLanded);
+    _h = h;
+    if (h != null) {
+      h.targetContext = context;
+      h.landed.addListener(_onLanded);
+    }
+  }
+
+  void _onLanded() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _attach();
+  }
+
+  @override
+  void didUpdateWidget(covariant JuzzioFlightTarget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _attach();
+  }
+
+  @override
+  void dispose() {
+    final h = _h;
+    if (h != null) {
+      h.landed.removeListener(_onLanded);
+      if (identical(h.targetContext, context)) h.targetContext = null;
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final h = _h;
+    final hidden = h != null && !h.landed.value;
+    return Opacity(opacity: hidden ? 0.0 : 1.0, child: widget.child);
+  }
+}
+
 class _FlightView extends StatefulWidget {
-  const _FlightView({required this.from, required this.to, required this.text, required this.onDone});
+  const _FlightView({
+    required this.from,
+    required this.estimate,
+    required this.handle,
+    required this.text,
+    required this.style,
+    required this.onDone,
+  });
   final Rect from;
-  final Rect to;
+  final Rect estimate;
+  final JuzzioFlightHandle handle;
   final String text;
+  final JuzzioSendFlightStyle style;
   final VoidCallback onDone;
   @override
   State<_FlightView> createState() => _FlightViewState();
 }
 
 class _FlightViewState extends State<_FlightView> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 560))
+  late final AnimationController _c = AnimationController(vsync: this, duration: JuzzioSendFlight.duration)
     ..addStatusListener((s) {
       if (s == AnimationStatus.completed) widget.onDone();
     })
@@ -218,46 +356,76 @@ class _FlightViewState extends State<_FlightView> with SingleTickerProviderState
     super.dispose();
   }
 
+  /// Gerçek balonun bu karedeki kutusu (katman koordinatlarında); yoksa tahmin
+  Rect _target(BuildContext context) {
+    final tc = widget.handle.targetContext;
+    final ro = tc != null && tc.mounted ? tc.findRenderObject() : null;
+    final me = context.findRenderObject();
+    if (ro is RenderBox && ro.attached && ro.hasSize && me is RenderBox && me.attached) {
+      final topLeft = me.globalToLocal(ro.localToGlobal(Offset.zero));
+      return topLeft & ro.size;
+    }
+    return widget.estimate;
+  }
+
+  Rect _fromLocal(BuildContext context) {
+    final me = context.findRenderObject();
+    if (me is RenderBox && me.attached) {
+      return me.globalToLocal(widget.from.topLeft) & widget.from.size;
+    }
+    return widget.from;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final glow = JuzzioGlassTokens.glow;
-    final on = JuzzioGlassTokens.onGlow;
+    final st = widget.style;
     return IgnorePointer(
       child: AnimatedBuilder(
         animation: _c,
         builder: (context, _) {
           final t = _c.value;
-          final move = kJuzzioSpring.transform(t);
-          // damla: ortada daralıp uzar (kopma), sonda balona açılır
-          final pinch = math.sin(math.pi * math.min(1.0, t * 1.4));
-          final r = Rect.lerp(widget.from, widget.to, move)!;
-          final w = r.width * (1 - 0.55 * pinch);
-          final h = r.height * (1 + 0.35 * pinch);
-          final rect = Rect.fromCenter(center: r.center, width: math.max(28.0, w), height: h);
-          final textOpacity = t < 0.55 ? 0.0 : ((t - 0.55) / 0.3).clamp(0.0, 1.0);
-          final fade = t > 0.86 ? (1 - (t - 0.86) / 0.14).clamp(0.0, 1.0) : 1.0;
+          // aşmasız (overshoot yok) eğri → balonun TAM yerine iner, zıplama olmaz
+          final move = Curves.easeInOutCubic.transform(t);
+          final to = _target(context);
+          final from = _fromLocal(context);
+          // damla: yolun ortasında hafifçe daralıp uzar, varışta balon şekline tam oturur
+          final pinch = math.sin(math.pi * t) * 0.28;
+          final r = Rect.lerp(from, to, move)!;
+          final rect = Rect.fromCenter(
+            center: r.center,
+            width: math.max(36.0, r.width * (1 - pinch)),
+            height: r.height * (1 + pinch * 0.6),
+          );
+          final morph = Curves.easeOut.transform(t);
+          final full = Radius.circular(rect.shortestSide / 2);
+          final br = st.bubbleRadius;
+          Radius mix(Radius b) => Radius.lerp(full, b, morph)!;
+          final textColor = Color.lerp(st.composerTextColor, st.textStyle.color ?? Colors.white, morph);
+          // metin balondaki genişlikte dizilir ve yalnız ölçeklenir → satır kırılımı/yazı tipi uçuşta DEĞİŞMEZ
+          final innerW = math.max(1.0, to.width - st.padding.horizontal);
           return Stack(
             children: [
               Positioned.fromRect(
                 rect: rect,
-                child: Opacity(
-                  opacity: fade,
-                  child: Container(
-                    alignment: Alignment.centerLeft,
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    decoration: BoxDecoration(
-                      color: Color.lerp(JuzzioGlassTokens.spaceInset, glow, math.min(1.0, t * 2.2)),
-                      borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(rect.height / 2),
-                        topRight: Radius.circular(rect.height / 2),
-                        bottomLeft: Radius.circular(rect.height / 2),
-                        bottomRight: Radius.circular(_lerpD(rect.height / 2, 6, move)),
-                      ),
-                      boxShadow: [BoxShadow(color: glow.withValues(alpha: 0.35 * pinch), blurRadius: 16)],
+                child: Container(
+                  clipBehavior: Clip.antiAlias,
+                  decoration: BoxDecoration(
+                    color: Color.lerp(st.composerColor, st.bubbleColor, morph),
+                    borderRadius: BorderRadius.only(
+                      topLeft: mix(br.topLeft),
+                      topRight: mix(br.topRight),
+                      bottomLeft: mix(br.bottomLeft),
+                      bottomRight: mix(br.bottomRight),
                     ),
-                    child: Opacity(
-                      opacity: textOpacity,
-                      child: Text(widget.text, maxLines: 4, overflow: TextOverflow.ellipsis, style: TextStyle(color: on, fontSize: 15)),
+                  ),
+                  padding: EdgeInsets.lerp(const EdgeInsets.symmetric(horizontal: 14, vertical: 10), st.padding, morph),
+                  alignment: Alignment.topLeft,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.topLeft,
+                    child: SizedBox(
+                      width: innerW,
+                      child: Text(widget.text, style: st.textStyle.copyWith(color: textColor)),
                     ),
                   ),
                 ),
@@ -270,7 +438,6 @@ class _FlightViewState extends State<_FlightView> with SingleTickerProviderState
   }
 }
 
-double _lerpD(double a, double b, double t) => a + (b - a) * t;
 
 // -----------------------------------------------------------------------------
 // Yeni balon girişi (+ kutlama konfetisi)
@@ -301,6 +468,9 @@ class JuzzioBubbleEntrance extends StatefulWidget {
   static final Set<String> _played = <String>{};
 
   /// Bu anahtar daha önce oynatıldı mı / oynatılmalı mı (yeni mesaj = son 8 sn)
+  /// v1.2.0: mesaj "yeni" mi (son 8 sn) — kartlardaki tek seferlik animasyonlar için
+  static bool isFresh(DateTime createdAt) => DateTime.now().difference(createdAt).inSeconds.abs() <= 8;
+
   static bool shouldPlay(String key, DateTime createdAt, DateTime now) {
     if (_played.contains(key)) return false;
     final age = now.difference(createdAt);
@@ -323,12 +493,15 @@ class _JuzzioBubbleEntranceState extends State<JuzzioBubbleEntrance> with Single
   @override
   void initState() {
     super.initState();
+    // v1.2.2: bu balona uçuş iniyorsa ayrı giriş oynatılmaz (devir teslim tek karede, zıplama yok)
     final play = !JuzzioAppController.instance.reduceMotion &&
+        !JuzzioSendFlight.isPending(widget.entranceKey) &&
         JuzzioBubbleEntrance.shouldPlay(widget.entranceKey, widget.createdAt, DateTime.now());
     JuzzioBubbleEntrance.markPlayed(widget.entranceKey);
     if (play) {
-      _c = AnimationController(vsync: this, duration: Duration(milliseconds: widget.pop ? 620 : 460));
-      _confetti = widget.celebrate;
+      _c = AnimationController(vsync: this, duration: Duration(milliseconds: widget.pop ? 620 : 220));
+      // v1.2.0: performans modunda konfeti yok
+      _confetti = widget.celebrate && !JuzzioGlassTokens.reducedEffects;
       if (widget.delay == Duration.zero) {
         _c!.forward();
       } else {
@@ -355,12 +528,20 @@ class _JuzzioBubbleEntranceState extends State<JuzzioBubbleEntrance> with Single
       child: widget.child,
       builder: (context, child) {
         final t = c.value;
-        final k = (widget.pop ? const JuzzioSpringCurve(damping: 5, frequency: 2.8) : kJuzzioSpring).transform(t);
+        if (!widget.pop) {
+          // v1.2.0: sakin giriş — zıplama/ölçek yok, yazı tipi ve renk sabit; yalnız kısa süzülme
+          final e = Curves.easeOutCubic.transform(t);
+          return Opacity(
+            opacity: e,
+            child: Transform.translate(offset: Offset(0, 10 * (1 - e)), child: child),
+          );
+        }
+        final k = const JuzzioSpringCurve(damping: 5, frequency: 2.8).transform(t);
         return Opacity(
           opacity: (t * 3).clamp(0.0, 1.0),
           child: Transform.translate(
             offset: Offset(0, 26 * (1 - k)),
-            child: Transform.scale(alignment: align, scale: (widget.pop ? 0.3 : 0.86) + (widget.pop ? 0.7 : 0.14) * k, child: child),
+            child: Transform.scale(alignment: align, scale: 0.3 + 0.7 * k, child: child),
           ),
         );
       },

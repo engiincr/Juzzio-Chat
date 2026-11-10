@@ -5,6 +5,7 @@
 // Sahte kullanıcı veya sabit demo verisi içermez!
 // =============================================================================
 
+import '../core/juzzio_input_guard.dart';
 import 'juzzio_media_cache.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -676,7 +677,7 @@ class JuzzioSocialService {
     if (!post.commentsEnabled) {
       throw Exception(_tx('Bu gönderi için yorumlar kapatılmış.', 'Comments are turned off for this post.', 'Kommentare sind für diesen Beitrag deaktiviert.'));
     }
-    final clean = content.trim();
+    final clean = juzzioCleanText(content, maxLength: 2001);
     if (clean.isEmpty) {
       throw Exception(_tx('Yorum metni boş olamaz.', 'The comment cannot be empty.', 'Der Kommentar darf nicht leer sein.'));
     }

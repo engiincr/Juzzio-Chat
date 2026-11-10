@@ -52,6 +52,13 @@ export function previewParts(preview: string, prefix: string): string[] | null {
   return preview.slice(prefix.length + 1).split("|");
 }
 
+/** v1.2.0: hikâye yanıt önizlemesi "storyreact|🌸" / "storycomment|metin" */
+export function storyParts(preview: string): { kind: "react" | "comment"; value: string } | null {
+  if (preview.startsWith("storyreact|")) return { kind: "react", value: preview.slice(11).trim() || "❤️" };
+  if (preview.startsWith("storycomment|")) return { kind: "comment", value: preview.slice(13).trim() };
+  return null;
+}
+
 function clip(text: string, max = 40): string {
   return text.length > max ? text.slice(0, max - 1) + "…" : text;
 }
@@ -105,7 +112,12 @@ const T: Record<PushLang, Record<string, Builder>> = {
     },
     reply: (c) => { const r = replyParts(c.preview); return { title: c.actor, body: !r ? "Yorumunuza yanıt verdi." : r.comment ? `"${clip(r.comment)}" yorumunuza "${clip(r.reply)}" yanıtını verdi.` : `Yorumunuza "${clip(r.reply)}" yanıtını verdi.` }; },
     comment_like: (c) => ({ title: c.actor, body: c.preview ? `"${clip(c.preview)}" yorumunuzu beğendi.` : "Yorumunuzu beğendi." }),
-    story_reply: (c) => ({ title: c.actor, body: "Hikâyenize yanıt verdi." }),
+    story_reply: (c) => {
+      const s = storyParts(c.preview);
+      if (s?.kind === "react") return { title: c.actor, body: `Hikâyene ${s.value} tepkisi verdi.` };
+      if (s?.kind === "comment") return { title: c.actor, body: s.value ? `Hikâyene "${clip(s.value)}" yorumunu ekledi.` : "Hikâyene yorum ekledi." };
+      return { title: c.actor, body: "Hikâyenize yanıt verdi." };
+    },
     chick_invite: (c) => ({ title: "🐣 Civciv daveti", body: `${c.actor} seninle "${c.preview}" adlı civcivi büyütmek istiyor.` }),
     chick_hatched: (c) => ({ title: "🐣 Civcivin yumurtadan çıktı!", body: `${c.actor} daveti kabul etti. "${c.preview}" artık sizin!` }),
     chick_hungry: (c) => ({
@@ -162,7 +174,12 @@ const T: Record<PushLang, Record<string, Builder>> = {
     },
     reply: (c) => { const r = replyParts(c.preview); return { title: c.actor, body: !r ? "Replied to your comment." : r.comment ? `Replied "${clip(r.reply)}" to your comment "${clip(r.comment)}".` : `Replied "${clip(r.reply)}" to your comment.` }; },
     comment_like: (c) => ({ title: c.actor, body: c.preview ? `Liked your comment "${clip(c.preview)}".` : "Liked your comment." }),
-    story_reply: (c) => ({ title: c.actor, body: "Replied to your story." }),
+    story_reply: (c) => {
+      const s = storyParts(c.preview);
+      if (s?.kind === "react") return { title: c.actor, body: `Reacted ${s.value} to your story.` };
+      if (s?.kind === "comment") return { title: c.actor, body: s.value ? `Commented on your story: "${clip(s.value)}"` : "Commented on your story." };
+      return { title: c.actor, body: "Replied to your story." };
+    },
     chick_invite: (c) => ({ title: "🐣 Chick invitation", body: `${c.actor} wants to raise a chick called "${c.preview}" with you.` }),
     chick_hatched: (c) => ({ title: "🐣 Your chick has hatched!", body: `${c.actor} accepted. "${c.preview}" is yours now!` }),
     chick_hungry: (c) => ({
@@ -223,7 +240,12 @@ const T: Record<PushLang, Record<string, Builder>> = {
     },
     reply: (c) => { const r = replyParts(c.preview); return { title: c.actor, body: !r ? "Hat auf deinen Kommentar geantwortet." : r.comment ? `Hat auf deinen Kommentar „${clip(r.comment)}“ mit „${clip(r.reply)}“ geantwortet.` : `Hat mit „${clip(r.reply)}“ auf deinen Kommentar geantwortet.` }; },
     comment_like: (c) => ({ title: c.actor, body: c.preview ? `Gefällt dein Kommentar „${clip(c.preview)}“.` : "Gefällt dein Kommentar." }),
-    story_reply: (c) => ({ title: c.actor, body: "Hat auf deine Story geantwortet." }),
+    story_reply: (c) => {
+      const s = storyParts(c.preview);
+      if (s?.kind === "react") return { title: c.actor, body: `Hat mit ${s.value} auf deine Story reagiert.` };
+      if (s?.kind === "comment") return { title: c.actor, body: s.value ? `Hat deine Story kommentiert: „${clip(s.value)}“` : "Hat deine Story kommentiert." };
+      return { title: c.actor, body: "Hat auf deine Story geantwortet." };
+    },
     chick_invite: (c) => ({ title: "🐣 Küken-Einladung", body: `${c.actor} möchte mit dir das Küken „${c.preview}“ großziehen.` }),
     chick_hatched: (c) => ({ title: "🐣 Dein Küken ist geschlüpft!", body: `${c.actor} hat angenommen. „${c.preview}“ gehört jetzt euch!` }),
     chick_hungry: (c) => ({

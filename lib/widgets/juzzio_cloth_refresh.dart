@@ -1,188 +1,110 @@
 // =============================================================================
-// JUZZIO v1.1.1 — Tombul el ile "aşağı çek-yenile" (VEKTÖR yeniden çizim)
+// JUZZIO v1.2.1 — Kompakt 3B "Cloth-Pinch" aşağı çekip yenileme
 //
-//  Neden yeniden: v0.9.9'daki önceden render edilmiş 3D sprite'lar poz kareleri arasında
-//  çapraz geçişte hayalet/"ayak gibi" görünüyor, koyu temadaki kumaş tonları (#07080B)
-//  içeriğin üstünde siyah leke gibi duruyordu. Artık el ve kumaş tamamen vektörle çizilir:
-//   • El: tek siluet (dış çizgi + dünya-koordinatlı ten gradyanı), 4 tombul parmak, tırnaklar,
-//     başparmak. Sarkaç = tek şeklin kök etrafında dönmesi; yumruk = parmakların bükülmesi
-//     (kare geçişi yok → hayalet yok, her çözünürlükte keskin).
-//   • Kol, temanın parlayan renginde bir manşetle çentikten çıkar (kesik görünmez).
-//   • Kumaş: yumruğun kavradığı sayfa kenarı; rengi temanın zemininden açık bir yüzey,
-//     kıvrımlar yumuşak vadi/sırt çizgileri. Hiçbir temada siyah leke oluşmaz.
-//   • Dynamic Island: tam siyah kapsül, en üst katman; el yalnız çentiğin altında görünür.
+//  Referans: "JUZZIO – COMPACT 3D PULL-TO-REFRESH SPECIFICATION" (5 aşama)
+//   01 START   (0–20%)  : çentiğin (Dynamic Island) altından tombul kil elin parmak uçları görünür
+//   02 EXTEND  (20–60%) : el aşağı uzanır; içerik aynı miktarda aşağı kayar → el başlığa DOKUNMAZ
+//   03 PINCH   (100%)   : el yumruk yapar, ekran yüzeyi yumruğun altında kumaş gibi büzülür
+//                         (yumuşak 3B gölge + hafif içe çekilme; yelpaze/radyal çizgi YOK)
+//   04 RELEASE & SNAP   : parmak bırakılınca el beklemeden ~200 ms elastik yayla çentiğe çekilir
+//   05 LOADING          : çentik ile başlık arasındaki boşlukta yalnız sade bir yükleme halkası döner;
+//                         iş bitince liste sıfır konumuna oturur
 //
-//  Fazlar (değişmedi): 1) çekme (parmak uçları belirir) · 2) sarkaç (yenileme sürerken) ·
-//  3) yumruk (kumaşı kavrar) · 4) yukarı çekme (içerik yumrukla aynı hızda kalkar) ·
-//  5) ütüleme (kumaş çentiğe doğru toplanıp kaybolur).
-//  Performans: içerik yalnız Transform ile kayar; çizim kök Overlay'de RepaintBoundary içinde
-//  tek CustomPainter; görüntü bulanıklığı yok. "Hareketi azalt" açıksa el/kumaş çizilmez.
+//  Kurallar
+//   • Elin dikey hareketi en fazla 80 dp:  travel = math.min(pull × 0.55, 80)
+//   • Başlangıç noktası MediaQuery.padding.top (çentik) — ya da gömülü listelerde listenin üst kenarı
+//   • onRefresh eşik aşıldığında TAM BİR KEZ çağrılır; yenileme sürerken yeni çekiş kilitlidir
+//   • Eşik aşılmadan bırakılırsa hiçbir şey tetiklenmez, el süzülerek çekilir, durum sıfırlanır
+//   • dispose: tüm AnimationController / Ticker kaynakları kapatılır
+//   • disableAnimations (ve "Hareketi azalt") → 3B sekans atlanır, yalnız standart halka
+//
+//  Biçim: Rive/Lottie yerine vektör CustomPainter. Gerekçe: ek paket ve ağ yok, APK büyümez,
+//  tema rengine göre anında boyanır, 60 FPS (tek RepaintBoundary, önbellekli Paint/gölge),
+//  çentik ölçüsüne göre her ekranda keskin; varlık yüklemesi olmadığı için ilk karede takılma yok.
 // =============================================================================
 
-import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/physics.dart';
-import 'package:flutter/rendering.dart' show ScrollDirection;
-import 'package:flutter/scheduler.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
 import '../core/app_theme_and_locale.dart';
-import '../core/theme/juzzio_glass.dart';
+import 'juzzio_motion.dart';
 
-// ---------------------------------------------------------------------------
-// Saf yardımcılar (birim testlerde doğrulanır)
-// ---------------------------------------------------------------------------
+/// Elin en fazla aşağı inebileceği mesafe (dp) — talimat: 75–80 dp
+const double kJuzzioRefreshMaxTravel = 80.0;
 
-/// Faz 1: çekilen piksel → içeriğin aşağı kayması (azalan getiri, en fazla 156 px).
-double juzzioClothExtent(double pull, {double maxExtent = 156}) {
-  if (pull <= 0) return 0;
-  return maxExtent * (1 - math.exp(-pull / 167));
-}
+/// Yenileme sırasında içeriğin bıraktığı boşluk (halka bu boşlukta döner)
+const double kJuzzioRefreshSpinnerGap = 56.0;
 
-/// Faz 2: sarkaç açısı (derece). 0→0,3 sn −15°, 0,75 sn +25°, 1,1 sn −8°, 1,4 sn 0°;
-/// yenileme sürüyorsa ardından ±9°'lik sönümlü salınım devam eder.
-double juzzioPendulumDegrees(double t) {
-  if (t <= 0) return 0;
-  const keys = <(double, double)>[(0.0, 0), (0.30, -15), (0.75, 25), (1.10, -8), (1.40, 0)];
-  if (t < 1.40) {
-    for (var i = 0; i < keys.length - 1; i++) {
-      final a = keys[i], b = keys[i + 1];
-      if (t >= a.$1 && t <= b.$1) {
-        final u = (t - a.$1) / (b.$1 - a.$1);
-        final e = u * u * (3 - 2 * u); // sarkaçta tepe noktalarında yavaşlama
-        return a.$2 + (b.$2 - a.$2) * e;
-      }
-    }
-  }
-  final s = t - 1.40;
-  return 9 * math.sin(s * 2 * math.pi / 1.25) * math.exp(-s * 0.15).clamp(0.55, 1.0);
-}
+/// Geri çekilme süresi (talimat: ~200 ms)
+const Duration kJuzzioSnapBackDuration = Duration(milliseconds: 200);
 
-/// Faz 3-5 zaman çizelgesi (saniye, yenileme bittikten sonra).
-const double kJuzzioClenchDur = 0.30;
-const double kJuzzioYankDur = 0.50;
-const double kJuzzioSmoothDur = 0.25;
+/// Elastik geri çekilmenin sönümleme oranı (spesifikasyon diyagramı: 0.85)
+const double kJuzzioSnapDamping = 0.85;
 
+/// Çentik kapsülü rengi (çentiksiz ekranlarda çizilen sahte çentik)
 const Color kJuzzioIslandColor = Color(0xFF000000);
 
-/// v1.1.1 vektör el renkleri (sıcak, mat şeftali ten; koyu/siyah ton yok)
-class JuzzioHandColors {
-  JuzzioHandColors._();
-  static const Color skin = Color(0xFFF8CBB6);
-  static const Color shade = Color(0xFFE3A089);
-  static const Color highlight = Color(0xFFFFE7DC);
-  static const Color outline = Color(0xFFC7826B);
-  static const Color nail = Color(0xFFFFF1EC);
+/// Çekme mesafesi → elin dikey yolu (dp). Saf; test edilir.
+double juzzioRefreshTravel(double pull) => math.min(math.max(pull, 0.0) * 0.55, kJuzzioRefreshMaxTravel);
+
+/// 0..1 ilerleme (eşik = 1)
+double juzzioRefreshProgress(double travel) => (travel / kJuzzioRefreshMaxTravel).clamp(0.0, 1.0);
+
+/// Eşik (100%) aşıldı mı
+bool juzzioRefreshArmed(double travel) => travel >= kJuzzioRefreshMaxTravel - 0.5;
+
+/// Yumruk miktarı: 0 açık el … 1 yumruk; son %30'luk dilimde kapanır (03 PINCH)
+double juzzioRefreshCurl(double travel) {
+  final t = ((juzzioRefreshProgress(travel) - 0.70) / 0.30).clamp(0.0, 1.0);
+  return t * t * (3 - 2 * t);
 }
 
-/// Kumaş (yakalanan sayfa kenarı) renkleri: koyuda zeminden AÇIK yüzey, aydınlıkta beyaz.
-/// Hiçbir temada siyaha yakın dolgu kullanılmaz (v0.9.9'daki siyah leke hatası).
-({Color fill, Color valley, Color ridge}) juzzioSheetColors({required bool dark, required Color depth}) {
-  if (dark) {
-    return (
-      fill: Color.lerp(depth, Colors.white, 0.12)!,
-      valley: Colors.black.withValues(alpha: 0.14),
-      ridge: Colors.white.withValues(alpha: 0.12),
-    );
-  }
-  return (
-    fill: Colors.white,
-    valley: const Color(0xFF8A93A6).withValues(alpha: 0.16),
-    ridge: Colors.white.withValues(alpha: 0.9),
-  );
+/// Sönümlü yay (ζ = 0.85): 0 → 1, t ∈ [0,1] (200 ms'ye ölçeklenir). Saf; test edilir.
+double juzzioSnapBack(double t) {
+  if (t <= 0) return 0;
+  if (t >= 1) return 1;
+  const z = kJuzzioSnapDamping;
+  const w = 8.0;
+  final wd = w * math.sqrt(1 - z * z);
+  final e = math.exp(-z * w * t);
+  return 1 - e * (math.cos(wd * t) + z / math.sqrt(1 - z * z) * math.sin(wd * t));
 }
 
-/// Faz 1 "parmak ucu görünmesi": içerik kaymasına göre çentiğin altında görünen el uzunluğu.
-/// Üs > 1 olduğundan ilk ~35 px'lik çekişte yalnız parmak uçları ve tırnaklar çıkar.
-double juzzioPeekReveal(double content, double rest, double maxVisible) {
-  if (content <= 0 || rest <= 0) return 0;
-  final u = (content / rest).clamp(0.0, 1.0);
-  return maxVisible * math.pow(u, 1.3).toDouble();
-}
-
-/// Faz 4: içerik yumruğun alt sınırına bağlıdır — yumruk çentiğe yaklaştıkça aynı oranda kalkar.
-double juzzioYankContent({required double fistLowY, required double fistLowFromY, required double islandBottomY, required double rest}) {
-  final span = fistLowFromY - islandBottomY;
-  if (span <= 0) return 0;
-  return rest * ((fistLowY - islandBottomY) / span).clamp(0.0, 1.0);
-}
-
-enum JuzzioClothPhase { idle, pulling, swinging, clenching, yanking, smoothing, retracting }
-
-/// Ekran ölçülerinden türetilen sabit geometri (mantıksal px).
-class JuzzioClothGeometry {
-  JuzzioClothGeometry({required this.screenWidth, required this.topInset, double? contentTop})
-      : contentTop = contentTop ?? topInset;
+/// Ekran / çentik ölçüleri (mantıksal px)
+class JuzzioRefreshGeometry {
+  JuzzioRefreshGeometry({required this.screenWidth, required this.topInset, double? contentTop})
+      : contentTop = contentTop ?? 0;
 
   final double screenWidth;
   final double topInset;
+
+  /// Yenilenebilir alanın ekrandaki üst kenarı
   final double contentTop;
 
-  /// Referans: çentik genişliği ≈ ekranın %32'si.
-  double get islandWidth => (screenWidth * 0.32).clamp(100.0, 130.0);
-  double get islandHeight => (topInset * 0.68).clamp(26.0, 37.0);
+  double get islandWidth => (screenWidth * 0.30).clamp(96.0, 126.0);
+  double get islandHeight => (topInset * 0.68).clamp(26.0, 36.0);
   double get islandCenterY => math.max(topInset > 0 ? topInset * 0.5 : 16.0, islandHeight / 2 + 4);
   double get islandBottomY => islandCenterY + islandHeight / 2;
 
-  /// Vektör el 115 px'lik çentik için tasarlandı (tasarım birimi × [scale] = mantıksal px).
-  double get scale => islandWidth / 115.0;
-  double get openTip => 150.3 * scale;
-  double get fistCenterY => 120 * scale;
-  double get fistLow => 145.7 * scale;
+  /// Gömülü mod: alan ekranın tepesinde değil (başlığın altındaki liste) → el listenin üst
+  /// kenarından çıkar, çentik çizilmez.
+  bool get embedded => contentTop - islandBottomY > 24;
 
-  /// Kök çentik merkezindeyken çentiğin altında görünen en uzun kol.
-  double get maxVisible => islandCenterY + openTip - islandBottomY;
+  /// Elin çıktığı çizgi (yerel koordinat)
+  double get originY => embedded ? 0 : islandBottomY - contentTop;
 
-  /// İçeriğin beklediği kayma: elin ucu ile içerik arasında temiz boşluk, 140–155 px.
-  double get restContent => (islandCenterY + openTip + 24 - contentTop).clamp(140.0, 155.0);
-  double get threshold => restContent * 0.80;
+  /// Elin ölçeği (çentik genişliğine oranlı; tasarım: 112 px'lik çentik)
+  double get scale => (islandWidth / 112.0).clamp(0.85, 1.15);
 
-  /// [reveal] (çentik altında görünen uzunluk) → kökün ekran y'si.
-  double rootY(double reveal) => islandBottomY + reveal - openTip;
-
-  double get foldScale => screenWidth / 360.0;
+  /// Yükleme halkasının merkezi (yerel koordinat): çentik ile başlık arasındaki boşluk
+  double get spinnerCenterY => (embedded ? 0 : math.max(topInset - contentTop, 0.0)) + kJuzzioRefreshSpinnerGap / 2;
 }
 
-/// Bir karede çizilecek sahne (painter'a giden değişmez durum).
-class JuzzioClothScene {
-  const JuzzioClothScene({
-    required this.reveal,
-    required this.angleDeg,
-    required this.curl,
-    required this.lift,
-    required this.tension,
-    required this.drape,
-    required this.drapeStretch,
-    required this.grabY,
-    required this.island,
-    required this.dark,
-  });
-
-  /// Elin çentik alt kenarının altında görünen uzunluğu (px).
-  final double reveal;
-  final double angleDeg;
-
-  /// 0 açık el … 1 sıkı yumruk.
-  final double curl;
-
-  /// Elin zeminden yükselmesi (gölge büyür/söner) 0..1.
-  final double lift;
-  final double tension;
-  final double drape;
-  final double drapeStretch;
-
-  /// Perde kavrama noktasının ekran y'si.
-  final double grabY;
-
-  /// Siyah çentik kapsülü çizilsin mi (>0) — çizildiğinde her zaman tam opak siyahtır.
-  final double island;
-  final bool dark;
-
-  static const JuzzioClothScene hidden = JuzzioClothScene(
-      reveal: 0, angleDeg: 0, curl: 0, lift: 0, tension: 0, drape: 0, drapeStretch: 0, grabY: 0, island: 0, dark: false);
-}
+enum JuzzioRefreshPhase { idle, pulling, snapping, refreshing, settling }
 
 class JuzzioClothRefresh extends StatefulWidget {
   const JuzzioClothRefresh({super.key, required this.onRefresh, required this.child, this.clothColor});
@@ -190,7 +112,7 @@ class JuzzioClothRefresh extends StatefulWidget {
   final Future<void> Function() onRefresh;
   final Widget child;
 
-  /// Çarşaf örtüsünün rengi (verilmezse temanın zemin rengi).
+  /// Geriye uyumluluk (v1.1.1 kumaş rengi) — kompakt sürümde yalnız büzülme gölgesinin tonu
   final Color? clothColor;
 
   @override
@@ -198,50 +120,60 @@ class JuzzioClothRefresh extends StatefulWidget {
 }
 
 class _JuzzioClothRefreshState extends State<JuzzioClothRefresh> with TickerProviderStateMixin {
+  /// İçeriğin aşağı kayması (dp)
   final ValueNotifier<double> _content = ValueNotifier<double>(0);
-  final ValueNotifier<JuzzioClothScene> _scene = ValueNotifier<JuzzioClothScene>(JuzzioClothScene.hidden);
 
-  late final Ticker _ticker = createTicker(_onTick);
-  late final AnimationController _contentSpring = AnimationController.unbounded(vsync: this)
-    ..addListener(() => _content.value = _contentSpring.value.clamp(-6.0, 160.0));
+  /// Elin yolu (dp, 0..80) ve yumruk (0..1)
+  final ValueNotifier<double> _travel = ValueNotifier<double>(0);
+  final ValueNotifier<double> _curl = ValueNotifier<double>(0);
+  final ValueNotifier<bool> _spinning = ValueNotifier<bool>(false);
 
-  JuzzioClothPhase _phase = JuzzioClothPhase.idle;
-  JuzzioClothGeometry _geo = JuzzioClothGeometry(screenWidth: 360, topInset: 47);
+  late final AnimationController _snap = AnimationController(vsync: this, duration: kJuzzioSnapBackDuration);
+  late final AnimationController _settle = AnimationController(vsync: this, duration: const Duration(milliseconds: 260));
+
+  JuzzioRefreshPhase _phase = JuzzioRefreshPhase.idle;
+  JuzzioRefreshGeometry _geo = JuzzioRefreshGeometry(screenWidth: 360, topInset: 47);
   double _pull = 0;
-  bool _armed = false;
-  bool _passedThreshold = false;
-  bool _refreshDone = false;
-  Duration _phaseStart = Duration.zero;
-  Duration _now = Duration.zero;
-  double _prevAngle = 0;
-  double _yankFromReveal = 0;
-  double _yankFromFistLow = 0;
-  double _retractFrom = 0;
-  double _retractIsland = 1;
-  OverlayEntry? _overlay;
+  bool _armedDrag = false;
+  bool _hapticDone = false;
+  bool _inFlight = false; // tekil tetikleme kilidi
+  double _snapFromTravel = 0;
+  double _snapFromCurl = 0;
+  double _settleFrom = 0;
+  double _settleTo = 0;
 
-  bool get _reduceMotion => MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+  bool get _reduceMotion =>
+      (MediaQuery.maybeOf(context)?.disableAnimations ?? false) || JuzzioAppController.instance.reduceMotion;
+
+  @override
+  void initState() {
+    super.initState();
+    _snap.addListener(_onSnapTick);
+    _settle.addListener(() {
+      final e = Curves.easeOutCubic.transform(_settle.value);
+      _content.value = _settleFrom + (_settleTo - _settleFrom) * e;
+    });
+    // 60 FPS: el yolları ve gölgeler ilk karede hazır olsun (vektör → varlık yüklemesi yok)
+    _JuzzioClayHandPainter.warmUp();
+  }
 
   @override
   void dispose() {
-    _ticker.dispose();
-    _contentSpring.dispose();
-    _removeOverlay();
+    _snap.dispose();
+    _settle.dispose();
     _content.dispose();
-    _scene.dispose();
+    _travel.dispose();
+    _curl.dispose();
+    _spinning.dispose();
     super.dispose();
   }
 
   void _measure() {
     final mq = MediaQuery.maybeOf(context);
     final box = context.findRenderObject();
-    double? top;
+    double top = 0;
     if (box is RenderBox && box.attached) top = box.localToGlobal(Offset.zero).dy;
-    _geo = JuzzioClothGeometry(
-      screenWidth: mq?.size.width ?? 360,
-      topInset: mq?.viewPadding.top ?? 0,
-      contentTop: top,
-    );
+    _geo = JuzzioRefreshGeometry(screenWidth: mq?.size.width ?? 360, topInset: mq?.padding.top ?? 0, contentTop: top);
   }
 
   // ---------------------------------------------------------------------------
@@ -249,15 +181,15 @@ class _JuzzioClothRefreshState extends State<JuzzioClothRefresh> with TickerProv
   // ---------------------------------------------------------------------------
   bool _onScroll(ScrollNotification n) {
     if (n.depth != 0 || n.metrics.axis != Axis.vertical) return false;
-    if (_phase != JuzzioClothPhase.idle && _phase != JuzzioClothPhase.pulling) return false;
+    if (_phase != JuzzioRefreshPhase.idle && _phase != JuzzioRefreshPhase.pulling) return false;
     if (n is ScrollStartNotification) {
-      _armed = n.dragDetails != null && n.metrics.extentBefore <= 0.5;
+      _armedDrag = n.dragDetails != null && n.metrics.extentBefore <= 0.5;
     } else if (n is OverscrollNotification) {
-      if (_armed && n.dragDetails != null && n.overscroll < 0) _setPull(_pull - n.overscroll);
+      if (_armedDrag && n.dragDetails != null && n.overscroll < 0) _setPull(_pull - n.overscroll);
     } else if (n is ScrollUpdateNotification) {
       final d = n.dragDetails;
       if (d != null && n.metrics.pixels < 0) {
-        _armed = true;
+        _armedDrag = true;
         _setPull(-n.metrics.pixels * 1.4);
       } else if (d != null && _pull > 0 && (n.scrollDelta ?? 0) > 0) {
         _setPull(_pull - (n.scrollDelta ?? 0));
@@ -271,261 +203,170 @@ class _JuzzioClothRefreshState extends State<JuzzioClothRefresh> with TickerProv
   }
 
   void _setPull(double v) {
-    if (_phase == JuzzioClothPhase.idle) _measure();
-    _pull = v.clamp(0.0, 1200.0);
-    final c = juzzioClothExtent(_pull);
-    _contentSpring.stop();
-    _content.value = c;
-    if (_pull > 0 && _phase == JuzzioClothPhase.idle) {
-      _phase = JuzzioClothPhase.pulling;
-      _insertOverlay();
+    if (_inFlight) return;
+    if (_phase == JuzzioRefreshPhase.idle) _measure();
+    _pull = v.clamp(0.0, 600.0);
+    final travel = juzzioRefreshTravel(_pull);
+    _settle.stop();
+    _snap.stop();
+    _content.value = travel; // içerik elin indiği kadar kayar → el başlığa değmez
+    if (_reduceMotion) {
+      _travel.value = 0;
+      _curl.value = 0;
+    } else {
+      _travel.value = travel;
+      _curl.value = juzzioRefreshCurl(travel);
     }
-    if (_pull <= 0 && _phase == JuzzioClothPhase.pulling) {
-      _phase = JuzzioClothPhase.idle;
-      _removeOverlay();
+    _phase = _pull > 0 ? JuzzioRefreshPhase.pulling : JuzzioRefreshPhase.idle;
+    final armed = juzzioRefreshArmed(travel);
+    if (armed && !_hapticDone) {
+      _hapticDone = true;
+      HapticFeedback.mediumImpact(); // 03 PINCH
+    } else if (!armed) {
+      _hapticDone = false;
     }
-    final over = c >= _geo.threshold;
-    if (over != _passedThreshold) {
-      _passedThreshold = over;
-      if (over) HapticFeedback.lightImpact();
-    }
-    _scene.value = _openScene(c, island: c > 0 ? 1.0 : 0.0);
   }
-
-  /// Açık el, kök sabit; görünen uzunluk içerik kaymasından (parmak ucu görünmesi).
-  JuzzioClothScene _openScene(double content, {double angle = 0, double island = 1}) => JuzzioClothScene(
-        reveal: juzzioPeekReveal(content, _geo.restContent, _geo.maxVisible),
-        angleDeg: angle,
-        curl: 0,
-        lift: 0,
-        tension: 0,
-        drape: 0,
-        drapeStretch: 0,
-        grabY: 0,
-        island: island,
-        dark: JuzzioAppController.instance.isDark,
-      );
 
   void _release() {
-    _armed = false;
-    if (_phase != JuzzioClothPhase.pulling) return;
-    final c = _content.value;
+    _armedDrag = false;
+    if (_phase != JuzzioRefreshPhase.pulling) return;
+    final travel = juzzioRefreshTravel(_pull);
+    final fire = juzzioRefreshArmed(travel) && !_inFlight;
     _pull = 0;
-    _passedThreshold = false;
-    if (c < _geo.threshold) {
-      // Eşiğe ulaşmadı: el çentiğe geri girer, içerik yaylanarak oturur
-      _retractFrom = _scene.value.reveal;
-      _retractIsland = _scene.value.island;
-      _startPhase(JuzzioClothPhase.retracting);
-      _springContent(c, 0);
+    _hapticDone = false;
+    // 04 RELEASE & SNAP: el hiç beklemeden çentiğe çekilir
+    _snapFromTravel = _travel.value;
+    _snapFromCurl = _curl.value;
+    _phase = JuzzioRefreshPhase.snapping;
+    if (_reduceMotion) {
+      _travel.value = 0;
+      _curl.value = 0;
+    } else {
+      _snap.forward(from: 0);
+    }
+    if (fire) {
+      _startRefresh();
+    } else {
+      // Temiz iptal: tetikleme yok, içerik yerine oturur
+      _animateContent(0, then: () => _phase = JuzzioRefreshPhase.idle);
+    }
+  }
+
+  void _onSnapTick() {
+    final k = juzzioSnapBack(_snap.value);
+    _travel.value = (_snapFromTravel * (1 - k)).clamp(-6.0, kJuzzioRefreshMaxTravel);
+    _curl.value = _snapFromCurl * (1 - _snap.value);
+  }
+
+  Future<void> _startRefresh() async {
+    _inFlight = true;
+    _phase = JuzzioRefreshPhase.refreshing;
+    _animateContent(kJuzzioRefreshSpinnerGap);
+    _spinning.value = true;
+    try {
+      await widget.onRefresh();
+    } catch (_) {
+      // hata ekranı çağıranın işidir; yenileme halkası yine kapanır
+    } finally {
+      if (mounted) {
+        _spinning.value = false;
+        _phase = JuzzioRefreshPhase.settling;
+        _animateContent(0, then: () {
+          _phase = JuzzioRefreshPhase.idle;
+          _inFlight = false;
+        });
+      } else {
+        _inFlight = false;
+      }
+    }
+  }
+
+  void _animateContent(double to, {VoidCallback? then}) {
+    _settleFrom = _content.value;
+    _settleTo = to;
+    if (_reduceMotion) {
+      _content.value = to;
+      then?.call();
       return;
     }
-    _refreshDone = false;
-    _prevAngle = 0;
-    _startPhase(JuzzioClothPhase.swinging);
-    // tam çekilmiş konuma (140–155 px) oturur ve sarkaç/yumruk boyunca orada kilitli kalır
-    _springContent(c, _geo.restContent, stiffness: 300, damping: 36); // kritik sönüm: aşma yok
-    unawaited(() async {
-      try {
-        await widget.onRefresh();
-      } catch (_) {
-      } finally {
-        _refreshDone = true;
-      }
-    }());
-  }
-
-  void _springContent(double from, double to, {double stiffness = 260, double damping = 22, double velocity = 0}) {
-    _contentSpring.value = from;
-    _contentSpring.animateWith(SpringSimulation(SpringDescription(mass: 1, stiffness: stiffness, damping: damping), from, to, velocity));
-  }
-
-  void _lockContent(double v) {
-    _contentSpring.stop();
-    _content.value = v;
-  }
-
-  void _startPhase(JuzzioClothPhase p) {
-    _phase = p;
-    _phaseStart = _now;
-    if (!_ticker.isActive) {
-      _now = Duration.zero;
-      _phaseStart = Duration.zero;
-      _ticker.start();
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // Kare kare faz motoru
-  // ---------------------------------------------------------------------------
-  void _onTick(Duration elapsed) {
-    _now = elapsed;
-    final t = (elapsed - _phaseStart).inMicroseconds / 1e6;
-    final dark = JuzzioAppController.instance.isDark;
-    final g = _geo;
-    switch (_phase) {
-      case JuzzioClothPhase.retracting: {
-        final u = (t / 0.32).clamp(0.0, 1.0);
-        final e = Curves.easeInCubic.transform(u);
-        _scene.value = JuzzioClothScene(
-          reveal: _retractFrom * (1 - e) - 4 * e,
-          angleDeg: 0,
-          curl: 0,
-          lift: 0,
-          tension: 0,
-          drape: 0,
-          drapeStretch: 0,
-          grabY: 0,
-          island: u < 1 ? _retractIsland : 0.0,
-          dark: dark,
-        );
-        if (u >= 1) _finish();
-      }
-      case JuzzioClothPhase.swinging: {
-        final ang = juzzioPendulumDegrees(t);
-        _scene.value = _openScene(_content.value, angle: ang);
-        // En az bir tam sarkaç turu; yenileme bitince el MERKEZDEN geçerken yumruk yapar
-        final crossed = ang.abs() < 1.5 || (_prevAngle != 0 && ang.sign != _prevAngle.sign);
-        _prevAngle = ang;
-        if (_refreshDone && t >= 1.40 && crossed) {
-          _lockContent(g.restContent);
-          _startPhase(JuzzioClothPhase.clenching);
-        }
-      }
-      case JuzzioClothPhase.clenching: {
-        final u = (t / kJuzzioClenchDur).clamp(0.0, 1.0);
-        _lockContent(g.restContent); // kavrayana kadar sayfa kilitli
-        _scene.value = JuzzioClothScene(
-          reveal: g.maxVisible + 8 * Curves.easeOut.transform(u), // kumaşa bastırır
-          angleDeg: 0,
-          curl: Curves.easeInCubic.transform(u),
-          lift: 0,
-          tension: Curves.easeOut.transform(u),
-          drape: 0,
-          drapeStretch: 0,
-          grabY: 0,
-          island: 1,
-          dark: dark,
-        );
-        if (u >= 1) {
-          _yankFromReveal = g.maxVisible + 8;
-          _yankFromFistLow = g.rootY(_yankFromReveal) + g.fistLow;
-          _startPhase(JuzzioClothPhase.yanking);
-          HapticFeedback.mediumImpact();
-        }
-      }
-      case JuzzioClothPhase.yanking: {
-        final u = (t / kJuzzioYankDur).clamp(0.0, 1.0);
-        final e = Curves.easeInOutCubic.transform(u);
-        // yumruk tamamen çentiğe girene kadar (alt sınırı çentik altına ulaşır)
-        final hidden = g.openTip - g.fistLow - 2;
-        final reveal = _yankFromReveal + (hidden - _yankFromReveal) * e;
-        final root = g.rootY(reveal);
-        // içerik yumruğun alt sınırına bağlı: aynı hızda kalkar, yumruk kaybolurken 0'a varır
-        _lockContent(juzzioYankContent(
-          fistLowY: root + g.fistLow,
-          fistLowFromY: _yankFromFistLow,
-          islandBottomY: g.islandBottomY,
-          rest: g.restContent,
-        ));
-        _scene.value = JuzzioClothScene(
-          reveal: reveal,
-          angleDeg: 0,
-          curl: 1,
-          lift: e,
-          tension: 1 - (u / 0.35).clamp(0.0, 1.0),
-          drape: Curves.easeOut.transform((u / 0.30).clamp(0.0, 1.0)),
-          drapeStretch: 0.25 * e,
-          grabY: math.max(root + g.fistCenterY, g.islandBottomY),
-          island: 1,
-          dark: dark,
-        );
-        if (u >= 1) {
-          _lockContent(0);
-          _startPhase(JuzzioClothPhase.smoothing);
-        }
-      }
-      case JuzzioClothPhase.smoothing: {
-        final u = (t / kJuzzioSmoothDur).clamp(0.0, 1.0);
-        final e = Curves.easeOutCubic.transform(u);
-        _lockContent(0); // titreme yok: içerik yerinde
-        _scene.value = JuzzioClothScene(
-          reveal: 0,
-          angleDeg: 0,
-          curl: 1,
-          lift: 1,
-          tension: 0,
-          drape: 1 - e,
-          drapeStretch: 0.25 - 0.75 * e, // kumaş çentiğe doğru yukarı gerilerek ütülenir
-          grabY: g.islandBottomY,
-          island: u < 1 ? 1.0 : 0.0,
-          dark: dark,
-        );
-        if (u >= 1) _finish();
-      }
-      case JuzzioClothPhase.idle:
-      case JuzzioClothPhase.pulling:
-        break;
-    }
-  }
-
-  void _finish() {
-    _ticker.stop();
-    _phase = JuzzioClothPhase.idle;
-    _scene.value = JuzzioClothScene.hidden;
-    _removeOverlay();
-  }
-
-  // ---------------------------------------------------------------------------
-  // Overlay: el, kumaş ve çentik ekranın en üstünde çizilir
-  // ---------------------------------------------------------------------------
-  /// v1.1.1: kumaş rengi temanın derinlik renginden türetilir (koyuda AÇIK yüzey, siyah değil).
-  ({Color fill, Color valley, Color ridge}) _sheetColors() {
-    final dark = JuzzioAppController.instance.isDark;
-    final c = juzzioSheetColors(dark: dark, depth: JuzzioGlassTokens.space.depth.first);
-    final custom = widget.clothColor;
-    return custom == null ? c : (fill: custom.withValues(alpha: 1), valley: c.valley, ridge: c.ridge);
-  }
-
-  void _insertOverlay() {
-    if (_overlay != null || _reduceMotion) return;
-    final overlay = Overlay.maybeOf(context, rootOverlay: true);
-    if (overlay == null) return;
-    final sheet = _sheetColors();
-    final sleeve = JuzzioGlassTokens.glow;
-    _overlay = OverlayEntry(
-      builder: (ctx) => Positioned.fill(
-        child: IgnorePointer(
-          child: RepaintBoundary(
-            child: CustomPaint(
-              painter: _ClothScenePainter(scene: _scene, content: _content, geo: _geo, sheet: sheet, sleeve: sleeve),
-            ),
-          ),
-        ),
-      ),
-    );
-    overlay.insert(_overlay!);
-  }
-
-  void _removeOverlay() {
-    _overlay?.remove();
-    _overlay = null;
+    _settle.forward(from: 0).whenCompleteOrCancel(() {
+      if (mounted && _settle.value >= 1) then?.call();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    // v1.0.0 mobil düzeltme: alt kaydırılabilirler her platformda aynı davranır —
-    //  • her zaman kaydırılabilir (içerik kısa olsa da çekilebilir),
-    //  • sıkıştırmalı (clamping) fizik: iOS esneme + bizim kaydırmamız iki kat hareket yapmaz,
-    //  • Android 12+ "stretch" taşma efekti kapalı: içerik hem esneyip hem kaymıyordu (görüntü bozulması).
+    final dark = JuzzioAppController.instance.isDark;
     return ScrollConfiguration(
       behavior: const _JuzzioClothScrollBehavior(),
       child: NotificationListener<ScrollNotification>(
         onNotification: _onScroll,
-        child: ValueListenableBuilder<double>(
-          valueListenable: _content,
-          child: widget.child,
-          builder: (context, dy, child) => Transform.translate(offset: Offset(0, dy), child: child),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            // 03 PINCH: içerik yumruğa doğru çok hafif içe çekilir (kumaş büzülmesi)
+            ValueListenableBuilder<double>(
+              valueListenable: _content,
+              child: widget.child,
+              builder: (context, dy, child) => ValueListenableBuilder<double>(
+                valueListenable: _curl,
+                child: child,
+                builder: (context, curl, child) => Transform.translate(
+                  offset: Offset(0, dy),
+                  child: curl <= 0.001
+                      ? child
+                      : Transform.scale(
+                          scale: 1 - 0.012 * curl,
+                          alignment: Alignment.topCenter,
+                          child: child,
+                        ),
+                ),
+              ),
+            ),
+            // 05 LOADING: çentik ile başlık arasındaki boşlukta sade halka
+            Positioned(
+              left: 0,
+              right: 0,
+              top: 0,
+              child: IgnorePointer(
+                child: ValueListenableBuilder<bool>(
+                  valueListenable: _spinning,
+                  builder: (context, on, _) => AnimatedOpacity(
+                    opacity: on ? 1 : 0,
+                    duration: const Duration(milliseconds: 160),
+                    child: on
+                        ? Padding(
+                            padding: EdgeInsets.only(top: math.max(0.0, _geo.spinnerCenterY - 11)),
+                            child: Center(
+                              child: SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: JuzzioOrbitLoader(strokeWidth: 2.2, color: dark ? Colors.white : const Color(0xFF2A2A33)),
+                              ),
+                            ),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                ),
+              ),
+            ),
+            // 01–04: kil el (yalnız çentik/üst kenar ile başlık arasındaki boşlukta)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: RepaintBoundary(
+                  child: CustomPaint(
+                    painter: _JuzzioClayHandPainter(
+                      travel: _travel,
+                      curl: _curl,
+                      geo: () => _geo,
+                      shadowTint: widget.clothColor,
+                      dark: dark,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -543,252 +384,223 @@ class _JuzzioClothScrollBehavior extends MaterialScrollBehavior {
 }
 
 // ---------------------------------------------------------------------------
-// Sahne çizimi (v1.1.1: tamamen vektör)
+// Kil (claymorphism) bebek eli — vektör
 // ---------------------------------------------------------------------------
 
-/// Vektör elin parçaları (tasarım birimi; kök (0,0) = çentik merkezi, +y aşağı).
-/// [curl] 0 açık el … 1 yumruk. Saf; testlerde doğrulanır.
-class JuzzioHandShape {
-  JuzzioHandShape(double curl) : c = curl.clamp(0.0, 1.0) {
-    double l(double a, double b) => a + (b - a) * c;
-    caps = <(Offset, Offset, double)>[
-      (const Offset(0, -4), const Offset(0, 64), 20.0), // önkol
-    ];
-    const xs = [-19.0, -6.5, 6.5, 19.0];
-    const lens = [19.0, 23.0, 22.0, 16.0];
-    tips = <Offset>[];
-    for (var i = 0; i < 4; i++) {
-      final end = Offset(xs[i], 112 + l(lens[i], 3.5));
-      caps.add((Offset(xs[i], 112), end, 7.6));
-      tips.add(end);
-    }
-    thumbBase = Offset(l(-25, -24), l(98, 104));
-    thumbTip = Offset(l(-36, 4), l(120, 110));
-    caps.add((thumbBase, thumbTip, 8.4));
-    palm = Rect.fromCenter(center: Offset(0, l(96, 98)), width: 66, height: l(50, 46));
-  }
-
-  final double c;
-  late final List<(Offset, Offset, double)> caps;
-  late final List<Offset> tips;
-  late final Offset thumbBase;
-  late final Offset thumbTip;
-  late final Rect palm;
-
-  /// Elin en alt noktası (gölge ve kumaş bağlantısı için)
-  double get lowestY => tips.map((t) => t.dy).fold<double>(thumbTip.dy, math.max) + 7.6;
+/// Kil el renkleri (açık pembe-şeftali; tırnak dairesi YOK)
+class JuzzioHandColors {
+  JuzzioHandColors._();
+  static const Color skin = Color(0xFFF8C3BC);
+  static const Color light = Color(0xFFFFE1DB);
+  static const Color shade = Color(0xFFE29A93);
+  static const Color deep = Color(0xFFC97B76);
 }
 
-class _ClothScenePainter extends CustomPainter {
-  _ClothScenePainter({
-    required this.scene,
-    required this.content,
-    required this.geo,
-    required this.sheet,
-    required this.sleeve,
-  }) : super(repaint: Listenable.merge([scene, content]));
+/// Elin parçaları (tasarım birimi; (0,0) = bilek üst ortası, +y aşağı). [curl] 0 açık … 1 yumruk.
+/// Referans görseldeki gibi: geniş tombul avuç, hafif açılmış dört uzun parmak, yanda başparmak.
+/// Saf; testlerde doğrulanır.
+class JuzzioHandShape {
+  JuzzioHandShape(double curl) : c = curl.clamp(0.0, 1.0);
+  final double c;
 
-  final ValueNotifier<JuzzioClothScene> scene;
-  final ValueNotifier<double> content;
-  final JuzzioClothGeometry geo;
-  final ({Color fill, Color valley, Color ridge}) sheet;
-  final Color sleeve;
+  static const double wristHalf = 22;
+  static const double palmTop = 28;
+  double get palmBottom => 58 + 2 * c;
+  double get palmHalf => 31 + 1 * c;
+
+  /// Dört parmak: (kök x, uzunluk, açılma açısı°) — yumrukta kısalır ve kapanır
+  List<({double x, double len, double deg})> get fingers {
+    double l(double open) => open - (open - 13) * c;
+    double d(double open) => open * (1 - c);
+    return [
+      (x: -21.0, len: l(37), deg: d(8)),
+      (x: -7.0, len: l(45), deg: d(2.5)),
+      (x: 7.0, len: l(43), deg: d(-2.5)),
+      (x: 21.0, len: l(33), deg: d(-8)),
+    ];
+  }
+
+  double get fingerWidth => 15.5 + 0.5 * c;
+  double get fingerBaseY => palmBottom - 8;
+
+  /// Parmak uçları (ekran yönünde; açı +° → sola açılır)
+  List<Offset> get tips => [
+        for (final f in fingers)
+          Offset(f.x - math.sin(f.deg * math.pi / 180) * f.len, fingerBaseY + math.cos(f.deg * math.pi / 180) * f.len),
+      ];
+
+  /// Başparmak ucu: açıkta sola-aşağı açık, yumrukta avucun önüne kıvrılır
+  Offset get thumbTip => Offset.lerp(const Offset(-52, 66), const Offset(-4, 56), c)!;
+
+  double get lowestY => tips.map((t) => t.dy).reduce(math.max);
+}
+
+class _JuzzioClayHandPainter extends CustomPainter {
+  _JuzzioClayHandPainter({required this.travel, required this.curl, required this.geo, required this.dark, this.shadowTint})
+      : super(repaint: Listenable.merge([travel, curl]));
+
+  final ValueNotifier<double> travel;
+  final ValueNotifier<double> curl;
+  final JuzzioRefreshGeometry Function() geo;
+  final bool dark;
+  final Color? shadowTint;
+
+  static final Paint _castShadow = Paint()
+    ..color = const Color(0x55000000)
+    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7);
+  static final Paint _island = Paint()..color = kJuzzioIslandColor;
+  static bool _warm = false;
+
+  /// İlk karede gölge/maskeler hazır (shader derleme takılmasını önler)
+  static void warmUp() {
+    if (_warm) return;
+    _warm = true;
+    final r = ui.PictureRecorder();
+    final c = Canvas(r);
+    _paintHand(c, JuzzioHandShape(0));
+    _paintHand(c, JuzzioHandShape(1));
+    r.endRecording().dispose();
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
-    final s = scene.value;
-    final g = geo;
+    final t = travel.value;
+    if (t <= 0.5) return;
+    final g = geo();
+    final shape = JuzzioHandShape(curl.value);
+    final s = g.scale;
+    final origin = g.originY;
     final cx = size.width / 2;
-    final k = g.scale;
-    final root = Offset(cx, g.rootY(s.reveal));
+    // el ucu = başlangıç çizgisi + yol (en fazla 80 dp); üst kısmı çizginin üstünde gizli
+    final tipY = origin + t;
+    final topY = tipY - shape.lowestY * s;
 
-    // El ve kumaş yalnız çentiğin alt kenarının altında görünür (maske)
-    canvas.save();
-    canvas.clipRect(Rect.fromLTRB(0, g.islandBottomY - 0.5, size.width, size.height));
-
-    // ---- Kumaş: yumruğun kavradığı sayfa kenarı ----
-    final amount = math.max(s.tension, s.drape).clamp(0.0, 1.0);
-    if (amount > 0.01) {
-      final topY = math.max(root.dy + 108 * k, g.islandBottomY);
-      final edge = g.contentTop + content.value;
-      final shrink = (-s.drapeStretch).clamp(0.0, 1.0); // ütüleme: alt kenar yukarı toplanır
-      final bottomY = edge + (topY - edge) * shrink;
-      _drawSheet(canvas, size, cx, topY, bottomY, 24 * k, amount);
+    // 03 PINCH: yumruğun altında yüzey büzülmesi (yumuşak 3B gölge, çizgi yok)
+    final c = curl.value;
+    if (c > 0.02) {
+      final pinchCenter = Offset(cx, tipY + 6);
+      final base = shadowTint ?? Colors.black;
+      final pinch = Paint()
+        ..shader = RadialGradient(
+          colors: [base.withValues(alpha: (dark ? 0.42 : 0.22) * c), base.withValues(alpha: 0)],
+          stops: const [0.0, 1.0],
+        ).createShader(Rect.fromCircle(center: pinchCenter, radius: 90 * s));
+      canvas.drawOval(Rect.fromCenter(center: pinchCenter, width: 210 * s, height: 70 * s), pinch);
+      // kumaşın kabaran kenarı: yumuşak açık vurgu
+      final hl = Paint()
+        ..color = Colors.white.withValues(alpha: (dark ? 0.07 : 0.16) * c)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
+      canvas.drawOval(Rect.fromCenter(center: pinchCenter.translate(0, 18 * s), width: 170 * s, height: 22 * s), hl);
     }
 
-    // ---- El ----
-    if (s.reveal > -2) {
-      final shape = JuzzioHandShape(s.curl);
-      final rad = s.angleDeg * math.pi / 180;
-      // yumuşak zemin gölgesi (radyal gradyan; görüntü bulanıklığı YOK → GPU artefaktı yok)
-      final len = shape.lowestY * k;
-      final tip = root + Offset(math.sin(rad) * len, math.cos(rad) * len);
-      final c = tip + Offset(10 + 16 * s.lift, 2 + 14 * s.lift) * k;
-      final w = 88 * k * (1 + 0.4 * s.lift);
-      final strength = (s.dark ? 0.30 : 0.18) * (1 - 0.85 * s.lift);
-      if (strength > 0.01) {
-        final base = s.dark ? Colors.black : const Color(0xFF7D8597);
-        final oval = Rect.fromCenter(center: c, width: w, height: w * 0.26);
-        canvas.drawOval(
-          oval,
-          Paint()
-            ..shader = RadialGradient(colors: [base.withValues(alpha: strength), base.withValues(alpha: 0)]).createShader(oval),
-        );
-      }
+    canvas.save();
+    // yalnız çentiğin / üst kenarın altında görünür
+    canvas.clipRect(Rect.fromLTRB(0, origin - 0.5, size.width, size.height));
+    canvas.translate(cx, topY);
+    canvas.scale(s);
+    // 3B yumuşak düşen gölge
+    canvas.save();
+    canvas.translate(4, 7);
+    canvas.drawPath(_silhouette(shape), _castShadow);
+    canvas.restore();
+    _paintHand(canvas, shape);
+    canvas.restore();
+
+    // çentiksiz ekranlarda el çentikten çıkıyormuş gibi görünsün
+    if (!g.embedded) {
+      final w = g.islandWidth, h = g.islandHeight;
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(Rect.fromCenter(center: Offset(cx, g.islandCenterY - g.contentTop), width: w, height: h), Radius.circular(h / 2)),
+        _island,
+      );
+    }
+  }
+
+  static Path _silhouette(JuzzioHandShape h) {
+    final p = Path()
+      ..addRRect(RRect.fromRectAndRadius(Rect.fromLTRB(-JuzzioHandShape.wristHalf, -6, JuzzioHandShape.wristHalf, JuzzioHandShape.palmTop + 6), const Radius.circular(12)))
+      ..addRRect(RRect.fromRectAndRadius(
+          Rect.fromLTRB(-h.palmHalf, JuzzioHandShape.palmTop - 6, h.palmHalf, h.palmBottom + 4), Radius.circular(h.palmHalf * 0.8)));
+    for (final f in h.fingers) {
+      p.addPath(_finger(h, f), Offset.zero);
+    }
+    p.addPath(_thumb(h), Offset.zero);
+    return p;
+  }
+
+  static Path _finger(JuzzioHandShape h, ({double x, double len, double deg}) f) {
+    final m = Matrix4.identity()
+      ..translate(f.x, h.fingerBaseY)
+      ..rotateZ(f.deg * math.pi / 180);
+    final r = Rect.fromLTWH(-h.fingerWidth / 2, -8, h.fingerWidth, f.len + 8);
+    return (Path()..addRRect(RRect.fromRectAndRadius(r, Radius.circular(h.fingerWidth / 2)))).transform(m.storage);
+  }
+
+  static Path _thumb(JuzzioHandShape h) {
+    final root = Offset(-h.palmHalf + 8, JuzzioHandShape.palmTop + 10);
+    final tip = h.thumbTip;
+    final dir = tip - root;
+    final len = dir.distance;
+    final ang = math.atan2(dir.dy, dir.dx);
+    final m = Matrix4.identity()
+      ..translate(root.dx, root.dy)
+      ..rotateZ(ang);
+    return (Path()..addRRect(RRect.fromRectAndRadius(Rect.fromLTWH(-4, -8, len + 4, 16), const Radius.circular(8)))).transform(m.storage);
+  }
+
+  /// Kil dokusu: her parça kendi yumuşak radyal gölgesiyle (ışık sol üstten)
+  static void _paintHand(Canvas canvas, JuzzioHandShape h) {
+    Paint clay(Rect r, {double lightX = -0.45, double lightY = -0.55}) => Paint()
+      ..shader = RadialGradient(
+        center: Alignment(lightX, lightY),
+        radius: 1.05,
+        colors: const [JuzzioHandColors.light, JuzzioHandColors.skin, JuzzioHandColors.shade],
+        stops: const [0.0, 0.55, 1.0],
+      ).createShader(r);
+
+    // bilek / kol (çentikten gelir)
+    final wrist = Rect.fromLTRB(-JuzzioHandShape.wristHalf, -40, JuzzioHandShape.wristHalf, JuzzioHandShape.palmTop + 6);
+    canvas.drawRRect(RRect.fromRectAndRadius(wrist, const Radius.circular(14)),
+        Paint()
+          ..shader = const LinearGradient(colors: [JuzzioHandColors.shade, JuzzioHandColors.light, JuzzioHandColors.skin, JuzzioHandColors.shade], stops: [0, 0.35, 0.7, 1])
+              .createShader(wrist));
+
+    // başparmak arkada (açık elde avucun yanında)
+    final thumb = _thumb(h);
+    if (h.c < 0.5) canvas.drawPath(thumb, clay(thumb.getBounds()));
+
+    // parmaklar (avucun arkasından çıkar)
+    for (final f in h.fingers) {
+      final path = _finger(h, f);
+      canvas.drawPath(path, clay(path.getBounds(), lightX: -0.3, lightY: -0.2));
+      // eklem kıvrımı (yumrukta boğum gölgesi) — tırnak dairesi YOK
+      final crease = Paint()
+        ..color = JuzzioHandColors.deep.withValues(alpha: 0.16 + 0.22 * h.c)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2
+        ..strokeCap = StrokeCap.round;
       canvas.save();
-      canvas.translate(root.dx, root.dy);
-      canvas.rotate(-rad); // pozitif açı = parmak ucu sağa
-      canvas.scale(k);
-      _drawHand(canvas, shape);
+      canvas.translate(f.x, h.fingerBaseY);
+      canvas.rotate(f.deg * math.pi / 180);
+      canvas.drawArc(Rect.fromCenter(center: Offset(0, f.len * 0.55), width: h.fingerWidth * 0.55, height: 4), 0.2, math.pi - 0.4, false, crease);
       canvas.restore();
     }
-    canvas.restore();
 
-    // ---- Dynamic Island: tam siyah, EN ÜST katman (el asla üstünü boyamaz) ----
-    if (s.island > 0.01) {
-      final r = RRect.fromRectAndRadius(
-        Rect.fromCenter(center: Offset(cx, g.islandCenterY), width: g.islandWidth, height: g.islandHeight),
-        Radius.circular(g.islandHeight / 2),
-      );
-      canvas.drawRRect(r, Paint()..color = kJuzzioIslandColor);
-    }
-  }
-
-  void _drawSheet(Canvas canvas, Size size, double cx, double topY, double bottomY, double hw, double amount) {
-    final h = bottomY - topY;
-    if (h < 4) return;
-    // kısa kumaş dar kalır (ütüleme sonunda ekran boyu ince çizgi oluşmaz)
-    final w = math.min(size.width / 2 + 6, hw + h * 2.4);
-    final path = Path()
-      ..moveTo(cx - hw, topY)
-      ..cubicTo(cx - hw * 1.7, topY + h * 0.42, cx - w, bottomY - h * 0.42, cx - w, bottomY)
-      ..quadraticBezierTo(cx, bottomY + math.min(10.0, h * 0.08), cx + w, bottomY)
-      ..cubicTo(cx + w, bottomY - h * 0.42, cx + hw * 1.7, topY + h * 0.42, cx + hw, topY)
-      ..close();
-    final bounds = Rect.fromLTRB(cx - w, topY, cx + w, bottomY);
-    canvas.drawPath(
-      path,
+    // avuç (tombul, yumuşak)
+    final palm = Rect.fromLTRB(-h.palmHalf, JuzzioHandShape.palmTop - 6, h.palmHalf, h.palmBottom + 4);
+    canvas.drawRRect(RRect.fromRectAndRadius(palm, Radius.circular(h.palmHalf * 0.8)), clay(palm));
+    // avuç parlaklığı (kil hissi)
+    canvas.drawOval(
+      Rect.fromCenter(center: Offset(-h.palmHalf * 0.35, JuzzioHandShape.palmTop + 6), width: h.palmHalf * 0.8, height: 12),
       Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Color.lerp(sheet.fill, Colors.black, 0.05)!.withValues(alpha: 0.96 * amount),
-            sheet.fill.withValues(alpha: 0.92 * amount),
-          ],
-        ).createShader(bounds),
+        ..color = Colors.white.withValues(alpha: 0.28)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
     );
-    // yumuşak kıvrımlar: yumruktan yelpaze gibi açılan vadi + ince sırt çizgileri
-    if (h < 24) return;
-    canvas.save();
-    canvas.clipPath(path);
-    final valley = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeWidth = math.max(3.0, hw * 0.22)
-      ..color = sheet.valley.withValues(alpha: sheet.valley.a * amount);
-    final ridge = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeWidth = math.max(1.0, hw * 0.08)
-      ..color = sheet.ridge.withValues(alpha: sheet.ridge.a * amount);
-    for (final f in const [-0.72, -0.36, 0.0, 0.36, 0.72]) {
-      final ex = f * w * 0.78;
-      final start = Offset(cx + f * hw * 0.8, topY + 3);
-      final ctrl = Offset(cx + ex * 0.5, topY + h * 0.45);
-      final end = Offset(cx + ex, bottomY);
-      canvas.drawPath(Path()..moveTo(start.dx, start.dy)..quadraticBezierTo(ctrl.dx, ctrl.dy, end.dx, end.dy), valley);
-      final o = Offset(hw * 0.12, 0);
-      canvas.drawPath(
-          Path()
-            ..moveTo(start.dx + o.dx, start.dy)
-            ..quadraticBezierTo(ctrl.dx + o.dx, ctrl.dy, end.dx + o.dx * 1.4, end.dy),
-          ridge);
-    }
-    canvas.restore();
-  }
 
-  void _drawHand(Canvas canvas, JuzzioHandShape shape) {
-    final skin = Paint()
-      ..shader = const LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [JuzzioHandColors.highlight, JuzzioHandColors.skin, JuzzioHandColors.shade],
-        stops: [0.0, 0.42, 1.0],
-      ).createShader(const Rect.fromLTRB(-34, 0, 34, 30));
-    Paint capPaint(Paint base, double width) => Paint()
-      ..shader = base.shader
-      ..color = base.color
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeWidth = width;
-    final outline = Paint()..color = JuzzioHandColors.outline;
-    final palm = RRect.fromRectAndRadius(shape.palm, const Radius.circular(20));
-
-    // 1) dış çizgi (tüm parçalar), 2) dolgu (tüm parçalar) → tek, temiz siluet
-    for (final (a, b, r) in shape.caps) {
-      canvas.drawLine(a, b, capPaint(outline, 2 * r + 3));
-    }
-    canvas.drawRRect(palm.inflate(1.5), outline);
-    for (final (a, b, r) in shape.caps) {
-      canvas.drawLine(a, b, capPaint(skin, 2 * r));
-    }
-    canvas.drawRRect(palm, skin);
-
-    final c = shape.c;
-    final crease = Paint()
-      ..color = JuzzioHandColors.shade
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeWidth = 1.8;
-    // parmak araları
-    for (final x in const [-12.75, 0.0, 12.75]) {
-      canvas.drawLine(Offset(x, 116), Offset(x, 128 - 10 * c), crease);
-    }
-    // yumrukta boğum çizgisi
-    if (c > 0.3) {
-      final a = ((c - 0.3) / 0.4).clamp(0.0, 1.0);
-      canvas.drawPath(
-        Path()
-          ..moveTo(-26, 112)
-          ..quadraticBezierTo(0, 118, 26, 112),
-        Paint()
-          ..color = JuzzioHandColors.shade.withValues(alpha: a)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.6,
-      );
-    }
-    // tırnaklar (yumrukta parmak uçları içe kıvrılır → söner)
-    final nail = Paint()..color = JuzzioHandColors.nail.withValues(alpha: 1 - c);
-    if (c < 0.98) {
-      for (final t in shape.tips) {
-        canvas.drawOval(Rect.fromCenter(center: t.translate(0, 1), width: 8.4, height: 9.2 - 4.4 * c), nail);
-      }
-    }
-    canvas.drawCircle(shape.thumbTip, 4.4, Paint()..color = JuzzioHandColors.nail);
-    // parlama
-    final hi = Paint()..color = JuzzioHandColors.highlight.withValues(alpha: 0.55);
-    canvas.drawLine(const Offset(-9, 40), const Offset(-9, 62), capPaint(hi, 6));
-    canvas.drawOval(Rect.fromCenter(center: Offset(-12, shape.palm.top + 8), width: 18, height: 10), hi);
-
-    // kol manşeti: temanın parlayan rengi (kol çentikten "kesik" görünmez)
-    final cuff = RRect.fromRectAndRadius(const Rect.fromLTWH(-25, -10, 50, 44), const Radius.circular(13));
-    canvas.drawRRect(
-      cuff,
-      Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color.lerp(sleeve, Colors.white, 0.55)!, sleeve],
-        ).createShader(cuff.outerRect),
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(const Rect.fromLTWH(-25, 26, 50, 8), const Radius.circular(4)),
-      Paint()..color = Color.lerp(sleeve, Colors.black, 0.22)!,
-    );
+    // yumrukta başparmak avucun önüne kıvrılır
+    if (h.c >= 0.5) canvas.drawPath(thumb, clay(thumb.getBounds(), lightX: -0.2, lightY: -0.7));
   }
 
   @override
-  bool shouldRepaint(_ClothScenePainter old) =>
-      old.scene != scene || old.content != content || old.geo != geo || old.sheet != sheet || old.sleeve != sleeve;
+  bool shouldRepaint(covariant _JuzzioClayHandPainter old) => old.dark != dark || old.shadowTint != shadowTint;
 }

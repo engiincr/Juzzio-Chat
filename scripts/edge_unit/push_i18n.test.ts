@@ -27,3 +27,22 @@ console.log(`push_i18n: ${n}/${n} PASS`);
   if (m.previewParts("x|y", "poll") !== null) throw new Error("previewParts null");
   console.log("push_i18n v0.9.5: 2/2 PASS");
 }
+// v1.2.0 hikâye tepki / yorum bildirimleri
+{
+  const m = await import("./push_i18n.js");
+  const c = (preview: string) => ({ actor: "Fikret39", me: "Ali", preview, gender: "unspecified" as const });
+  const checks: Array<[string, string, string, string]> = [
+    ["tr", "storyreact|🌸", "Hikâyene 🌸 tepkisi verdi.", "tr tepki"],
+    ["tr", "storycomment|çok güzel", 'Hikâyene "çok güzel" yorumunu ekledi.', "tr yorum"],
+    ["tr", "storycomment|", "Hikâyene yorum ekledi.", "tr şifreli yorum"],
+    ["en", "storyreact|🔥", "Reacted 🔥 to your story.", "en tepki"],
+    ["de", "storycomment|super", "Hat deine Story kommentiert: „super“", "de yorum"],
+    ["tr", "📸 Hikâye yanıtı: x", "Hikâyenize yanıt verdi.", "tr eski biçim"],
+  ];
+  for (const [lang, pv, body, name] of checks) {
+    const r = await m.buildLocalizedPush("story_reply", lang as "tr" | "en" | "de", c(pv));
+    if (r.body !== body) { console.log("FAIL", name, r.body); process.exit(1); }
+  }
+  if (m.storyParts("x") !== null) throw new Error("storyParts null");
+  console.log(`push_i18n v1.2.0: ${checks.length + 1}/${checks.length + 1} PASS`);
+}

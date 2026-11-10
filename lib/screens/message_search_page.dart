@@ -14,6 +14,7 @@ import '../core/theme/juzzio_glass.dart';
 import '../services/juzzio_e2ee.dart';
 import '../services/juzzio_life_service.dart';
 import '../services/supabase_service.dart';
+import '../widgets/juzzio_motion.dart';
 import '../widgets/juzzio_ui_kit.dart';
 
 const int kScanLimit = 400;
@@ -89,12 +90,24 @@ class JuzzioMessageSearchFilter {
 }
 
 class JuzzioMessageSearchPage extends StatefulWidget {
-  const JuzzioMessageSearchPage({super.key, required this.rooms, required this.onOpenRoom, this.initialRoomId});
+  const JuzzioMessageSearchPage({
+    super.key,
+    required this.rooms,
+    required this.onOpenRoom,
+    this.initialRoomId,
+    this.onOpenMessage,
+  });
 
   /// (oda kimliği, görünen ad) — kişi/sohbet filtresi için
   final List<(String, String)> rooms;
   final ValueChanged<String> onOpenRoom;
+
+  /// v1.2.0: bir sohbetin içinden açıldığında arama YALNIZ bu sohbette yapılır
+  /// (kapsam çipinden "Tüm sohbetler"e geçilebilir).
   final String? initialRoomId;
+
+  /// v1.2.0: sonuca dokununca sohbet açılır ve o mesaja kaydırılıp vurgulanır
+  final void Function(String roomId, String messageId)? onOpenMessage;
 
   @override
   State<JuzzioMessageSearchPage> createState() => _JuzzioMessageSearchPageState();
@@ -112,6 +125,7 @@ class _JuzzioMessageSearchPageState extends State<JuzzioMessageSearchPage> {
   @override
   void initState() {
     super.initState();
+    _q.addListener(() => setState(() {}));
     _fetch();
   }
 
@@ -157,154 +171,333 @@ class _JuzzioMessageSearchPageState extends State<JuzzioMessageSearchPage> {
     return _app.trEn('Sohbet', 'Chat', 'Chat');
   }
 
+  IconData _typeIcon(String t) => switch (t) {
+        'image' => Icons.photo_rounded,
+        'video' => Icons.videocam_rounded,
+        'document' => Icons.description_rounded,
+        'voice' => Icons.mic_rounded,
+        _ => Icons.chat_bubble_rounded,
+      };
+
+  String _dayLabel(DateTime t) {
+    final now = DateTime.now();
+    if (DateUtils.isSameDay(t, now)) return _app.trEn('Bugün', 'Today', 'Heute');
+    if (DateUtils.isSameDay(t, now.subtract(const Duration(days: 1)))) return _app.trEn('Dün', 'Yesterday', 'Gestern');
+    return '${t.day.toString().padLeft(2, '0')}.${t.month.toString().padLeft(2, '0')}.${t.year}';
+  }
+
+  /// Eşleşen kısmı vurgulayan metin (Türkçe İ/ı duyarsız)
+  Widget _highlight(String text, String q, TextStyle base, Color hl) {
+    if (q.trim().isEmpty) return Text(text, maxLines: 3, overflow: TextOverflow.ellipsis, style: base);
+    final ft = JuzzioMessageSearchFilter.fold(text);
+    final fq = JuzzioMessageSearchFilter.fold(q.trim());
+    final i = ft.length == text.length ? ft.indexOf(fq) : -1;
+    if (i < 0) return Text(text, maxLines: 3, overflow: TextOverflow.ellipsis, style: base);
+    final start = (i - 40).clamp(0, text.length);
+    return Text.rich(
+      TextSpan(style: base, children: [
+        TextSpan(text: '${start > 0 ? '…' : ''}${text.substring(start, i)}'),
+        TextSpan(
+          text: text.substring(i, i + fq.length),
+          style: TextStyle(fontWeight: FontWeight.w900, backgroundColor: hl.withValues(alpha: 0.28)),
+        ),
+        TextSpan(text: text.substring(i + fq.length)),
+      ]),
+      maxLines: 3,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = JuzzioPalette(_app.isDark);
     final life = JuzzioLifeService.instance;
     final results = _scanned.where((m) => _f.matches(m, isSaved: life.isMessageSaved(m.id))).toList();
-    Widget chip(String label, bool on, VoidCallback onTap) => Padding(
-          padding: const EdgeInsetsDirectional.only(end: 6),
-          child: FilterChip(label: Text(label), selected: on, onSelected: (_) => onTap()),
-        );
+    final accent = JuzzioGlassTokens.glow;
+    final scoped = _f.roomId != null;
     Set<String> toggled(String t) {
       final next = {..._f.types};
       if (!next.remove(t)) next.add(t);
       return next;
     }
 
+    Widget chip(IconData icon, String label, bool on, VoidCallback onTap) => Padding(
+          padding: const EdgeInsetsDirectional.only(end: 8),
+          child: FilterChip(
+            showCheckmark: false,
+            avatar: Icon(icon, size: 16, color: on ? JuzzioGlassTokens.onAccent : p.textSecondary),
+            label: Text(label),
+            labelStyle: TextStyle(color: on ? JuzzioGlassTokens.onAccent : p.textPrimary, fontWeight: FontWeight.w700, fontSize: 12.5),
+            selected: on,
+            selectedColor: accent,
+            backgroundColor: JuzzioGlassTokens.surfaceStrong,
+            side: BorderSide(color: on ? accent : JuzzioGlassTokens.border),
+            shape: const StadiumBorder(),
+            onSelected: (_) => onTap(),
+          ),
+        );
+
+    // tarih başlıklı liste
+    final items = <Widget>[];
+    String? lastDay;
+    for (final m in results) {
+      final t = m.createdAt.toLocal();
+      final day = _dayLabel(t);
+      if (day != lastDay) {
+        lastDay = day;
+        items.add(Padding(
+          padding: const EdgeInsets.fromLTRB(6, 14, 6, 6),
+          child: Text(day, style: TextStyle(color: p.textSecondary, fontWeight: FontWeight.w800, fontSize: 12.5)),
+        ));
+      }
+      final body = m.originalText.isNotEmpty ? m.originalText : (m.documentName ?? '');
+      items.add(Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Material(
+          color: JuzzioGlassTokens.surfaceStrong,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18), side: BorderSide(color: JuzzioGlassTokens.border)),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(18),
+            onTap: () {
+              Navigator.of(context).pop();
+              if (widget.onOpenMessage != null) {
+                widget.onOpenMessage!(m.roomId, m.id);
+              } else {
+                widget.onOpenRoom(m.roomId);
+              }
+            },
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(color: accent.withValues(alpha: 0.16), borderRadius: BorderRadius.circular(12)),
+                  child: Icon(_typeIcon(m.messageType), size: 18, color: JuzzioGlassTokens.glowText),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Row(children: [
+                      Expanded(
+                        child: Text(
+                          scoped ? (m.senderName.isNotEmpty ? m.senderName : _roomName(m.roomId)) : '${_roomName(m.roomId)}${m.senderName.isNotEmpty ? ' · ${m.senderName}' : ''}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: p.textPrimary, fontWeight: FontWeight.w800, fontSize: 13.5),
+                        ),
+                      ),
+                      Text('${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}',
+                          style: TextStyle(color: p.textSecondary, fontSize: 11.5)),
+                    ]),
+                    const SizedBox(height: 3),
+                    if (body.isNotEmpty)
+                      _highlight(body, _f.text, TextStyle(color: p.textSecondary, fontSize: 13.5, height: 1.35), accent)
+                    else
+                      Text(_app.trEn('Medya', 'Media', 'Medien'), style: TextStyle(color: p.textSecondary, fontSize: 13)),
+                  ]),
+                ),
+              ]),
+            ),
+          ),
+        ),
+      ));
+    }
+
     return Scaffold(
       backgroundColor: p.bgPrimary,
-      appBar: AppBar(
-        backgroundColor: p.sheetBg,
-        foregroundColor: p.textPrimary,
-        elevation: 0,
-        title: TextField(
-          controller: _q,
-          autofocus: true,
-          style: TextStyle(color: p.textPrimary),
-          decoration: InputDecoration(
-            hintText: _app.trEn('Mesajlarda ara…', 'Search messages…', 'Nachrichten durchsuchen…'),
-            border: InputBorder.none,
-          ),
-          onChanged: (v) => _update(_f.copyWith(text: v), refetch: false),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // ---- cam arama kutusu ----
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 8, 12, 4),
+              child: Row(children: [
+                IconButton(icon: Icon(Icons.arrow_back_rounded, color: p.textPrimary), onPressed: () => Navigator.of(context).pop()),
+                Expanded(
+                  child: Container(
+                    height: 48,
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    decoration: BoxDecoration(
+                      color: JuzzioGlassTokens.surfaceStrong,
+                      borderRadius: BorderRadius.circular(99),
+                      border: Border.all(color: JuzzioGlassTokens.border),
+                    ),
+                    child: Row(children: [
+                      Icon(Icons.search_rounded, color: p.textSecondary, size: 21),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: _q,
+                          autofocus: true,
+                          textInputAction: TextInputAction.search,
+                          style: TextStyle(color: p.textPrimary, fontSize: 15.5),
+                          decoration: InputDecoration(
+                            isDense: true,
+                            hintText: scoped
+                                ? _app.trEn('${_roomName(_f.roomId!)} içinde ara…', 'Search in ${_roomName(_f.roomId!)}…', 'In ${_roomName(_f.roomId!)} suchen…')
+                                : _app.trEn('Tüm mesajlarda ara…', 'Search all messages…', 'Alle Nachrichten durchsuchen…'),
+                            hintStyle: TextStyle(color: p.textSecondary),
+                            border: InputBorder.none,
+                          ),
+                          onChanged: (v) => _update(_f.copyWith(text: v), refetch: false),
+                        ),
+                      ),
+                      if (_q.text.isNotEmpty)
+                        GestureDetector(
+                          onTap: () {
+                            _q.clear();
+                            _update(_f.copyWith(text: ''), refetch: false);
+                          },
+                          child: Icon(Icons.cancel_rounded, color: p.textSecondary, size: 19),
+                        ),
+                    ]),
+                  ),
+                ),
+              ]),
+            ),
+            // ---- kapsam: bu sohbet / tüm sohbetler ----
+            SizedBox(
+              height: 46,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                children: [
+                  if (widget.initialRoomId != null)
+                    chip(Icons.chat_rounded, _roomName(widget.initialRoomId!), _f.roomId == widget.initialRoomId,
+                        () => _update(_f.copyWith(roomId: widget.initialRoomId))),
+                  chip(Icons.forum_rounded, _app.trEn('Tüm sohbetler', 'All chats', 'Alle Chats'), _f.roomId == null,
+                      () => _update(_f.copyWith(clearRoom: true))),
+                  if (widget.initialRoomId == null && widget.rooms.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsetsDirectional.only(end: 8),
+                      child: ActionChip(
+                        avatar: Icon(Icons.person_search_rounded, size: 16, color: p.textSecondary),
+                        label: Text(_f.roomId == null ? _app.trEn('Kişi / sohbet seç', 'Pick a chat', 'Chat wählen') : _roomName(_f.roomId!)),
+                        labelStyle: TextStyle(color: p.textPrimary, fontWeight: FontWeight.w700, fontSize: 12.5),
+                        backgroundColor: JuzzioGlassTokens.surfaceStrong,
+                        side: BorderSide(color: _f.roomId != null ? accent : JuzzioGlassTokens.border),
+                        shape: const StadiumBorder(),
+                        onPressed: _pickRoom,
+                      ),
+                    ),
+                  Padding(
+                    padding: const EdgeInsetsDirectional.only(end: 8),
+                    child: ActionChip(
+                      avatar: Icon(Icons.date_range_rounded, size: 16, color: p.textSecondary),
+                      label: Text(_f.from == null
+                          ? _app.trEn('Tarih', 'Date', 'Datum')
+                          : '${_f.from!.day}.${_f.from!.month}–${_f.to?.day ?? ''}.${_f.to?.month ?? ''}'),
+                      labelStyle: TextStyle(color: p.textPrimary, fontWeight: FontWeight.w700, fontSize: 12.5),
+                      backgroundColor: JuzzioGlassTokens.surfaceStrong,
+                      side: BorderSide(color: _f.from != null ? accent : JuzzioGlassTokens.border),
+                      shape: const StadiumBorder(),
+                      onPressed: () async {
+                        if (_f.from != null) {
+                          _update(_f.copyWith(clearDates: true));
+                          return;
+                        }
+                        final r = await showDateRangePicker(context: context, firstDate: DateTime(2020), lastDate: DateTime.now());
+                        if (r != null) _update(_f.copyWith(from: r.start, to: r.end));
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(
+              height: 46,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                children: [
+                  chip(Icons.photo_rounded, _app.trEn('Fotoğraf', 'Photos', 'Fotos'), _f.types.contains('image'), () => _update(_f.copyWith(types: toggled('image')))),
+                  chip(Icons.videocam_rounded, _app.trEn('Video', 'Videos', 'Videos'), _f.types.contains('video'), () => _update(_f.copyWith(types: toggled('video')))),
+                  chip(Icons.description_rounded, _app.trEn('Belge', 'Documents', 'Dokumente'), _f.types.contains('document'), () => _update(_f.copyWith(types: toggled('document')))),
+                  chip(Icons.mic_rounded, _app.trEn('Ses kaydı', 'Voice', 'Sprache'), _f.types.contains('voice'), () => _update(_f.copyWith(types: toggled('voice')))),
+                  chip(Icons.link_rounded, _app.trEn('Bağlantı', 'Links', 'Links'), _f.linksOnly, () => _update(_f.copyWith(linksOnly: !_f.linksOnly), refetch: false)),
+                  chip(Icons.star_rounded, _app.trEn('Kayıtlı', 'Saved', 'Gespeichert'), _f.savedOnly, () => _update(_f.copyWith(savedOnly: !_f.savedOnly), refetch: false)),
+                ],
+              ),
+            ),
+            if (_loading && _scanned.isNotEmpty) const JuzzioSparklerBar(minHeight: 2),
+            Expanded(
+              child: _loading && _scanned.isEmpty
+                  ? const JuzzioListSkeleton()
+                  : _error != null
+                      ? Center(
+                          child: Column(mainAxisSize: MainAxisSize.min, children: [
+                            Text(SupabaseService.instance.friendlyError(_error!), style: TextStyle(color: p.textSecondary)),
+                            const SizedBox(height: 10),
+                            FilledButton(onPressed: _fetch, child: Text(_app.trEn('Tekrar dene', 'Retry', 'Erneut versuchen'))),
+                          ]),
+                        )
+                      : results.isEmpty
+                          ? Center(
+                              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                                Icon(Icons.manage_search_rounded, size: 56, color: p.textSecondary.withValues(alpha: 0.5)),
+                                const SizedBox(height: 10),
+                                Text(
+                                  _f.text.trim().isEmpty
+                                      ? _app.trEn('Aramak için yazmaya başla', 'Start typing to search', 'Tippe, um zu suchen')
+                                      : _app.trEn('"${_f.text.trim()}" için sonuç yok', 'No results for "${_f.text.trim()}"', 'Keine Ergebnisse für „${_f.text.trim()}“'),
+                                  style: TextStyle(color: p.textSecondary, fontWeight: FontWeight.w600),
+                                ),
+                              ]),
+                            )
+                          : ListView(
+                              padding: const EdgeInsets.fromLTRB(12, 0, 12, 20),
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(6, 6, 6, 0),
+                                  child: Text(
+                                    _app.trEn('${results.length} sonuç', '${results.length} results', '${results.length} Ergebnisse'),
+                                    style: TextStyle(color: p.textPrimary, fontWeight: FontWeight.w900, fontSize: 14),
+                                  ),
+                                ),
+                                ...items,
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 8),
+                                  child: Text(
+                                    _app.trEn(
+                                        '🔒 Şifreli mesajlar yalnızca bu cihazda aranır · son $kScanLimit mesaj tarandı',
+                                        '🔒 Encrypted messages are searched only on this device · last $kScanLimit messages scanned',
+                                        '🔒 Verschlüsselte Nachrichten werden nur auf diesem Gerät durchsucht'),
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(color: p.textMuted, fontSize: 11),
+                                  ),
+                                ),
+                              ],
+                            ),
+            ),
+          ],
         ),
       ),
-      body: Column(
-        children: [
-          SizedBox(
-            height: 48,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              children: [
-                chip(_app.trEn('Fotoğraf', 'Photos', 'Fotos'), _f.types.contains('image'), () => _update(_f.copyWith(types: toggled('image')))),
-                chip(_app.trEn('Video', 'Videos', 'Videos'), _f.types.contains('video'), () => _update(_f.copyWith(types: toggled('video')))),
-                chip(_app.trEn('Belge', 'Documents', 'Dokumente'), _f.types.contains('document'), () => _update(_f.copyWith(types: toggled('document')))),
-                chip(_app.trEn('Ses kaydı', 'Voice', 'Sprache'), _f.types.contains('voice'), () => _update(_f.copyWith(types: toggled('voice')))),
-                chip(_app.trEn('Bağlantı', 'Links', 'Links'), _f.linksOnly, () => _update(_f.copyWith(linksOnly: !_f.linksOnly), refetch: false)),
-                chip(_app.trEn('Kayıtlı', 'Saved', 'Gespeichert'), _f.savedOnly, () => _update(_f.copyWith(savedOnly: !_f.savedOnly), refetch: false)),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: DropdownButton<String?>(
-                    isExpanded: true,
-                    value: _f.roomId,
-                    dropdownColor: p.cardBg,
-                    hint: Text(_app.trEn('Tüm sohbetler / kişiler', 'All chats / people', 'Alle Chats / Personen')),
-                    items: [
-                      DropdownMenuItem<String?>(value: null, child: Text(_app.trEn('Tüm sohbetler', 'All chats', 'Alle Chats'))),
-                      for (final r in widget.rooms)
-                        DropdownMenuItem<String?>(value: r.$1, child: Text(r.$2, overflow: TextOverflow.ellipsis)),
-                    ],
-                    onChanged: (v) => _update(v == null ? _f.copyWith(clearRoom: true) : _f.copyWith(roomId: v)),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                TextButton.icon(
-                  icon: const Icon(Icons.date_range_rounded),
-                  label: Text(_f.from == null
-                      ? _app.trEn('Tarih', 'Date', 'Datum')
-                      : '${_f.from!.day}.${_f.from!.month}–${_f.to?.day ?? ''}.${_f.to?.month ?? ''}'),
-                  onPressed: () async {
-                    final r = await showDateRangePicker(
-                      context: context,
-                      firstDate: DateTime(2020),
-                      lastDate: DateTime.now(),
-                    );
-                    if (r != null) _update(_f.copyWith(from: r.start, to: r.end));
-                  },
-                ),
-                if (_f.from != null)
-                  IconButton(
-                    tooltip: _app.trEn('Tarihi temizle', 'Clear date', 'Datum löschen'),
-                    icon: const Icon(Icons.close_rounded),
-                    onPressed: () => _update(_f.copyWith(clearDates: true)),
-                  ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
-            child: Text(
-              _app.trEn(
-                  'Şifreli mesajlar yalnızca bu cihazda aranır · son $kScanLimit mesaj tarandı',
-                  'Encrypted messages are searched only on this device · last $kScanLimit messages scanned',
-                  'Verschlüsselte Nachrichten werden nur auf diesem Gerät durchsucht · letzte $kScanLimit Nachrichten'),
-              style: TextStyle(color: p.textMuted, fontSize: 11),
-            ),
-          ),
-          Expanded(
-            child: _loading && _scanned.isEmpty
-                ? const JuzzioListSkeleton()
-                : _error != null
-                    ? Center(
-                        child: Column(mainAxisSize: MainAxisSize.min, children: [
-                          Text(SupabaseService.instance.friendlyError(_error!), style: TextStyle(color: p.textSecondary)),
-                          FilledButton(onPressed: _fetch, child: Text(_app.trEn('Tekrar dene', 'Retry', 'Erneut versuchen'))),
-                        ]),
-                      )
-                    : results.isEmpty
-                        ? Center(
-                            child: Text(_app.trEn('Sonuç yok', 'No results', 'Keine Ergebnisse'), style: TextStyle(color: p.textSecondary)),
-                          )
-                        : ListView.separated(
-                            padding: const EdgeInsets.all(12),
-                            itemCount: results.length,
-                            separatorBuilder: (_, __) => const SizedBox(height: 6),
-                            itemBuilder: (_, i) {
-                              final m = results[i];
-                              final t = m.createdAt.toLocal();
-                              return JuzzioGlass(
-                                radius: 16,
-                                child: ListTile(
-                                  title: Text(
-                                    m.originalText.isNotEmpty ? m.originalText : (m.documentName ?? m.messageType),
-                                    maxLines: 3,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(color: p.textPrimary),
-                                  ),
-                                  subtitle: Text(
-                                    '${_roomName(m.roomId)} · ${m.senderName} · ${t.day}.${t.month}.${t.year}',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(color: p.textSecondary, fontSize: 12),
-                                  ),
-                                  onTap: () {
-                                    Navigator.of(context).pop();
-                                    widget.onOpenRoom(m.roomId);
-                                  },
-                                ),
-                              );
-                            },
-                          ),
-          ),
-        ],
+    );
+  }
+
+  Future<void> _pickRoom() async {
+    final p = JuzzioPalette(_app.isDark);
+    final picked = await showJuzzioSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: p.sheetBg,
+      builder: (ctx) => SafeArea(
+        child: SizedBox(
+          height: MediaQuery.of(ctx).size.height * 0.6,
+          child: ListView(padding: const EdgeInsets.all(12), children: [
+            for (final r in widget.rooms)
+              ListTile(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                leading: Icon(Icons.chat_bubble_outline_rounded, color: p.textSecondary),
+                title: Text(r.$2, style: TextStyle(color: p.textPrimary, fontWeight: FontWeight.w700)),
+                trailing: _f.roomId == r.$1 ? Icon(Icons.check_rounded, color: JuzzioGlassTokens.glowText) : null,
+                onTap: () => Navigator.pop(ctx, r.$1),
+              ),
+          ]),
+        ),
       ),
     );
+    if (picked != null) _update(_f.copyWith(roomId: picked));
   }
 }

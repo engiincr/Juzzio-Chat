@@ -2146,3 +2146,169 @@ UPDATE app_settings SET value = '60'::jsonb WHERE key = 'media_cache_max_age_day
 DELETE FROM admin_sessions WHERE user_id = :'A';
 UPDATE profiles SET username = 'ali' WHERE id = :'A';
 SELECT 'TÜM v0.9.7 TESTLERİ GEÇTİ';
+
+-- =============================================================================
+-- v1.2.0 — Kanallar, Juzzio Topluluğu, hikâye tepki/yorum bildirimleri
+-- =============================================================================
+RESET ROLE;
+SET search_path = public, extensions;
+-- Kanal: yalnız sahip/moderatör paylaşır
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+SELECT create_group_room('v120 kanal', ARRAY[:'B'::uuid], 'off', true, 'general', '', '') AS chan \gset
+SELECT set_config('jz.chan', :'chan', false);
+INSERT INTO messages (room_id, sender_id, original_text) VALUES (:'chan', :'A', 'duyuru');
+SELECT pg_temp.check('kanal sahibi paylaşabilir', EXISTS (SELECT 1 FROM messages WHERE room_id = :'chan' AND original_text = 'duyuru'));
+SELECT pg_temp.as_user(:'B');
+DO $$ BEGIN
+  INSERT INTO messages (room_id, sender_id, original_text) VALUES (current_setting('jz.chan', true)::uuid, current_setting('request.jwt.claim.sub')::uuid, 'üye yazdı');
+  RAISE NOTICE 'FAIL kanal üyesi paylaşım yaptı';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS kanal üyesi paylaşım yapamaz';
+END $$;
+RESET ROLE;
+SELECT pg_temp.check('kanal üyesi mesajı yazılmadı', NOT EXISTS (SELECT 1 FROM messages WHERE room_id = :'chan' AND original_text = 'üye yazdı'));
+-- Rezerve ad
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+DO $$ BEGIN PERFORM create_group_room('Juzzio Topluluğu', ARRAY[]::uuid[], 'off', true, 'general', '', ''); RAISE NOTICE 'FAIL rezerve ad alındı';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS topluluk adı rezerve'; END $$;
+SELECT pg_temp.check('istemci topluluk odası kuramaz', juzzio_community_room_id() IS NULL);
+DO $$ BEGIN PERFORM juzzio_ensure_community(); RAISE NOTICE 'FAIL istemci topluluk kurdu';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS kurulum istemciye kapalı'; END $$;
+DO $$ BEGIN PERFORM juzzio_community_post_release('9.9.9', 'x', 'x'); RAISE NOTICE 'FAIL istemci sürüm duyurusu yaptı';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS sürüm duyurusu istemciye kapalı'; END $$;
+RESET ROLE;
+-- Yönetici varken kurulum + mevcut kullanıcıların eklenmesi
+UPDATE profiles SET username = 'tugkancr' WHERE id = :'A';
+SELECT juzzio_ensure_community() AS comm \gset
+SELECT pg_temp.check('topluluk kuruldu (kanal + topluluk)', EXISTS (SELECT 1 FROM rooms WHERE id = :'comm' AND is_community AND is_channel AND is_group AND title = 'Juzzio Community'));
+SELECT pg_temp.check('tüm mevcut kullanıcılar üye', (SELECT count(*) FROM room_participants WHERE room_id = :'comm' AND left_at IS NULL) = (SELECT count(*) FROM profiles WHERE NOT juzzio_is_banned(id)));
+SELECT pg_temp.check('yönetici kanal sahibi', group_role_of(:'comm', :'A') = 'owner');
+SELECT pg_temp.check('ikinci kurulum aynı oda', juzzio_ensure_community() = :'comm'::uuid);
+INSERT INTO auth.users (id, email, raw_user_meta_data) VALUES ('eeeeeeee-0000-0000-0000-000000000120', 'e120@test.local', '{"username":"usere120","display_name":"User E"}');
+SELECT pg_temp.check('yeni kayıt otomatik katılır', EXISTS (SELECT 1 FROM room_participants WHERE room_id = :'comm' AND user_id = 'eeeeeeee-0000-0000-0000-000000000120'));
+-- is_community istemciden değiştirilemez
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+UPDATE rooms SET is_community = false, title = 'Başka' WHERE id = :'comm';
+RESET ROLE;
+SELECT pg_temp.check('topluluk bayrağı ve adı korunur', (SELECT is_community AND title = 'Juzzio Community' FROM rooms WHERE id = :'comm'));
+-- Üye topluluğa yazamaz, yönetici RPC ile paylaşır
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'B');
+DO $$ BEGIN PERFORM admin_community_post('sahte duyuru'); RAISE NOTICE 'FAIL üye yönetici paylaşımı yaptı';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS yönetici paylaşımı yalnız yönetici'; END $$;
+SELECT pg_temp.as_user(:'A');
+SELECT admin_community_post('Merhaba Juzzio!', 'text') AS cpost1 \gset
+SELECT pg_temp.check('yönetici duyurusu kanala düştü', EXISTS (SELECT 1 FROM messages WHERE id = :'cpost1' AND room_id = :'comm' AND sender_name = 'Juzzio Official'));
+SELECT admin_community_post('Yeni şarkı', 'audio', 'https://x.test/a.mp3', 'sarki.mp3', 1234) AS cpost2 \gset
+SELECT pg_temp.check('müzik dosyası belge olarak paylaşıldı', EXISTS (SELECT 1 FROM messages WHERE id = :'cpost2' AND message_type = 'document' AND document_name = 'sarki.mp3'));
+DO $$ BEGIN PERFORM admin_community_post('x', 'image', 'http://insecure/x.jpg'); RAISE NOTICE 'FAIL güvensiz URL';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS medya URL https olmalı'; END $$;
+RESET ROLE;
+SELECT pg_temp.check('üyelere bildirim gitti', EXISTS (SELECT 1 FROM notifications WHERE recipient_id = :'B' AND target_secondary_id = :'cpost1'));
+-- Sürüm duyurusu: bir kez
+SELECT juzzio_community_post_release('1.2.0', 'Juzzio v1.2.0 yayında', 'Juzzio v1.2.0 is out') AS rel1 \gset
+SELECT juzzio_community_post_release('1.2.0', 'tekrar', 'again') AS rel2 \gset
+SELECT pg_temp.check('sürüm duyurusu tek kez', :'rel1' = :'rel2' AND (SELECT count(*) FROM messages WHERE room_id = :'comm' AND metadata -> 'release' ->> 'version' = '1.2.0') = 1);
+SELECT pg_temp.check('geçersiz sürüm duyurulmaz', juzzio_community_post_release('abc', 'x', 'x') IS NULL);
+-- Hikâye tepki / yorum bildirimi
+INSERT INTO stories (user_id, media_type, media_url) VALUES (:'B', 'image', 'https://x.test/s120.jpg') RETURNING id AS st120 \gset
+SELECT room_id AS dm120 FROM room_participants rp JOIN rooms r ON r.id = rp.room_id
+ WHERE NOT r.is_group AND rp.user_id = :'A' AND EXISTS (SELECT 1 FROM room_participants x WHERE x.room_id = rp.room_id AND x.user_id = :'B') LIMIT 1 \gset
+INSERT INTO messages (room_id, sender_id, original_text, story_id, metadata)
+VALUES (:'dm120', :'A', '🌸', :'st120', '{"story":{"replyKind":"reaction","reaction":"🌸"}}') RETURNING id AS sr1 \gset
+SELECT pg_temp.check('hikâye tepkisi bildirimi', (SELECT preview_text FROM notifications WHERE target_secondary_id = :'sr1' AND recipient_id = :'B') = 'storyreact|🌸');
+INSERT INTO messages (room_id, sender_id, original_text, story_id, metadata)
+VALUES (:'dm120', :'A', 'çok güzel', :'st120', '{"story":{"replyKind":"comment"}}') RETURNING id AS sr2 \gset
+SELECT pg_temp.check('hikâye yorumu bildirimi', (SELECT preview_text FROM notifications WHERE target_secondary_id = :'sr2' AND recipient_id = :'B') = 'storycomment|çok güzel');
+INSERT INTO messages (room_id, sender_id, original_text, story_id, metadata)
+VALUES (:'dm120', :'A', '', :'st120', '{"story":{"replyKind":"comment"},"e2ee":{"v":1}}') RETURNING id AS sr3 \gset
+SELECT pg_temp.check('şifreli yorum metni bildirime yazılmaz', (SELECT preview_text FROM notifications WHERE target_secondary_id = :'sr3' AND recipient_id = :'B') = 'storycomment|');
+-- temizlik (sonraki bölümler topluluk olmadan çalışır)
+DELETE FROM rooms WHERE id IN (:'comm', :'chan');
+DELETE FROM auth.users WHERE id = 'eeeeeeee-0000-0000-0000-000000000120';
+UPDATE profiles SET username = 'ali' WHERE id = :'A';
+SELECT 'TÜM v1.2.0 TESTLERİ GEÇTİ';
+
+-- =============================================================================
+-- v1.2.1 — KVKK onayları, hız sınırı, girdi doğrulama
+-- =============================================================================
+RESET ROLE;
+SET search_path = public, extensions;
+SELECT pg_temp.check('kontrol/bidi karakterleri temizlenir',
+    juzzio_clean_text(E'mer‮haba\u0007 dün' || chr(10) || 'ya') = E'merhaba dün\nya');
+SELECT pg_temp.check('güvensiz bağlantı şemaları reddedilir',
+    NOT juzzio_url_ok('javascript:alert(1)') AND NOT juzzio_url_ok('data:text/html,x') AND NOT juzzio_url_ok('https://a b')
+    AND juzzio_url_ok('https://x.supabase.co/a.jpg') AND juzzio_url_ok(NULL));
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'C');
+DO $$ BEGIN PERFORM record_juzzio_consent('2026-11-10', true, true, false, true); RAISE NOTICE 'FAIL 15 yaş onayı olmadan kaydedildi';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS zorunlu onay eksikse reddedilir'; END $$;
+SELECT pg_temp.check('onay kaydı', record_juzzio_consent('2026-11-10', true, true, true, true, true, '1.2.1'));
+SELECT pg_temp.check('onay sürümü profilde', my_consent_version() = '2026-11-10');
+SELECT pg_temp.check('kendi onay kaydını görür', (SELECT count(*) FROM juzzio_app_consents WHERE user_id = :'C') >= 1);
+UPDATE profiles SET consent_version = 'sahte', marketing_opt_in = true WHERE id = :'C';
+SELECT pg_temp.check('onay sütunları istemciden yazılamaz', my_consent_version() = '2026-11-10');
+SELECT pg_temp.check('ticari ileti geri alınır', NOT set_marketing_consent(false));
+SELECT pg_temp.as_user(:'B');
+SELECT pg_temp.check('başkasının onayını göremez', (SELECT count(*) FROM juzzio_app_consents WHERE user_id = :'C') = 0);
+-- girdi doğrulama: mesaj
+SELECT room_id AS vroom FROM room_participants rp JOIN rooms r ON r.id = rp.room_id
+ WHERE NOT r.is_group AND rp.user_id = :'B' AND EXISTS (SELECT 1 FROM room_participants x WHERE x.room_id = rp.room_id AND x.user_id = :'A') LIMIT 1 \gset
+INSERT INTO messages (room_id, sender_id, original_text) VALUES (:'vroom', :'B', E'temiz‮ metin') RETURNING id AS vmsg \gset
+SELECT pg_temp.check('mesaj metni temizlendi', (SELECT original_text FROM messages WHERE id = :'vmsg') = 'temiz metin');
+DO $$ BEGIN
+  INSERT INTO messages (room_id, sender_id, original_text, message_type, image_url)
+  VALUES (current_setting('jz.vroom')::uuid, current_setting('request.jwt.claim.sub')::uuid, '', 'image', 'javascript:alert(1)');
+  RAISE NOTICE 'FAIL javascript: bağlantısı kabul edildi';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS javascript: bağlantısı reddedildi'; END $$;
+RESET ROLE;
+SELECT set_config('jz.vroom', :'vroom', false);
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'B');
+DO $$ BEGIN
+  INSERT INTO messages (room_id, sender_id, original_text) VALUES (current_setting('jz.vroom')::uuid, current_setting('request.jwt.claim.sub')::uuid, repeat('a', 8001));
+  RAISE NOTICE 'FAIL çok uzun mesaj kabul edildi';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS çok uzun mesaj reddedildi'; END $$;
+-- hız sınırı: dakikada 40 mesaj
+DO $$
+DECLARE i INT; v_hit BOOLEAN := false;
+BEGIN
+  FOR i IN 1..45 LOOP
+    BEGIN
+      INSERT INTO messages (room_id, sender_id, original_text) VALUES (current_setting('jz.vroom')::uuid, current_setting('request.jwt.claim.sub')::uuid, 'spam ' || i);
+    EXCEPTION WHEN OTHERS THEN
+      IF SQLERRM = 'rate_limited' THEN v_hit := true; EXIT; END IF;
+      RAISE;
+    END;
+  END LOOP;
+  IF v_hit THEN RAISE NOTICE 'PASS mesaj hız sınırı devrede'; ELSE RAISE NOTICE 'FAIL mesaj hız sınırı çalışmadı'; END IF;
+END $$;
+RESET ROLE;
+INSERT INTO messages (room_id, sender_id, original_text) VALUES (:'vroom', :'B', 'sunucu işi');
+SELECT pg_temp.check('sunucu işleri hız sınırına takılmaz', EXISTS (SELECT 1 FROM messages WHERE room_id = :'vroom' AND original_text = 'sunucu işi'));
+DELETE FROM juzzio_rate_events WHERE user_id = :'B';
+DELETE FROM messages WHERE room_id = :'vroom' AND original_text LIKE 'spam %';
+SELECT 'TÜM v1.2.1 TESTLERİ GEÇTİ';
+
+-- =============================================================================
+-- v1.2.3 — iki kutu: yurt dışı aktarım rızası artık zorunlu değil
+-- =============================================================================
+DELETE FROM juzzio_rate_events WHERE user_id = :'C';
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'C');
+SELECT pg_temp.check('yurt dışı aktarım rızası olmadan kayıt kabul edilir (m.9 uygun güvence)',
+    record_juzzio_consent('2026-11-10.2', true, true, true, false, false, '1.2.3'));
+SELECT pg_temp.check('yeni metin sürümü profilde', my_consent_version() = '2026-11-10.2');
+SELECT pg_temp.check('eski rıza işareti yeni kayıtta false',
+    (SELECT NOT cross_border FROM juzzio_app_consents WHERE user_id = :'C' ORDER BY accepted_at DESC, id DESC LIMIT 1));
+DO $$ BEGIN PERFORM record_juzzio_consent('2026-11-10.2', false, true, true, false); RAISE NOTICE 'FAIL aydınlatma beyanı olmadan kaydedildi';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS aydınlatma beyanı olmadan reddedilir'; END $$;
+DO $$ BEGIN PERFORM record_juzzio_consent('2026-11-10.2', true, false, true, false); RAISE NOTICE 'FAIL koşullar kabul edilmeden kaydedildi';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS koşullar kabul edilmeden reddedilir'; END $$;
+SELECT pg_temp.check('ticari ileti isteğe bağlı: onaysız kayıtta kapalı',
+    (SELECT NOT marketing_opt_in FROM profiles WHERE id = :'C'));
+RESET ROLE;
+DELETE FROM juzzio_rate_events WHERE user_id = :'C';
+SELECT 'TÜM v1.2.3 TESTLERİ GEÇTİ';

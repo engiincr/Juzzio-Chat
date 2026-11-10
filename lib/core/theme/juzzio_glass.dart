@@ -753,7 +753,9 @@ class JuzzioGlassAvatar extends StatelessWidget {
       child: SizedBox(
         width: radius * 2,
         height: radius * 2,
-        child: url.startsWith('http')
+        child: url.startsWith('asset:')
+            ? Image.asset(url.substring(6), fit: BoxFit.cover, errorBuilder: (_, __, ___) => fallback)
+            : url.startsWith('http')
             ? JuzzioStorageImage(
                 url,
                 fit: BoxFit.cover,

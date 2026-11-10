@@ -7,6 +7,8 @@
 // =============================================================================
 
 import 'dart:io';
+import 'dart:math' as math;
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -91,30 +93,181 @@ class _JuzzioViewOnceBubbleState extends State<JuzzioViewOnceBubble> {
   @override
   Widget build(BuildContext context) {
     final app = JuzzioAppController.instance;
-    final p = JuzzioPalette(app.isDark);
-    final fg = widget.isMe ? Colors.white : p.textPrimary;
     final isVideo = (widget.message.videoUrl ?? '').isNotEmpty || widget.message.messageType == 'video';
-    final label = widget.isMe
-        ? (_opened ? app.trEn('Açıldı', 'Opened', 'Geöffnet') : app.trEn('Tek seferlik · henüz açılmadı', 'View once · not opened yet', 'Einmalig · ungeöffnet'))
-        : (_opened
-            ? app.trEn('Açıldı', 'Opened', 'Geöffnet')
-            : (isVideo ? app.trEn('Tek seferlik video · aç', 'View-once video · open', 'Einmal-Video öffnen') : app.trEn('Tek seferlik fotoğraf · aç', 'View-once photo · open', 'Einmal-Foto öffnen')));
-    return InkWell(
-      borderRadius: BorderRadius.circular(14),
+    // v1.2.0: açıldıktan sonra soluk, kompakt "Açıldı" durumu — bir daha açılamaz
+    if (_opened) return _openedPill(app, isVideo);
+    final hint = widget.isMe
+        ? app.trEn('Henüz açılmadı', 'Not opened yet', 'Noch nicht geöffnet')
+        : app.trEn('Görmek için dokun', 'Tap to view', 'Zum Ansehen tippen');
+    // v1.2.0: bulanık önizleme + cam "Tek görüntülemelik" etiketi + cam bomba simgesi.
+    // Gerçek medya açılmadan İNDİRİLMEZ; önizleme mesaj kimliğinden üretilen soyut bir bulanık desendir.
+    return GestureDetector(
       onTap: _open,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(color: fg.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(14)),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          _busy
-              ? SizedBox(width: 22, height: 22, child: JuzzioOrbitLoader(strokeWidth: 2, color: fg))
-              : Icon(_opened ? Icons.radio_button_unchecked_rounded : Icons.looks_one_rounded, color: fg),
-          const SizedBox(width: 8),
-          Flexible(child: Text(label, style: TextStyle(color: fg, fontWeight: FontWeight.w700))),
-        ]),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: SizedBox(
+          width: 230,
+          height: 172,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              ImageFiltered(
+                imageFilter: ImageFilter.blur(sigmaX: 22, sigmaY: 22, tileMode: TileMode.decal),
+                child: CustomPaint(painter: _BlurBlobsPainter(seed: widget.message.id.hashCode)),
+              ),
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Color(0x14000000), Color(0x66000000)],
+                  ),
+                ),
+              ),
+              Center(
+                child: _busy
+                    ? const SizedBox(width: 46, height: 46, child: JuzzioOrbitLoader(strokeWidth: 2.4, color: Colors.white))
+                    : _glass(
+                        radius: 99,
+                        padding: const EdgeInsets.all(12),
+                        child: const SizedBox(width: 34, height: 34, child: CustomPaint(painter: _BombPainter())),
+                      ),
+              ),
+              Positioned(
+                left: 10,
+                top: 10,
+                child: _glass(
+                  radius: 99,
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(isVideo ? Icons.videocam_rounded : Icons.photo_rounded, size: 14, color: Colors.white),
+                    const SizedBox(width: 5),
+                    Text(app.trEn('Tek görüntülemelik', 'View once', 'Einmal ansehen'),
+                        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+                  ]),
+                ),
+              ),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 10,
+                child: Center(
+                  child: Text(hint,
+                      style: const TextStyle(color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w700, shadows: [Shadow(color: Color(0x88000000), blurRadius: 6)])),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
+
+  Widget _glass({required Widget child, required double radius, required EdgeInsets padding}) => ClipRRect(
+        borderRadius: BorderRadius.circular(radius),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+          child: Container(
+            padding: padding,
+            decoration: BoxDecoration(
+              color: const Color(0x33FFFFFF),
+              borderRadius: BorderRadius.circular(radius),
+              border: Border.all(color: const Color(0x59FFFFFF)),
+            ),
+            child: child,
+          ),
+        ),
+      );
+
+  Widget _openedPill(JuzzioAppController app, bool isVideo) {
+    final p = JuzzioPalette(app.isDark);
+    final fg = widget.isMe ? Colors.white70 : p.textSecondary;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(10, 8, 14, 8),
+      decoration: BoxDecoration(
+        color: (widget.isMe ? Colors.white : p.textPrimary).withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: fg.withValues(alpha: 0.25)),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: fg.withValues(alpha: 0.6), width: 1.4)),
+          child: Icon(Icons.visibility_off_rounded, size: 15, color: fg),
+        ),
+        const SizedBox(width: 9),
+        Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(app.trEn('Açıldı', 'Opened', 'Geöffnet'), style: TextStyle(color: fg, fontWeight: FontWeight.w800, fontSize: 13.5)),
+          Text(
+            isVideo ? app.trEn('Tek görüntülemelik video', 'View-once video', 'Einmal-Video') : app.trEn('Tek görüntülemelik fotoğraf', 'View-once photo', 'Einmal-Foto'),
+            style: TextStyle(color: fg.withValues(alpha: 0.8), fontSize: 11.5),
+          ),
+        ]),
+      ]),
+    );
+  }
+}
+
+/// Mesaj kimliğinden üretilen soyut renk lekeleri (bulanıklaştırılınca "fotoğraf" hissi verir)
+class _BlurBlobsPainter extends CustomPainter {
+  const _BlurBlobsPainter({required this.seed});
+  final int seed;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rnd = math.Random(seed);
+    canvas.drawRect(Offset.zero & size, Paint()..color = HSLColor.fromAHSL(1, rnd.nextDouble() * 360, 0.45, 0.30).toColor());
+    for (var i = 0; i < 7; i++) {
+      final c = HSLColor.fromAHSL(1, rnd.nextDouble() * 360, 0.55 + rnd.nextDouble() * 0.3, 0.45 + rnd.nextDouble() * 0.25).toColor();
+      canvas.drawCircle(
+        Offset(rnd.nextDouble() * size.width, rnd.nextDouble() * size.height),
+        size.shortestSide * (0.18 + rnd.nextDouble() * 0.32),
+        Paint()..color = c.withValues(alpha: 0.85),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _BlurBlobsPainter old) => old.seed != seed;
+}
+
+/// Cam bomba simgesi (gövde + fitil + kıvılcım)
+class _BombPainter extends CustomPainter {
+  const _BombPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final s = size.shortestSide;
+    final body = Offset(s * 0.44, s * 0.58);
+    final r = s * 0.34;
+    canvas.drawCircle(body, r, Paint()..color = const Color(0xF2FFFFFF));
+    canvas.drawCircle(body + Offset(-r * 0.35, -r * 0.35), r * 0.22, Paint()..color = const Color(0x40000000));
+    final cap = Rect.fromCenter(center: body + Offset(r * 0.62, -r * 0.62), width: s * 0.2, height: s * 0.14);
+    canvas.save();
+    canvas.translate(cap.center.dx, cap.center.dy);
+    canvas.rotate(-math.pi / 4);
+    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromCenter(center: Offset.zero, width: cap.width, height: cap.height), const Radius.circular(2)),
+        Paint()..color = const Color(0xF2FFFFFF));
+    canvas.restore();
+    final fuse = Path()
+      ..moveTo(cap.center.dx + s * 0.05, cap.center.dy - s * 0.05)
+      ..quadraticBezierTo(s * 0.86, s * 0.06, s * 0.94, s * 0.16);
+    canvas.drawPath(
+      fuse,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = s * 0.05
+        ..strokeCap = StrokeCap.round
+        ..color = const Color(0xE6FFFFFF),
+    );
+    final spark = Offset(s * 0.94, s * 0.14);
+    canvas.drawCircle(spark, s * 0.09, Paint()..color = const Color(0xFFFFD45C)..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.5));
+    canvas.drawCircle(spark, s * 0.045, Paint()..color = Colors.white);
+  }
+
+  @override
+  bool shouldRepaint(covariant _BombPainter old) => false;
 }
 
 class _ViewOncePage extends StatefulWidget {

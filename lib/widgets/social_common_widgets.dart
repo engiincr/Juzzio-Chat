@@ -183,7 +183,9 @@ class JuzzioUserAvatar extends StatelessWidget {
         color: isDark ? JuzzioColors.slate800 : JuzzioColors.slate200,
       ),
       clipBehavior: Clip.antiAlias,
-      child: isLocalFile
+      child: url.startsWith('asset:')
+          ? Image.asset(url.substring(6), fit: BoxFit.cover, errorBuilder: (_, __, ___) => _buildFallbackText(isDark))
+          : isLocalFile
           ? Image.file(
               File(url),
               fit: BoxFit.cover,

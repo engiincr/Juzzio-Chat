@@ -1,32 +1,25 @@
-# Juzzio v1.1.1 — Juzzio Space: New Design & Instant Messaging
+# Juzzio v1.2.3 — Simpler Sign-up Consent (per KVKK 2026 guidance)
 
 ## 🎯 Why did this update come?
 
-The chubby pull-to-refresh hand was redrawn as vector art; the notifications list no longer disappears while refreshing, and the profile page opens much faster.
+The four separate consent boxes on the sign-up and sign-in screen were reduced to two, in line with the Turkish Data Protection Board's Principle Decision No. 2026/347 (privacy notice and consent kept separate, no consent taken in the notice) and the 2024 amendment of KVKK Art. 9 (continuous transfers abroad rely on standard contracts). Tapping the box opens the text automatically; scroll to the end, tap "I have read and understood" and sign-up or sign-in completes.
 
 ## ✨ What's new?
 
-- ✋ Redrawn refresh hand: a chubby, clean-lined hand comes out of the notch with a sleeve in your theme colour, swings, makes a fist and pulls the page up — crisp on every screen
-- 🧺 The cloth is now a light surface in your theme colour that gathers up with soft folds
+- ✅ Only two boxes: (1) required — "I accept the Terms of Use and confirm I am over 15. I have read and understood the Privacy Notice." (2) optional — news and campaign e-mails
+- 📖 Tapping the box opens the Privacy Notice and Terms; "Scroll to end" takes you to the bottom, where "I have read and understood" becomes active and ticks the box
+- 🚀 Tapping "Sign up" / "Sign in" without the tick opens the text automatically; after confirming, the action continues and completes
+- 📧 Marketing consent opens its own text, is never pre-ticked and is given with "I agree"
 
 ## 🛠️ What was fixed?
 
-- Fixed the refresh hand looking like a foot and ghosting between poses
-- Fixed the cloth looking like a black smear over the content in dark themes
-- Notifications: refreshing or switching filters no longer flashes empty placeholder cards; stale requests can't overwrite the new list; empty/error states can be pulled to refresh; swipe-to-delete removes by id
-- Profile: counts, posts and relationship appear as soon as each arrives and reopen instantly; background requests run in parallel instead of one after another
-- Friends, files, saved messages, security and post comments no longer lose their content while refreshing
+- Privacy Notice rewritten with every element required by the Turkish notice regulation: controller, data, collection method, purposes and legal bases, recipients, basis for transfers abroad, retention, rights, how to apply and the right to complain to the Board
+- Removed the separate "consent to cross-border transfer": continuous transfers rely on appropriate safeguards (standard contracts) under KVKK Art. 9 and are explained in the notice
+- Age requirement added to the Terms (15+, under 18 with a parent's or guardian's knowledge); Privacy Policy children and rights sections updated
+- Existing users see the updated texts once
 
-## ⬇️ Download
+## 🔒 Security & privacy
 
-- Latest: [Juzzio-latest.apk](https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk)
-- This version: `juzzio-v1.1.1-release.apk` (109.91 MB)
+- The server only requires the mandatory statement (terms + age 15+ + notice read); cross-border consent is no longer required
+- Consent records keep version, time and app version (no IP); clients cannot write the consent columns directly
 
-## ✅ Verify the APK
-
-```bash
-sha256sum Juzzio-latest.apk
-# 2579b9df6fe823947a96a3304e27c721166f1b9c39dccf0825b81d7723bd6d63  Juzzio-latest.apk
-```
-
-Built: 2026-11-10 02:52 UTC — GitHub Actions
