@@ -1,16 +1,16 @@
 {
   "version": "1.1.1",
-  "buildNumber": 1057,
-  "releaseDate": "2026-11-09",
+  "buildNumber": 111,
+  "releaseDate": "2026-11-10",
   "releaseTitle": "Yeni Yenileme Eli ve Hızlı Profil",
   "mandatory": false,
   "minSupportedVersion": "0.1.0",
   "apkUrl": "https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk",
   "versionedApkUrl": "https://github.com/engiincr/Juzzio-Chat/releases/download/v1.1.1/juzzio-v1.1.1-release.apk",
-  "apkSha256": "c1f854315430f9b182eb59c24bcdb405a32502e82d9560d4644fd55b28ed85e2",
-  "apkSize": "109.91 MB",
-  "verifiedBuild": true,
-  "verifiedAt": "2026-11-09 21:37 UTC",
+  "apkSha256": "",
+  "apkSize": "",
+  "verifiedBuild": false,
+  "verifiedAt": "",
   "developer": {
     "name": "Engin ÇIRPAN",
     "instagram": "https://ig.me/tugkancr",
@@ -22,8 +22,8 @@
     "en": "v1.1.1: The chubby pull-to-refresh hand was redrawn as vector art; the notifications list no longer disappears while refreshing, and the profile page opens much faster.",
     "de": "v1.1.1: The chubby pull-to-refresh hand was redrawn as vector art; the notifications list no longer disappears while refreshing, and the profile page opens much faster."
   },
-  "build": 1057,
-  "versionCode": 1057,
+  "build": 111,
+  "versionCode": 111,
   "url": "https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk",
   "changelog_tr": "v1.1.1: Aşağı çekip yenilemedeki tombul el baştan vektörle çizildi; bildirimler sayfasında yenilerken listenin kaybolması giderildi ve profil sayfası çok daha hızlı açılıyor.",
   "changelog_en": "v1.1.1: The chubby pull-to-refresh hand was redrawn as vector art; the notifications list no longer disappears while refreshing, and the profile page opens much faster.",
@@ -75,7 +75,5 @@
       "security": []
     }
   },
-  "releaseTitleEn": "Juzzio Space: New Design & Instant Messaging",
-  "mldsa65Sig": "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",
-  "signatureAlg": "ML-DSA-65 (FIPS 204)"
+  "releaseTitleEn": "Juzzio Space: New Design & Instant Messaging"
 }
