@@ -17,3 +17,16 @@ The chubby pull-to-refresh hand was redrawn as vector art; the notifications lis
 - Profile: counts, posts and relationship appear as soon as each arrives and reopen instantly; background requests run in parallel instead of one after another
 - Friends, files, saved messages, security and post comments no longer lose their content while refreshing
 
+## ⬇️ Download
+
+- Latest: [Juzzio-latest.apk](https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk)
+- This version: `juzzio-v1.1.1-release.apk` (109.91 MB)
+
+## ✅ Verify the APK
+
+```bash
+sha256sum Juzzio-latest.apk
+# 2579b9df6fe823947a96a3304e27c721166f1b9c39dccf0825b81d7723bd6d63  Juzzio-latest.apk
+```
+
+Built: 2026-11-10 02:52 UTC — GitHub Actions
