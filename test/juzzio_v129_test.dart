@@ -466,6 +466,14 @@ void main() {
     });
   });
 
+  group('Şifreli sesli mesajda çeviri', () {
+    test('dökümün çevirisi şifreli yükün içinde gider', () {
+      final s = _src('lib/services/supabase_service.dart');
+      expect(s.contains("mime: 'audio/mp4', text: transcript, translated: translated"), isTrue);
+      expect(s.contains('encryptForRoomStrict(roomId, text: text, translated: translated, media: sealed.key.toJson())'), isTrue);
+    });
+  });
+
   group('Sürüm notu 1.2.9', () {
     test('var ve yasal veri işlevlerinden söz etmez', () {
       final n = kJuzzioBundledReleaseNotes.firstWhere((r) => r.versionName == '1.2.9');

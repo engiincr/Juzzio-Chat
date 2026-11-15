@@ -19,7 +19,7 @@
 "lib/core/native_bridge.dart": "280d7d304b7d4c33a3e9dae57e2c397c844f98b4cd8642ecd193e59a8f729b7f",
 "lib/core/notification_text.dart": "72677d7bbf218f9cb453cd403e6208d4c3c389bdcbacbaec482a4b824ecd584e",
 "lib/core/pq/juzzio_pq.dart": "aa19c308d850f2108a8b6e17e8e0a14685db5511de36415ba8d03b0d4574ecba",
-"lib/core/release_notes.dart": "2497078c25291229bb80fab8d7a19afef321ef1f920b73ff570db28006c28cc5",
+"lib/core/release_notes.dart": "95e4ba18cabc2c912808d65b926554c63801eecd770e0037b194a72e9ab227ef",
 "lib/core/theme/juzzio_aurora.dart": "3c68b52f9c40952172cd8d5931328cac531288f49731276c202a46824f05f19d",
 "lib/core/theme/juzzio_colors.dart": "f57efb1a13404c2997758cc90d35a8e53ed5e51698e483c3a99fbb77fa15e1a2",
 "lib/core/theme/juzzio_custom_theme.dart": "10cbd80c80a39433b1d211fcf238e6aad1d689882ab90f6ce3bb18c810b2bb88",
@@ -115,7 +115,7 @@
 "lib/services/juzzio_video_compress.dart": "a493307e6f3d849cad9dfc1232bcdb9ef7d56bb13cfce34870cd8ab4bde1a6f6",
 "lib/services/juzzio_weather_service.dart": "e244f129096ea5b420c474d85370f89a4592d95607619ed07c5443f09d086c3f",
 "lib/services/social_service.dart": "a40b1e8654c01a36f1c68482cba27f1d2ea4fbe96570ccb50d432a0c3702a1ac",
-"lib/services/supabase_service.dart": "8ec4ba46c1cd400e68b010d9f2c76dac1568f9dd0d16177cd8a81453ca4c73fa",
+"lib/services/supabase_service.dart": "73d518296c16699a6775f521d6bf4f03935c5979ecec25347a752e9fa13e3214",
 "lib/widgets/chat_lock_ui.dart": "7da7834a74c12cea9b36290f1571cfff66c06ce8a4e11942da011e0371631fc3",
 "lib/widgets/chat_notification_prefs.dart": "1d6412e0e9593fb5707cc973361f96435e0e926a6e6f7aac4c1b208c82e93669",
 "lib/widgets/glass/glass_button.dart": "640f78ce8e1988b378322acd0e1b7572187048108201662e66aae064763dadc4",
@@ -221,6 +221,6 @@
 "test/juzzio_v126_test.dart": "46a39df5df0b649dd2adb66fbe92c3357bc36556a83e3241ac83126e6cd8caad",
 "test/juzzio_v127_test.dart": "d05d3f1d998e7adfdb9a85ae7a1a002a7f0da9536d5b8509b89a63871290a8fd",
 "test/juzzio_v128_test.dart": "bb63222f1fdc17fe619101f6e395d4fd2dec8010d504a188760cbcbc14ac49e9",
-"test/juzzio_v129_test.dart": "8ce2e6b0c7fca0ef930b47d70a9a9d164a5228b165e8a536ed23dd13daf087eb",
+"test/juzzio_v129_test.dart": "ca0f39ae33ea5f6465df48a74d73059cc5e3cabb6df68bca25af38ffe6d04ebc",
 "test/ota_manifest_test.dart": "0c1555d530636165b5cc868d332e93a403c5c77fd6bacb354390861a614db6ec"
 }

@@ -3309,9 +3309,10 @@ class SupabaseService {
     required List<int> bytes,
     required String mime,
     String text = '',
+    String translated = '',
   }) async {
     final sealed = await JuzzioMediaCrypto.seal(bytes, mime: mime);
-    final outcome = await JuzzioE2ee.instance.encryptForRoomStrict(roomId, text: text, translated: '', media: sealed.key.toJson());
+    final outcome = await JuzzioE2ee.instance.encryptForRoomStrict(roomId, text: text, translated: translated, media: sealed.key.toJson());
     if (outcome.status != JuzzioE2eeStatus.encrypted || outcome.payload == null) {
       throw JuzzioE2eeRequiredException(
           outcome.status == JuzzioE2eeStatus.peerKeyMissing ? JuzzioE2eeStatus.peerKeyMissing : JuzzioE2eeStatus.unavailable);
@@ -3494,6 +3495,9 @@ class SupabaseService {
     // Döküm (yazıya çevirme) yalnız kullanıcı birebir çeviriye izin verdiyse yapılır: ses GEÇİCİ
     // olarak yüklenir, döküm alınır ve geçici dosya hemen silinir. Döküm şifreli yükün içindedir.
     var transcript = '';
+    // v1.2.9 düzeltme: dökümün ÇEVİRİSİ de şifreli yükün içine konur — önceden yalnız döküm
+    // gidiyordu, bu yüzden sesli mesajın altında (metin mesajlarındaki gibi) çeviri hiç görünmüyordu
+    var translated = '';
     if (_app.e2eeTranslationOptIn) {
       final voice = client.storage.from(JuzzioConfig.voiceNoteBucket);
       try {
@@ -3506,8 +3510,12 @@ class SupabaseService {
           'targetLang': targetLang,
         });
         final data = res.data is String ? jsonDecode(res.data as String) : res.data;
-        if (data is Map) transcript = (data['originalText'] ?? '').toString().trim();
+        if (data is Map) {
+          transcript = (data['originalText'] ?? '').toString().trim();
+          translated = (data['translatedText'] ?? '').toString().trim();
+        }
         if (isTranslationProviderError(transcript)) transcript = '';
+        if (isTranslationProviderError(translated)) translated = '';
       } catch (_) {
       } finally {
         try {
@@ -3515,7 +3523,15 @@ class SupabaseService {
         } catch (_) {}
       }
     }
-    final (url, path, payload) = await _sealAndUpload(uid: uid, roomId: roomId, bytes: await audioFile.readAsBytes(), mime: 'audio/mp4', text: transcript);
+    if (transcript.isNotEmpty && sourceLang != targetLang && (translated.isEmpty || translated == transcript)) {
+      try {
+        final t = (await translateText(text: transcript, targetLang: targetLang)).trim();
+        if (t.isNotEmpty && !isTranslationProviderError(t)) translated = t;
+      } catch (_) {}
+    }
+    if (translated == transcript) translated = '';
+    final (url, path, payload) = await _sealAndUpload(
+        uid: uid, roomId: roomId, bytes: await audioFile.readAsBytes(), mime: 'audio/mp4', text: transcript, translated: translated);
     try {
       await client.from('messages').insert({
         'room_id': roomId,

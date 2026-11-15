@@ -199,6 +199,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
           "Açık temada giriş, kayıt ve ayar sayfalarındaki renk uyumsuzlukları giderildi",
           "Kilitli sohbet PIN ekranı tam ekran; kenar çizgisi ve taşma yok",
           "Profildeki Görevlerim ve Hatırlatıcılar kısayolu varsayılan olarak gizli; Ayarlar › Erişilebilirlik'ten açılır",
+          "Birebir (şifreli) sohbette sesli mesajın altında artık dökümün çevirisi de görünür",
         ],
         security: [
           "Dosya güvenliği: .php, .jsp, .exe, .apk, .html, .svg, .js gibi çalıştırılabilir/betik dosyaları, gizli çift uzantılar ve içeriği uzantısıyla uyuşmayan dosyalar hem gönderirken hem açarken cihazda engellenir; sunucu da yalnız izinli türleri kabul eder",
@@ -248,6 +249,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
           "Fixed colour mismatches on the sign-in, sign-up and settings pages in the light theme",
           "The locked-chat PIN screen is full screen, with no edge lines or overflow",
           "The My tasks & reminders shortcut on Profile is hidden by default; turn it on in Settings › Accessibility",
+          "In one-to-one (encrypted) chats the translation of the transcript now appears under voice messages",
         ],
         security: [
           "File security: executable/script files like .php, .jsp, .exe, .apk, .html, .svg, .js, hidden double extensions and files whose content doesn't match their extension are blocked on the device both when sending and opening; the server also accepts only allowed types",
@@ -297,6 +299,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
           "Farbabweichungen auf den Anmelde-, Registrierungs- und Einstellungsseiten im hellen Design behoben",
           "Der PIN-Bildschirm für gesperrte Chats ist bildschirmfüllend, ohne Randlinien oder Überlauf",
           "Die Verknüpfung „Aufgaben & Erinnerungen“ im Profil ist standardmäßig ausgeblendet; aktivierbar unter Einstellungen › Barrierefreiheit",
+          "In Einzelchats (verschlüsselt) erscheint unter Sprachnachrichten jetzt auch die Übersetzung des Transkripts",
         ],
         security: [
           "File security: executable/script files like .php, .jsp, .exe, .apk, .html, .svg, .js, hidden double extensions and files whose content doesn't match their extension are blocked on the device both when sending and opening; the server also accepts only allowed types",
