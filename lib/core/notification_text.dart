@@ -155,6 +155,13 @@ String juzzioLocalizedNotificationText(JuzzioNotificationItem item) {
       return '❓ ${app.trEn('Yeni soru', 'New question', 'Neue Frage')}: $preview';
     case 'qa_answer':
       return '💬 $actor ${app.trEn('sorunu yanıtladı', 'answered your question', 'hat geantwortet')}: $preview';
+    // v1.2.9
+    case 'request_accepted':
+      return '✅ $actor ${app.trEn('beklemedeki mesajını kabul etti. Sohbete devam edebilirsin.', 'accepted your pending message. You can keep chatting.', 'hat deine wartende Nachricht angenommen.')}';
+    case 'system':
+      if (preview.startsWith('admin_error|')) return '🛠 ${app.trEn('Yeni hata kaydı', 'New error report', 'Neue Fehlermeldung')}: ${preview.substring(12)}';
+      if (preview.startsWith('admin_alert|')) return '⚠️ ${preview.substring(12)}';
+      break;
     case 'watch_party':
       return '🎬 $actor ${app.trEn('izleme partisi başlattı', 'started a watch party', 'hat eine Watch-Party gestartet')}: ${preview.replaceFirst('watch|', '')}';
     case 'reminder':

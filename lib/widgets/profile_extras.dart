@@ -24,6 +24,8 @@ import '../services/juzzio_features_service.dart';
 import '../services/supabase_service.dart';
 import '../services/juzzio_media_cache.dart';
 import 'juzzio_motion.dart';
+import '../core/juzzio_text_safety.dart';
+import '../core/juzzio_audio_guard.dart';
 
 class JuzzioVerifiedTick extends StatelessWidget {
   final double size;
@@ -189,7 +191,7 @@ class JuzzioWebsiteChip extends StatelessWidget {
     final host = uri.host.startsWith('www.') ? uri.host.substring(4) : uri.host;
     final path = uri.path == '/' ? '' : uri.path;
     final out = '$host$path';
-    return out.length > 40 ? '${out.substring(0, 39)}…' : out;
+    return juzzioEllipsize(out, 40);
   }
 
   @override
@@ -250,9 +252,64 @@ String juzzioYoutubeThumb(String videoId) =>
     videoId.isEmpty ? '' : 'https://i.ytimg.com/vi/$videoId/hqdefault.jpg';
 
 /// Çalınabilir bir önizleme sesi mi? (YouTube bağlantıları artık çalınmaz)
+/// v1.2.9: yönetici Apple önizlemelerini kapattıysa (telif şikâyeti vb.) Apple sesleri çalınmaz.
 bool juzzioIsPlayableMusic(String url) {
   final u = url.trim();
-  return u.startsWith('https://') && juzzioYoutubeId(u).isEmpty;
+  if (!u.startsWith('https://') || juzzioYoutubeId(u).isNotEmpty) return false;
+  if (juzzioIsApplePreview(u) && !JuzzioFeaturesService.instance.lastAppConfig.itunesPreviewsEnabled) return false;
+  return true;
+}
+
+/// v1.2.9 (telif): Apple'ın önizleme sunucusundan gelen bir ses mi? (saf; test edilir)
+/// Apple önizleme koşulları gereği bu sesler cihaza indirilmez/önbelleğe alınmaz, yalnız akıştan çalınır.
+bool juzzioIsApplePreview(String url) {
+  final host = Uri.tryParse(url.trim())?.host.toLowerCase() ?? '';
+  return host.endsWith('.apple.com') || host.endsWith('.mzstatic.com') || host == 'apple.com';
+}
+
+/// v1.2.9 (telif): parçayı Apple Music'te açan bağlantı (önizlemenin yanında zorunlu atıf; saf; test edilir)
+String juzzioAppleMusicLink({String storeUrl = '', required String title, String artist = ''}) {
+  final s = storeUrl.trim();
+  if (s.startsWith('https://music.apple.com/') || s.startsWith('https://itunes.apple.com/')) return s;
+  final term = [title.trim(), artist.trim()].where((e) => e.isNotEmpty).join(' ');
+  return Uri.https('music.apple.com', '/search', {'term': term}).toString();
+}
+
+/// "Apple Music'te aç" düğmesi (atıf + mağazaya bağlantı)
+class JuzzioAppleMusicLink extends StatelessWidget {
+  final String storeUrl;
+  final String title;
+  final String artist;
+  final bool compact;
+  const JuzzioAppleMusicLink({super.key, this.storeUrl = '', required this.title, this.artist = '', this.compact = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = JuzzioAppController.instance.isDark;
+    final fg = dark ? Colors.white : JuzzioColors.ink;
+    return Semantics(
+      link: true,
+      label: _l("Apple Music'te aç", 'Open in Apple Music', 'In Apple Music öffnen'),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(99),
+        onTap: () => launchUrl(Uri.parse(juzzioAppleMusicLink(storeUrl: storeUrl, title: title, artist: artist)),
+            mode: LaunchMode.externalApplication),
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 10, vertical: compact ? 4 : 6),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(99),
+            border: Border.all(color: fg.withValues(alpha: 0.25)),
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(Icons.apple, size: compact ? 13 : 15, color: fg),
+            const SizedBox(width: 4),
+            Text(compact ? 'Music' : _l("Apple Music'te aç", 'Open in Apple Music', 'In Apple Music'),
+                style: TextStyle(color: fg, fontSize: compact ? 10.5 : 12, fontWeight: FontWeight.w800)),
+          ]),
+        ),
+      ),
+    );
+  }
 }
 
 String _l(String tr, String en, String de) => JuzzioAppController.instance.trEn(tr, en, de);
@@ -264,6 +321,8 @@ class JuzzioTrack {
   final String coverUrl;
   final String previewUrl;
   final int durationMs;
+  /// v1.2.9: Apple Music sayfası (önizleme atfı için)
+  final String storeUrl;
 
   const JuzzioTrack({
     required this.title,
@@ -271,6 +330,7 @@ class JuzzioTrack {
     required this.coverUrl,
     required this.previewUrl,
     this.durationMs = 30000,
+    this.storeUrl = '',
   });
 
   factory JuzzioTrack.fromItunes(Map<String, dynamic> m) {
@@ -281,6 +341,7 @@ class JuzzioTrack {
       coverUrl: art.replaceAll('100x100bb', '300x300bb').replaceFirst('http://', 'https://'),
       previewUrl: (m['previewUrl'] ?? '').toString().replaceFirst('http://', 'https://'),
       durationMs: (m['trackTimeMillis'] as num?)?.toInt() ?? 30000,
+      storeUrl: (m['trackViewUrl'] ?? '').toString().replaceFirst('http://', 'https://'),
     );
   }
 }
@@ -291,6 +352,9 @@ class JuzzioMusicSearch {
   static Future<List<JuzzioTrack>> search(String query) async {
     final q = query.trim();
     if (q.length < 2) return const <JuzzioTrack>[];
+    if (!JuzzioFeaturesService.instance.lastAppConfig.itunesPreviewsEnabled) {
+      throw StateError('music_disabled');
+    }
     final lang = JuzzioAppController.instance.uiLang;
     final country = lang == 'de' ? 'DE' : (lang == 'en' ? 'US' : 'TR');
     final key = '$country|${q.toLowerCase()}';
@@ -325,6 +389,11 @@ class JuzzioMusicSearch {
 /// açılışlarda (internet olmasa da) dosyadan çalınır. İlk dinleyişte akıştan çalar ve arka
 /// planda indirir.
 Future<void> juzzioSetMusicSource(AudioPlayer p, String url) async {
+  // v1.2.9 (telif): Apple önizlemeleri cihaza kaydedilmez — Apple koşulları yalnız akışa izin verir
+  if (juzzioIsApplePreview(url)) {
+    await p.setUrl(url);
+    return;
+  }
   final cache = JuzzioMediaDiskCache.instance;
   final hit = cache.cachedFile(url);
   if (hit != null) {
@@ -361,6 +430,7 @@ class JuzzioMusicPlayer {
 
   Future<void> play(String url, {bool loop = false}) async {
     if (!juzzioIsPlayableMusic(url)) return;
+    JuzzioAudioGuard.instance.registerStopper(stop);
     try {
       final p = _player ??= AudioPlayer();
       nowPlaying.value = url;
@@ -386,6 +456,27 @@ class JuzzioMusicPlayer {
       await _player?.stop();
     } catch (_) {}
   }
+}
+
+/// v1.2.8: profil müziği yalnız profil sayfası açıkken çalar — başka bir sayfa açılınca ya da
+/// geri dönülünce (hangi pencere olursa olsun) kendiliğinden durur.
+class JuzzioMusicRouteObserver extends NavigatorObserver {
+  JuzzioMusicRouteObserver._();
+  static final JuzzioMusicRouteObserver instance = JuzzioMusicRouteObserver._();
+
+  void _stop(Route<dynamic>? r) {
+    if (r is PopupRoute) return; // alt sayfa / diyalog açılınca durmaz
+    if (JuzzioMusicPlayer.instance.nowPlaying.value.isNotEmpty) JuzzioMusicPlayer.instance.stop();
+  }
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) => _stop(route);
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) => _stop(route);
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) => _stop(newRoute);
 }
 
 /// Profilde biyografinin altında görünen müzik hapı: dokun → çal, tekrar dokun → durdur.
@@ -451,6 +542,10 @@ class JuzzioMusicPill extends StatelessWidget {
                   player.toggle(musicUrl);
                 },
               ),
+            ],
+            if (interactive && juzzioIsApplePreview(musicUrl)) ...[
+              const SizedBox(width: 6),
+              JuzzioAppleMusicLink(title: title, artist: artist, compact: true),
             ],
           ],
         );
@@ -596,12 +691,15 @@ class _JuzzioMusicPickerPageState extends State<JuzzioMusicPickerPage> {
         _results = list;
         _loading = false;
       });
-    } catch (_) {
+    } catch (e) {
       if (!mounted || my != _seq) return;
+      final off = e.toString().contains('music_disabled');
       setState(() {
         _loading = false;
-        _error = _l('Müzik araması şu an yapılamadı. İnternet bağlantını kontrol edip tekrar dene.',
-            'Music search failed. Check your connection and try again.', 'Musiksuche fehlgeschlagen. Prüfe deine Verbindung.');
+        _error = off
+            ? _l('Müzik ekleme şu an yönetici tarafından kapatıldı.', 'Adding music is currently turned off by the admin.', 'Musik ist derzeit vom Admin deaktiviert.')
+            : _l('Müzik araması şu an yapılamadı. İnternet bağlantını kontrol edip tekrar dene.',
+                'Music search failed. Check your connection and try again.', 'Musiksuche fehlgeschlagen. Prüfe deine Verbindung.');
       });
     }
   }
@@ -782,6 +880,8 @@ class _JuzzioMusicPickerPageState extends State<JuzzioMusicPickerPage> {
                                         ),
                                       ),
                                       const SizedBox(width: 8),
+                                      JuzzioAppleMusicLink(storeUrl: t.storeUrl, title: t.title, artist: t.artist, compact: true),
+                                      const SizedBox(width: 6),
                                       _PlayStopButton(
                                         size: 36,
                                         playing: isPlaying,
@@ -805,8 +905,9 @@ class _JuzzioMusicPickerPageState extends State<JuzzioMusicPickerPage> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
             child: Text(
-              _l('Önizlemeler Apple Music\'in herkese açık 30 saniyelik kesitleridir.',
-                  'Previews are Apple Music\'s public 30-second clips.', 'Vorschauen sind öffentliche 30-Sekunden-Clips von Apple Music.'),
+              _l('Önizleme: Apple Music. Kesitler 30 saniyedir, cihaza kaydedilmez; tam şarkı için "Music" düğmesiyle Apple Music\'te aç.',
+                  'Preview: Apple Music. Clips are 30 seconds and never saved to your device; tap "Music" to open the full song in Apple Music.',
+                  'Vorschau: Apple Music. 30-Sekunden-Clips, nicht gespeichert; „Music" öffnet den ganzen Song in Apple Music.'),
               textAlign: TextAlign.center,
               style: TextStyle(color: p.textMuted, fontSize: 11),
             ),
@@ -876,7 +977,15 @@ class _JuzzioBackgroundMusicState extends State<JuzzioBackgroundMusic> {
   @override
   void initState() {
     super.initState();
+    JuzzioAudioGuard.instance.interruptions.addListener(_onInterrupt);
     _sync();
+  }
+
+  // v1.2.9: arama / arka plan / başka uygulama sesi → hikâye müziği hemen durur
+  void _onInterrupt() {
+    try {
+      _player?.pause();
+    } catch (_) {}
   }
 
   @override
@@ -915,6 +1024,7 @@ class _JuzzioBackgroundMusicState extends State<JuzzioBackgroundMusic> {
 
   @override
   void dispose() {
+    JuzzioAudioGuard.instance.interruptions.removeListener(_onInterrupt);
     final p = _player;
     _player = null;
     if (p != null) {

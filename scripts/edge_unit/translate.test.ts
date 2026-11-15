@@ -63,3 +63,37 @@ console.log(`translate: ${n}/${n} PASS`);
   }
   console.log("translate googleLangCode: 6/6 PASS");
 }
+
+// v1.2.9: resmî API anahtarı varsa resmî olmayan uç noktaya HİÇ gidilmez
+{
+  const { translateChunked: tc, translationProviderStatus, deeplLang } = await import("./translate.js");
+  const urls: string[] = [];
+  const cloud = async (url: string, init?: Record<string, unknown>) => {
+    urls.push(url);
+    if (url.startsWith("https://translation.googleapis.com/language/translate/v2")) {
+      const b = JSON.parse(String(init?.body ?? "{}"));
+      return { ok: true, json: async () => ({ data: { translations: [{ translatedText: `C:${b.q}`, detectedSourceLanguage: "tr" }] } }) };
+    }
+    return { ok: true, json: async () => [[["GTX", "x"]], null, "tr"] };
+  };
+  const r = await tc("Merhaba dünya", "auto", "en", cloud, { google: "k" });
+  if (!r || r.text !== "C:Merhaba dünya") throw new Error("google cloud çevirisi kullanılmadı");
+  if (urls.some((u) => u.includes("client=gtx") || u.includes("mymemory"))) throw new Error("resmî anahtar varken gtx/mymemory çağrıldı");
+  // Google Cloud başarısız → DeepL; DeepL de yoksa orijinal (gtx'e düşmez)
+  const urls2: string[] = [];
+  const deepl = async (url: string, init?: Record<string, unknown>) => {
+    urls2.push(url);
+    if (url.includes("deepl.com")) {
+      const b = JSON.parse(String(init?.body ?? "{}"));
+      if (b.target_lang !== "EN-US") throw new Error("deepl hedef kodu");
+      return { ok: true, json: async () => ({ translations: [{ text: "D", detected_source_language: "TR" }] }) };
+    }
+    return { ok: false, json: async () => ({}) };
+  };
+  const r2 = await tc("Selam", "auto", "en", deepl, { google: "k", deepl: "x:fx" });
+  if (!r2 || r2.text !== "D" || !urls2.some((u) => u.startsWith("https://api-free.deepl.com"))) throw new Error("deepl yedeği");
+  if (urls2.some((u) => u.includes("client=gtx"))) throw new Error("gtx'e düşüldü");
+  if (translationProviderStatus({}) !== "unofficial" || translationProviderStatus({ deepl: "a" }) !== "deepl" || translationProviderStatus({ google: "a" }) !== "google_cloud") throw new Error("sağlayıcı durumu");
+  if (deeplLang("pt", true) !== "PT-BR" || deeplLang("tr", false) !== "TR" || deeplLang("zh-tw", true) !== "ZH-HANT") throw new Error("deeplLang");
+  console.log("translate v1.2.9 resmî sağlayıcı: 8/8 PASS");
+}

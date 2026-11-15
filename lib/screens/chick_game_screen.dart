@@ -25,6 +25,7 @@ import 'chick_wardrobe_screen.dart';
 import '../widgets/juzzio_nest_scene.dart';
 import '../widgets/juzzio_cloth_refresh.dart';
 import '../widgets/juzzio_motion.dart';
+import '../core/juzzio_text_safety.dart';
 
 class JuzzioChickGameScreen extends StatefulWidget {
   final List<JuzzioUserProfile> friends;
@@ -299,7 +300,7 @@ class _JuzzioChickGameScreenState extends State<JuzzioChickGameScreen> with Tick
                         return ListTile(
                           leading: CircleAvatar(
                             backgroundImage: f.avatarUrl != null ? NetworkImage(f.avatarUrl!) : null,
-                            child: f.avatarUrl == null ? Text(f.displayName.isNotEmpty ? f.displayName[0].toUpperCase() : '?') : null,
+                            child: f.avatarUrl == null ? TextjuzzioInitial(f.displayName) : null,
                           ),
                           title: Text(f.displayName),
                           subtitle: Text('@${f.username}'),
@@ -461,7 +462,7 @@ class _JuzzioChickGameScreenState extends State<JuzzioChickGameScreen> with Tick
                   leading: CircleAvatar(
                     backgroundImage: inv.otherAvatar != null && inv.otherAvatar!.isNotEmpty ? NetworkImage(inv.otherAvatar!) : null,
                     child: (inv.otherAvatar == null || inv.otherAvatar!.isEmpty)
-                        ? Text(inv.otherName.isNotEmpty ? inv.otherName[0].toUpperCase() : '?')
+                        ? TextjuzzioInitial(inv.otherName)
                         : null,
                   ),
                   title: Text(inv.otherName),
@@ -636,7 +637,7 @@ class _JuzzioChickGameScreenState extends State<JuzzioChickGameScreen> with Tick
           leading: CircleAvatar(
             backgroundImage: st.partnerAvatar != null && st.partnerAvatar!.isNotEmpty ? NetworkImage(st.partnerAvatar!) : null,
             child: (st.partnerAvatar == null || st.partnerAvatar!.isEmpty)
-                ? Text(st.partnerName.isNotEmpty ? st.partnerName[0].toUpperCase() : '?')
+                ? TextjuzzioInitial(st.partnerName)
                 : null,
           ),
           title: Text(app.t('chick_partner'), style: TextStyle(color: p.textSecondary, fontSize: 12.5)),

@@ -33,6 +33,7 @@ import com.google.firebase.FirebaseApp
 import com.google.firebase.messaging.FirebaseMessaging
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 import java.util.UUID
 
@@ -415,6 +416,7 @@ class MainActivity : FlutterActivity() {
                         style.addMessage(NotificationCompat.MessagingStyle.Message(body, System.currentTimeMillis(), sender))
                         builder.setStyle(style)
                         if (avatar != null) builder.setLargeIcon(avatar)
+                        JuzzioNotifAvatar.remember(id, avatar)
                         builder.setContentTitle(if (isGroup && convTitle.isNotBlank()) convTitle else (if (actorName.isNotBlank()) actorName else title))
                     } catch (_: Exception) {}
                 }
@@ -587,13 +589,15 @@ class MainActivity : FlutterActivity() {
     // v0.9.3: süren arama — ekran içinde ekran (PiP) ve ön plan servisi
     private var callActive = false
     private var callVideo = false
+    // v1.2.8: Sinema Parti — uygulamadan çıkınca film küçük pencerede (16:9) sürer
+    private var watchActive = false
 
     private fun pipParams(): PictureInPictureParams? {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return null
         val b = PictureInPictureParams.Builder()
-            .setAspectRatio(if (callVideo) Rational(9, 16) else Rational(3, 4))
+            .setAspectRatio(if (watchActive) Rational(16, 9) else if (callVideo) Rational(9, 16) else Rational(3, 4))
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            b.setAutoEnterEnabled(callActive)
+            b.setAutoEnterEnabled(callActive || watchActive)
             b.setSeamlessResizeEnabled(true)
         }
         return b.build()
@@ -607,7 +611,7 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun enterCallPip(): Boolean {
-        if (!callActive || Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return false
+        if (!(callActive || watchActive) || Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return false
         if (!packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)) return false
         return try {
             enterPictureInPictureMode(pipParams()!!)
@@ -727,6 +731,8 @@ class MainActivity : FlutterActivity() {
         return deviceId
     }
 
+    private var juzzioSpeech: JuzzioSpeech? = null
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         ensureChannelsCreated(this)
@@ -734,8 +740,27 @@ class MainActivity : FlutterActivity() {
         val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
         activeMethodChannel = channel
 
+        // v1.2.8: yedek canlı altyazı motoru (Deepgram'a ulaşılamazsa cihaz tanıyıcısı)
+        val speech = JuzzioSpeech(applicationContext)
+        juzzioSpeech = speech
+        EventChannel(flutterEngine.dartExecutor.binaryMessenger, "juzzio/speech_events").setStreamHandler(speech)
+
         channel.setMethodCallHandler { call, result ->
             when (call.method) {
+                "speechAvailable" -> result.success(juzzioSpeech?.available() == true)
+                // v1.2.9: cihaz modeli / Android sürümü (giriş kaydı için; IMEI ASLA okunmaz)
+                "deviceInfo" -> result.success(mapOf(
+                    "model" to ("${Build.MANUFACTURER} ${Build.MODEL}").trim(),
+                    "os" to "Android ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})"
+                ))
+                "speechStart" -> {
+                    juzzioSpeech?.start(call.argument<String>("lang") ?: "tr")
+                    result.success(true)
+                }
+                "speechStop" -> {
+                    juzzioSpeech?.stop()
+                    result.success(true)
+                }
                 // v1.2.4: sohbet medyasını galeriye kaydet (arka plan iş parçacığında)
                 "saveToGallery" -> {
                     val path = call.argument<String>("path") ?: ""
@@ -785,6 +810,11 @@ class MainActivity : FlutterActivity() {
                     result.success(true)
                 }
                 "enterCallPip" -> result.success(enterCallPip())
+                "setWatchActive" -> {
+                    watchActive = call.argument<Boolean>("active") ?: false
+                    applyPipParams()
+                    result.success(true)
+                }
                 // v0.9.4: cihaz saati sunucudan saparsa Tarih ve Saat ayarları açılır
                 // v0.9.5: tek seferlik medya görüntülenirken ekran görüntüsü/kayıt engellenir
                 "setSecureScreen" -> {

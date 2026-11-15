@@ -24,6 +24,9 @@ By ticking the required box on the sign-up and sign-in screen you accept these t
 
 - You are responsible for the content you share. You keep the rights to your content and allow it to be processed to the extent needed to run the service (storing, delivering, displaying).
 - Content that violates the rules may be removed and accounts may be suspended.
+- **Copyright:** You may not share, or open in Cinema Party, music, films, series, sports streams or other protected content you do not have the rights to. Juzzio hosts no content; Cinema Party only synchronizes the link you open between participants. Domains offering pirated content are blocked.
+- **Copyright notices:** If you believe your rights are infringed, use "Report → Copyright" on the content or e-mail engiincr@pm.me with links to the work and the infringement. Content may be hidden while the notice is reviewed; repeat infringers' accounts are closed.
+- **Files:** Sending malware, scripts or executable files (e.g. .php, .jsp, .exe, .apk) is prohibited; such files are blocked automatically.
 
 ## 5. Consumer rights
 

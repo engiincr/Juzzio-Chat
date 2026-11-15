@@ -871,6 +871,8 @@ INSERT INTO rbac_cases VALUES
  ('admin', 'hesap silme YOK (yalnız süper yönetici)', $q$SELECT admin_delete_user('', current_setting('juzzio.d')::uuid, 'x')$q$, false),
  ('admin', 'rol verme YOK (yalnız süper yönetici)', $q$SELECT admin_grant_role('', current_setting('juzzio.d')::uuid, 'support')$q$, false);
 
+-- v1.2.9: eski 'admin' personel rolünün izin matrisi (kurucu kilidi test için geçici kapalı)
+ALTER TABLE staff_roles DISABLE TRIGGER trg_juzzio_guard_founder_admin;
 DO $$
 DECLARE r RECORD; v BOOLEAN; n INT := 0;
 BEGIN
@@ -891,6 +893,7 @@ BEGIN
   RAISE NOTICE 'RBAC matrisi: % durum doğrulandı', n;
 END $$;
 DELETE FROM staff_roles WHERE user_id = :'C';
+ALTER TABLE staff_roles ENABLE TRIGGER trg_juzzio_guard_founder_admin;
 SELECT pg_temp.check('RBAC matrisi (35 durum) geçti', true);
 
 -- Süper yönetici: belirteçsiz '*' GEÇMEZ; geçerli belirteçle geçer; yanlış belirteç → admin_session_invalid
@@ -912,11 +915,13 @@ SELECT pg_temp.as_user(:'C');
 SELECT pg_temp.check('destek: e-posta maskeli', (admin_user_detail('', :'D')->>'email') IS NULL);
 RESET ROLE;
 SELECT pg_temp.check('ayrıcalıklı okuma denetimde', EXISTS (SELECT 1 FROM admin_audit_log WHERE admin_id = :'C' AND action = 'view_user_detail' AND target = :'D'));
-UPDATE staff_roles SET role = 'admin' WHERE user_id = :'C';
-SET ROLE authenticated;
-SELECT pg_temp.as_user(:'C');
-SELECT pg_temp.check('yönetici: e-posta görünür', (admin_user_detail('', :'D')->>'email') = 'd@test.local');
-RESET ROLE;
+-- v1.2.9: kurucu (@tugkancr) dışında kimse 'admin' rolü alamaz — doğrudan yazımla bile
+DO $$ BEGIN
+  UPDATE staff_roles SET role = 'admin' WHERE user_id = 'cccccccc-0000-0000-0000-000000000003';
+  RAISE NOTICE 'FAIL kurucu dışına admin rolü verildi';
+EXCEPTION WHEN OTHERS THEN
+  IF SQLERRM LIKE '%admin_only_founder%' THEN RAISE NOTICE 'PASS admin rolü yalnız kurucuya'; ELSE RAISE NOTICE 'FAIL beklenmeyen: %', SQLERRM; END IF;
+END $$;
 -- Rol geri alınınca ANINDA etkisiz
 DELETE FROM staff_roles WHERE user_id = :'C';
 SET ROLE authenticated;
@@ -1589,7 +1594,9 @@ DO $$ BEGIN
   RAISE EXCEPTION 'FAIL destek askıya aldı';
 EXCEPTION WHEN raise_exception THEN IF SQLERRM NOT LIKE 'permission_denied%' THEN RAISE; END IF; END $$;
 RESET ROLE;
+ALTER TABLE staff_roles DISABLE TRIGGER trg_juzzio_guard_founder_admin; -- eski personel yöneticisi senaryosu
 UPDATE staff_roles SET role = 'admin' WHERE user_id = :'C';
+ALTER TABLE staff_roles ENABLE TRIGGER trg_juzzio_guard_founder_admin;
 SET ROLE authenticated;
 SELECT pg_temp.as_user(:'C');
 SELECT pg_temp.check('yönetici askıya alır (gerekçeli, denetimli)', admin_business_set_status('', :'A', 'business_suspended', 'spam şikayeti') = 'business_suspended');
@@ -2441,3 +2448,405 @@ DELETE FROM media_moderation WHERE provider = 'test' AND url LIKE '%room_x_%';
 DELETE FROM juzzio_rate_events WHERE user_id IN (:'A', :'B', :'C');
 UPDATE profiles SET username = 'ali' WHERE id = :'A';
 SELECT 'TÜM v1.2.6 TESTLERİ GEÇTİ';
+
+-- =============================================================================
+-- v1.2.8 saldırı testleri (Gemini raporu): sıradan kullanıcı olarak denenir
+-- =============================================================================
+RESET ROLE;
+SET search_path = public, extensions;
+DELETE FROM juzzio_rate_events WHERE user_id IN (:'A', :'B', :'C');
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+SELECT create_group_room('v128 sec', ARRAY[:'B'::uuid], 'off', false, 'friends', '', '') AS sg \gset
+RESET ROLE;
+SELECT set_config('jz.sg', :'sg', false);
+UPDATE room_participants SET muted_until = NOW() + INTERVAL '1 day', is_muted = true, request_status = 'pending'
+ WHERE room_id = :'sg' AND user_id = :'B';
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'B');
+UPDATE room_participants SET muted_until = NULL, is_muted = false, request_status = 'accepted', role = 'owner'
+ WHERE room_id = :'sg' AND user_id = :'B';
+RESET ROLE;
+SELECT pg_temp.check('susturulan üye susturmasını kaldıramaz',
+    (SELECT muted_until IS NOT NULL AND is_muted FROM room_participants WHERE room_id = :'sg' AND user_id = :'B'));
+SELECT pg_temp.check('bekleyen üye kendini onaylayamaz',
+    (SELECT request_status FROM room_participants WHERE room_id = :'sg' AND user_id = :'B') = 'pending');
+SELECT pg_temp.check('üye kendini sahip yapamaz', (SELECT role FROM room_participants WHERE room_id = :'sg' AND user_id = :'B') = 'member');
+UPDATE room_participants SET muted_until = NULL, is_muted = false, request_status = 'accepted' WHERE room_id = :'sg' AND user_id = :'B';
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'B');
+UPDATE room_participants SET is_pinned = true WHERE room_id = :'sg' AND user_id = :'B';
+RESET ROLE;
+SELECT pg_temp.check('kişisel ayar (sabitle) hâlâ değişir', (SELECT is_pinned FROM room_participants WHERE room_id = :'sg' AND user_id = :'B'));
+-- mesaj kilitli alanları
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'B');
+INSERT INTO messages (room_id, sender_id, original_text) VALUES (:'sg', :'B', 'v128 m1');
+UPDATE messages SET reactions = '{"x":"1"}'::jsonb, is_pinned = true, created_at = '2000-01-01' WHERE sender_id = :'B' AND original_text = 'v128 m1';
+RESET ROLE;
+SELECT pg_temp.check('mesaj tepkisi/sabitleme/zamanı doğrudan yazılamaz',
+    (SELECT reactions = '{}'::jsonb AND NOT COALESCE(is_pinned, false) AND created_at > '2001-01-01' FROM messages WHERE sender_id = :'B' AND original_text = 'v128 m1'));
+-- gönderi mavi tik
+INSERT INTO posts (author_id, content_type, caption) VALUES (:'B', 'text', 'v128 post');
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'B');
+UPDATE posts SET author_is_verified = true WHERE author_id = :'B' AND caption = 'v128 post';
+RESET ROLE;
+SELECT pg_temp.check('gönderide sahte mavi tik yazılamaz', NOT (SELECT author_is_verified FROM posts WHERE author_id = :'B' AND caption = 'v128 post'));
+-- profil created_at
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'B');
+UPDATE profiles SET created_at = '2000-01-01' WHERE id = :'B';
+UPDATE profiles SET app_role = 'moderator', is_verified = true WHERE id = :'B';
+RESET ROLE;
+SELECT pg_temp.check('profil created_at / rol / onay değişmez',
+    (SELECT created_at > '2001-01-01' AND app_role = 'user' AND NOT is_verified FROM profiles WHERE id = :'B'));
+-- eski yorum avatarı güncellenir
+INSERT INTO post_comments (post_id, author_id, content, author_avatar_url) SELECT id, :'B', 'yorum', 'https://old/a.jpg' FROM posts WHERE caption = 'v128 post';
+INSERT INTO media_moderation (user_id, kind, url, verdict, provider) VALUES (:'B', 'avatar', 'https://new/b.jpg', 'safe', 'test');
+UPDATE profiles SET avatar_url = 'https://new/b.jpg' WHERE id = :'B';
+SELECT pg_temp.check('profil fotoğrafı değişince eski yorum da güncellenir',
+    (SELECT author_avatar_url FROM post_comments WHERE author_id = :'B' AND content = 'yorum') = 'https://new/b.jpg');
+SELECT pg_temp.check('RLS kapalı public tablo yok',
+    NOT EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relkind = 'r' AND NOT c.relrowsecurity
+                   AND c.relname <> 'message_translations')); -- test içinde sonradan oluşturulan taslak tablo
+-- arkadaşlık kimliği uydurma
+DELETE FROM friendships WHERE (requester_id = :'B' AND receiver_id = :'C') OR (requester_id = :'C' AND receiver_id = :'B') OR (requester_id = :'A' AND receiver_id = :'C') OR (requester_id = :'C' AND receiver_id = :'A');
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'B');
+INSERT INTO friendships (requester_id, receiver_id) VALUES (:'B', :'C');
+SELECT pg_temp.as_user(:'C');
+UPDATE friendships SET requester_id = :'A', status = 'accepted' WHERE receiver_id = :'C' AND requester_id = :'B';
+RESET ROLE;
+SELECT pg_temp.check('arkadaşlık isteğinde gönderen değiştirilemez (sahte arkadaşlık yok)',
+    NOT EXISTS (SELECT 1 FROM friendships WHERE requester_id = :'A' AND receiver_id = :'C')
+    AND EXISTS (SELECT 1 FROM friendships WHERE requester_id = :'B' AND receiver_id = :'C' AND status = 'accepted'));
+DELETE FROM friendships WHERE requester_id = :'B' AND receiver_id = :'C';
+-- arama kaydı yalnız kendinden gizlenir
+INSERT INTO call_logs (caller_id, receiver_id, status) VALUES (:'B', :'C', 'ended') RETURNING id AS cl8 \gset
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'B');
+DELETE FROM call_logs WHERE id = :'cl8';
+SELECT pg_temp.check('arama kaydı karşı taraftan silinemez (DELETE etkisiz)', true);
+SELECT pg_temp.check('kendi geçmişimden gizlerim', hide_my_call_logs(ARRAY[:'cl8'::uuid]) = 1);
+SELECT pg_temp.check('gizlediğim kayıt bende görünmez', NOT EXISTS (SELECT 1 FROM call_logs WHERE id = :'cl8'));
+SELECT pg_temp.as_user(:'C');
+SELECT pg_temp.check('karşı tarafın geçmişinde kayıt durur', EXISTS (SELECT 1 FROM call_logs WHERE id = :'cl8'));
+SELECT pg_temp.check('başkasının aramasını gizleyemem', hide_my_call_logs(ARRAY[(SELECT id FROM call_logs WHERE caller_id = :'B' LIMIT 1)]) >= 0);
+RESET ROLE;
+DELETE FROM call_logs WHERE id = :'cl8';
+-- push çöplüğü
+DELETE FROM user_push_tokens WHERE device_id = 'dev128';
+INSERT INTO user_push_tokens (user_id, device_id, fcm_token, is_active, invalidated_reason) VALUES (:'B', 'dev128', 'tok128a', false, 'user_signed_out');
+INSERT INTO user_push_tokens (user_id, device_id, fcm_token, is_active) VALUES (:'C', 'dev128', 'tok128b', true);
+SELECT pg_temp.check('cihaz başına tek push kaydı', (SELECT count(*) FROM user_push_tokens WHERE device_id = 'dev128') = 1
+    AND (SELECT fcm_token FROM user_push_tokens WHERE device_id = 'dev128') = 'tok128b');
+DELETE FROM user_push_tokens WHERE device_id = 'dev128';
+DELETE FROM posts WHERE caption = 'v128 post';
+UPDATE profiles SET avatar_url = NULL WHERE id = :'B';
+DELETE FROM media_moderation WHERE provider = 'test' AND url = 'https://new/b.jpg';
+DELETE FROM rooms WHERE id = :'sg';
+DELETE FROM juzzio_rate_events WHERE user_id IN (:'A', :'B', :'C');
+SELECT 'TÜM v1.2.8 TESTLERİ GEÇTİ';
+
+-- =============================================================================
+-- v1.2.8 Sinema Parti: en çok 4 izleyici, KATIL kartı, sesli oda yetkisi
+-- =============================================================================
+RESET ROLE;
+DELETE FROM juzzio_rate_events WHERE user_id IN (:'A', :'B', :'C');
+INSERT INTO auth.users (id, email, raw_user_meta_data) VALUES
+  ('dddddddd-0000-0000-0000-000000000128', 'd128@test.local', '{"username":"userd128","display_name":"User D"}'),
+  ('eeeeeeee-0000-0000-0000-000000000128', 'e128@test.local', '{"username":"usere128","display_name":"User E"}');
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+SELECT create_group_room('v128 cinema', ARRAY[:'B'::uuid, :'C'::uuid], 'off', false, 'friends', '', '') AS cg \gset
+RESET ROLE;
+INSERT INTO room_participants (room_id, user_id, role) VALUES (:'cg', :'C', 'member'), (:'cg', 'dddddddd-0000-0000-0000-000000000128', 'member'), (:'cg', 'eeeeeeee-0000-0000-0000-000000000128', 'member') ON CONFLICT DO NOTHING;
+SELECT set_config('jz.cg', :'cg', false);
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+SELECT start_watch_party(:'cg', 'https://www.fullhdfilmizlesene.now/film/can-dostumun-mukemmel-noeli/', '') AS wp \gset
+RESET ROLE;
+SELECT set_config('jz.wp', :'wp', false);
+SELECT pg_temp.check('web sitesi bağlantısı kabul edilir (kind=web)', (SELECT source_kind FROM watch_party_sessions WHERE id = :'wp') = 'web');
+SELECT pg_temp.check('YouTube türü tanınır', juzzio_watch_kind('https://youtu.be/HziuStFGhRE') = 'youtube' AND juzzio_watch_kind('https://x.com/a.m3u8') = 'hls');
+SELECT pg_temp.check('sohbete KATIL kartı düşer', EXISTS (SELECT 1 FROM messages WHERE room_id = :'cg' AND message_type = 'system'
+    AND metadata->>'kind' = 'watch_party' AND metadata->>'session_id' = :'wp'));
+SELECT pg_temp.check('üyelere bildirim gider', (SELECT count(*) FROM notifications WHERE event_type = 'watch_party' AND target_secondary_id = :'wp') = 4);
+SELECT pg_temp.check('ev sahibi izleyici sayılır', juzzio_watch_active_viewers(:'wp') = 1);
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'B');
+SELECT pg_temp.check('B katılır ve sesli oda adını alır', (join_watch_party(:'wp')->>'livekit_room') LIKE 'wp\_%');
+SELECT pg_temp.as_user(:'C');
+SELECT join_watch_party(:'wp') IS NOT NULL AS c_joined;
+SELECT pg_temp.as_user('dddddddd-0000-0000-0000-000000000128');
+SELECT join_watch_party(:'wp') IS NOT NULL AS d_joined;
+SELECT pg_temp.as_user('eeeeeeee-0000-0000-0000-000000000128');
+DO $$ BEGIN PERFORM join_watch_party(current_setting('jz.wp')::uuid);
+  RAISE NOTICE 'FAIL 5. kişi katıldı';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS en çok 4 izleyici (5. kişi: dolu)'; END $$;
+SELECT pg_temp.as_user(:'B');
+SELECT pg_temp.check('izleyici oynat/duraklat yapabilir', (watch_party_control(:'wp', true, 5000, 1.0)->>'is_playing')::boolean);
+SELECT pg_temp.check('izleyici ayrılır', leave_watch_party(:'wp'));
+SELECT pg_temp.as_user('eeeeeeee-0000-0000-0000-000000000128');
+SELECT pg_temp.check('yer açılınca 5. kişi katılabilir', join_watch_party(:'wp') IS NOT NULL);
+RESET ROLE;
+SELECT pg_temp.check('sesli oda yalnız izleyiciye açık',
+    can_join_livekit_room('eeeeeeee-0000-0000-0000-000000000128', (SELECT livekit_room_name FROM watch_party_sessions WHERE id = :'wp'))
+    AND NOT can_join_livekit_room(:'B', (SELECT livekit_room_name FROM watch_party_sessions WHERE id = :'wp')));
+SELECT pg_temp.check('sinemadaki izleyiciye canlı altyazı açık', juzzio_can_use_live_captions(:'C'));
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'C');
+DO $$ BEGIN PERFORM watch_party_control(current_setting('jz.wp')::uuid, false, 0, 1.0); RAISE NOTICE 'PASS izleyici C kontrol eder';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'FAIL izleyici kontrol edemedi: %', SQLERRM; END $$;
+RESET ROLE;
+DELETE FROM rooms WHERE id = :'cg';
+DELETE FROM auth.users WHERE id IN ('dddddddd-0000-0000-0000-000000000128', 'eeeeeeee-0000-0000-0000-000000000128');
+DELETE FROM juzzio_rate_events WHERE user_id IN (:'A', :'B', :'C');
+SELECT 'TÜM v1.2.8 SİNEMA TESTLERİ GEÇTİ';
+
+-- =============================================================================
+-- v1.2.9: dosya güvenliği, telif (korsan alan adı engeli), sistem sağlığı
+-- =============================================================================
+RESET ROLE;
+DELETE FROM juzzio_rate_events WHERE user_id IN (:'A', :'B', :'C');
+SELECT pg_temp.check('php yüklemesi engellenir', juzzio_blocked_file_name('u/r/shell.php'));
+SELECT pg_temp.check('jsp/aspx/html/svg/exe/apk engellenir', juzzio_blocked_file_name('u/a.jsp') AND juzzio_blocked_file_name('u/a.ASPX')
+    AND juzzio_blocked_file_name('u/a.html') AND juzzio_blocked_file_name('u/a.svg') AND juzzio_blocked_file_name('u/a.exe') AND juzzio_blocked_file_name('u/a.apk'));
+SELECT pg_temp.check('gizli çift uzantı engellenir', juzzio_blocked_file_name('u/fatura.php.jpg') AND juzzio_blocked_file_name('u/x.js.pdf'));
+SELECT pg_temp.check('yol aşımı (..) engellenir', juzzio_blocked_file_name('u/../v/a.jpg'));
+SELECT pg_temp.check('normal medya/belge kabul edilir', NOT juzzio_blocked_file_name('u/r/1700000000.jenc') AND NOT juzzio_blocked_file_name('u/story_1.mp4')
+    AND NOT juzzio_blocked_file_name('u/r/rapor.pdf') AND NOT juzzio_blocked_file_name('u/r/parca.nc') AND NOT juzzio_blocked_file_name('u/r/cizim.dxf'));
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+SELECT pg_temp.check('dosya engel olayı yazılır (ad/içerik yok)', juzzio_log_file_block('out', 'blockedExtension', 'php'));
+SELECT pg_temp.check('kullanıcı yalnız kendi olaylarını görür', (SELECT count(*) FROM file_guard_events) = 1);
+SELECT pg_temp.check('sağlık yoklaması çalışır', (juzzio_health_ping()->>'ok')::boolean AND (juzzio_health_ping()->>'file_blocks_24h')::int = 1);
+SELECT pg_temp.as_user(:'B');
+SELECT pg_temp.check('başkasının dosya olayları görünmez', (SELECT count(*) FROM file_guard_events) = 0);
+DO $$ BEGIN INSERT INTO file_guard_events (user_id, direction, verdict) VALUES (auth.uid(), 'out', 'x');
+  RAISE NOTICE 'FAIL istemci doğrudan olay yazdı';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS olay tablosuna doğrudan yazılamaz'; END $$;
+DO $$ BEGIN PERFORM 1 FROM watch_party_blocked_domains; RAISE NOTICE 'FAIL engel listesi okunabildi';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS engel listesi istemciye kapalı'; END $$;
+RESET ROLE;
+INSERT INTO watch_party_blocked_domains (domain) VALUES ('korsanfilm.test') ON CONFLICT DO NOTHING;
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+SELECT create_group_room('v129 cinema', ARRAY[:'B'::uuid], 'off', false, 'friends', '', '') AS cg9 \gset
+SELECT set_config('jz.cg9', :'cg9', false);
+DO $$ BEGIN PERFORM start_watch_party(current_setting('jz.cg9')::uuid, 'https://www.korsanfilm.test/film/1', '');
+  RAISE NOTICE 'FAIL korsan alan adıyla parti başladı';
+EXCEPTION WHEN OTHERS THEN
+  IF SQLERRM LIKE '%watch_party_domain_blocked%' THEN RAISE NOTICE 'PASS korsan alan adı engellendi'; ELSE RAISE NOTICE 'FAIL beklenmeyen hata: %', SQLERRM; END IF; END $$;
+DO $$ BEGIN PERFORM start_watch_party(current_setting('jz.cg9')::uuid, 'https://alt.korsanfilm.test/x', '');
+  RAISE NOTICE 'FAIL alt alan adıyla parti başladı';
+EXCEPTION WHEN OTHERS THEN
+  IF SQLERRM LIKE '%watch_party_domain_blocked%' THEN RAISE NOTICE 'PASS alt alan adı da engellendi'; ELSE RAISE NOTICE 'FAIL beklenmeyen hata: %', SQLERRM; END IF; END $$;
+SELECT pg_temp.check('engelsiz site çalışmaya devam eder', start_watch_party(:'cg9', 'https://www.youtube.com/watch?v=HziuStFGhRE', '') IS NOT NULL);
+INSERT INTO reports (reporter_id, target_type, target_id, reason_code, details, status)
+VALUES (auth.uid(), 'message', gen_random_uuid()::text, 'copyright', 'v129', 'open');
+RESET ROLE;
+SELECT pg_temp.check('telif şikâyet nedeni kabul edilir', (SELECT count(*) FROM reports WHERE details = 'v129' AND reason_code = 'copyright') = 1);
+DELETE FROM reports WHERE details = 'v129';
+DELETE FROM rooms WHERE id = :'cg9';
+DELETE FROM watch_party_blocked_domains WHERE domain = 'korsanfilm.test';
+DELETE FROM file_guard_events WHERE user_id IN (:'A', :'B', :'C');
+DELETE FROM juzzio_rate_events WHERE user_id IN (:'A', :'B', :'C');
+SELECT pg_temp.check('itunes anahtarı varsayılan açık', (SELECT value FROM app_settings WHERE key = 'itunes_previews_enabled') = 'true'::jsonb);
+
+-- ---- v1.2.9 (10.39): mesaj istekleri, kurucu kilidi, denetim zinciri, hata bildirimi, giriş kaydı ----
+RESET ROLE;
+DELETE FROM juzzio_rate_events WHERE user_id IN (:'A', :'B', :'C');
+INSERT INTO auth.users (id, email, raw_user_meta_data) VALUES
+  ('dddddddd-0000-0000-0000-000000000129', 'd129@test.local', '{"username":"userd129","display_name":"User D9"}'),
+  ('eeeeeeee-0000-0000-0000-000000000129', 'e129@test.local', '{"username":"usere129","display_name":"🦊 Emoji E9"}'),
+  ('ffffffff-0000-0000-0000-000000000129', 'f129@test.local', '{"username":"userf129","display_name":"User F9"}');
+UPDATE profiles SET is_private_account = false WHERE id IN ('dddddddd-0000-0000-0000-000000000129', 'eeeeeeee-0000-0000-0000-000000000129');
+UPDATE profiles SET is_private_account = true WHERE id = 'ffffffff-0000-0000-0000-000000000129';
+SET ROLE authenticated;
+SELECT pg_temp.as_user('dddddddd-0000-0000-0000-000000000129');
+-- herkese açık, arkadaş değil → istek odası
+SELECT get_or_create_dm_room('eeeeeeee-0000-0000-0000-000000000129') AS rq \gset
+SELECT set_config('jz.rq', :'rq', false);
+INSERT INTO messages (room_id, sender_id, original_text) VALUES (:'rq', 'dddddddd-0000-0000-0000-000000000129', 'merhaba 1');
+SELECT pg_temp.check('istek: kalan hak 2', (dm_request_state(:'rq')->>'remaining')::int = 2 AND dm_request_state(:'rq')->>'state' = 'outgoing');
+INSERT INTO messages (room_id, sender_id, original_text) VALUES (:'rq', 'dddddddd-0000-0000-0000-000000000129', 'merhaba 2');
+INSERT INTO messages (room_id, sender_id, original_text) VALUES (:'rq', 'dddddddd-0000-0000-0000-000000000129', 'merhaba 3');
+DO $$ BEGIN
+  INSERT INTO messages (room_id, sender_id, original_text) VALUES (current_setting('jz.rq')::uuid, 'dddddddd-0000-0000-0000-000000000129', 'merhaba 4');
+  RAISE NOTICE 'FAIL 4. istek mesajı geçti';
+EXCEPTION WHEN OTHERS THEN
+  IF SQLERRM LIKE '%message_request_limit%' THEN RAISE NOTICE 'PASS 3 mesaj sınırı'; ELSE RAISE NOTICE 'FAIL beklenmeyen: %', SQLERRM; END IF;
+END $$;
+SELECT pg_temp.check('istek: gönderen engelli görünür', (dm_request_state(:'rq')->>'blocked')::boolean);
+-- alıcı: istek kutusunda; spam'e taşı → spam listesinde
+SELECT pg_temp.as_user('eeeeeeee-0000-0000-0000-000000000129');
+SELECT pg_temp.check('alıcıda gelen istek', dm_request_state(:'rq')->>'state' = 'incoming');
+SELECT respond_message_request_v2(:'rq', 'spam');
+SELECT pg_temp.check('spam kutusunda', EXISTS (SELECT 1 FROM my_spam_request_rooms() x WHERE x = :'rq'));
+SELECT respond_message_request_v2(:'rq', 'unspam');
+-- alıcı yanıt yazınca istek kabul edilir, gönderene bildirim
+INSERT INTO messages (room_id, sender_id, original_text) VALUES (:'rq', 'eeeeeeee-0000-0000-0000-000000000129', 'selam');
+RESET ROLE;
+SELECT pg_temp.check('yanıt = kabul + gönderene bildirim', EXISTS (SELECT 1 FROM notifications WHERE recipient_id = 'dddddddd-0000-0000-0000-000000000129' AND event_type = 'request_accepted'));
+SET ROLE authenticated;
+SELECT pg_temp.as_user('dddddddd-0000-0000-0000-000000000129');
+INSERT INTO messages (room_id, sender_id, original_text) VALUES (:'rq', 'dddddddd-0000-0000-0000-000000000129', 'harika, devam 5');
+SELECT pg_temp.check('kabulden sonra sınır kalkar', dm_request_state(:'rq')->>'state' = 'none');
+-- gizli hesaba arkadaş olmadan yazılamaz
+DO $$ BEGIN
+  PERFORM get_or_create_dm_room('ffffffff-0000-0000-0000-000000000129');
+  RAISE NOTICE 'FAIL gizli hesaba istek açıldı';
+EXCEPTION WHEN OTHERS THEN
+  IF SQLERRM LIKE '%private_account_friend_required%' THEN RAISE NOTICE 'PASS gizli hesap arkadaşlık ister'; ELSE RAISE NOTICE 'FAIL beklenmeyen: %', SQLERRM; END IF;
+END $$;
+-- reddedilen istek: gönderen yazamaz, alıcıdan kalkar
+RESET ROLE;
+-- F'yi herkese açık yapıp ret akışını dene
+UPDATE profiles SET is_private_account = false WHERE id = 'ffffffff-0000-0000-0000-000000000129';
+SET ROLE authenticated;
+SELECT pg_temp.as_user('eeeeeeee-0000-0000-0000-000000000129');
+SELECT get_or_create_dm_room('ffffffff-0000-0000-0000-000000000129') AS rq2 \gset
+SELECT set_config('jz.rq2', :'rq2', false);
+INSERT INTO messages (room_id, sender_id, original_text) VALUES (:'rq2', 'eeeeeeee-0000-0000-0000-000000000129', 'hey');
+SELECT pg_temp.as_user('ffffffff-0000-0000-0000-000000000129');
+SELECT respond_message_request_v2(:'rq2', 'delete');
+SELECT pg_temp.check('silinen istek alıcının listesinden kalkar', NOT EXISTS (SELECT 1 FROM get_my_conversations() c WHERE c.room_id = :'rq2'));
+SELECT pg_temp.as_user('eeeeeeee-0000-0000-0000-000000000129');
+DO $$ BEGIN
+  INSERT INTO messages (room_id, sender_id, original_text) VALUES (current_setting('jz.rq2')::uuid, 'eeeeeeee-0000-0000-0000-000000000129', 'tekrar');
+  RAISE NOTICE 'FAIL reddedilen istekte mesaj gitti';
+EXCEPTION WHEN OTHERS THEN
+  IF SQLERRM LIKE '%message_request_pending%' THEN RAISE NOTICE 'PASS reddedilende gönderen yazamaz'; ELSE RAISE NOTICE 'FAIL beklenmeyen: %', SQLERRM; END IF;
+END $$;
+SELECT pg_temp.check('reddedilende gönderen hâlâ bekliyor görür', dm_request_state(:'rq2')->>'state' = 'outgoing');
+-- başkasının isteğini yanıtlayamaz
+DO $$ BEGIN
+  PERFORM respond_message_request_v2(current_setting('jz.rq')::uuid, 'accept');
+  RAISE NOTICE 'FAIL başkasının isteği kabul edildi';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS başkasının isteği yanıtlanamaz'; END $$;
+
+-- giriş kaydı: IP istemciden değil istek başlığından
+SELECT set_config('request.headers', '{"x-forwarded-for":"203.0.113.9, 10.0.0.1","cf-ipcountry":"TR","user-agent":"Dart/3"}', false);
+SELECT pg_temp.check('giriş kaydı yazılır', juzzio_record_login('and_dev_129_aaaa', 'Xiaomi 14T', 'Android 15', '1.2.9', 'tr_TR'));
+RESET ROLE;
+SELECT set_config('request.headers', '', false);
+SELECT pg_temp.check('IP ve ülke başlıktan alınır', EXISTS (SELECT 1 FROM user_login_events WHERE user_id = 'eeeeeeee-0000-0000-0000-000000000129' AND ip = '203.0.113.9' AND country = 'TR'));
+SELECT pg_temp.check('cihaz modeli kaydı', (SELECT device_model FROM user_devices WHERE user_id = 'eeeeeeee-0000-0000-0000-000000000129' LIMIT 1) = 'Xiaomi 14T');
+SET ROLE authenticated;
+SELECT pg_temp.as_user('eeeeeeee-0000-0000-0000-000000000129');
+DO $$ BEGIN PERFORM 1 FROM user_login_events; RAISE NOTICE 'FAIL giriş kayıtları kullanıcıya açık';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS giriş kayıtları kullanıcıya kapalı'; END $$;
+DO $$ BEGIN PERFORM admin_user_network('', 'dddddddd-0000-0000-0000-000000000129'); RAISE NOTICE 'FAIL ağ bilgisi kurucusuz açıldı';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS ağ bilgisi yalnız kurucuya'; END $$;
+DO $$ BEGIN PERFORM admin_legal_export('', 'dddddddd-0000-0000-0000-000000000129', 'resmi yazi 2026/1'); RAISE NOTICE 'FAIL yasal paket kurucusuz';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS yasal paket yalnız kurucuya'; END $$;
+-- XSS temizliği: biyografi
+UPDATE profiles SET bio = 'merhaba <script>alert(1)</script><img src=x onerror=alert(2)> javascript:alert(3)' WHERE id = auth.uid();
+SELECT pg_temp.check('biyografide betik kalmaz', (SELECT bio FROM profiles WHERE id = auth.uid()) !~* '(<script|onerror|javascript:|<img)');
+RESET ROLE;
+
+-- kurucu kilidi + denetim zinciri + anti-nuke + hata bildirimi
+UPDATE profiles SET username = 'tugkancr' WHERE id = :'A';
+SELECT pg_temp.check('kurucu kimliği', juzzio_founder_id() = :'A');
+DO $$ BEGIN
+  INSERT INTO staff_roles (user_id, role) VALUES ('dddddddd-0000-0000-0000-000000000129', 'admin');
+  RAISE NOTICE 'FAIL kurucu dışına admin';
+EXCEPTION WHEN OTHERS THEN IF SQLERRM LIKE '%admin_only_founder%' THEN RAISE NOTICE 'PASS kurucu dışına admin verilemez'; ELSE RAISE NOTICE 'FAIL %', SQLERRM; END IF; END $$;
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+DO $$ BEGIN
+  UPDATE profiles SET username = 'tugkancr2' WHERE id = auth.uid();
+  RAISE NOTICE 'FAIL kurucu adı API ile değişti';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS kurucu adı değiştirilemez'; END $$;
+RESET ROLE;
+INSERT INTO admin_audit_log (admin_id, action, target) VALUES (:'A', 'v129_chain_1', 'x'), (:'A', 'v129_chain_2', 'y');
+SELECT pg_temp.check('denetim zinciri bağlı', (SELECT prev_hash FROM admin_audit_log WHERE action = 'v129_chain_2') = (SELECT row_hash FROM admin_audit_log WHERE action = 'v129_chain_1'));
+DO $$ BEGIN
+  UPDATE admin_audit_log SET target = 'z' WHERE action = 'v129_chain_1';
+  RAISE NOTICE 'FAIL denetim kaydı değişti';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS denetim kaydı değiştirilemez'; END $$;
+DO $$ BEGIN
+  DELETE FROM admin_audit_log WHERE action = 'v129_chain_1';
+  RAISE NOTICE 'FAIL denetim kaydı silindi';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS denetim kaydı silinemez'; END $$;
+INSERT INTO staff_roles (user_id, role) VALUES ('dddddddd-0000-0000-0000-000000000129', 'moderator');
+INSERT INTO admin_audit_log (admin_id, action, target)
+  SELECT 'dddddddd-0000-0000-0000-000000000129', 'ban_user', g::text FROM generate_series(1, 7) g;
+SELECT pg_temp.check('anti-nuke: personel yetkisi askıya', NOT EXISTS (SELECT 1 FROM staff_roles WHERE user_id = 'dddddddd-0000-0000-0000-000000000129'));
+SELECT pg_temp.check('anti-nuke: kurucuya uyarı', EXISTS (SELECT 1 FROM notifications WHERE recipient_id = :'A' AND preview_text LIKE 'admin_alert|%'));
+INSERT INTO app_error_reports (fingerprint, app_version, error_type, message) VALUES ('v129testfp00001', '1.2.9', 'Issue:translate', 'çeviri yanıt vermedi');
+SELECT pg_temp.check('yeni hata → yalnız kurucuya bildirim', (SELECT count(*) FROM notifications WHERE preview_text LIKE 'admin_error|Issue:translate%') = 1
+  AND (SELECT recipient_id FROM notifications WHERE preview_text LIKE 'admin_error|Issue:translate%') = :'A');
+SELECT set_config('request.jwt.claims', json_build_object('sub', :'A', 'role', 'authenticated')::text, false);
+INSERT INTO admin_sessions (token_hash, user_id, device_id, expires_at) VALUES (encode(digest('tok129', 'sha256'), 'hex'), :'A', 'and_dev_tok129', NOW() + INTERVAL '1 hour');
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+SELECT pg_temp.check('zincir doğrulama ok', (admin_verify_audit_chain('tok129')->>'ok')::boolean);
+SELECT pg_temp.check('yasal paket v2: cihaz + giriş + bütünlük', (admin_legal_export('tok129', 'eeeeeeee-0000-0000-0000-000000000129', 'Resmi yazi 2026/129')->>'integrity_sha256') ~ '^[0-9a-f]{64}$');
+SELECT pg_temp.check('ağ bilgisi: IP görünür', (admin_user_network('tok129', 'eeeeeeee-0000-0000-0000-000000000129')->'devices'->0->>'ip') = '203.0.113.9');
+RESET ROLE;
+SELECT pg_temp.check('yasal talep kaydı tutulur', EXISTS (SELECT 1 FROM legal_requests WHERE username = 'usere129'));
+-- hikâye 24 saat dolunca kalıcı silinir
+INSERT INTO stories (user_id, media_url, media_type, expires_at) VALUES ('dddddddd-0000-0000-0000-000000000129', 'https://x.test/s.jpg', 'image', NOW() - INTERVAL '10 minutes');
+SELECT pg_temp.check('temizlik biten hikâyeyi siler', (juzzio_purge_expired_content()->>'stories')::int >= 1);
+SELECT pg_temp.check('biten hikâye kalıcı silindi', NOT EXISTS (SELECT 1 FROM stories WHERE user_id = 'dddddddd-0000-0000-0000-000000000129'));
+SELECT pg_temp.check('varsayılan tema Gece Mavisi bir kez uygulandı', EXISTS (SELECT 1 FROM app_settings WHERE key = 'default_palette_v129_applied'));
+SELECT pg_temp.check('varsayılan tema kimliği ocean (Gece Mavisi)', (SELECT value #>> '{}' FROM app_settings WHERE key = 'default_glass_palette') IS NOT NULL);
+SELECT pg_temp.check('ağ görünümü kullanıcı adıyla: anon/authenticated dışına kapalı',
+    NOT has_function_privilege('anon', 'public.admin_user_network_by_username(text,text)', 'EXECUTE'));
+SELECT pg_temp.check('ağ görünümü kurucu oturumu ister', (SELECT prosrc LIKE '%admin_check_token%' FROM pg_proc WHERE proname = 'admin_user_network_by_username'));
+-- 10.40 yasal inceleme: dondurma, arşiv, yaşam döngüsü, silinmiş hesabın paketi
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+DO $$ BEGIN PERFORM admin_legal_hold('', 'usere129', 'Savcılık yazısı 2026/130', 90); RAISE NOTICE 'FAIL dondurma kurucusuz';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS dondurma yalnız kurucuya'; END $$;
+DO $$ BEGIN PERFORM admin_legal_hold('tok129', 'usere129', 'ab', 90); RAISE NOTICE 'FAIL gerekçesiz dondurma';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS dondurma gerekçe ister'; END $$;
+SELECT pg_temp.check('hesap 90 gün dondurulur', (admin_legal_hold('tok129', '@USERE129', 'Savcılık yazısı 2026/130', 90)->>'username') = 'usere129');
+SELECT pg_temp.check('dondurulanlar listesi', jsonb_array_length(admin_legal_holds('tok129')) >= 1);
+RESET ROLE;
+DO $$ BEGIN PERFORM 1 FROM legal_preserved; END $$;
+SET ROLE authenticated;
+SELECT pg_temp.as_user('eeeeeeee-0000-0000-0000-000000000129');
+DO $$ BEGIN PERFORM 1 FROM legal_preserved; RAISE NOTICE 'FAIL arşiv kullanıcıya açık';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS arşiv kullanıcıya kapalı'; END $$;
+DO $$ BEGIN PERFORM 1 FROM legal_holds; RAISE NOTICE 'FAIL dondurma listesi kullanıcıya açık';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS dondurma kullanıcıdan gizli'; END $$;
+SELECT set_config('request.headers', '{"x-forwarded-for":"198.51.100.7","cf-ipcountry":"DE","user-agent":"Dart/3 juzzio"}', false);
+SELECT pg_temp.check('çıkış kaydı yazılır', juzzio_record_lifecycle('sign_out', ''));
+DO $$ BEGIN PERFORM juzzio_record_lifecycle('account_deleted', ''); RAISE NOTICE 'FAIL istemci hesap silme kaydı uydurdu';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS hesap silme kaydını yalnız sunucu yazar'; END $$;
+RESET ROLE;
+SELECT set_config('request.headers', '', false);
+SELECT pg_temp.check('yaşam döngüsü IP/ülke başlıktan', EXISTS (SELECT 1 FROM account_lifecycle_events WHERE user_id = 'eeeeeeee-0000-0000-0000-000000000129' AND event = 'sign_out' AND ip = '198.51.100.7' AND country = 'DE'));
+DELETE FROM user_devices WHERE user_id = 'eeeeeeee-0000-0000-0000-000000000129';
+SELECT pg_temp.check('dondurulan kullanıcının silinen cihaz kaydı arşivde', EXISTS (SELECT 1 FROM legal_preserved WHERE user_id = 'eeeeeeee-0000-0000-0000-000000000129' AND kind = 'user_devices'));
+INSERT INTO juzzio_storage_cleanup_queue (bucket, object_name, reason) VALUES ('chat-media', 'eeeeeeee-0000-0000-0000-000000000129/r/x.jpg', 'test_hold');
+SELECT pg_temp.check('dondurulan kullanıcının dosyası depodan silinmez', NOT EXISTS (SELECT 1 FROM juzzio_storage_cleanup_claim(500) c WHERE c.object_name LIKE 'eeeeeeee-0000-0000-0000-000000000129/%'));
+DELETE FROM auth.users WHERE id = 'eeeeeeee-0000-0000-0000-000000000129';
+SELECT pg_temp.check('silinen hesabın profili arşivde', EXISTS (SELECT 1 FROM legal_preserved WHERE user_id = 'eeeeeeee-0000-0000-0000-000000000129' AND kind = 'profiles'));
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+SELECT pg_temp.check('silinmiş ama dondurulmuş hesabın paketi alınır (v3)',
+    (admin_legal_export_by_username('tok129', 'usere129', 'Savcılık yazısı 2026/131')->>'format') = 'juzzio_legal_bundle_v3');
+SELECT pg_temp.check('paket arşiv + yaşam döngüsü içerir',
+    jsonb_array_length(admin_legal_export_by_username('tok129', 'usere129', 'Savcılık yazısı 2026/132')->'preserved') >= 2
+    AND jsonb_array_length(admin_legal_export_by_username('tok129', 'usere129', 'Savcılık yazısı 2026/133')->'lifecycle') >= 1);
+SELECT pg_temp.check('dondurma kaldırılır', admin_legal_release('tok129', 'usere129') = 1);
+RESET ROLE;
+DELETE FROM juzzio_storage_cleanup_queue WHERE reason = 'test_hold';
+DELETE FROM legal_preserved WHERE user_id = 'eeeeeeee-0000-0000-0000-000000000129';
+DELETE FROM legal_holds WHERE user_id = 'eeeeeeee-0000-0000-0000-000000000129';
+DELETE FROM account_lifecycle_events WHERE user_id = 'eeeeeeee-0000-0000-0000-000000000129';
+DELETE FROM legal_requests WHERE username = 'usere129';
+-- temizlik
+DELETE FROM admin_sessions WHERE user_id = :'A';
+UPDATE profiles SET username = 'ali' WHERE id = :'A';
+DELETE FROM notifications WHERE recipient_id IN (:'A', 'dddddddd-0000-0000-0000-000000000129', 'eeeeeeee-0000-0000-0000-000000000129', 'ffffffff-0000-0000-0000-000000000129');
+DELETE FROM app_error_reports WHERE fingerprint = 'v129testfp00001';
+DELETE FROM legal_requests WHERE username = 'usere129';
+DELETE FROM rooms WHERE id IN (:'rq', :'rq2');
+DELETE FROM auth.users WHERE id IN ('dddddddd-0000-0000-0000-000000000129', 'eeeeeeee-0000-0000-0000-000000000129', 'ffffffff-0000-0000-0000-000000000129');
+SELECT 'TÜM v1.2.9 TESTLERİ GEÇTİ';

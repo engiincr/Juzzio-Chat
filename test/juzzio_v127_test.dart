@@ -112,7 +112,7 @@ void main() {
   });
 
   test('v1.2.7 sürüm notu en üstte', () {
-    final n = kJuzzioBundledReleaseNotes.first;
+    final n = kJuzzioBundledReleaseNotes.firstWhere((r) => r.versionName == '1.2.7');
     expect(n.versionName, '1.2.7');
     expect(n.versionCode, 127);
   });

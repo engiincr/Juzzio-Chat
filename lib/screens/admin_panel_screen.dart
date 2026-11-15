@@ -950,6 +950,68 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> with Si
     });
   }
 
+  /// v1.2.9: Sinema Parti korsan alan adı engel listesi
+  Future<void> _openBlockedDomains() async {
+    final db = SupabaseService.instance.client;
+    List<String> list = const [];
+    try {
+      final r = await db.rpc('admin_watch_blocked_domains', params: {'p_token': widget.token});
+      list = (r as List? ?? const []).map((e) => e.toString()).toList();
+    } catch (e) {
+      _snack(SupabaseService.instance.friendlyError(e), error: true);
+      return;
+    }
+    if (!mounted) return;
+    final ctrl = TextEditingController();
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setD) {
+        Future<void> apply(String d, bool block) async {
+          try {
+            final r = await db.rpc('admin_watch_block_domain', params: {'p_token': widget.token, 'p_domain': d, 'p_block': block});
+            final all = (r is Map ? r['all'] : null) as List? ?? const [];
+            setD(() => list = all.map((e) => e.toString()).toList());
+            ctrl.clear();
+          } catch (e) {
+            _snack(SupabaseService.instance.friendlyError(e), error: true);
+          }
+        }
+
+        return AlertDialog(
+          title: Text(_al('Engelli siteler', 'Blocked sites', 'Gesperrte Seiten')),
+          content: SizedBox(
+            width: 360,
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              TextField(
+                controller: ctrl,
+                decoration: InputDecoration(hintText: 'ornek-korsan-site.com', suffixIcon: IconButton(
+                  icon: const Icon(Icons.add_rounded),
+                  onPressed: () => ctrl.text.trim().isEmpty ? null : apply(ctrl.text.trim(), true),
+                )),
+                onSubmitted: (v) => v.trim().isEmpty ? null : apply(v.trim(), true),
+              ),
+              const SizedBox(height: 10),
+              Flexible(
+                child: list.isEmpty
+                    ? Text(_al('Liste boş.', 'The list is empty.', 'Liste leer.'))
+                    : ListView(shrinkWrap: true, children: [
+                        for (final d in list)
+                          ListTile(
+                            dense: true,
+                            title: Text(d),
+                            trailing: IconButton(icon: const Icon(Icons.delete_outline_rounded), onPressed: () => apply(d, false)),
+                          ),
+                      ]),
+              ),
+            ]),
+          ),
+          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: Text(_al('Kapat', 'Close', 'Schließen')))],
+        );
+      }),
+    );
+    ctrl.dispose();
+  }
+
   Future<void> _setFlag(String key, Object value) async {
     await _guard(() async {
       await _f.adminSetSetting(widget.token, key, value);
@@ -975,7 +1037,7 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> with Si
         surfaceTintColor: Colors.transparent,
         foregroundColor: JuzzioGlassTokens.textPrimary,
         elevation: 0,
-        toolbarHeight: 84,
+        toolbarHeight: 96,
         titleSpacing: 16,
         automaticallyImplyLeading: false,
         title: Row(
@@ -996,7 +1058,7 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> with Si
               child: Container(
                 padding: const EdgeInsets.all(2),
                 decoration: BoxDecoration(shape: BoxShape.circle, color: JuzzioGlassTokens.surfaceSolid),
-                child: JuzzioGlassAvatar(imageUrl: _me?.avatarUrl, name: _welcomeFullName, radius: 21),
+                child: JuzzioGlassAvatar(imageUrl: _me?.avatarUrl, name: _welcomeFullName, radius: 28),
               ),
             ),
             const SizedBox(width: 12),
@@ -1007,11 +1069,15 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> with Si
                 children: [
                   JuzzioSpaceEyebrow(app.t('admin_title')),
                   const SizedBox(height: 4),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: JuzzioSpaceBrand(text: _al('Hoşgeldin! $_welcomeFullName', 'Welcome! $_welcomeFullName', 'Willkommen! $_welcomeFullName'), size: 22),
-                  ),
+                  // v1.2.9: uzun adlar küçülüp kaybolmaz; iki satıra sarılır
+                  Text(_al('Hoş geldin,', 'Welcome,', 'Willkommen,'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: JuzzioGlassTokens.textSecondary, fontSize: 13, fontWeight: FontWeight.w600)),
+                  Text(_welcomeFullName,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: JuzzioGlassTokens.textPrimary, fontSize: 19, height: 1.15, fontWeight: FontWeight.w900, letterSpacing: -0.3)),
                 ],
               ),
             ),
@@ -1936,6 +2002,19 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> with Si
               flag('global_feed_enabled', _config.globalFeedEnabled, _al('Küresel akış', 'Global feed', 'Globaler Feed'),
                   _al('Dünyadan paylaşımlar sekmesi.', 'The world posts tab.', 'Der Welt-Beiträge-Tab.'),
                   Icons.public_rounded),
+              flag('itunes_previews_enabled', _config.itunesPreviewsEnabled, _al('Apple Music önizlemeleri', 'Apple Music previews', 'Apple-Music-Vorschauen'),
+                  _al('Profil/hikâye müziği (30 sn). Telif şikâyetinde tek dokunuşla kapat.', 'Profile/story music (30 s). Turn off instantly on a copyright complaint.', 'Profil-/Story-Musik (30 s). Bei Urheberrechtsbeschwerde sofort abschalten.'),
+                  Icons.music_note_rounded),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.block_rounded),
+                title: Text(_al('Sinema Parti — engelli siteler', 'Cinema Party — blocked sites', 'Kino — gesperrte Seiten'),
+                    style: const TextStyle(fontWeight: FontWeight.w800)),
+                subtitle: Text(_al('Korsan film/dizi sitelerini engelle (telif). Süren partiler kapanır.',
+                    'Block pirate film/series sites (copyright). Running parties end.', 'Piraterie-Seiten sperren.')),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: _openBlockedDomains,
+              ),
               flag('calls_enabled', _config.callsEnabled, _al('Aramalar', 'Calls', 'Anrufe'),
                   _al('Sesli/görüntülü arama başlatma.', 'Starting voice/video calls.', 'Sprach-/Videoanrufe starten.'),
                   Icons.call_rounded),

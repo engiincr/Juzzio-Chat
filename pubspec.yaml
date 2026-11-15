@@ -1,7 +1,7 @@
 name: juzzio
 description: "JUZZIO - Zero-Latency Bidirectional Translation, LiveKit Group Conference Audio/Video Call & Voice Note Messenger"
 publish_to: 'none'
-version: 1.2.7+127
+version: 1.2.9+129
 
 environment:
   sdk: '>=3.4.0 <4.0.0'
@@ -26,6 +26,8 @@ dependencies:
   # Asenkron Sesli Mesaj (.m4a / AAC) Kayıt, Oynatma ve Medya Seçimi
   record: ^5.1.2
   just_audio: ^0.9.40
+  # v1.2.9: başka uygulama ses çalınca / arama gelince müzikler durur (just_audio'nun kendi bağımlılığı)
+  audio_session: ^0.1.21
   path_provider: ^2.1.4
   permission_handler: ^11.3.1
   image_picker: ^1.1.2
@@ -45,6 +47,11 @@ dependencies:
 
   # Hikâye ve sohbet videolarını oynatma
   video_player: ^2.9.2
+  # v1.2.8: Sinema Parti — her bağlantı (YouTube, kendi oynatıcılı siteler) uygulama içi
+  # tarayıcıda açılır; gömülü çerçevelerdeki video bulunup herkeste eşitlenir
+  flutter_inappwebview: ^6.1.5
+  # v1.2.8: gönderilen videolar 720p / 30 fps'e sıkıştırılır
+  video_compress: ^3.1.4
 
   # v0.3.0: profil web sitesi bağlantısı, profil müziği (v0.7.0: isimle arama, just_audio önizleme),
   # aramada pil uyarıları, cihaz kimliği ve yönetici "beni hatırla" (şifreli depolama)
@@ -77,8 +84,14 @@ flutter:
     # v1.2.7: 20 sn uygulama tanıtım videosu (ilk giriş + Yapımcı sayfası), TR/EN
     - assets/intro/juzzio_intro_tr.mp4
     - assets/intro/juzzio_intro_en.mp4
+    - assets/intro/juzzio_whatsnew_tr.mp4
+    - assets/intro/juzzio_whatsnew_en.mp4
     # v0.9.5: giden arama bekleme tonu (kendi ürettiğimiz 400+450 Hz çift tonu, telifsiz)
     - assets/sounds/juzzio_ringback.wav
+    # v1.2.9: arama yeniden bağlanma tonu (kodla üretildi, telifsiz)
+    - assets/sounds/juzzio_reconnect.wav
+    # v1.2.9: emoji yazı tipinin lisans metni (Lisanslar sayfasında gösterilir)
+    - assets/fonts/NotoColorEmoji-OFL.txt
     # v1.1.1: kumaş yenileme artık tamamen vektörle çiziliyor (assets/cloth kaldırıldı, −1,1 MB)
 
   # v0.5: Uygulama genelinde tek ve tutarlı emoji görünümü (mesajlar, tepkiler,

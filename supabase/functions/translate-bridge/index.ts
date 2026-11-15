@@ -30,7 +30,7 @@ import {
   sha256Hex,
   UUID_RE,
 } from "../_shared/auth.ts";
-import { translateChunked } from "../_shared/translate.ts";
+import { translateChunked, translationProviderStatus } from "../_shared/translate.ts";
 
 /** Çeviri; başarısızsa null döner (orijinali çeviri gibi göstermemek için).
  *  v0.9.3: uzun metin parçalara bölünür; sağlayıcı hata metni çeviri sayılmaz. */
@@ -304,6 +304,46 @@ async function grantDeepgramToken(): Promise<{ accessToken: string; expiresIn: n
   return { accessToken: String(json.access_token ?? ""), expiresIn: Number(json.expires_in ?? 0) };
 }
 
+// v1.2.9 — Sistem Sağlığı: sağlayıcıların çalışıp çalışmadığı (anahtar değerleri ASLA dönmez).
+// Deepgram denetimi ücretsiz /v1/projects çağrısıyla yapılır (ses gönderilmez); sonuç 10 dk önbellekte.
+let healthCache: { at: number; body: Record<string, unknown> } | null = null;
+
+async function systemHealth(): Promise<Record<string, unknown>> {
+  if (healthCache && Date.now() - healthCache.at < 10 * 60_000) return healthCache.body;
+  const key = (Deno.env.get("DEEPGRAM_API_KEY") ?? "").trim();
+  let deepgram = "missing";
+  if (key) {
+    try {
+      const r = await fetch("https://api.deepgram.com/v1/projects", {
+        headers: { Authorization: `Token ${key}` },
+        signal: AbortSignal.timeout(6000),
+      });
+      await r.body?.cancel();
+      deepgram = r.ok ? "ok" : (r.status === 401 || r.status === 403 ? "invalid_key" : `failed_${r.status}`);
+    } catch (_) {
+      deepgram = "unreachable";
+    }
+  }
+  let translate = "failed";
+  try {
+    const t = await translateChunked("merhaba", "tr", "en");
+    translate = t && t.text.trim().toLowerCase() !== "merhaba" ? "ok" : "failed";
+  } catch (_) {
+    translate = "failed";
+  }
+  const body = {
+    ok: true,
+    translate,
+    translate_provider: translationProviderStatus(),
+    deepgram,
+    livekit_configured: Boolean((Deno.env.get("LIVEKIT_URL") ?? "").trim() && (Deno.env.get("LIVEKIT_API_KEY") ?? "").trim()),
+    backup_turn_configured: Boolean((Deno.env.get("BACKUP_TURN_URLS") ?? "").trim()),
+    checked_at: new Date().toISOString(),
+  };
+  healthCache = { at: Date.now(), body };
+  return body;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return jsonResponse({ error: "method_not_allowed" }, 405);
@@ -321,6 +361,11 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ error: "bad_lang" }, 400);
     }
 
+    if (mode === "health") {
+      if (!(await rateLimit(user.id, "system_health", 20, 3600))) return jsonResponse({ error: "rate_limited" }, 429);
+      return jsonResponse(await systemHealth());
+    }
+
     if (mode === "deepgram_token") {
       const { data: allowed, error: capErr } = await adminClient().rpc("juzzio_can_use_live_captions", { p_user: user.id });
       if (capErr) {
@@ -329,7 +374,16 @@ Deno.serve(async (req: Request) => {
       }
       if (allowed !== true) return jsonResponse({ error: "no_active_call" }, 403);
       if (!(await rateLimit(user.id, "deepgram_token", 30, 600))) return jsonResponse({ error: "rate_limited" }, 429);
-      const grant = await grantDeepgramToken();
+      // v1.2.8: anahtar yoksa / Deepgram reddederse istemci nedenini bilir (arayüzde
+      // "sunucu anahtarı eksik" gösterir ve cihaz tanıyıcısına geçer)
+      let grant: { accessToken: string; expiresIn: number };
+      try {
+        grant = await grantDeepgramToken();
+      } catch (e) {
+        const m = e instanceof Error ? e.message : "";
+        console.error("deepgram_grant", m.startsWith("missing_secret:") ? "missing_secret" : m);
+        return jsonResponse({ error: m.startsWith("missing_secret:") ? "deepgram_not_configured" : "deepgram_grant_failed" }, 503);
+      }
       if (!grant.accessToken) return jsonResponse({ error: "deepgram_grant_empty" }, 502);
       return jsonResponse({ accessToken: grant.accessToken, expiresIn: grant.expiresIn });
     }

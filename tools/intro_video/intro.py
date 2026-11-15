@@ -5,7 +5,9 @@ Kullanım:
   python3 tools/intro_video/intro.py tr            # Türkçe sürüm
   python3 tools/intro_video/intro.py en            # İngilizce sürüm
   python3 tools/intro_video/intro.py stills tr     # kontrol için ara kareler (JPEG)
-Müzik: --music <mp3> (ilk 20 sn, başta 0.3 sn yükselme, sonda 1.6 sn sönme).
+Müzik: --music <wav/mp3> (ilk 20 sn, başta 0.3 sn yükselme, sonda 1.6 sn sönme).
+v1.2.9 TELİF KURALI: yalnız ÖZGÜN müzik kullanın — `python3 tools/juzzio_music_synth.py 20 7 intro.wav`
+(sosyal medyadan indirilen ses/şarkı KULLANILMAZ; bkz. docs/ASSET_LICENSES.md).
 Tüm kareler kodla çizilir (PIL); görsel olarak yalnız uygulama logosu kullanılır.
 """
 import math, os, subprocess, sys

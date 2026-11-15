@@ -25,6 +25,8 @@ import '../services/juzzio_features_service.dart';
 import '../services/supabase_service.dart';
 import '../widgets/juzzio_cloth_refresh.dart';
 import '../widgets/juzzio_motion.dart';
+import 'admin_legal_report.dart';
+import 'system_health_page.dart';
 
 String _t(String tr, String en, String de) => JuzzioAppController.instance.trEn(tr, en, de);
 
@@ -194,6 +196,19 @@ class _JuzzioAdminGodTabState extends State<JuzzioAdminGodTab> {
     );
   }
 
+  Future<void> _verifyAuditChain() async {
+    await _run(() async {
+      final r = await _db.rpc('admin_verify_audit_chain', params: {'p_token': widget.token});
+      final m = r is Map ? r : const {};
+      if (m['ok'] == true) {
+        _snack(_t('Zincir sağlam: ${m['checked']} kayıt doğrulandı', 'Chain intact: ${m['checked']} entries verified', 'Kette intakt'));
+      } else {
+        _snack(_t('LOG MÜDAHALESİ TESPİT EDİLDİ — kayıt #${m['broken_id']} (${m['reason']})',
+            'LOG TAMPERING DETECTED — entry #${m['broken_id']} (${m['reason']})', 'Manipulation erkannt'), error: true);
+      }
+    });
+  }
+
   Widget _card(Widget child) => Card(margin: const EdgeInsets.only(bottom: 10), child: Padding(padding: const EdgeInsets.all(12), child: child));
 
   Widget _metric(String label, Object? v, {Color? color}) => Container(
@@ -215,6 +230,27 @@ class _JuzzioAdminGodTabState extends State<JuzzioAdminGodTab> {
     num n(String k) => (h[k] as num?) ?? 0;
     final warn = const Color(0xFFE11D48);
     return [
+      // v1.2.9: Sistem Sağlığı yalnız yönetici panelinde (çeviri, Deepgram, LiveKit, TURN, sunucu)
+      _card(ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: const Icon(Icons.monitor_heart_rounded, color: Color(0xFFC6F432)),
+        title: Text(_t('Sistem Sağlığı (canlı yoklama + otomatik onarım)', 'System Health (live checks + auto-repair)', 'Systemzustand'),
+            style: TextStyle(color: fg, fontWeight: FontWeight.w800)),
+        subtitle: Text(_t('Kullanıcılarda oluşan çeviri, altyazı, arama ve sunucu sorunları "Hatalar" bölümüne nokta atışı düşer.',
+            'Translation, caption, call and server problems from users land in "Crashes" precisely.', 'Probleme der Nutzer landen unter „Abstürze".'),
+            style: TextStyle(color: fg.withValues(alpha: 0.7), fontSize: 12)),
+        trailing: const Icon(Icons.chevron_right_rounded),
+        onTap: () => JuzzioSystemHealthPage.open(context),
+      )),
+      _card(ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: const Icon(Icons.link_rounded),
+        title: Text(_t('Denetim kaydı zincirini doğrula', 'Verify audit log chain', 'Protokollkette prüfen'),
+            style: TextStyle(color: fg, fontWeight: FontWeight.w800)),
+        subtitle: Text(_t('Kayıtlar değiştirilemez; biri silinir/değiştirilirse burada görünür.', 'Entries are append-only; tampering shows here.', 'Manipulation wird erkannt.'),
+            style: TextStyle(color: fg.withValues(alpha: 0.7), fontSize: 12)),
+        onTap: _verifyAuditChain,
+      )),
       Wrap(spacing: 8, runSpacing: 8, children: [
         _metric(_t('Şu an çevrimiçi', 'Online now', 'Online'), h['online_now'], color: JuzzioColors.emerald400),
         _metric(_t('Aktif (24 sa)', 'Active (24h)', 'Aktiv (24h)'), h['active_24h']),
@@ -711,11 +747,152 @@ class _JuzzioAdminGodTabState extends State<JuzzioAdminGodTab> {
       final res = await _db.rpc('admin_legal_export_by_username', params: {'p_token': widget.token, 'p_username': uname, 'p_reason': reason});
       final json = const JsonEncoder.withIndent('  ').convert(res);
       final dir = await getApplicationDocumentsDirectory();
-      final f = File('${dir.path}/juzzio_legal_${uname}_${DateTime.now().millisecondsSinceEpoch}.json');
+      final stamp = DateTime.now().millisecondsSinceEpoch;
+      final f = File('${dir.path}/juzzio_legal_${uname}_$stamp.json');
       await f.writeAsString(json, flush: true);
+      // v1.2.9: makamlara teslim için okunur TXT rapor (JSON + sha256 ile birlikte)
+      final txt = File('${dir.path}/juzzio_legal_${uname}_$stamp.txt');
+      await txt.writeAsString(juzzioLegalReportText(Map<String, dynamic>.from(res as Map)), flush: true);
       await Clipboard.setData(ClipboardData(text: json));
-      _snack(_t('Paket oluşturuldu ve panoya kopyalandı', 'Bundle created and copied', 'Paket erstellt'));
-      await OpenFilex.open(f.path, type: 'application/json');
+      _snack(_t('Paket oluşturuldu: TXT rapor + JSON (panoya kopyalandı)', 'Bundle created: TXT report + JSON (copied)', 'Paket erstellt'));
+      await OpenFilex.open(txt.path, type: 'text/plain');
+    });
+  }
+
+  /// v1.2.9: Veri dondurma (resmî "veri koruma" talebi) — 90 gün; kullanıcı silse de arşivde kalır
+  Future<void> _legalHold() async {
+    final userCtrl = TextEditingController();
+    final reasonCtrl = TextEditingController();
+    final daysCtrl = TextEditingController(text: '90');
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: Text(_t('Yasal inceleme için dondur', 'Preserve for legal review', 'Für rechtliche Prüfung sichern')),
+        content: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            TextField(controller: userCtrl, decoration: InputDecoration(labelText: _t('Kullanıcı adı', 'Username', 'Benutzername'), prefixText: '@')),
+            TextField(controller: reasonCtrl, maxLines: 2, decoration: InputDecoration(labelText: _t('Resmî talep (yazı no, makam)', 'Official request (ref., authority)', 'Behördliche Anfrage'))),
+            TextField(controller: daysCtrl, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: _t('Gün (1–365)', 'Days (1–365)', 'Tage (1–365)'))),
+            const SizedBox(height: 8),
+            Text(
+              _t('Süre boyunca kullanıcının sildiği mesaj, gönderi, hikâye, cihaz ve hesap kayıtları gizli arşivde tutulur; medya dosyaları silinmez. Kullanıcıya bildirilmez. Süre bitince arşiv otomatik silinir. İşlem denetim kaydına yazılır.',
+                  'While active, messages, posts, stories, devices and account records the user deletes are kept in a hidden archive and media files are not removed. The user is not notified. The archive is deleted automatically when it expires. Audit-logged.',
+                  'Gelöschte Daten werden archiviert; der Nutzer wird nicht benachrichtigt.'),
+              style: const TextStyle(fontSize: 11.5),
+            ),
+          ]),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d, false), child: Text(_t('Vazgeç', 'Cancel', 'Abbrechen'))),
+          FilledButton(onPressed: () => Navigator.pop(d, true), child: Text(_t('Dondur', 'Preserve', 'Sichern'))),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final uname = userCtrl.text.trim().replaceAll('@', '').toLowerCase();
+    final reason = reasonCtrl.text.trim();
+    final days = int.tryParse(daysCtrl.text.trim()) ?? 90;
+    if (uname.isEmpty || reason.length < 5) {
+      _snack(_t('Kullanıcı adı ve en az 5 karakterlik resmî talep bilgisi gerekli.', 'Username and an official request reference (5+ chars) are required.',
+          'Benutzername und Begründung erforderlich.'), error: true);
+      return;
+    }
+    await _run(() async {
+      final res = Map<String, dynamic>.from(await _db.rpc('admin_legal_hold',
+          params: {'p_token': widget.token, 'p_username': uname, 'p_reason': reason, 'p_days': days}) as Map);
+      _snack('${_t('Donduruldu', 'Preserved', 'Gesichert')}: @${res['username']} → ${res['expires_at']}');
+    });
+  }
+
+  Future<void> _legalHoldList() async {
+    await _run(() async {
+      final list = (await _db.rpc('admin_legal_holds', params: {'p_token': widget.token}) as List?) ?? const [];
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (d) => AlertDialog(
+          title: Text(_t('Dondurulan hesaplar', 'Preserved accounts', 'Gesicherte Konten')),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: list.isEmpty
+                ? Text(_t('Etkin dondurma yok.', 'No active preservation.', 'Keine aktive Sicherung.'))
+                : ListView(shrinkWrap: true, children: [
+                    for (final raw in list)
+                      Builder(builder: (_) {
+                        final h = Map<String, dynamic>.from(raw as Map);
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text('@${h['username']}', maxLines: 1, overflow: TextOverflow.ellipsis),
+                          subtitle: Text('${_t('Bitiş', 'Until', 'Bis')}: ${h['expires_at']}\n${_t('Arşiv', 'Archive', 'Archiv')}: ${h['preserved']} · ${h['reason']}',
+                              maxLines: 3, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11.5)),
+                          trailing: TextButton(
+                            onPressed: () async {
+                              Navigator.pop(d);
+                              await _run(() async {
+                                await _db.rpc('admin_legal_release', params: {'p_token': widget.token, 'p_username': h['username']});
+                                _snack(_t('Dondurma kaldırıldı', 'Preservation released', 'Sicherung aufgehoben'));
+                              });
+                            },
+                            child: Text(_t('Kaldır', 'Release', 'Aufheben')),
+                          ),
+                        );
+                      }),
+                  ]),
+          ),
+          actions: [FilledButton(onPressed: () => Navigator.pop(d), child: Text(_t('Kapat', 'Close', 'Schließen')))],
+        ),
+      );
+    });
+  }
+
+  /// v1.2.9: kullanıcının IP / ülke / cihaz modeli / aynı IP'yi kullanan hesaplar (yalnız kurucu)
+  Future<void> _networkLookup() async {
+    final userCtrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: Text(_t('IP ve cihaz bilgisi', 'IP and device info', 'IP- und Geräteinfo')),
+        content: TextField(controller: userCtrl, decoration: InputDecoration(labelText: _t('Kullanıcı adı', 'Username', 'Benutzername'), prefixText: '@')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d, false), child: Text(_t('Vazgeç', 'Cancel', 'Abbrechen'))),
+          FilledButton(onPressed: () => Navigator.pop(d, true), child: Text(_t('Göster', 'Show', 'Anzeigen'))),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final uname = userCtrl.text.trim().replaceAll('@', '').toLowerCase();
+    if (uname.isEmpty) {
+      _snack(_t('Kullanıcı adı girin.', 'Enter a username.', 'Benutzernamen eingeben.'), error: true);
+      return;
+    }
+    await _run(() async {
+      final res = Map<String, dynamic>.from(await _db.rpc('admin_user_network_by_username', params: {'p_token': widget.token, 'p_username': uname}) as Map);
+      final lines = <String>[];
+      for (final d in (res['devices'] as List? ?? const [])) {
+        final m = Map<String, dynamic>.from(d as Map);
+        lines.add('📱 ${m['model'] ?? '-'} · ${m['os'] ?? '-'} · v${m['app'] ?? '-'}\n   IP ${m['ip'] ?? '-'} · ${m['country'] ?? '-'} · ${m['last_seen'] ?? '-'}');
+      }
+      final logins = (res['logins'] as List? ?? const []).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      if (logins.isNotEmpty) lines.add('\n${_t('Son girişler', 'Recent logins', 'Letzte Anmeldungen')}:');
+      for (final l in logins) {
+        lines.add('• ${l['at']} · IP ${l['ip'] ?? '-'} · ${l['country'] ?? '-'} · ${l['model'] ?? '-'}');
+      }
+      final same = (res['same_ip_accounts'] as List? ?? const []).map((e) => '@$e').join(', ');
+      if (same.isNotEmpty) lines.add('\n${_t('Aynı IP\'yi kullanan hesaplar', 'Accounts sharing an IP', 'Konten mit gleicher IP')}: $same');
+      lines.add('\n${_t('Not: IMEI ve şehir toplanmaz (Android IMEI okumayı yasaklar; konum izni istenmez). IP abonesi için servis sağlayıcıya resmî yazı gerekir.', 'Note: IMEI and city are not collected (Android forbids reading IMEI; no location permission). The ISP must be asked for the IP subscriber.', 'Hinweis: IMEI und Stadt werden nicht erfasst.')}');
+      final text = lines.isEmpty ? _t('Kayıt yok.', 'No records.', 'Keine Einträge.') : lines.join('\n');
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (d) => AlertDialog(
+          title: Text('@$uname'),
+          content: SingleChildScrollView(child: SelectableText(text, style: const TextStyle(fontSize: 12.5, height: 1.35))),
+          actions: [
+            TextButton(onPressed: () => Clipboard.setData(ClipboardData(text: text)), child: Text(_t('Kopyala', 'Copy', 'Kopieren'))),
+            FilledButton(onPressed: () => Navigator.pop(d), child: Text(_t('Kapat', 'Close', 'Schließen'))),
+          ],
+        ),
+      );
     });
   }
 
@@ -755,10 +932,36 @@ class _JuzzioAdminGodTabState extends State<JuzzioAdminGodTab> {
           contentPadding: EdgeInsets.zero,
           leading: const Icon(Icons.inventory_2_rounded),
           title: Text(_t('Yasal paket (Legal Bundle Vault)', 'Legal bundle vault', 'Rechtspaket')),
-          subtitle: Text(_t('Bir kullanıcının profil, cihaz, gönderi, şikâyet, ihlal ve denetim kayıtlarını JSON olarak dışa aktarır.',
-              'Exports a user\'s profile, devices, posts, reports, strikes and audit records as JSON.', 'Exportiert Nutzerdaten als JSON.')),
+          subtitle: Text(_t('Bir kullanıcının hesap, telefon, IP, cihaz, sohbet (üst veri), arama, gönderi ve şikâyet kayıtlarını okunur TXT rapor + JSON olarak dışa aktarır.',
+              'Exports a user\'s account, phone, IPs, devices, chats (metadata), calls, posts and reports as a readable TXT report + JSON.', 'Exportiert Nutzerdaten als JSON.')),
           trailing: const Icon(Icons.chevron_right_rounded),
           onTap: _legalExport,
+        )),
+        _card(ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.lan_rounded),
+          title: Text(_t('IP, ülke ve cihaz modeli', 'IP, country and device model', 'IP, Land und Gerät')),
+          subtitle: Text(_t('Kullanıcının giriş IP\'leri, ağ ülkesi, cihaz modeli ve aynı IP\'yi kullanan hesaplar.',
+              'Login IPs, network country, device model and accounts sharing an IP.', 'Anmelde-IPs, Land, Gerät.')),
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: _networkLookup,
+        )),
+        _card(ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.ac_unit_rounded),
+          title: Text(_t('Yasal inceleme için dondur (90 gün)', 'Preserve for legal review (90 days)', 'Rechtlich sichern (90 Tage)')),
+          subtitle: Text(_t('Resmî veri koruma talebinde: kullanıcı silse bile veriler gizli arşivde kalır ve pakete girer.',
+              'For official preservation requests: data stays in a hidden archive and in the bundle even if the user deletes it.', 'Daten bleiben archiviert.')),
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: _legalHold,
+          onLongPress: _legalHoldList,
+        )),
+        _card(ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.list_alt_rounded),
+          title: Text(_t('Dondurulan hesaplar', 'Preserved accounts', 'Gesicherte Konten')),
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: _legalHoldList,
         )),
         _card(ListTile(
           contentPadding: EdgeInsets.zero,

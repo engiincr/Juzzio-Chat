@@ -12,6 +12,7 @@ import 'dart:ui' show Color;
 import 'package:flutter/painting.dart' show Alignment;
 
 import 'juzzio_aurora.dart';
+import '../juzzio_text_safety.dart';
 
 class JuzzioCustomTheme {
   static const String schema = 'juzzio-theme';
@@ -227,7 +228,7 @@ class JuzzioCustomTheme {
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
     if (cleaned.isEmpty) return 'Özel tema';
-    return cleaned.length > maxNameLength ? cleaned.substring(0, maxNameLength).trim() : cleaned;
+    return cleaned.length > maxNameLength ? juzzioSafeCut(cleaned, maxNameLength).trim() : cleaned;
   }
 
   /// Güvenli içe aktarma. Hatalar varsa tema null döner; uyarılar (eksik renk

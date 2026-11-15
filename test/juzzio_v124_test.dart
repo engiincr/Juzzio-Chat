@@ -182,7 +182,7 @@ void main() {
       expect(god.contains("'admin_legal_export_by_username'"), isTrue);
       expect(god.contains('_minBuildPicker(fg)'), isTrue);
       expect(_src('supabase/juzzio_database.sql').contains('FUNCTION public.admin_legal_export_by_username'), isTrue);
-      expect(_src('lib/screens/admin_panel_screen.dart').contains("'Hoşgeldin! \$_welcomeFullName'"), isTrue);
+      expect(_src('lib/screens/admin_panel_screen.dart').contains('Text(_welcomeFullName,'), isTrue); // v1.2.9: iki satırlı karşılama
     });
   });
 

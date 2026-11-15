@@ -482,7 +482,7 @@ class JuzzioAppController extends ChangeNotifier {
   int _darkEndMin = 7 * 60; // 07:00
   Timer? _scheduleTimer;
   // v1.0.0: yeni kullanıcıların ilk görünümü Figma "Juzzio Space" — Zümrüt
-  String _defaultGlassPaletteId = 'emerald';
+  String _defaultGlassPaletteId = 'ocean'; // v1.2.9: varsayılan tema "Gece Mavisi" (ocean)
   double _chatThemeIntensity = 1.0;
 
   // Dil Ayarları (Cihaz Dilini Otomatik Baz Alır, 142 Dili Destekler)

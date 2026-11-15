@@ -36,11 +36,25 @@ import 'widgets/juzzio_motion.dart';
 import 'widgets/juzzio_splash.dart';
 import 'widgets/juzzio_consent.dart';
 import 'widgets/juzzio_weather_ambience.dart';
+import 'widgets/profile_extras.dart' show JuzzioMusicRouteObserver;
 import 'core/juzzio_ui_sync.dart';
 import 'widgets/juzzio_password_strength.dart';
+import 'core/juzzio_text_safety.dart';
+import 'core/juzzio_audio_guard.dart';
+import 'widgets/juzzio_intro_motion.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // v1.2.9 (telif): gömülü emoji yazı tipinin OFL lisansı "Açık kaynak lisansları" sayfasında görünür
+  // v1.2.9: arama gelince / arka plana geçince / başka uygulama ses çalınca tüm müzikler durur
+  unawaited(JuzzioAudioGuard.instance.install());
+  LicenseRegistry.addLicense(() async* {
+    try {
+      final ofl = await rootBundle.loadString('assets/fonts/NotoColorEmoji-OFL.txt');
+      yield LicenseEntryWithLineBreaks(const ['Noto Color Emoji'], ofl);
+    } catch (_) {}
+    yield const LicenseEntryWithLineBreaks(['Open-Meteo'], 'Weather data by Open-Meteo.com — Creative Commons Attribution 4.0 International (CC BY 4.0). https://open-meteo.com/');
+  });
 
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
@@ -256,6 +270,8 @@ class JuzzioApp extends StatelessWidget {
         ));
         return MaterialApp(
           title: 'Juzzio',
+          // v1.2.8: hava katmanı yalnız ana ekranda (tam ekran sayfaların üstüne binmez)
+          navigatorObservers: [JuzzioAmbienceRouteObserver.instance, JuzzioMusicRouteObserver.instance],
           debugShowCheckedModeBanner: false,
           themeMode: appCtrl.themeMode,
           // v0.8.1: aydınlık mod da aynı cam bileşen temalarını kullanır
@@ -578,15 +594,30 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
             children: [
               _buildTopBar(p, s, appCtrl),
               Expanded(
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 300),
-                  child: _booting
-                      ? const JuzzioSplash()
-                      : _step == 0
-                      ? _buildOnboardingStep1Cool(p, s)
-                      : _step == 1
-                          ? _buildOnboardingStep2Notifications(p, s, appCtrl)
-                          : _buildAuthScreen(p, s, appCtrl),
+                // v1.2.9: karşılama → bildirim → giriş/kayıt arasında akıcı sayfa geçişi
+                // (paylaşılan eksen: yeni sayfa sağdan süzülür + hafif büyür, eskisi sola kayıp söner)
+                // ve arkada adıma göre yer değiştiren yumuşak renk lekeleri
+                child: Stack(
+                  children: [
+                    if (!_booting && !appCtrl.reduceMotion) Positioned.fill(child: IgnorePointer(child: JuzzioIntroBlobs(step: _step))),
+                    AnimatedSwitcher(
+                      duration: Duration(milliseconds: appCtrl.reduceMotion ? 0 : 560),
+                      reverseDuration: Duration(milliseconds: appCtrl.reduceMotion ? 0 : 380),
+                      switchInCurve: Curves.easeOutCubic,
+                      switchOutCurve: Curves.easeInCubic,
+                      transitionBuilder: juzzioIntroTransition,
+                      child: KeyedSubtree(
+                        key: ValueKey(_booting ? -1 : _step),
+                        child: _booting
+                            ? const JuzzioSplash()
+                            : _step == 0
+                            ? JuzzioStaggerIn(child: _buildOnboardingStep1Cool(p, s))
+                            : _step == 1
+                                ? JuzzioStaggerIn(child: _buildOnboardingStep2Notifications(p, s, appCtrl))
+                                : JuzzioStaggerIn(child: _buildAuthScreen(p, s, appCtrl)),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -1028,7 +1059,7 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
                 radius: 21,
                 backgroundColor: avatarColor.withValues(alpha: 0.25),
                 child: Text(
-                  name.substring(0, 1),
+                  juzzioInitial(name),
                   style: const TextStyle(
                     fontFamily: JuzzioConfig.fontRegularBold,
                     color: JuzzioColors.ink,

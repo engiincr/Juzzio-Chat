@@ -8,6 +8,9 @@
 //    girişinden PIN ile açılır; uygulama arka plana geçince yeniden kilitlenir.
 //  • Kilitlenen sohbetin bildirim önizlemesi sunucuda 'gizli' yapılır (içerik/gönderen sızmaz).
 //  • Kaba kuvvet koruması: 5 hatalı denemeden sonra artan bekleme (30 sn × 2^n, en fazla 1 saat).
+//  • v1.2.8: PIN hiç belirlenmediyse varsayılan PIN 0000'dır; 0000 ile girilince hemen yeni
+//    PIN (en az 4 rakam) belirlenir. PIN uzunluğu saklanır → tuş takımı doğru hanede kendiliğinden
+//    dener (yanlış uzunlukta deneme sayılmaz).
 //  • Biyometrik doğrulama: bu sürümde YOK — local_auth için MainActivity'nin
 //    FlutterFragmentActivity + AppCompat temasına taşınması gerekir; cihazda doğrulanmadan
 //    yapılmadı (bkz. docs/IMPLEMENTATION_PROGRESS_v0.9.0.md).
@@ -61,6 +64,10 @@ class JuzzioChatLock extends ChangeNotifier {
   static const String _kHash = 'juzzio_chatlock_hash_v1';
   static const String _kRooms = 'juzzio_chatlock_rooms_v1';
   static const String _kFails = 'juzzio_chatlock_fails_v1';
+  static const String _kLen = 'juzzio_chatlock_len_v1';
+
+  /// v1.2.8: PIN hiç belirlenmediyse geçerli olan varsayılan PIN
+  static const String defaultPin = '0000';
 
   /// Test için depolama değiştirilebilir.
   @visibleForTesting
@@ -116,11 +123,18 @@ class JuzzioChatLock extends ChangeNotifier {
 
   Future<bool> hasPin() async => (await _read(_kHash))?.isNotEmpty == true;
 
+  /// Kayıtlı PIN'in hane sayısı (yoksa varsayılan PIN'in uzunluğu: 4)
+  Future<int> pinLength() async {
+    final n = int.tryParse(await _read(_kLen) ?? '') ?? 0;
+    return n >= 4 && n <= 8 ? n : 4;
+  }
+
   Future<void> setPin(String pin) async {
     if (!JuzzioChatLockMath.validPin(pin)) throw ArgumentError('invalid_pin');
     final salt = List<int>.generate(16, (_) => math.Random.secure().nextInt(256));
     final hash = await JuzzioChatLockMath.derive(pin, salt);
     await _write(_kHash, '${base64Encode(salt)}:${base64Encode(hash)}');
+    await _write(_kLen, '${pin.length}');
     // v1.2.4: PIN oluşturmak kilidi AÇMAZ — sohbete girişte PIN yine sorulur
     _unlocked = false;
     _unlockedAt = null;
@@ -132,12 +146,18 @@ class JuzzioChatLock extends ChangeNotifier {
     final now = DateTime.now();
     if (_blockedUntil != null && now.isBefore(_blockedUntil!)) return false;
     final stored = await _read(_kHash);
-    if (stored == null || !stored.contains(':')) return false;
-    final parts = stored.split(':');
-    final salt = base64Decode(parts[0]);
-    final expected = base64Decode(parts[1]);
-    final got = await JuzzioChatLockMath.derive(pin, salt);
-    if (JuzzioChatLockMath.equal(got, expected)) {
+    final bool match;
+    if (stored == null || !stored.contains(':')) {
+      // v1.2.8: PIN belirlenmemiş → varsayılan PIN 0000 (ardından yeni PIN istenir)
+      match = pin == defaultPin;
+    } else {
+      final parts = stored.split(':');
+      final salt = base64Decode(parts[0]);
+      final expected = base64Decode(parts[1]);
+      final got = await JuzzioChatLockMath.derive(pin, salt);
+      match = JuzzioChatLockMath.equal(got, expected);
+    }
+    if (match) {
       _failures = 0;
       _blockedUntil = null;
       await _write(_kFails, '0');
@@ -177,6 +197,7 @@ class JuzzioChatLock extends ChangeNotifier {
     _locked.clear();
     await _write(_kRooms, null);
     await _write(_kHash, null);
+    await _write(_kLen, null);
     await _write(_kFails, '0');
     _failures = 0;
     _blockedUntil = null;

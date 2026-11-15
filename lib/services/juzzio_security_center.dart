@@ -7,6 +7,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'juzzio_features_service.dart';
+import 'supabase_service.dart';
 
 class JuzzioDeviceEntry {
   const JuzzioDeviceEntry({required this.suffix, required this.platform, required this.firstSeen, required this.lastSeen, required this.current});
@@ -90,11 +91,16 @@ class JuzzioSecurityCenterService {
 
   Future<bool> forgetDevice(String suffix) async {
     final cur = await JuzzioFeaturesService.instance.deviceId();
-    return (await _db.rpc('forget_my_device', params: {'p_device_suffix': suffix, 'p_current_device': cur})) == true;
+    final ok = (await _db.rpc('forget_my_device', params: {'p_device_suffix': suffix, 'p_current_device': cur})) == true;
+    if (ok) await SupabaseService.instance.recordLifecycle('device_removed', suffix);
+    return ok;
   }
 
   Future<void> markSeen() => _db.rpc('mark_my_security_events_seen');
 
   /// Bu cihaz dışındaki tüm oturumları sonlandırır (refresh token'lar iptal edilir).
-  Future<void> signOutOtherSessions() => _db.auth.signOut(scope: SignOutScope.others);
+  Future<void> signOutOtherSessions() async {
+    await SupabaseService.instance.recordLifecycle('sign_out_others');
+    await _db.auth.signOut(scope: SignOutScope.others);
+  }
 }

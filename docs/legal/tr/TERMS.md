@@ -22,6 +22,9 @@ Kayıt ve giriş ekranındaki zorunlu kutuyu işaretleyerek bu koşulları kabul
 
 - Paylaştığınız içerikten siz sorumlusunuz. İçeriğinizin hakları sizde kalır; hizmetin çalışması için gereken ölçüde (saklama, iletme, gösterme) işlenmesine izin vermiş olursunuz.
 - Kurallara aykırı içerikler kaldırılabilir, hesaplar askıya alınabilir.
+- **Telif hakkı:** Hakkına sahip olmadığınız müzik, film, dizi, maç yayını veya başka korunan içeriği paylaşamaz, Sinema Parti'de açamazsınız. Juzzio içerik barındırmaz; Sinema Parti yalnız sizin açtığınız bağlantıyı katılımcılar arasında eş zamanlar. Korsan içerik sunan alan adları engellenir.
+- **Telif bildirimi:** Hakkınızın ihlal edildiğini düşünüyorsanız içerikteki "Şikâyet et → Telif hakkı" seçeneğiyle ya da engiincr@pm.me adresine eserin ve ihlalin bağlantısıyla bildirin. Bildirim incelenene kadar içerik gizlenebilir; tekrarlayan ihlallerde hesap kapatılır.
+- **Dosyalar:** Zararlı yazılım, betik veya çalıştırılabilir dosya (ör. .php, .jsp, .exe, .apk) göndermek yasaktır; bu dosyalar otomatik olarak engellenir.
 
 ## 5. Tüketici hakları
 

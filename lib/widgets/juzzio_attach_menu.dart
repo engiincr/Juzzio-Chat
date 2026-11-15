@@ -6,6 +6,7 @@
 //  • Etkinlik: grup sohbetinde tarih/saat + hatırlatma; üyeler Katılıyorum/Belki/Katılmıyorum der.
 // =============================================================================
 
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -15,6 +16,9 @@ import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../core/app_theme_and_locale.dart';
+import '../core/theme/juzzio_glass.dart';
+import '../services/juzzio_features_service.dart';
+import '../services/juzzio_file_guard.dart';
 import '../services/juzzio_media_cache.dart';
 import '../services/supabase_service.dart';
 import 'juzzio_encrypted_image.dart';
@@ -38,6 +42,9 @@ Future<String?> showJuzzioAttachMenu(BuildContext context, {required bool isGrou
     _AttachItem('view_once', Icons.looks_one_rounded, app.trEn('Tek seferlik', 'View once', 'Einmalig'), const [Color(0xFF00BFA5), Color(0xFF00897B)]),
     _AttachItem('location', Icons.location_on_rounded, app.trEn('Konum', 'Location', 'Standort'), const [Color(0xFF26A69A), Color(0xFF00897B)]),
     _AttachItem('contact', Icons.contact_page_rounded, app.trEn('Kişi kartı', 'Contact', 'Kontakt'), const [Color(0xFF42A5F5), Color(0xFF1E88E5)]),
+    // v1.2.9: sohbette müzik paylaş (30 sn önizleme + Apple Music'te tamamı)
+    if (JuzzioFeaturesService.instance.lastAppConfig.itunesPreviewsEnabled)
+      _AttachItem('music', Icons.music_note_rounded, app.trEn('Müzik', 'Music', 'Musik'), const [Color(0xFFFF5E7E), Color(0xFFE53964)]),
     if (isGroup) _AttachItem('poll', Icons.poll_rounded, app.trEn('Anket', 'Poll', 'Umfrage'), const [Color(0xFFFFCA28), Color(0xFFFFA000)]),
     if (isGroup) _AttachItem('event', Icons.event_rounded, app.trEn('Etkinlik', 'Event', 'Termin'), const [Color(0xFF66BB6A), Color(0xFF43A047)]),
     _AttachItem('schedule', Icons.schedule_send_rounded, app.trEn('Zamanla', 'Schedule', 'Planen'), const [Color(0xFF78909C), Color(0xFF546E7A)]),
@@ -46,58 +53,137 @@ Future<String?> showJuzzioAttachMenu(BuildContext context, {required bool isGrou
     context: context,
     backgroundColor: Colors.transparent,
     builder: (ctx) {
-      final p = JuzzioPalette(app.isDark);
-      return ClipRRect(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        child: BackdropFilter(
-          filter: ui.ImageFilter.blur(sigmaX: 22, sigmaY: 22),
-          child: Container(
-            color: p.sheetBg.withValues(alpha: 0.92),
-            padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
-            child: SafeArea(
-              top: false,
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Container(width: 40, height: 4, decoration: BoxDecoration(color: p.textMuted, borderRadius: BorderRadius.circular(9))),
-                const SizedBox(height: 18),
-                GridView.count(
-                  crossAxisCount: 4,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  mainAxisSpacing: 16,
-                  crossAxisSpacing: 8,
-                  childAspectRatio: 0.82,
-                  children: [
-                    for (final it in items)
-                      InkWell(
-                        borderRadius: BorderRadius.circular(18),
-                        onTap: () {
-                          HapticFeedback.selectionClick();
-                          Navigator.pop(ctx, it.id);
-                        },
-                        child: Column(mainAxisSize: MainAxisSize.min, children: [
-                          Container(
-                            width: 56,
-                            height: 56,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: it.colors),
-                              boxShadow: [BoxShadow(color: it.colors.last.withValues(alpha: 0.35), blurRadius: 12, offset: const Offset(0, 5))],
-                            ),
-                            child: Icon(it.icon, color: Colors.white, size: 27),
-                          ),
-                          const SizedBox(height: 7),
-                          Text(it.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.textPrimary, fontSize: 12.5, fontWeight: FontWeight.w600)),
-                        ]),
-                      ),
-                  ],
-                ),
-              ]),
-            ),
+      final dark = app.isDark;
+      final p = JuzzioPalette(dark);
+      final reduced = JuzzioGlassTokens.reducedEffects;
+      // v1.2.9: Liquid Glass — buzlu cam pano, ışık kenarı (specular rim) ve renkli cam simge kuyuları
+      final panel = Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(30),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: dark
+                ? [Colors.white.withValues(alpha: 0.14), Colors.white.withValues(alpha: 0.05)]
+                : [Colors.white.withValues(alpha: 0.78), Colors.white.withValues(alpha: 0.55)],
+          ),
+          border: Border.all(color: Colors.white.withValues(alpha: dark ? 0.22 : 0.7), width: 1.1),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: dark ? 0.45 : 0.15), blurRadius: 30, offset: const Offset(0, 14))],
+        ),
+        padding: const EdgeInsets.fromLTRB(14, 10, 14, 16),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 38, height: 4, decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.35), borderRadius: BorderRadius.circular(9))),
+          const SizedBox(height: 16),
+          LayoutBuilder(builder: (context, c) {
+            // dar ekranda 3, normalde 4 sütun → etiketler taşmaz
+            final cols = c.maxWidth < 300 ? 3 : 4;
+            return GridView.count(
+              crossAxisCount: cols,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              mainAxisSpacing: 14,
+              crossAxisSpacing: 8,
+              childAspectRatio: 0.84,
+              children: [
+                for (final it in items) _JuzzioGlassAttachTile(item: it, dark: dark, textColor: p.textPrimary, onTap: () {
+                  HapticFeedback.selectionClick();
+                  Navigator.pop(ctx, it.id);
+                }),
+              ],
+            );
+          }),
+        ]),
+      );
+      return SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(30),
+            child: reduced ? Container(color: p.sheetBg, child: panel) : BackdropFilter(filter: ui.ImageFilter.blur(sigmaX: 26, sigmaY: 26), child: panel),
           ),
         ),
       );
     },
   );
+}
+
+class _JuzzioGlassAttachTile extends StatefulWidget {
+  const _JuzzioGlassAttachTile({required this.item, required this.dark, required this.textColor, required this.onTap});
+  final _AttachItem item;
+  final bool dark;
+  final Color textColor;
+  final VoidCallback onTap;
+
+  @override
+  State<_JuzzioGlassAttachTile> createState() => _JuzzioGlassAttachTileState();
+}
+
+class _JuzzioGlassAttachTileState extends State<_JuzzioGlassAttachTile> {
+  bool _down = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final it = widget.item;
+    final tint = it.colors.first;
+    return Semantics(
+      button: true,
+      label: it.label,
+      child: GestureDetector(
+        onTapDown: (_) => setState(() => _down = true),
+        onTapCancel: () => setState(() => _down = false),
+        onTapUp: (_) => setState(() => _down = false),
+        onTap: widget.onTap,
+        child: AnimatedScale(
+          scale: _down ? 0.9 : 1,
+          duration: const Duration(milliseconds: 120),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              width: 58,
+              height: 58,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                // renkli cam kuyu: üstte parlak, altta tonlu
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [tint.withValues(alpha: 0.55), it.colors.last.withValues(alpha: 0.85)],
+                ),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.45), width: 1),
+                boxShadow: [BoxShadow(color: it.colors.last.withValues(alpha: 0.38), blurRadius: 14, offset: const Offset(0, 6))],
+              ),
+              child: Stack(children: [
+                // üst ışık yansıması
+                Positioned(
+                  left: 6,
+                  right: 6,
+                  top: 4,
+                  height: 20,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Colors.white.withValues(alpha: 0.45), Colors.white.withValues(alpha: 0.0)],
+                      ),
+                    ),
+                  ),
+                ),
+                Center(child: Icon(it.icon, color: Colors.white, size: 27)),
+              ]),
+            ),
+            const SizedBox(height: 7),
+            Text(it.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: widget.textColor, fontSize: 12, fontWeight: FontWeight.w700)),
+          ]),
+        ),
+      ),
+    );
+  }
 }
 
 IconData juzzioDocumentIcon(String name) {
@@ -132,9 +218,12 @@ IconData juzzioDocumentIcon(String name) {
 
 /// Belge balonu: simge + ad + boyut; dokununca indirir (şifreliyse cihazda çözer) ve açar.
 class JuzzioDocumentBubble extends StatefulWidget {
-  const JuzzioDocumentBubble({super.key, required this.message, required this.isMe});
+  const JuzzioDocumentBubble({super.key, required this.message, required this.isMe, this.fromStranger = false});
   final JuzzioMessage message;
   final bool isMe;
+
+  /// v1.2.9: mesaj isteğinden (tanımadığın biri) gelen dosya → indirmeden önce risk uyarısı
+  final bool fromStranger;
 
   @override
   State<JuzzioDocumentBubble> createState() => _JuzzioDocumentBubbleState();
@@ -156,17 +245,53 @@ class _JuzzioDocumentBubbleState extends State<JuzzioDocumentBubble> {
     final url = m.documentUrl;
     if (url == null || url.isEmpty || _busy) return;
     final app = JuzzioAppController.instance;
+    if (widget.fromStranger && !widget.isMe) {
+      final go = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          icon: const Icon(Icons.warning_amber_rounded, color: Color(0xFFFFB020), size: 34),
+          title: Text(app.trEn('Riskli dosya uyarısı', 'Risky file warning', 'Warnung: riskante Datei')),
+          content: Text(app.trEn(
+            'Bu dosya, mesaj isteğini henüz kabul etmediğin, tanımadığın birinden geldi. Juzzio dosyayı açmadan önce otomatik olarak denetler; ancak hiçbir denetim tüm riskleri ortadan kaldıramaz. Dosyayı indirip açmanın sorumluluğu sana aittir.',
+            'This file comes from someone you do not know and whose message request you have not accepted yet. Juzzio checks files automatically before opening them, but no check can remove every risk. Downloading and opening the file is your own responsibility.',
+            'Diese Datei stammt von einer unbekannten Person, deren Nachrichtenanfrage du noch nicht angenommen hast. Juzzio prüft Dateien automatisch vor dem Öffnen, aber keine Prüfung schließt alle Risiken aus. Herunterladen und Öffnen geschieht auf eigene Verantwortung.',
+          )),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(app.trEn('Vazgeç', 'Cancel', 'Abbrechen'))),
+            TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(app.trEn('Riski kabul ediyorum, indir', 'I accept the risk, download', 'Risiko akzeptieren, herunterladen'))),
+          ],
+        ),
+      );
+      if (go != true || !mounted) return;
+    }
     setState(() => _busy = true);
     try {
       final encrypted = JuzzioEncryptedMedia.isEncrypted(m.metadata);
       final bytes = encrypted ? await JuzzioEncryptedMedia.load(m.id, url, keepInMemory: false) : await JuzzioMediaDiskCache.instance.loadBytes(url);
       if (bytes == null) throw Exception('download_failed');
+      // v1.2.9: gelen dosya şifresi çözüldükten sonra, açılmadan ÖNCE cihazda denetlenir
+      final check = juzzioInspectBytes(bytes, name: _name, kind: JuzzioUploadKind.document);
+      if (!check.ok) {
+        unawaited(SupabaseService.instance.logFileGuardEvent(direction: 'in', verdict: check.verdict.name, detail: check.detail));
+        if (mounted) {
+          await showDialog<void>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              icon: const Icon(Icons.gpp_bad_rounded, color: Color(0xFFFF453A), size: 34),
+              title: Text(app.trEn('Tehlikeli dosya engellendi', 'Dangerous file blocked', 'Gefährliche Datei blockiert')),
+              content: Text('${juzzioFileVerdictMessage(check, app.trEn)}\n\n${app.trEn('Dosya açılmadı ve cihazına kaydedilmedi. Göndereni tanımıyorsan sohbeti şikâyet et.', 'The file was not opened or saved. If you do not know the sender, report the chat.', 'Die Datei wurde weder geöffnet noch gespeichert.')}'),
+              actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: Text(app.trEn('Tamam', 'OK', 'OK')))],
+            ),
+          );
+        }
+        return;
+      }
       final dir = await getTemporaryDirectory();
       final folder = Directory('${dir.path}/juzzio_docs/${m.id}');
       if (!folder.existsSync()) folder.createSync(recursive: true);
-      final f = File('${folder.path}/${juzzioSafeFileName(_name)}');
+      final f = File('${folder.path}/${juzzioCleanFileName(juzzioSafeFileName(_name))}');
       await f.writeAsBytes(bytes, flush: true);
-      final r = await OpenFilex.open(f.path, type: juzzioDocumentMime(_name));
+      final r = await OpenFilex.open(f.path, type: juzzioSafeUploadMime(juzzioDocumentMime(_name)));
       if (r.type != ResultType.done && mounted) {
         ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(
           content: Text(app.trEn('Bu dosyayı açacak uygulama bulunamadı.', 'No app found to open this file.', 'Keine App zum Öffnen dieser Datei gefunden.')),

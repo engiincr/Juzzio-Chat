@@ -8,6 +8,8 @@
 import '../core/juzzio_input_guard.dart';
 import 'juzzio_media_cache.dart';
 import 'juzzio_media_url.dart';
+import 'juzzio_net.dart';
+import 'juzzio_file_guard.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -247,6 +249,8 @@ class JuzzioSocialService {
   /// v1.2.4: akıştaki ilk gönderilerin görsellerini/kapaklarını arka planda indirir
   /// (internet yokken de görünsün). Videonun kendisi yalnız izlenince indirilir.
   void prefetchPostMedia(List rows, {int max = 10}) {
+    // v1.2.8: yalnız Wi-Fi'de ve veri tasarrufu kapalıyken (Supabase egress)
+    if (!juzzioShouldPrefetch(unmetered: JuzzioNet.instance.unmetered, dataSaver: JuzzioAppController.instance.dataSaverEnabled)) return;
     var n = 0;
     for (final r in rows) {
       if (r is! Map) continue;
@@ -412,6 +416,8 @@ class JuzzioSocialService {
             ? 'video/mp4'
             : (ext == 'png' ? 'image/png' : (ext == 'webp' ? 'image/webp' : 'image/jpeg'));
         final storagePath = '$uid/${contentType}_${DateTime.now().millisecondsSinceEpoch}_$i.$ext';
+        // v1.2.9: dosya güvenlik denetimi (sahte uzantı / betik / çalıştırılabilir içerik)
+        await SupabaseService.instance.guardUpload(file, name: file.path, kind: isVideoFile ? JuzzioUploadKind.video : JuzzioUploadKind.image);
 
         try {
           await _client.storage.from(targetBucket).upload(
@@ -1300,8 +1306,10 @@ class JuzzioSocialService {
     required String targetType, // 'post' | 'comment' | 'story' | 'user' | 'message'
     required String targetId,
     String? targetOwnerId,
-    required String reasonCode, // 'spam' | 'harassment' | 'inappropriate' | 'fake_account' | 'other'
+    required String reasonCode, // 'spam' | 'harassment' | 'inappropriate' | 'fake_account' | 'copyright' | 'scam' | 'other'
     String details = '',
+    // v1.2.9: şikâyet edenin KENDİ cihazında çözülmüş mesaj + öncesindeki en çok 5 mesaj (onaylı)
+    Map<String, dynamic>? evidence,
   }) async {
     final uid = currentUserId;
     if (uid == null || uid.isEmpty) throw Exception(_tx('Oturum açık değil.', 'You are not signed in.', 'Du bist nicht angemeldet.'));
@@ -1316,6 +1324,7 @@ class JuzzioSocialService {
         'reason_code': reasonCode,
         'details': details.trim(),
         'status': 'open',
+        if (evidence != null) 'evidence': evidence,
       },
       onConflict: 'reporter_id,target_type,target_id',
     );

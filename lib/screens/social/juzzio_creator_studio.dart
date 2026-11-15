@@ -9,6 +9,7 @@
 // Sonuç: gönderi için JuzzioPost, hikâye için List<JuzzioStory> döner.
 // =============================================================================
 
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -45,6 +46,18 @@ enum JuzzioStudioMode { post, story }
 
 JuzzioStudioMode juzzioStudioModeFromString(String raw) {
   return raw == 'story' ? JuzzioStudioMode.story : JuzzioStudioMode.post;
+}
+
+/// v1.2.8: gönderi oranını izin verilen aralığa sıkıştırır (9:16 dikey … 1.91:1 yatay). Saf; test edilir.
+double juzzioClampPostRatio(double r) => r.isNaN || r <= 0 ? 1.0 : r.clamp(9 / 16, 1.91).toDouble();
+
+/// Oranın okunabilir etiketi: 9:16, 4:5, 1:1, 4:3, 16:9 … (saf; test edilir)
+String juzzioRatioLabel(double r) {
+  const named = <(double, String)>[(9 / 16, '9:16'), (3 / 4, '3:4'), (4 / 5, '4:5'), (1.0, '1:1'), (4 / 3, '4:3'), (3 / 2, '3:2'), (16 / 9, '16:9'), (1.91, '1.91:1')];
+  for (final e in named) {
+    if ((e.$1 - r).abs() < 0.02) return e.$2;
+  }
+  return r >= 1 ? '${r.toStringAsFixed(2)}:1' : '1:${(1 / r).toStringAsFixed(2)}';
 }
 
 class JuzzioStudioMedia {
@@ -723,7 +736,37 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
   // ---------------------------------------------------------------------------
   // Önizleme
   // ---------------------------------------------------------------------------
+  /// v1.2.8: gönderi oranı ilk medyanın kendi oranıdır (9:16 … 1.91:1 arası)
+  Future<void> _autoPostRatio() async {
+    if (!_isPost || _media.isEmpty) return;
+    final first = _media.first;
+    double? r;
+    try {
+      if (first.isVideo) {
+        final raw = _preview?.raw;
+        if (raw != null && raw.value.isInitialized && raw.value.aspectRatio > 0) r = raw.value.aspectRatio;
+      } else {
+        final c = Completer<double?>();
+        final stream = FileImage(first.file).resolve(ImageConfiguration.empty);
+        late final ImageStreamListener l;
+        l = ImageStreamListener((info, _) {
+          if (!c.isCompleted) c.complete(info.image.height == 0 ? null : info.image.width / info.image.height);
+          stream.removeListener(l);
+        }, onError: (_, __) {
+          if (!c.isCompleted) c.complete(null);
+          stream.removeListener(l);
+        });
+        stream.addListener(l);
+        r = await c.future.timeout(const Duration(seconds: 4), onTimeout: () => null);
+      }
+    } catch (_) {}
+    if (r == null || !mounted) return;
+    final next = juzzioClampPostRatio(r);
+    if ((next - _postRatio).abs() > 0.005) setState(() => _postRatio = next);
+  }
+
   Future<void> _syncPreview({bool force = false}) async {
+    unawaited(_autoPostRatio());
     final cur = _current;
     if (_stage != 1 || cur == null || !cur.isVideo) {
       final old = _preview;
@@ -753,6 +796,7 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
     }
     ctrl.play();
     setState(() => _preview = ctrl);
+    unawaited(_autoPostRatio()); // video oranı oynatıcı hazır olunca bilinir
   }
 
   Future<void> _openTrimmer({JuzzioStudioMedia? target}) async {
@@ -1699,7 +1743,7 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
           active: _beautyOn,
           onTap: _openBeauty,
         ),
-      if (cur != null && !cur.isVideo)
+      if (cur != null && !cur.isVideo && !_isPost)
         _RailButton(icon: Icons.crop_rotate_rounded, label: _l('Kırp', 'Crop', 'Zuschnitt'), onTap: _cropCurrentPhoto),
       if (_media.isNotEmpty)
         _RailButton(icon: Icons.delete_outline_rounded, label: _l('Kaldır', 'Remove', 'Entfernen'), onTap: _removeCurrent),
@@ -2038,42 +2082,18 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
   Widget _buildNextBar() {
     return Row(
       children: [
+        // v1.2.8: elle oran seçimi kaldırıldı — gönderi, eklenen fotoğraf/videonun KENDİ
+        // oranıyla (9:16 dikey, 16:9 yatay, kare…) paylaşılır
         if (_isPost)
           Container(
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (final r in const [
-                  [1.0, '1:1'],
-                  [0.8, '4:5'],
-                  [1.91, '16:9'],
-                ])
-                  GestureDetector(
-                    onTap: () => setState(() => _postRatio = r[0] as double),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: (_postRatio - (r[0] as double)).abs() < 0.01 ? Colors.white : Colors.transparent,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        r[1] as String,
-                        style: TextStyle(
-                          color: (_postRatio - (r[0] as double)).abs() < 0.01 ? Colors.black : Colors.white,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 12.5,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(999)),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              const Icon(Icons.aspect_ratio_rounded, color: Colors.white70, size: 16),
+              const SizedBox(width: 6),
+              Text('${_l('Orijinal', 'Original', 'Original')} · ${juzzioRatioLabel(_postRatio)}',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 12.5)),
+            ]),
           ),
         const Spacer(),
         _GradientPill(

@@ -90,3 +90,47 @@ Future<void> juzzioMaybeShowIntro(BuildContext context) async {
     // tanıtım isteğe bağlıdır; hiçbir hata uygulamanın açılışını engellemez
   }
 }
+
+
+// =============================================================================
+// v1.2.9 — "1.2.8'den bu yana neler yeni?" videosu (17 sn, özgün müzik, logo + teşekkür + katkıda
+// bulunanlar). YALNIZ güncelleme alan kullanıcılara (önceki sürümü ≤ 1.2.8 olanlara) BİR KEZ
+// gösterilir; yeni kurulumda gösterilmez (yeni kullanıcı zaten tanıtım videosunu izler).
+// Kaynak: tools/intro_video/whatsnew.py
+// =============================================================================
+const String kJuzzioWhatsNewAssetTr = 'assets/intro/juzzio_whatsnew_tr.mp4';
+const String kJuzzioWhatsNewAssetEn = 'assets/intro/juzzio_whatsnew_en.mp4';
+const String kJuzzioWhatsNewVideoCache = 'whatsnew_video_129_seen';
+
+String juzzioWhatsNewAssetFor(String lang) => lang.toLowerCase().startsWith('tr') ? kJuzzioWhatsNewAssetTr : kJuzzioWhatsNewAssetEn;
+
+List<int> _semver(String v) => v.split('+').first.split('.').map((e) => int.tryParse(e.trim()) ?? 0).toList()..addAll([0, 0, 0]);
+
+/// Önceki sürüm 1.2.8 veya daha eskiyse ve mevcut sürüm ≥ 1.2.9 ise (saf; test edilir)
+bool juzzioShouldShowWhatsNewVideo({required String previousVersion, required String currentVersion, required bool alreadySeen}) {
+  if (alreadySeen || previousVersion.trim().isEmpty) return false;
+  final p = _semver(previousVersion), c = _semver(currentVersion);
+  int cmp(List<int> a, List<int> b) {
+    for (var i = 0; i < 3; i++) {
+      if (a[i] != b[i]) return a[i].compareTo(b[i]);
+    }
+    return 0;
+  }
+  return cmp(p, const [1, 2, 8]) <= 0 && cmp(c, const [1, 2, 9]) >= 0;
+}
+
+Future<void> juzzioMaybeShowWhatsNewVideo(BuildContext context, {required String previousVersion, required String currentVersion}) async {
+  try {
+    final seen = await SupabaseService.instance.readLocalCache(kJuzzioWhatsNewVideoCache) == true;
+    if (!juzzioShouldShowWhatsNewVideo(previousVersion: previousVersion, currentVersion: currentVersion, alreadySeen: seen)) return;
+    await SupabaseService.instance.writeLocalCache(kJuzzioWhatsNewVideoCache, true);
+    if (!context.mounted) return;
+    final app = JuzzioAppController.instance;
+    await JuzzioCreatorReelPage.open(
+      context,
+      asset: juzzioWhatsNewAssetFor(app.uiLang),
+      title: app.trEn('1.2.8\'den bu yana neler yeni?', "What's new since 1.2.8?"),
+      isIntro: true,
+    );
+  } catch (_) {}
+}

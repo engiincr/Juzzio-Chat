@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/images/juzzio-social-preview.png" alt="Juzzio — live-translated calls and end-to-end encrypted messaging" width="100%" />
+
 # 🌍 Juzzio — Live-Translated Voice & Video Calls, End-to-End Encrypted Messaging
 
 **Talk to the world in your own language.** Juzzio brings **live voice call translation**, **live video call translation**, **translated messaging**, stories, posts and 4-person conference calls together in one modern Android app with a Liquid Glass (glassmorphism) design.
@@ -18,12 +20,14 @@
 </div>
 
 <!-- JUZZIO_DYNAMIC_TITLE_START -->
-### 🚀 Latest update: **v1.2.7 — Intro Video, 3D Birthday & Smooth Sending**
+### 🚀 Latest update: **v1.2.9 — Glass Menu, GIFs, Message Requests & Sturdier Calls**
 <!-- JUZZIO_DYNAMIC_TITLE_END -->
 
 <!-- JUZZIO_VERIFIED_APK_START -->
 | Version | APK | Size | SHA-256 | Built |
 | :-- | :-- | :-- | :-- | :-- |
+| v1.2.9 (+129) | Waiting for the GitHub Actions build | — | — | — |
+| v1.2.8 (+128) | Waiting for the GitHub Actions build | — | — | — |
 | v1.2.7 (+127) | Waiting for the GitHub Actions build | — | — | — |
 | v1.2.6 (+126) | Waiting for the GitHub Actions build | — | — | — |
 | v1.2.5 (+125) | Waiting for the GitHub Actions build | — | — | — |
@@ -54,9 +58,103 @@
 
 ## 🆕 Latest updates (November 10, 2026)
 
-**v1.2.7** is the newest release (after v1.2.6, v1.2.5, v1.2.4, v1.2.3, v1.2.2, v1.2.1, v1.2.0, v1.1.1 and the November 9 releases v0.9.4 → v1.1.0). Every update below is also shown inside the app on the first launch after updating ("What's new?"), with the same sections and emojis. Full notes: [release-notes.md](release-notes.md) · [GitHub Releases](https://github.com/engiincr/Juzzio-Chat/releases).
+**v1.2.9** is the newest release (after v1.2.8, v1.2.7, v1.2.6, v1.2.5, v1.2.4, v1.2.3, v1.2.2, v1.2.1, v1.2.0, v1.1.1 and the November 9 releases v0.9.4 → v1.1.0). Every update below is also shown inside the app on the first launch after updating ("What's new?"), with the same sections and emojis. Full notes: [release-notes.md](release-notes.md) · [GitHub Releases](https://github.com/engiincr/Juzzio-Chat/releases).
 
 <details open>
+<summary><b>v1.2.9 — Glass Menu, GIFs, Message Requests & Sturdier Calls</b></summary>
+
+### 🎯 Why did this update come?
+On some phones names starting with an emoji crashed the app; some actions showed an unreadable "P0001" error; message reactions spilled outside the bubble; the birthday celebration closed with the back button; a yellow line appeared while sending; strangers could send unlimited messages. A copyright audit was also done, file security was hardened and calls are sturdier on weak internet.
+
+### ✨ What's new?
+- ✨ New glass context menu: 7 quick reactions + every emoji; Reply, Copy, Translate, Copy link, Forward, Forward without name, Save to cloud, Report, Select and Select from author
+- ☑️ Multi-select: select several messages, copy, forward or delete them (back closes the selection)
+- 🎞️ 42 funny, wordless animated GIFs (sleepy, laughing, dancing, shy…) — drawn by Juzzio itself; searchable in your language. New "GIF" tab in the emoji panel
+- ✉️ Message requests: someone who is not your friend can send at most 3 messages until you reply ("2 messages left"); you get a Request box and a Spam box; accepting notifies them "accepted your pending message". Private accounts require a friend request first
+- ⚠️ A clear risk warning before downloading a file from someone you don't know
+- 🔎 Search by username and view a profile without adding the person
+- 🎵 Share music in chats: cover, play/stop, ⋮ menu (Set as profile music, Listen to the full song on Apple Music, Report). Music stops automatically on a call, when the app goes to the background or when other audio plays
+- 📞 In calls both sides see who lost connection ("… waiting"), a soft tone plays while reconnecting; video quality adapts to the network 720p → 480p → 360p; if the main server is unreachable a backup server is used
+- 🔐 Locked chats open with the new green verification screen (step indicator, code boxes, "Verified")
+- 👉 Swipe right in the chat list → pin; 5-second "Undo" after deleting
+- 🌙 The real moon phase of today next to Juzzio under "Your space"; a more realistic weather theme (shaded clouds, cratered moon, glowing sun)
+- 🎨 The default theme is now Midnight Blue
+- 🎬 Smooth page transitions between the welcome, sign-in and sign-up pages
+- 📎 The attach menu has a new Liquid Glass look; paperclip and a white mic in the composer
+- 🎥 A one-time "What's new?" video for people updating from 1.2.8
+- 🩺 System Health: translation, captions (Deepgram), the call server and the backup server are checked automatically and repaired when possible
+
+### 🛠 Fixes
+- Fixed the "string is not well-formed UTF-16" crash for names starting with an emoji
+- Clear error messages in every language instead of codes like "P0001"
+- Message reactions now sit INSIDE the bubble next to the time; the reaction animation plays at the bubble corner (the feature is kept)
+- The birthday celebration no longer stops when you press back; it only stops when you leave the chat
+- The yellow line while sending is gone; text messages now arrive with the same springy animation as emojis
+- An incoming call pauses the open story and its music; profile music stops immediately
+- The weather theme no longer draws over stories, videos or the chat window
+- Juzzio Community images are sent at full size; even if an image fails to load its space stays visible, with no jumping
+- You no longer appear "online" while the app is in the background
+- Replying from a notification no longer removes the sender's photo
+- Fixed the admin header and "Welcome" overflow; long names are shortened neatly everywhere
+- Stories are permanently deleted together with their media files after 24 hours
+
+### 🔐 Security & privacy
+- File security: executable/script files like .php, .jsp, .exe, .apk, .html, .svg, .js, hidden double extensions and files whose content doesn't match their extension are blocked on the device both when sending and opening; the server also accepts only allowed types
+- Old overly broad storage rules were removed (one user could delete or overwrite another user's files)
+- Phishing link warning: shortened, IP-address, look-alike or executable-download links are flagged before opening
+- Script patterns in comments, bios and captions are stripped on the server (XSS)
+- Admin security: single founder admin lock, tamper-evident (hash-chained) audit log and an automatic brake on mass destructive actions
+- Copyright audit: all music and videos are Juzzio's own; third-party attributions and open-source licenses are on the Legal page
+- Error reports are notified only to the founding administrator
+
+</details>
+
+<details>
+<summary><b>v1.2.8 — Cinema Party Rebuilt, Live Translation Fix & Security</b></summary>
+
+### 🎯 Why did this update come?
+Speech was not transcribed or translated during calls; Cinema Party only worked with direct video links; chat photos and videos flickered, were cropped and could not be downloaded; the global feed turned itself off; the weather theme drew over stories and videos. A security audit also found and closed real holes.
+
+### ✨ What's new?
+- 🎬 Cinema Party rebuilt: ANY film/series link including YouTube (and sites with their own player) opens in the app and plays in sync for everyone. Up to 4 people; everyone's photo at the bottom, a mic-off icon when muted, a green ring around whoever is speaking. Full screen and picture-in-picture. A "JOIN" card is posted in the chat and a notification is sent
+- 🗣️ In Cinema Party the site's subtitles are translated into your language; the film's words are added to the on-device translation memory, so translation gets faster as you watch
+- 🌐 Live translation with Deepgram + device recognizer: if Deepgram is unreachable the phone's own speech recognizer takes over. Long-press the language badge in a call to change the language you speak; the caption engine status is shown on the badge
+- ⬇️ Download every sent and received photo/video: download button at the top right in full screen, or long-press in chat → Download
+- 🎞️ Videos you send are compressed to at most 720p / 30 fps
+- 🔢 Locked chats: if you never set a PIN the default is 0000; entering 0000 asks you to set a new PIN (at least 4 digits). No text field — a touch keypad
+- ⚡ On rainy days, an occasional bright lightning bolt from the top-left corner down to the messages area
+- 💾 Data-saving indicator: how many media opened from the device and how much was downloaded (Settings → Calls/Data)
+
+### 🛠 Fixes
+- Speech was not transcribed in calls: captions now start even if the other person's language setting is wrong; if the Deepgram key is missing it no longer silently stops — the reason is shown and the backup engine takes over
+- Translation keeps working when the provider throttles (falls back to the server bridge); translations are stored on the device, the same sentence never goes online again
+- LiveKit: a dropped connection no longer ends the call — it reconnects automatically; the noise suppression setting is now actually applied
+- Chat photos/videos no longer flicker or keep showing a loader; photos are shown in full, uncropped
+- Incoming media was not saved to the gallery: encrypted media now retries until its key is ready
+- Story music restarts from the beginning for every story; stories open softly without growing and shrinking
+- Profile music stops when you go to another page
+- Manual aspect selection removed when posting: photos/videos are shared in their own ratio (including 9:16)
+- The global feed no longer turns itself off after an admin enables it; posts are translated automatically while scrolling
+- The weather theme no longer draws over stories, videos, calls and other full-screen pages; weather changes blend imperceptibly slowly
+- Old push records piled up for the same device are cleaned up (invalid token count in the admin panel)
+
+### 🔐 Security & privacy
+- Every claim in the Gemini report was tried with a real attack test. The genuinely open ones were closed: a muted member lifting their own mute, a pending member approving themselves, a fake blue tick on posts, writing a message's reactions/pin directly, forging a friendship by changing the requester
+- Deleting a call log now only hides it from your own history; the other person's history is untouched
+- Old block lists on profiles were readable by everyone; they were emptied and locked
+- The Deepgram key is never embedded in the app; it lives only as a server secret and the app gets short-lived tokens
+- Supabase egress: media you send is never downloaded again; oversized videos are no longer downloaded over and over; story/feed preloading only on Wi-Fi
+
+### 🧭 How it works (details)
+- **Cinema Party** — SQL 10.37: `watch_party_viewers` (max 4 active viewers, 60 s heartbeat), `join_watch_party` / `leave_watch_party` / `watch_party_heartbeat`, viewers may control playback, `start_watch_party` posts a `system` message with `metadata.kind = 'watch_party'` (rendered as a JOIN card) and notifies members. Voice room `wp_…` is authorised in `can_join_livekit_room` only for active viewers. Websites and YouTube open in `flutter_inappwebview`; `kJuzzioWatchSyncJs` is injected into **all frames** (`forMainFrameOnly: false`), finds the largest/longest `<video>`, reports state via `callHandler('jzwp')` and receives seek/play/pause/rate commands in the reply. Active subtitle cues are translated and fed into the on-device translation memory.
+- **Live captions** — subtitles start whenever another participant is present (language metadata is no longer trusted); `translate-bridge` returns `deepgram_not_configured` when the secret is missing; the client retries, reconnects on socket close and falls back to Android `SpeechRecognizer` (`JuzzioSpeech.kt`, EventChannel `juzzio/speech_events`). **Set the Deepgram key as a server secret** (never in the app): `supabase secrets set DEEPGRAM_API_KEY=<key>` or Dashboard → Edge Functions → Secrets.
+- **Security (SQL 10.36)** — every Gemini claim was attack-tested in `supabase/tests` ("v1.2.8 saldırı"): fixed participant self-update (mute/role/request), post verified badge, message locked columns, friendship identity forging, per-user call-log hiding (`hide_my_call_logs`), legacy profile block lists, one push token per device.
+- **Egress** — sender-side seeding of the media cache (`seedBytes` / `seedFile`, `JuzzioEncryptedMedia.seed`), streamed downloads that skip files larger than the cache limit, prefetch only on unmetered networks with data saver off, videos compressed to 720p/30 fps (`video_compress`).
+- **Global feed** — the v0.7.0 seed no longer forces `global_feed_enabled = false` on every SQL run (`ON CONFLICT DO NOTHING`).
+
+</details>
+
+<details>
 <summary><b>v1.2.7 — Intro Video, 3D Birthday & Smooth Sending</b></summary>
 
 ### 🎯 Why did this update come?

@@ -202,9 +202,27 @@ class JuzzioReplyReceiver : BroadcastReceiver() {
             val previous = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
                 try { nm.activeNotifications.firstOrNull { it.id == id }?.notification } catch (_: Exception) { null }
             } else null
-            val conv = if (ok && previous != null) {
+            val extracted = if (ok && previous != null) {
                 try { NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(previous) } catch (_: Exception) { null }
             } else null
+            // v1.2.9: yanıttan sonra gönderenin profil fotoğrafı korunur — çıkarılan stilde simge
+            // bulunmadığından konuşma, saklanan fotoğrafla yeniden kurulur.
+            val avatar = JuzzioNotifAvatar.forNotification(id)
+            val conv = extracted?.let { old ->
+                try {
+                    val rebuilt = NotificationCompat.MessagingStyle(old.user)
+                    rebuilt.setConversationTitle(old.conversationTitle)
+                    rebuilt.setGroupConversation(old.isGroupConversation)
+                    for (m in old.messages) {
+                        val p = m.person
+                        val person = if (p != null && avatar != null && p.key != old.user.key && !old.isGroupConversation) {
+                            p.toBuilder().setIcon(androidx.core.graphics.drawable.IconCompat.createWithBitmap(avatar)).build()
+                        } else p
+                        rebuilt.addMessage(NotificationCompat.MessagingStyle.Message(m.text, m.timestamp, person))
+                    }
+                    rebuilt
+                } catch (_: Exception) { old }
+            }
             conv?.addMessage(NotificationCompat.MessagingStyle.Message(text, System.currentTimeMillis(), null as androidx.core.app.Person?))
             val b = NotificationCompat.Builder(ctx, channelId)
                 .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
@@ -216,6 +234,7 @@ class JuzzioReplyReceiver : BroadcastReceiver() {
                 .setOnlyAlertOnce(true)
                 .setSilent(true)
                 .setAutoCancel(true)
+            if (avatar != null) b.setLargeIcon(avatar)
             if (ok) b.setTimeoutAfter(4_000L)
             val n = b.build()
             (ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).notify(id, n)

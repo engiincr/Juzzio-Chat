@@ -80,6 +80,17 @@ class JuzzioMediaDiskCache {
   int _writesSincePrune = 0;
   final Map<String, Future<File?>> _inFlight = {};
 
+  /// v1.2.8: önbelleğe sığmadığı bilinen dosyalar (bir daha indirilmez)
+  final Set<String> _tooBig = <String>{};
+
+  /// v1.2.8: bu oturumda ağdan indirilen bayt (bir sonraki açılışta önbellekten gelir)
+  int _savedBytes = 0;
+  int get downloadedBytesThisSession => _savedBytes;
+
+  /// v1.2.8: önbellekten (ağa gitmeden) açılan dosya sayısı / baytı → veri tasarrufu göstergesi
+  int cacheHits = 0;
+  int cacheHitBytes = 0;
+
   /// Önbellek anahtarı (test edilebilir, saf).
   static String keyFor(String url) {
     final ref = JuzzioMediaUrl.parse(url);
@@ -131,12 +142,38 @@ class JuzzioMediaDiskCache {
     final hit = cachedFile(url);
     if (hit != null) {
       _touch(hit);
+      cacheHits++;
+      try {
+        cacheHitBytes += hit.lengthSync();
+      } catch (_) {}
       return Future.value(hit);
     }
     final k = keyFor(url);
     return _inFlight[k] ??= _download(url, k, resolvedUrl).whenComplete(() {
       _inFlight.remove(k);
     });
+  }
+
+  /// v1.2.8: gönderen tarafın elindeki baytları önbelleğe koyar → kendi gönderdiği medya
+  /// sunucudan bir daha İNDİRİLMEZ (titreme yok, Supabase veri çıkışı/egress azalır).
+  Future<void> seedBytes(String url, List<int> bytes) async {
+    final d = _dir;
+    if (d == null || url.isEmpty || bytes.isEmpty || bytes.length > maxItemBytes) return;
+    try {
+      final f = File('${d.path}/${keyFor(url)}');
+      final part = File('${f.path}.part');
+      await part.writeAsBytes(bytes, flush: true);
+      await part.rename(f.path);
+    } catch (_) {}
+  }
+
+  Future<void> seedFile(String url, File file) async {
+    final d = _dir;
+    if (d == null || url.isEmpty) return;
+    try {
+      if (!file.existsSync() || file.lengthSync() > maxItemBytes) return;
+      await file.copy('${d.path}/${keyFor(url)}');
+    } catch (_) {}
   }
 
   Future<Uint8List?> loadBytes(String url, {String? resolvedUrl}) async {
@@ -153,24 +190,42 @@ class JuzzioMediaDiskCache {
     try {
       final target = resolvedUrl ?? await JuzzioMediaUrl.resolve(url);
       // Zaman aşımı dart:io bağlantı düzeyinde (test ortamında bekleyen Timer bırakmaz)
+      // v1.2.8: önbelleğe sığmayacak dosyalar BAŞTAN indirilmez (önceden tamamı indirilip
+      // atılıyor, hikâye akışı her güncellendiğinde aynı büyük video yeniden iniyordu → egress)
+      if (_tooBig.contains(key)) return null;
       final client = IOClient(HttpClient()..connectionTimeout = const Duration(seconds: 20));
-      final http.Response res;
+      final List<int> body;
       try {
-        res = await client.get(Uri.parse(target));
+        final res = await client.send(http.Request('GET', Uri.parse(target)));
+        final len = res.contentLength ?? -1;
+        if (res.statusCode != 200 || len > maxItemBytes) {
+          if (len > maxItemBytes) _tooBig.add(key);
+          return null; // gövde okunmaz; istemci kapanınca bağlantı kesilir
+        }
+        final bb = BytesBuilder(copy: false);
+        await for (final chunk in res.stream) {
+          bb.add(chunk);
+          if (bb.length > maxItemBytes) {
+            _tooBig.add(key);
+            return null;
+          }
+        }
+        body = bb.takeBytes();
       } finally {
         client.close();
       }
-      if (res.statusCode != 200 || res.bodyBytes.isEmpty || res.bodyBytes.length > maxItemBytes) return null;
+      if (body.isEmpty) return null;
+      _savedBytes += body.length;
       final d = _dir;
       if (d == null) {
         // Klasör yoksa (oturum yok / test) yalnız geçici dosya: yine de gösterilebilsin
         final tmp = File('${Directory.systemTemp.path}/juzzio_media_$key');
-        await tmp.writeAsBytes(res.bodyBytes, flush: true);
+        await tmp.writeAsBytes(body, flush: true);
         return tmp;
       }
       final f = File('${d.path}/$key');
       final part = File('${f.path}.part');
-      await part.writeAsBytes(res.bodyBytes, flush: true);
+      await part.writeAsBytes(body, flush: true);
       await part.rename(f.path);
       if (++_writesSincePrune >= 20) {
         _writesSincePrune = 0;

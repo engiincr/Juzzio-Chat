@@ -14,7 +14,7 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart' show MethodChannel;
+import 'package:flutter/services.dart' show EventChannel, MethodChannel;
 import 'package:livekit_client/livekit_client.dart';
 import 'package:record/record.dart';
 import 'package:web_socket_channel/io.dart';
@@ -123,6 +123,74 @@ class DeepgramLiveKitController extends ChangeNotifier {
 
   bool isConnected = false;
   bool isMicEnabled = true;
+
+  /// v1.2.8: bağlantı koptu, yeniden bağlanılıyor (arayüzde "Yeniden bağlanıyor…")
+  bool isReconnecting = false;
+  int _rejoinAttempts = 0;
+  String _lastAccessUrl = '';
+  String _lastAccessToken = '';
+
+  // ---------------------------------------------------------------------------
+  // v1.2.9: YEDEK TURN + yeniden bağlanma
+  //  • İlk bağlantı kurulamazsa aynı oda yedek TURN (ExpressTURN) üzerinden denenir.
+  //  • Kopmada 5 kez yeniden katılma denenir; 2. denemeden itibaren yedek TURN kullanılır.
+  //  • Ana sunucuya ulaşılamadığı görülürse 30 dk boyunca aramalar doğrudan yedekle başlar.
+  // ---------------------------------------------------------------------------
+  static const int maxRejoinAttempts = 5;
+  int get rejoinAttempt => _rejoinAttempts;
+  bool usingBackupTurn = false;
+  List<JuzzioIceServer> _backupIce = const [];
+  static DateTime? _preferBackupUntil;
+  static bool get preferBackupTurn => _preferBackupUntil != null && DateTime.now().isBefore(_preferBackupUntil!);
+  static void markPrimaryUnreachable() => _preferBackupUntil = DateTime.now().add(const Duration(minutes: 30));
+  static void clearBackupPreference() => _preferBackupUntil = null;
+
+  ConnectOptions _connectOptions(bool backup) =>
+      !backup || _backupIce.isEmpty ? const ConnectOptions() : juzzioBackupConnectOptions(_backupIce);
+
+  /// Karşı tarafın bağlantısı koptu (açıkça kapatmadı): ad + ne zamandan beri
+  String? peerReconnectingName;
+  DateTime? peerDroppedAt;
+  Timer? _peerGraceTimer;
+  bool _remoteEndedExplicitly = false;
+  static const Duration peerGrace = Duration(seconds: 30);
+
+  /// Uzak görüntü kademesi (katılımcı sid → 'HIGH' | 'MEDIUM' | 'LOW')
+  final Map<String, String> remoteVideoTier = {};
+  bool localNetworkWeak = false;
+
+  Future<void> _rejoin() async {
+    await Future<void>.delayed(Duration(milliseconds: 1000 * _rejoinAttempts.clamp(1, 5)));
+    final room = _room;
+    if (room == null || _isDisconnecting || _isDisposed) return;
+    final backup = _rejoinAttempts >= 2 && _backupIce.isNotEmpty;
+    if (backup && !usingBackupTurn) {
+      usingBackupTurn = true;
+      notifyListeners();
+    }
+    try {
+      await room.connect(_lastAccessUrl, _lastAccessToken, connectOptions: _connectOptions(backup));
+      await room.localParticipant?.setMicrophoneEnabled(isMicEnabled);
+      if (isCameraEnabled) await room.localParticipant?.setCameraEnabled(true);
+      isConnected = true;
+      isReconnecting = false;
+      if (backup) markPrimaryUnreachable();
+      notifyListeners();
+      unawaited(_broadcastNetState('reconnected'));
+      _deepgramChannel = null;
+      await ensureSubtitles();
+    } catch (_) {
+      if (_rejoinAttempts < maxRejoinAttempts && !_isDisconnecting && !_isDisposed) {
+        _rejoinAttempts++;
+        await _rejoin();
+      } else {
+        _releaseLocalMediaSilently();
+        isConnected = false;
+        isReconnecting = false;
+        notifyListeners();
+      }
+    }
+  }
   bool isCameraEnabled = true;
   bool isSpeakerphoneOn = true;
 
@@ -249,6 +317,9 @@ class DeepgramLiveKitController extends ChangeNotifier {
   }
 
   String get myGender => _myLang == 'tr' ? 'male' : 'female';
+
+  /// v1.2.8: arama sırasında konuşulan dil (tanıyıcının dili)
+  String get myLanguageCode => _myLang;
 
   Room? get room => _room;
   LocalParticipant? get localParticipant => _room?.localParticipant;
@@ -459,6 +530,7 @@ class DeepgramLiveKitController extends ChangeNotifier {
     final nameHash = _myName.codeUnits.fold<int>(0, (a, b) => (a * 31 + b) & 0xFFFF);
     _myVoiceFingerprint = 'SES-${nameHash.toRadixString(16).toUpperCase().padLeft(4, '0')}';
 
+    _rejoinAttempts = 0;
     final access = await SupabaseService.instance.fetchLiveKitToken(
       roomName: _activeRoomName,
       identity: identity,
@@ -500,24 +572,36 @@ class DeepgramLiveKitController extends ChangeNotifier {
     _roomListener = _room!.createListener();
     _setupRoomListeners();
 
-    await _room!.connect(
-      access.url,
-      access.token,
-      fastConnectOptions: FastConnectOptions(
-        microphone: const TrackOption(enabled: true),
-        camera: TrackOption(enabled: enableVideo),
-      ),
+    _lastAccessUrl = access.url;
+    _lastAccessToken = access.token;
+    _backupIce = access.backupIceServers;
+    final fast = FastConnectOptions(
+      microphone: const TrackOption(enabled: true),
+      camera: TrackOption(enabled: enableVideo),
     );
+    usingBackupTurn = preferBackupTurn && _backupIce.isNotEmpty;
+    try {
+      await _room!.connect(access.url, access.token, connectOptions: _connectOptions(usingBackupTurn), fastConnectOptions: fast);
+    } catch (e) {
+      // v1.2.9: ana yol kurulamadı → yedek TURN ile bir kez daha (ör. kurumsal ağ, UDP engeli, TURN kotası)
+      if (usingBackupTurn || _backupIce.isEmpty || _isDisposed) rethrow;
+      usingBackupTurn = true;
+      notifyListeners();
+      await _room!.connect(access.url, access.token, connectOptions: _connectOptions(true), fastConnectOptions: fast);
+      markPrimaryUnreachable();
+    }
 
+    // v1.2.8: önceden burada gürültü engelleme/ses izolasyonu zorla KAPATILIYORDU (ayar yok
+    // sayılıyordu); artık odanın kullanıcı ayarına göre kurulan ses seçenekleri korunur
     await _room!.localParticipant?.setMicrophoneEnabled(
       true,
-      audioCaptureOptions: const AudioCaptureOptions(
+      audioCaptureOptions: AudioCaptureOptions(
         autoGainControl: true,
         echoCancellation: true,
-        noiseSuppression: false,
-        voiceIsolation: false,
-        highPassFilter: false,
-        typingNoiseDetection: false,
+        noiseSuppression: denoise,
+        voiceIsolation: denoise,
+        highPassFilter: denoise,
+        typingNoiseDetection: denoise,
       ),
     );
 
@@ -536,15 +620,144 @@ class DeepgramLiveKitController extends ChangeNotifier {
   /// v0.7.0: Altyazı/çeviri hattı (Deepgram) yalnızca odada farklı dilde biri varsa
   /// ya da kullanıcı çeviriyi elle açtıysa başlatılır. Aynı dili konuşanların sesi
   /// hiçbir üçüncü taraf hizmete gönderilmez.
+  ///
+  /// v1.2.8: dil bilgisi güvenilmez olabildiği için (ör. karşı tarafın sunucudaki varsayılan
+  /// dili "tr" kalmış) odada BAŞKA biri varsa hat her zaman başlar; aynı dil gerçekten
+  /// aynıysa alıcı tarafta çeviri zaten atlanır. Deepgram'a ulaşılamazsa cihazın kendi
+  /// konuşma tanıyıcısı devreye girer (yedek motor).
   Future<void> ensureSubtitles({bool force = false}) async {
-    if (!isConnected || _deepgramChannel != null || _subtitleStarting) return;
-    if (!force && !hasForeignParticipant) return;
+    if (!isConnected || _deepgramChannel != null || _deviceSpeechOn || _subtitleStarting) return;
+    if (!force && remoteParticipants.isEmpty) return;
     _subtitleStarting = true;
     try {
       await _startDeepgramSubtitlePipeline();
     } finally {
       _subtitleStarting = false;
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // v1.2.8 — altyazı motoru durumu + yeniden bağlanma + cihaz tanıyıcısı yedeği
+  // ---------------------------------------------------------------------------
+  /// 'off' | 'connecting' | 'deepgram' | 'device' | 'unavailable'
+  String captionEngine = 'off';
+
+  /// Son hata nedeni ('' | 'no_key' | 'no_active_call' | 'rate_limited' | 'network' | 'server' | 'device_failed')
+  String captionError = '';
+
+  int _deepgramFailures = 0;
+  bool _deviceSpeechOn = false;
+  StreamSubscription? _deviceSpeechSub;
+  static const EventChannel _speechEvents = EventChannel('juzzio/speech_events');
+
+  void _setEngine(String engine, [String error = '']) {
+    captionEngine = engine;
+    captionError = error;
+    notifyListeners();
+  }
+
+  /// Deepgram soketi kapanırsa (ağ, token süresi) çağrı sürüyorsa yeniden bağlanır
+  void _onDeepgramClosed() {
+    _keepAliveTimer?.cancel();
+    final sub = _audioStreamSub;
+    _audioStreamSub = null;
+    () async {
+      try {
+        await sub?.cancel();
+      } catch (_) {}
+      try {
+        if (await _sharedAudioTap.isRecording()) await _sharedAudioTap.stop();
+      } catch (_) {}
+    }();
+    _deepgramSub = null;
+    _deepgramChannel = null;
+    if (!isConnected || _isDisconnecting || _isDisposed) return;
+    _deepgramFailures++;
+    if (_deepgramFailures >= 4) {
+      _startDeviceSpeech('network');
+      return;
+    }
+    _setEngine('connecting');
+    Future<void>.delayed(Duration(seconds: 2 * _deepgramFailures), () {
+      if (isConnected && !_isDisconnecting && !_isDisposed && _deepgramChannel == null && !_deviceSpeechOn) {
+        ensureSubtitles(force: true);
+      }
+    });
+  }
+
+  Future<void> _startDeviceSpeech(String reason) async {
+    if (_deviceSpeechOn || !isConnected) return;
+    try {
+      final ok = await _nativeChannel.invokeMethod('speechAvailable') == true;
+      if (!ok) {
+        _setEngine('unavailable', reason.isEmpty ? 'device_failed' : reason);
+        return;
+      }
+      _deviceSpeechOn = true;
+      _deviceSpeechSub = _speechEvents.receiveBroadcastStream().listen((dynamic e) async {
+        if (e is! Map) return;
+        final type = e['type']?.toString() ?? '';
+        final text = (e['text'] ?? '').toString().trim();
+        if (!isMicEnabled) return;
+        if (type == 'partial' && text.isNotEmpty) {
+          final id = _myOpenSegmentId ??= '${_myIdentity}_${DateTime.now().millisecondsSinceEpoch}_${_mySegmentSeq++}';
+          _myOpenSegmentShown = true;
+          await _emitOwnSegment(id, text, isFinal: false);
+        } else if (type == 'final' && text.isNotEmpty) {
+          final id = _myOpenSegmentId ?? '${_myIdentity}_${DateTime.now().millisecondsSinceEpoch}_${_mySegmentSeq++}';
+          _myOpenSegmentId = null;
+          _myOpenSegmentShown = false;
+          await _emitOwnSegment(id, text, isFinal: true);
+        }
+      }, onError: (_) {});
+      await _nativeChannel.invokeMethod('speechStart', {'lang': _myLang});
+      _setEngine('device', reason);
+    } catch (_) {
+      _deviceSpeechOn = false;
+      _setEngine('unavailable', 'device_failed');
+    }
+  }
+
+  Future<void> _stopDeviceSpeech() async {
+    if (!_deviceSpeechOn) return;
+    _deviceSpeechOn = false;
+    try {
+      await _deviceSpeechSub?.cancel();
+    } catch (_) {}
+    _deviceSpeechSub = null;
+    try {
+      await _nativeChannel.invokeMethod('speechStop');
+    } catch (_) {}
+  }
+
+  /// Arama sırasında konuşulan dili değiştirir: tanıyıcı yeni dille yeniden başlar
+  Future<void> setSpokenLanguage(String lang) async {
+    final next = baseLang(lang);
+    if (next.isEmpty || next == _myLang) return;
+    _myLang = next;
+    try {
+      await _deepgramSub?.cancel();
+    } catch (_) {}
+    try {
+      await _deepgramChannel?.sink.close();
+    } catch (_) {}
+    _deepgramChannel = null;
+    _deepgramSub = null;
+    _keepAliveTimer?.cancel();
+    try {
+      await _audioStreamSub?.cancel();
+      if (await _sharedAudioTap.isRecording()) await _sharedAudioTap.stop();
+    } catch (_) {}
+    _audioStreamSub = null;
+    final wasDevice = _deviceSpeechOn;
+    await _stopDeviceSpeech();
+    _deepgramFailures = 0;
+    if (wasDevice) {
+      await _startDeviceSpeech(captionError);
+    } else {
+      await ensureSubtitles(force: true);
+    }
+    notifyListeners();
   }
 
   // ---------------------------------------------------------------------------
@@ -632,10 +845,8 @@ class DeepgramLiveKitController extends ChangeNotifier {
         foundForeign = true;
       }
     }
-    if (foundForeign) {
-      onForeignParticipantDetected?.call();
-      ensureSubtitles();
-    }
+    if (foundForeign) onForeignParticipantDetected?.call();
+    if (remoteParticipants.isNotEmpty) ensureSubtitles(); // v1.2.8: dil bilgisine güvenme
   }
 
   void _setupRoomListeners() {
@@ -645,24 +856,49 @@ class DeepgramLiveKitController extends ChangeNotifier {
         notifyListeners();
       })
       ..on<RoomReconnectedEvent>((_) {
+        isReconnecting = false;
         _syncParticipantLanguages();
         notifyListeners();
+        unawaited(_broadcastNetState('reconnected'));
       })
       ..on<ParticipantConnectedEvent>((event) {
-        if (_isForeign(extractParticipantLanguage(event.participant))) {
-          onForeignParticipantDetected?.call();
-          ensureSubtitles();
-        }
+        // v1.2.9: kopan kişi geri geldi
+        _peerGraceTimer?.cancel();
+        peerReconnectingName = null;
+        peerDroppedAt = null;
+        if (_isForeign(extractParticipantLanguage(event.participant))) onForeignParticipantDetected?.call();
+        ensureSubtitles(); // v1.2.8: karşı tarafın dil ayarı yanlış olsa da altyazı başlar
         notifyListeners();
       })
       ..on<ParticipantDisconnectedEvent>((event) {
         participantLanguages.remove(event.participant.sid);
+        remoteVideoTier.remove(event.participant.sid);
         if (remoteParticipants.isEmpty) {
-          onRemoteCallEnded?.call();
+          if (_remoteEndedExplicitly) {
+            onRemoteCallEnded?.call();
+          } else {
+            // v1.2.9: karşı taraf aramayı kapatmadı, bağlantısı koptu → 30 sn yeniden bağlanmasını bekle
+            final n = event.participant.name.trim();
+            peerReconnectingName = n.isNotEmpty ? n : event.participant.identity.split('_').first;
+            peerDroppedAt = DateTime.now();
+            _peerGraceTimer?.cancel();
+            _peerGraceTimer = Timer(peerGrace, () {
+              if (remoteParticipants.isEmpty) {
+                peerReconnectingName = null;
+                notifyListeners();
+                onRemoteCallEnded?.call();
+              }
+            });
+          }
         }
         notifyListeners();
       })
-      ..on<TrackSubscribedEvent>((_) => notifyListeners())
+      ..on<TrackSubscribedEvent>((event) {
+        // v1.2.9: yeni abone olunan görüntüye o kişinin güncel kalite kademesi uygulanır
+        final tier = localNetworkWeak ? 'LOW' : (remoteVideoTier[event.participant.sid] ?? 'HIGH');
+        unawaited(_applyTier(event.participant, tier));
+        notifyListeners();
+      })
       ..on<TrackUnsubscribedEvent>((_) => notifyListeners())
       ..on<TrackPublishedEvent>((_) => notifyListeners())
       ..on<LocalTrackPublishedEvent>((_) {
@@ -686,7 +922,15 @@ class DeepgramLiveKitController extends ChangeNotifier {
         final isLocal = event.participant.sid == _room?.localParticipant?.sid;
         if (isLocal) {
           // v0.9.7: zayıf ağda geçici düşük güç/bant profili
-          setLowPowerReason('network', event.connectionQuality == ConnectionQuality.poor || event.connectionQuality == ConnectionQuality.lost);
+          localNetworkWeak = event.connectionQuality == ConnectionQuality.poor || event.connectionQuality == ConnectionQuality.lost;
+          setLowPowerReason('network', localNetworkWeak);
+        } else if (event.participant is RemoteParticipant) {
+          // v1.2.9: karşı tarafın ağı zayıfsa yalnız onun görüntüsü 720p → 480p → 360p'ye iner
+          final tier = juzzioVideoTierFor(event.connectionQuality, localWeak: localNetworkWeak);
+          if (remoteVideoTier[event.participant.sid] != tier) {
+            remoteVideoTier[event.participant.sid] = tier;
+            unawaited(_applyTier(event.participant as RemoteParticipant, tier));
+          }
         }
         if (isLocal || remoteParticipants.isEmpty) {
           liveKitQuality = event.connectionQuality;
@@ -699,13 +943,33 @@ class DeepgramLiveKitController extends ChangeNotifier {
         onParticipantQualityChanged?.call(event.participant.identity, pName, event.connectionQuality, isLocal);
       })
       ..on<RoomDisconnectedEvent>((event) {
+        final reason = event.reason;
+        // v1.2.8: beklenmedik kopmada (ağ değişimi, sinyal hatası, yeniden deneme bitti)
+        // arama hemen bitmez: aynı odaya 2 kez otomatik yeniden katılmayı dener.
+        final intentional = reason == DisconnectReason.participantRemoved ||
+            reason == DisconnectReason.clientInitiated ||
+            reason == DisconnectReason.duplicateIdentity ||
+            reason == DisconnectReason.roomDeleted;
+        if (!intentional && !_isDisconnecting && !_isDisposed && _rejoinAttempts < maxRejoinAttempts && _lastAccessUrl.isNotEmpty) {
+          _rejoinAttempts++;
+          isConnected = false;
+          isReconnecting = true;
+          notifyListeners();
+          _rejoin();
+          return;
+        }
         // Oda bağlantısı koptuğunda mikrofon/kamera ve ses kaynakları kesin olarak bırakılır.
         _releaseLocalMediaSilently();
         isConnected = false;
+        isReconnecting = false;
         notifyListeners();
-        if (event.reason == DisconnectReason.participantRemoved) {
+        if (reason == DisconnectReason.participantRemoved) {
           onRemovedFromCall?.call();
         }
+      })
+      ..on<RoomReconnectingEvent>((_) {
+        isReconnecting = true;
+        notifyListeners();
       })
       ..on<DataReceivedEvent>((event) async {
         try {
@@ -714,7 +978,21 @@ class DeepgramLiveKitController extends ChangeNotifier {
           final packetType = map['type']?.toString();
 
           if (packetType == 'juzzio_call_ended') {
+            _remoteEndedExplicitly = true;
+            _peerGraceTimer?.cancel();
+            peerReconnectingName = null;
             onRemoteCallEnded?.call();
+            return;
+          }
+
+          if (packetType == 'juzzio_net') {
+            // v1.2.9: karşı taraf yeniden bağlandığını bildirdi
+            if (map['state'] == 'reconnected') {
+              _peerGraceTimer?.cancel();
+              peerReconnectingName = null;
+              peerDroppedAt = null;
+              notifyListeners();
+            }
             return;
           }
 
@@ -823,6 +1101,7 @@ class DeepgramLiveKitController extends ChangeNotifier {
   }
 
   void _releaseLocalMediaSilently() {
+    _stopDeviceSpeech();
     _networkProbeTimer?.cancel();
     _keepAliveTimer?.cancel();
     () async {
@@ -932,9 +1211,18 @@ class DeepgramLiveKitController extends ChangeNotifier {
 
   Future<void> _startDeepgramSubtitlePipeline() async {
     try {
-      final authorization = await SupabaseService.instance.fetchDeepgramAuthorization();
+      _setEngine('connecting');
+      String? authorization;
+      // v1.2.8: geçici hatalarda 3 deneme; anahtar yoksa/izin yoksa beklemeden yedek motora
+      for (var attempt = 0; attempt < 3 && authorization == null && isConnected; attempt++) {
+        authorization = await SupabaseService.instance.fetchDeepgramAuthorization();
+        final why = SupabaseService.instance.lastDeepgramError;
+        if (authorization != null || why == 'no_key' || why == 'no_active_call') break;
+        await Future<void>.delayed(Duration(milliseconds: 800 * (attempt + 1)));
+      }
       if (authorization == null || !isConnected) {
-        debugPrint('Deepgram subtitles disabled: server returned no token.');
+        debugPrint('Deepgram subtitles unavailable: ${SupabaseService.instance.lastDeepgramError}');
+        if (isConnected) await _startDeviceSpeech(SupabaseService.instance.lastDeepgramError);
         return;
       }
       final wsUrl = JuzzioConfig.buildDeepgramWsUrl(
@@ -950,10 +1238,18 @@ class DeepgramLiveKitController extends ChangeNotifier {
 
       _deepgramSub = _deepgramChannel!.stream.listen(
         (dynamic message) async {
+          if (captionEngine != 'deepgram') {
+            _deepgramFailures = 0;
+            _setEngine('deepgram');
+          }
           await _handleDeepgramTranscript(message.toString());
         },
         onError: (_) {},
+        // v1.2.8: soket kapanırsa (ağ/token) arama sürüyorsa otomatik yeniden bağlan
+        onDone: _onDeepgramClosed,
+        cancelOnError: false,
       );
+      _setEngine('deepgram');
 
       _keepAliveTimer = Timer.periodic(const Duration(seconds: 7), (_) {
         try {
@@ -1173,7 +1469,35 @@ class DeepgramLiveKitController extends ChangeNotifier {
     encoding: VideoEncoding(maxBitrate: 350 * 1000, maxFramerate: 15),
   );
   bool _lowPower = false;
+  bool _cameraLowApplied = false;
   bool get lowPowerActive => _lowPower;
+
+  /// v1.2.9: bir kişinin görüntü katmanını uygular (HIGH ≈720p, MEDIUM ≈480p, LOW ≈360p)
+  Future<void> _applyTier(RemoteParticipant p, String tier) async {
+    final q = tier == 'LOW' ? VideoQuality.LOW : (tier == 'MEDIUM' ? VideoQuality.MEDIUM : VideoQuality.HIGH);
+    for (final pub in p.videoTrackPublications) {
+      try {
+        await pub.setVideoQuality(q);
+        await pub.setVideoFPS(tier == 'LOW' ? 15 : (tier == 'MEDIUM' ? 24 : 30));
+      } catch (_) {}
+    }
+    notifyListeners();
+  }
+
+  /// Arayüzde görüntünün üstündeki kalite rozeti ('' → tam kalite)
+  String videoTierLabelFor(String sid) {
+    final t = localNetworkWeak ? 'LOW' : (remoteVideoTier[sid] ?? 'HIGH');
+    return t == 'LOW' ? '360p' : (t == 'MEDIUM' ? '480p' : '');
+  }
+
+  /// Karşı tarafa ağ durumu bildirimi (yeniden bağlandım)
+  Future<void> _broadcastNetState(String state) async {
+    final lp = _room?.localParticipant;
+    if (lp == null) return;
+    try {
+      await lp.publishData(utf8.encode(jsonEncode({'type': 'juzzio_net', 'state': state, 'name': _myName})), reliable: true);
+    } catch (_) {}
+  }
   final Set<String> _lowPowerReasons = {};
   Timer? _powerRestoreTimer;
 
@@ -1206,6 +1530,14 @@ class DeepgramLiveKitController extends ChangeNotifier {
       }
     }
     final lp = room.localParticipant;
+    // v1.2.9: yalnız ağ zayıfsa kamera yeniden başlatılmaz (görüntü donmaz) — simulcast/dynacast
+    // gönderimi zaten düşürür, karşı taraf düşük katmanı alır. Kamera yalnız arka plan/PiP'te küçülür.
+    final cameraReasons = _lowPowerReasons.where((r) => r != 'network').isNotEmpty;
+    if (low && !cameraReasons && !_cameraLowApplied) {
+      notifyListeners();
+      return;
+    }
+    _cameraLowApplied = low;
     // Veri Koruma zaten 360p kodluyorsa kamerayı yeniden başlatmaya gerek yok
     if (lp != null && isCameraEnabled && !JuzzioAppController.instance.dataSaverEnabled) {
       try {
@@ -1294,6 +1626,10 @@ class DeepgramLiveKitController extends ChangeNotifier {
   Future<void> disconnectCall() async {
     if (_isDisconnecting) return;
     _isDisconnecting = true;
+    _peerGraceTimer?.cancel();
+    peerReconnectingName = null;
+    await _stopDeviceSpeech();
+    captionEngine = 'off';
     _powerRestoreTimer?.cancel();
     _lowPowerReasons.clear();
     _lowPower = false;
@@ -1356,6 +1692,7 @@ class DeepgramLiveKitController extends ChangeNotifier {
   @override
   void dispose() {
     _isDisposed = true;
+    _peerGraceTimer?.cancel();
     _powerRestoreTimer?.cancel();
     _moderationTimer?.cancel();
     onModerationViolation = null;
@@ -1373,6 +1710,26 @@ class DeepgramLiveKitController extends ChangeNotifier {
   }
 }
 
+/// v1.2.8: altyazı motoru durumunun kısa etiketi (saf; test edilir). [loc] = (tr, en, de) → metin
+String juzzioCaptionEngineLabel(String engine, String error, String Function(String, String, String) loc) {
+  switch (engine) {
+    case 'connecting':
+      return loc('Altyazı bağlanıyor…', 'Captions connecting…', 'Untertitel verbinden…');
+    case 'deepgram':
+      return loc('Deepgram canlı çeviri', 'Deepgram live translation', 'Deepgram Live-Übersetzung');
+    case 'device':
+      return error == 'no_key'
+          ? loc('Cihaz tanıyıcısı (sunucu anahtarı eksik)', 'Device recognizer (server key missing)', 'Geräteerkennung (Serverschlüssel fehlt)')
+          : loc('Cihaz tanıyıcısı (yedek)', 'Device recognizer (backup)', 'Geräteerkennung (Reserve)');
+    case 'unavailable':
+      return error == 'no_key'
+          ? loc('Altyazı yok: Deepgram anahtarı eksik', 'No captions: Deepgram key missing', 'Keine Untertitel: Deepgram-Schlüssel fehlt')
+          : loc('Altyazı şu an kullanılamıyor', 'Captions unavailable right now', 'Untertitel derzeit nicht verfügbar');
+    default:
+      return '';
+  }
+}
+
 /// v0.9.4: biriken kesin parçaya yeni parçayı tek boşlukla ekler (canlı altyazı bölütü).
 String juzzioJoinTranscript(String buffer, String piece) {
   final a = buffer.trim();
@@ -1381,3 +1738,34 @@ String juzzioJoinTranscript(String buffer, String piece) {
   if (b.isEmpty) return a;
   return '$a $b';
 }
+
+
+/// v1.2.9: bağlantı kalitesine göre uzak görüntü kademesi (saf; test edilir)
+/// excellent → HIGH (≈720p), good → MEDIUM (≈480p), poor/lost → LOW (≈360p). Benim ağım
+/// zayıfsa herkes LOW (indirme bant genişliği korunur).
+String juzzioVideoTierFor(ConnectionQuality q, {bool localWeak = false}) {
+  if (localWeak) return 'LOW';
+  switch (q) {
+    case ConnectionQuality.excellent:
+      return 'HIGH';
+    case ConnectionQuality.good:
+      return 'MEDIUM';
+    case ConnectionQuality.poor:
+    case ConnectionQuality.lost:
+      return 'LOW';
+    default:
+      return 'HIGH';
+  }
+}
+
+
+/// v1.2.9: yedek TURN ile bağlantı seçenekleri (arama ve Sinema Parti sesli odası ortak)
+ConnectOptions juzzioBackupConnectOptions(List<JuzzioIceServer> servers) => ConnectOptions(
+      rtcConfiguration: RTCConfiguration(
+        iceServers: [
+          const RTCIceServer(urls: ['stun:stun.l.google.com:19302']),
+          for (final s in servers) RTCIceServer(urls: s.urls, username: s.username, credential: s.credential),
+        ],
+        iceTransportPolicy: RTCIceTransportPolicy.all,
+      ),
+    );

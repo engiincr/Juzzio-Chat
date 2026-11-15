@@ -61,7 +61,9 @@ class _JuzzioAdminCommunityTabState extends State<JuzzioAdminCommunityTab> {
     try {
       final x = video
           ? await _picker.pickVideo(source: ImageSource.gallery)
-          : await _picker.pickImage(source: ImageSource.gallery, imageQuality: 92, maxWidth: 2560);
+          // v1.2.9: topluluk görselleri TAM BOYUTTA gönderilir (genişlik sınırı yok). %98 kalite yeniden kodlama
+          // yalnız EXIF/konum bilgisini siler; boyut ve görünüm korunur.
+          : await _picker.pickImage(source: ImageSource.gallery, imageQuality: 98, requestFullMetadata: false);
       if (x == null || !mounted) return;
       setState(() => _file = File(x.path));
     } catch (e) {

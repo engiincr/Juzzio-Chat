@@ -8,6 +8,7 @@
 // Tüm hata mesajları SupabaseService.friendlyError ile kullanıcının dilindedir.
 // =============================================================================
 
+import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
@@ -15,6 +16,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../core/app_theme_and_locale.dart';
+import '../core/config.dart';
 import 'juzzio_error_reporter.dart';
 import 'juzzio_media_cache.dart';
 import 'supabase_service.dart';
@@ -189,6 +191,44 @@ class JuzzioRelationship {
       );
 }
 
+/// v1.2.9: Mesaj isteği durumu (sunucu: dm_request_state)
+///  • outgoing: ben yazdım, karşı taraf henüz kabul etmedi → kalan hak / bekleme bandı
+///  • incoming: bana gelen istek → Kabul et / Sil / Spam
+class JuzzioDmRequestState {
+  final String state; // none | outgoing | incoming
+  final String username;
+  final int remaining;
+  final int limit;
+  final bool blocked;
+  final bool spam;
+
+  const JuzzioDmRequestState({
+    this.state = 'none',
+    this.username = '',
+    this.remaining = 3,
+    this.limit = 3,
+    this.blocked = false,
+    this.spam = false,
+  });
+
+  static const none = JuzzioDmRequestState();
+
+  bool get isOutgoing => state == 'outgoing';
+  bool get isIncoming => state == 'incoming';
+
+  /// Gönderen yazamaz: 3 hak bitti veya istek silindi (gönderen için yine "bekliyor" görünür)
+  bool get composerHidden => isOutgoing && (blocked || remaining <= 0);
+
+  factory JuzzioDmRequestState.fromMap(Map<String, dynamic> m) => JuzzioDmRequestState(
+        state: (m['state'] ?? 'none').toString(),
+        username: (m['username'] ?? '').toString(),
+        remaining: (m['remaining'] as num?)?.toInt() ?? 3,
+        limit: (m['limit'] as num?)?.toInt() ?? 3,
+        blocked: m['blocked'] == true,
+        spam: m['spam'] == true,
+      );
+}
+
 class JuzzioAppConfig {
   final bool maintenanceMode;
   final String maintenanceMessage;
@@ -207,6 +247,8 @@ class JuzzioAppConfig {
   final bool callsEnabled;
   final bool groupCreationEnabled;
   final bool globalFeedEnabled;
+  /// v1.2.9: Apple iTunes 30 sn önizlemeleri (profil/hikâye müziği) — yönetici tek anahtarla kapatabilir
+  final bool itunesPreviewsEnabled;
   final String announcementBanner;
   // v0.9.6: medya sınırları, minimum sürüm, hata raporlama
   final int voiceMaxSeconds;
@@ -226,7 +268,7 @@ class JuzzioAppConfig {
     this.chickGameEnabled = true,
     this.storiesEnabled = true,
     this.beautyFilterEnabled = true,
-    this.defaultGlassPalette = 'juzzio_liquid',
+    this.defaultGlassPalette = 'ocean',
     this.callModerationEnabled = true,
     this.speechModerationEnabled = true,
     this.avatarModerationEnabled = true,
@@ -235,6 +277,7 @@ class JuzzioAppConfig {
     this.callsEnabled = true,
     this.groupCreationEnabled = true,
     this.globalFeedEnabled = true,
+    this.itunesPreviewsEnabled = true,
     this.announcementBanner = '',
     this.voiceMaxSeconds = 300,
     this.audioBitrateKbps = 96,
@@ -256,7 +299,7 @@ class JuzzioAppConfig {
       chickGameEnabled: b('chick_game_enabled', true),
       storiesEnabled: b('stories_enabled', true),
       beautyFilterEnabled: b('beauty_filter_enabled', true),
-      defaultGlassPalette: (map['default_glass_palette'] ?? 'juzzio_liquid').toString(),
+      defaultGlassPalette: (map['default_glass_palette'] ?? 'ocean').toString(),
       callModerationEnabled: b('call_moderation_enabled', true),
       speechModerationEnabled: b('speech_moderation_enabled', true),
       avatarModerationEnabled: b('avatar_moderation_enabled', true),
@@ -268,6 +311,7 @@ class JuzzioAppConfig {
       callsEnabled: b('calls_enabled', true),
       groupCreationEnabled: b('group_creation_enabled', true),
       globalFeedEnabled: b('global_feed_enabled', true),
+      itunesPreviewsEnabled: b('itunes_previews_enabled', true),
       announcementBanner: (map['announcement_banner'] ?? '').toString(),
       voiceMaxSeconds: n('voice_max_seconds', 300).clamp(15, 900),
       audioBitrateKbps: n('audio_bitrate_kbps', 96).clamp(16, 256),
@@ -334,6 +378,24 @@ class JuzzioFeaturesService {
     return stored;
   }
 
+  /// v1.2.9: giriş kaydı (cihaz modeli, Android sürümü, uygulama sürümü, dil-bölge). IP adresini
+  /// sunucu isteğin kendisinden okur; uygulama IP veya IMEI göndermez.
+  Future<void> _recordLogin(String deviceId) async {
+    try {
+      Map<Object?, Object?> info = const {};
+      try {
+        info = await const MethodChannel('juzzio/notifications').invokeMethod<Map<Object?, Object?>>('deviceInfo') ?? const {};
+      } catch (_) {}
+      await _svc.client.rpc('juzzio_record_login', params: {
+        'p_device_id': deviceId,
+        'p_model': '${info['model'] ?? ''}',
+        'p_os': '${info['os'] ?? Platform.operatingSystemVersion}',
+        'p_app_version': '${JuzzioConfig.appVersion}+${JuzzioConfig.appVersionCode}',
+        'p_locale': Platform.localeName,
+      });
+    } catch (_) {}
+  }
+
   /// true → bu cihaz/hesap engellenmiş. Ağ hatasında false döner (çevrimdışı kullanım engellenmez).
   /// [until] doluysa süreli uzaklaştırmadır (süre dolunca erişim kendiliğinden açılır).
   Future<({bool banned, String reason, DateTime? until, bool moderation})> checkDeviceAccess({bool register = false}) async {
@@ -342,6 +404,7 @@ class JuzzioFeaturesService {
       final res = register && _svc.currentUserId != null
           ? await _svc.client.rpc('register_my_device', params: {'p_device_id': id, 'p_platform': 'android'})
           : await _svc.client.rpc('check_device_access', params: {'p_device_id': id});
+      if (register && _svc.currentUserId != null) unawaited(_recordLogin(id));
       final map = _asMap(res);
       return (
         banned: map['banned'] == true,
@@ -709,12 +772,44 @@ class JuzzioFeaturesService {
     }
   }
 
-  Future<void> respondMessageRequest(String roomId, bool accept) async {
+  Future<void> respondMessageRequest(String roomId, bool accept) =>
+      respondMessageRequestV2(roomId, accept ? 'accept' : 'delete');
+
+  /// v1.2.9: accept | delete | spam | unspam. Eski sunucularda (v2 yoksa) eski RPC'ye düşer.
+  Future<void> respondMessageRequestV2(String roomId, String action) async {
     try {
-      await _svc.client.rpc('respond_message_request', params: {'p_room': roomId, 'p_accept': accept});
+      await _svc.client.rpc('respond_message_request_v2', params: {'p_room': roomId, 'p_action': action});
     } catch (e) {
+      final raw = e.toString();
+      if ((action == 'accept' || action == 'delete') && (raw.contains('PGRST202') || raw.contains('respond_message_request_v2'))) {
+        try {
+          await _svc.client.rpc('respond_message_request', params: {'p_room': roomId, 'p_accept': action == 'accept'});
+          return;
+        } catch (e2) {
+          _fail(e2);
+        }
+      }
       _fail(e);
     }
+  }
+
+  /// v1.2.9: sohbetteki mesaj isteği durumu (hata olursa "none" → arayüz normal kalır)
+  Future<JuzzioDmRequestState> fetchDmRequestState(String roomId) async {
+    try {
+      final res = _asMap(await _svc.client.rpc('dm_request_state', params: {'p_room': roomId}));
+      return JuzzioDmRequestState.fromMap(res);
+    } catch (_) {
+      return JuzzioDmRequestState.none;
+    }
+  }
+
+  /// v1.2.9: Spam kutusundaki istek odaları
+  Future<Set<String>> fetchSpamRequestRooms() async {
+    try {
+      final res = await _svc.client.rpc('my_spam_request_rooms');
+      if (res is List) return res.map((e) => e is Map ? (e.values.first ?? '').toString() : e.toString()).where((e) => e.isNotEmpty).toSet();
+    } catch (_) {}
+    return <String>{};
   }
 
   /// Bakım modu ve özellik bayrakları (giriş yapmadan da okunabilir).

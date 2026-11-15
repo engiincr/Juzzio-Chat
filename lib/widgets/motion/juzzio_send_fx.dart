@@ -192,6 +192,9 @@ class JuzzioFlightHandle {
   final ValueNotifier<bool> landed = ValueNotifier<bool>(false);
 }
 
+/// v1.2.9: yazma kutusundan balona metin uçuşu kapalı; metin mesajları emoji gibi "Pop" ile gelir
+const bool kJuzzioTextSendFlight = false;
+
 class JuzzioSendFlight {
   JuzzioSendFlight._();
 

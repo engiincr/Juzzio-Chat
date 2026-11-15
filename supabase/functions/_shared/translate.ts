@@ -115,6 +115,85 @@ async function myMemoryChunk(f: FetchLike, chunk: string, sl: string, tl: string
   }
 }
 
+// -----------------------------------------------------------------------------
+// v1.2.9 (politika): resmî çeviri API'leri. Sunucuda GOOGLE_TRANSLATE_API_KEY (Google Cloud
+// Translation v2) veya DEEPL_API_KEY tanımlıysa YALNIZ resmî API kullanılır; resmî olmayan
+// "translate_a/single?client=gtx" uç noktasına (Google hizmet koşullarına aykırı otomatik erişim)
+// hiç gidilmez. Anahtar yoksa eski davranış sürer ve Sistem Sağlığı bunu uyarır.
+// -----------------------------------------------------------------------------
+export type OfficialKeys = { google?: string; deepl?: string };
+
+export function officialKeysFromEnv(): OfficialKeys {
+  try {
+    const env = (globalThis as unknown as { Deno?: { env: { get(k: string): string | undefined } } }).Deno?.env;
+    return {
+      google: (env?.get("GOOGLE_TRANSLATE_API_KEY") ?? "").trim() || undefined,
+      deepl: (env?.get("DEEPL_API_KEY") ?? "").trim() || undefined,
+    };
+  } catch (_) {
+    return {};
+  }
+}
+
+/** Hangi sağlayıcı kullanılıyor? (Sistem Sağlığı'nda gösterilir; anahtar değeri ASLA dönmez) */
+export function translationProviderStatus(keys: OfficialKeys = officialKeysFromEnv()): "google_cloud" | "deepl" | "unofficial" {
+  if (keys.google) return "google_cloud";
+  if (keys.deepl) return "deepl";
+  return "unofficial";
+}
+
+/** DeepL dil kodu (saf): hedefte EN→EN-US, PT→PT-BR; kaynak yalnız temel kod */
+export function deeplLang(code: string, target: boolean): string {
+  const c = code.trim().toLowerCase();
+  const base = c.split("-")[0].toUpperCase();
+  if (!target) return base;
+  if (base === "EN") return c === "en-gb" ? "EN-GB" : "EN-US";
+  if (base === "PT") return c === "pt-pt" ? "PT-PT" : "PT-BR";
+  if (base === "ZH") return c === "zh-tw" ? "ZH-HANT" : "ZH-HANS";
+  return base;
+}
+
+async function googleCloudChunk(f: FetchLike, key: string, chunk: string, sl: string, tl: string): Promise<{ text: string; detected: string } | null> {
+  try {
+    const body: Record<string, string> = { q: chunk, target: googleLangCode(tl), format: "text" };
+    if (sl !== "auto") body.source = googleLangCode(sl);
+    const res = await f(`https://translation.googleapis.com/language/translate/v2?key=${encodeURIComponent(key)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) return null;
+    const json = (await res.json()) as { data?: { translations?: Array<{ translatedText?: string; detectedSourceLanguage?: string }> } };
+    const t = json?.data?.translations?.[0];
+    const text = String(t?.translatedText ?? "").trim();
+    if (!text) return null;
+    return { text, detected: String(t?.detectedSourceLanguage ?? sl).toLowerCase() };
+  } catch (_) {
+    return null;
+  }
+}
+
+async function deeplChunk(f: FetchLike, key: string, chunk: string, sl: string, tl: string): Promise<{ text: string; detected: string } | null> {
+  try {
+    const host = key.endsWith(":fx") ? "api-free.deepl.com" : "api.deepl.com";
+    const body: Record<string, unknown> = { text: [chunk], target_lang: deeplLang(tl, true) };
+    if (sl !== "auto") body.source_lang = deeplLang(sl, false);
+    const res = await f(`https://${host}/v2/translate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `DeepL-Auth-Key ${key}` },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) return null;
+    const json = (await res.json()) as { translations?: Array<{ text?: string; detected_source_language?: string }> };
+    const t = json?.translations?.[0];
+    const text = String(t?.text ?? "").trim();
+    if (!text) return null;
+    return { text, detected: String(t?.detected_source_language ?? sl).toLowerCase() };
+  } catch (_) {
+    return null;
+  }
+}
+
 /**
  * Parçalı çeviri. Bir parça çevrilemezse o parçanın ORİJİNALİ kullanılır; hiçbir parça
  * çevrilemezse null döner (çağıran orijinali "çeviri" diye göstermez).
@@ -124,6 +203,7 @@ export async function translateChunked(
   sourceLang: string,
   targetLang: string,
   f: FetchLike = fetch as unknown as FetchLike,
+  keys: OfficialKeys = officialKeysFromEnv(),
 ): Promise<{ text: string; detected: string } | null> {
   const parts = splitForTranslation(text);
   if (parts.length === 0) return null;
@@ -131,7 +211,21 @@ export async function translateChunked(
   const out: string[] = [];
   let any = false;
   let detected = sourceLang;
+  const official = Boolean(keys.google || keys.deepl);
   for (const p of parts) {
+    if (official) {
+      // v1.2.9: resmî API(ler); biri olmazsa diğeri — resmî olmayan uç noktaya düşülmez
+      const o = (keys.google ? await googleCloudChunk(f, keys.google, p, sourceLang, targetLang) : null) ??
+        (keys.deepl ? await deeplChunk(f, keys.deepl, p, sourceLang, targetLang) : null);
+      if (o) {
+        out.push(o.text);
+        if (!any) detected = o.detected;
+        any = true;
+      } else {
+        out.push(p);
+      }
+      continue;
+    }
     const g = await googleChunk(f, p, sourceLang, targetLang);
     if (g) {
       out.push(g.text);

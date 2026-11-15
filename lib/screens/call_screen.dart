@@ -33,6 +33,7 @@ import 'package:livekit_client/livekit_client.dart';
 import '../core/app_theme_and_locale.dart';
 import '../core/config.dart';
 import '../services/deepgram_livekit_service.dart';
+import '../services/juzzio_health_monitor.dart';
 import '../services/juzzio_call_session.dart';
 import '../services/juzzio_features_service.dart';
 import '../services/supabase_service.dart';
@@ -146,6 +147,24 @@ class _CallScreenState extends State<CallScreen> {
   // v0.9.5: giden aramada "Çalıyor…" (karşı taraf çevrimiçi) / "Aranıyor…" (ulaşılamıyor) + bekleme tonu
   final ja.AudioPlayer _ringback = ja.AudioPlayer();
   bool _ringbackOn = false;
+  // v1.2.9: yeniden bağlanma tonu (iki tarafta da kopma süresince çalar)
+  final ja.AudioPlayer _reconnectTone = ja.AudioPlayer();
+  bool _reconnectToneOn = false;
+
+  Future<void> _syncReconnectTone(bool on) async {
+    if (on == _reconnectToneOn) return;
+    _reconnectToneOn = on;
+    try {
+      if (on) {
+        await _reconnectTone.setAsset('assets/sounds/juzzio_reconnect.wav');
+        await _reconnectTone.setLoopMode(ja.LoopMode.one);
+        await _reconnectTone.setVolume(0.45);
+        unawaited(_reconnectTone.play());
+      } else {
+        await _reconnectTone.stop();
+      }
+    } catch (_) {}
+  }
   bool? _peerReachable;
   Timer? _peerReachTimer;
   late bool _isConference;
@@ -298,6 +317,56 @@ class _CallScreenState extends State<CallScreen> {
     try {
       _batteryStateSub = _battery.onBatteryStateChanged.listen((_) => check(), onError: (_) {});
     } catch (_) {}
+  }
+
+  /// v1.2.9: bağlantı kopması bandı — kim koptuysa onun adıyla, iki tarafta da görünür
+  Widget _buildReconnectBanner() {
+    final selfDrop = _controller.isReconnecting;
+    final peer = _controller.peerReconnectingName;
+    if (!selfDrop && peer == null) return const SizedBox.shrink();
+    return ValueListenableBuilder<int>(
+      valueListenable: _elapsed,
+      builder: (context, _, __) {
+        final String title;
+        final String sub;
+        if (selfDrop) {
+          title = _app.loc('İnternet bağlantın kesildi', 'Your internet connection dropped', 'Deine Internetverbindung ist unterbrochen');
+          sub = _app.loc('Yeniden bağlanılıyor… (deneme ${_controller.rejoinAttempt.clamp(1, 5)}/5)',
+                  'Reconnecting… (attempt ${_controller.rejoinAttempt.clamp(1, 5)}/5)',
+                  'Verbinde neu… (Versuch ${_controller.rejoinAttempt.clamp(1, 5)}/5)') +
+              (_controller.usingBackupTurn ? _app.loc(' · yedek sunucu', ' · backup server', ' · Ersatzserver') : '');
+        } else {
+          final since = _controller.peerDroppedAt;
+          final left = since == null
+              ? 30
+              : (DeepgramLiveKitController.peerGrace.inSeconds - DateTime.now().difference(since).inSeconds).clamp(0, 30);
+          title = _app.loc('$peer adlı kişinin bağlantısı kesildi', '$peer lost their connection', 'Die Verbindung von $peer ist unterbrochen');
+          sub = _app.loc('Yeniden bağlanması bekleniyor · $left sn', 'Waiting for them to reconnect · ${left}s', 'Warte auf erneute Verbindung · $left s');
+        }
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(12, 9, 14, 9),
+            decoration: BoxDecoration(
+              color: _callGlassTint(0.78),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFFFB020).withValues(alpha: 0.8)),
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2.2, color: Color(0xFFFFB020))),
+              const SizedBox(width: 10),
+              Flexible(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                  Text(title, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 2),
+                  Text(sub, style: const TextStyle(color: Colors.white70, fontSize: 11.5, fontWeight: FontWeight.w600)),
+                ]),
+              ),
+            ]),
+          ),
+        );
+      },
+    );
   }
 
   Widget _buildAlertsOverlay() {
@@ -799,6 +868,7 @@ class _CallScreenState extends State<CallScreen> {
 
   void _onControllerUpdate() {
     if (!mounted) return;
+    unawaited(_syncReconnectTone(_controller.isReconnecting || _controller.peerReconnectingName != null));
     if (_controller.remoteParticipants.isNotEmpty && !_remoteEverJoined) {
       _remoteEverJoined = true;
       _ringTimeoutTimer?.cancel();
@@ -872,6 +942,7 @@ class _CallScreenState extends State<CallScreen> {
         unawaited(_checkMobileDataPrompt());
       }
     } catch (e) {
+      JuzzioHealthMonitor.instance.reportFailure('call'); // v1.2.9: arama kurulamadı → yolları yokla/onar
       if (mounted) {
         setState(() {
           _isConnecting = false;
@@ -973,6 +1044,7 @@ class _CallScreenState extends State<CallScreen> {
     _elapsed.dispose();
     _peerReachTimer?.cancel();
     _ringback.dispose();
+    _reconnectTone.dispose();
     _sessionWatchSub?.cancel();
     _ringTimeoutTimer?.cancel();
     _callDurationTimer?.cancel();
@@ -1769,6 +1841,7 @@ class _CallScreenState extends State<CallScreen> {
               const SizedBox(height: 8),
               _buildLanguageStatusPill(isThreeOrMoreCall: isConferenceLayout),
               const SizedBox(height: 8),
+              _buildReconnectBanner(),
               _buildAlertsOverlay(),
             ],
           ),
@@ -2055,6 +2128,27 @@ class _CallScreenState extends State<CallScreen> {
 
         // v0.7.0: Görüntülü aramada konuşma çerçevesi/halkası gösterilmez (yalnızca sesli aramada).
 
+        // v1.2.9: ağ zayıfken görüntü kalitesi kademesi (720p → 480p → 360p) — kopmak yerine bulanıklaşır
+        if (hasVideo && !slot.isLocal && _controller.videoTierLabelFor(slot.id).isNotEmpty)
+          Positioned(
+            right: 10,
+            top: compactLabel ? 8 : 12,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: _callGlassTint(0.62),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: const Color(0xFFFFB020).withValues(alpha: 0.7)),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                const Icon(Icons.network_check_rounded, size: 12, color: Color(0xFFFFB020)),
+                const SizedBox(width: 4),
+                Text(_controller.videoTierLabelFor(slot.id),
+                    style: const TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.w800)),
+              ]),
+            ),
+          ),
+
         // Sol Alt Katılımcı İsim Etiketi (tam ekran sahnede başlık zaten adı gösterir)
         if (compactLabel || isSplitHalf)
         Positioned(
@@ -2264,10 +2358,59 @@ class _CallScreenState extends State<CallScreen> {
   }
 
   /// Dil Durumu Bilgilendirme Kapsülü (İki Türk görüşüyorsa çeviri kapalı uyarısı / Yabancı katıldıysa çeviri aktif)
+  /// v1.2.8: arama sırasında konuşulan dili seç (tanıyıcı yeni dille yeniden başlar)
+  Future<void> _pickSpokenLanguage() async {
+    const quick = ['tr', 'en', 'de', 'es', 'fr', 'ar', 'ru', 'it', 'pt', 'az', 'fa', 'ja', 'ko', 'zh', 'hi', 'nl', 'pl', 'uk'];
+    final names = {for (final l in kJuzzioSupportedLanguages) l.code.toLowerCase(): l.nativeName};
+    final pick = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: const Color(0xFF15151A),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 6),
+              child: Text(_app.loc('Konuştuğun dil', 'The language you speak', 'Deine gesprochene Sprache'),
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
+            ),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  for (final c in quick)
+                    ListTile(
+                      dense: true,
+                      title: Text(names[c] ?? c.toUpperCase(), style: const TextStyle(color: Colors.white)),
+                      trailing: _controller.myLanguageCode == c ? const Icon(Icons.check_rounded, color: Colors.white) : null,
+                      onTap: () => Navigator.pop(ctx, c),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (pick == null || !mounted) return;
+    await _controller.setSpokenLanguage(pick);
+    if (!mounted) return;
+    setState(() {
+      _isTranslatorVisible = true;
+      _userManuallyToggledTranslator = true;
+    });
+  }
+
   Widget _buildLanguageStatusPill({required bool isThreeOrMoreCall}) {
     final s = JuzzioStrings(_app.uiLang);
     final isForeignActive = _isTranslatorVisible || _controller.hasForeignParticipant;
 
+    // v1.2.8: altyazı motorunun durumu (Deepgram / cihaz yedeği / neden çalışmadığı)
+    final engine = _controller.captionEngine;
+    final engineText = _controller.isReconnecting
+        ? _app.loc('Bağlantı koptu, yeniden bağlanıyor…', 'Connection lost, reconnecting…', 'Verbindung verloren, verbinde neu…')
+        : (engine == 'off' ? '' : juzzioCaptionEngineLabel(engine, _controller.captionError, _app.loc));
     return GestureDetector(
       onTap: () {
         setState(() {
@@ -2276,6 +2419,8 @@ class _CallScreenState extends State<CallScreen> {
           if (_isTranslatorVisible) _controller.ensureSubtitles(force: true);
         });
       },
+      // v1.2.8: uzun bas → konuştuğum dili arama sırasında değiştir
+      onLongPress: _pickSpokenLanguage,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5.5),
         decoration: BoxDecoration(
@@ -2296,9 +2441,8 @@ class _CallScreenState extends State<CallScreen> {
             const SizedBox(width: 6),
             Flexible(
               child: Text(
-                isForeignActive
-                    ? s.t('foreign_joined_info')
-                    : s.t('same_lang_tr_info'),
+                (isForeignActive ? s.t('foreign_joined_info') : s.t('same_lang_tr_info')) +
+                    (engineText.isEmpty ? '' : ' · $engineText'),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(

@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 
 import '../core/app_theme_and_locale.dart';
 import '../services/juzzio_e2ee.dart';
+import '../services/juzzio_gallery_saver.dart' show JuzzioDownloadAction;
 import '../services/juzzio_media_crypto.dart';
 import '../services/juzzio_media_cache.dart';
 import '../services/supabase_service.dart';
@@ -57,9 +58,20 @@ class JuzzioEncryptedMedia {
     _cache.clear();
     _inFlight.clear();
   }
+
+  /// v1.2.8: bellekte açılmış hâli varsa HEMEN döndürür (çizimde yükleme karesi olmaz)
+  static Uint8List? peek(String messageId) => _cache['${SupabaseService.instance.currentUserId ?? ''}|$messageId'];
+
+  /// v1.2.8: gönderen kendi gönderdiği medyanın açık hâlini zaten bilir → yeniden indirip
+  /// çözmeden gösterilir (titreme yok, gereksiz veri trafiği yok)
+  static void seed(String messageId, Uint8List bytes) {
+    final ck = '${SupabaseService.instance.currentUserId ?? ''}|$messageId';
+    if (_cache.length >= 40) _cache.remove(_cache.keys.first);
+    _cache[ck] = bytes;
+  }
 }
 
-class JuzzioEncryptedImage extends StatelessWidget {
+class JuzzioEncryptedImage extends StatefulWidget {
   const JuzzioEncryptedImage({super.key, required this.messageId, required this.url, this.height, this.fit = BoxFit.cover});
   final String messageId;
   final String url;
@@ -74,25 +86,58 @@ class JuzzioEncryptedImage extends StatelessWidget {
           final img = JuzzioEncryptedImage(messageId: messageId, url: url, fit: BoxFit.contain);
           return Scaffold(
             backgroundColor: Colors.black,
-            appBar: AppBar(backgroundColor: Colors.black, foregroundColor: Colors.white),
+            appBar: AppBar(backgroundColor: Colors.black, foregroundColor: Colors.white, actions: [
+              // v1.2.8: sağ üstte indir
+              JuzzioDownloadAction(url: url, isVideo: false, messageId: messageId, encrypted: true),
+            ]),
             body: Center(child: InteractiveViewer(child: heroTag == null ? img : Hero(tag: heroTag, child: img))),
           );
         },
       ));
 
   @override
+  State<JuzzioEncryptedImage> createState() => _JuzzioEncryptedImageState();
+}
+
+/// v1.2.8: durum bilgili — yükleme işi bir kez başlar; önbellekteyse ilk karede görünür.
+/// (Önceden her yeniden çizimde yeni bir Future oluşuyor, sohbet her güncellendiğinde
+/// fotoğraf bir an "yükleniyor"a dönüp titriyordu.)
+class _JuzzioEncryptedImageState extends State<JuzzioEncryptedImage> {
+  Uint8List? _bytes;
+  Future<Uint8List?>? _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _prime();
+  }
+
+  @override
+  void didUpdateWidget(covariant JuzzioEncryptedImage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.messageId != widget.messageId || oldWidget.url != widget.url) _prime();
+  }
+
+  void _prime() {
+    _bytes = JuzzioEncryptedMedia.peek(widget.messageId);
+    _future = _bytes == null ? JuzzioEncryptedMedia.load(widget.messageId, widget.url) : null;
+  }
+
+  @override
   Widget build(BuildContext context) {
     final app = JuzzioAppController.instance;
+    final ready = _bytes;
+    if (ready != null) return _image(app, ready);
     return FutureBuilder<Uint8List?>(
-      future: JuzzioEncryptedMedia.load(messageId, url),
+      future: _future,
       builder: (context, snap) {
         if (snap.connectionState != ConnectionState.done) {
-          return SizedBox(height: height, child: const Center(child: JuzzioOrbitLoader()));
+          return SizedBox(height: widget.height ?? 190, width: widget.height == null ? 220 : null, child: const Center(child: JuzzioOrbitLoader()));
         }
         final bytes = snap.data;
         if (bytes == null) {
           return SizedBox(
-            height: height ?? 120,
+            height: widget.height ?? 120,
             child: Center(
               child: Semantics(
                 label: app.trEn('Şifreli fotoğraf açılamadı', 'Encrypted photo could not be opened', 'Verschlüsseltes Foto nicht lesbar'),
@@ -101,9 +146,14 @@ class JuzzioEncryptedImage extends StatelessWidget {
             ),
           );
         }
-        return Image.memory(bytes, height: height, width: double.infinity, fit: fit, gaplessPlayback: true,
-            semanticLabel: app.trEn('Uçtan uca şifreli fotoğraf', 'End-to-end encrypted photo', 'Ende-zu-Ende-verschlüsseltes Foto'));
+        _bytes = bytes;
+        return _image(app, bytes);
       },
     );
   }
+
+  // yükseklik verilmezse görsel kendi oranında (kırpılmadan) yerleşir
+  Widget _image(JuzzioAppController app, Uint8List bytes) => Image.memory(bytes,
+      height: widget.height, width: widget.height == null ? null : double.infinity, fit: widget.fit, gaplessPlayback: true,
+      semanticLabel: app.trEn('Uçtan uca şifreli fotoğraf', 'End-to-end encrypted photo', 'Ende-zu-Ende-verschlüsseltes Foto'));
 }

@@ -18,6 +18,7 @@ import 'package:flutter/foundation.dart';
 
 import '../core/config.dart';
 import 'supabase_service.dart';
+import '../core/juzzio_text_safety.dart';
 
 /// Hassas bilgileri maskeler (test edilebilir saf fonksiyon).
 String juzzioScrubErrorText(String input, {int maxLength = 1000}) {
@@ -28,7 +29,7 @@ String juzzioScrubErrorText(String input, {int maxLength = 1000}) {
       (m) => '${m.group(1)}=<redacted>');
   s = s.replaceAllMapped(RegExp(r'(https?://[^\s?#]+)\?[^\s#]*'), (m) => '${m.group(1)}?<q>');
   s = s.replaceAll(RegExp(r'\+?\d[\d \-]{8,}\d'), '<number>');
-  if (s.length > maxLength) s = s.substring(0, maxLength);
+  if (s.length > maxLength) s = juzzioSafeCut(s, maxLength);
   return s;
 }
 
@@ -76,13 +77,18 @@ class JuzzioErrorReporter {
     };
   }
 
+  /// v1.2.9: yakalanmış ama kullanıcıya "işlem tamamlanamadı" diye gösterilen hatalar ve sistem
+  /// sağlığı sorunları (çeviri, Deepgram, LiveKit, TURN, sunucu) yönetici paneline nokta atışı gider.
+  Future<void> reportHandled(String area, String detail) =>
+      report(JuzzioHandledIssue(area, detail), StackTrace.current, context: area);
+
   Future<void> report(Object error, StackTrace stack, {String context = '', bool fatal = false}) async {
     try {
       if (!userEnabled || !serverEnabled) return;
       if (_sentThisSession >= _maxPerSession) return;
       final svc = SupabaseService.instance;
       if (svc.currentUserId == null) return;
-      final type = error.runtimeType.toString();
+      final type = error is JuzzioHandledIssue ? 'Issue:${error.area}' : error.runtimeType.toString();
       final stackText = stack.toString();
       // Ağ kesintileri ve iptal edilen istekler hata merkezini doldurmasın
       if (error is SocketException || error is TimeoutException || error is HttpException) return;
@@ -107,4 +113,14 @@ class JuzzioErrorReporter {
       // Raporlayıcı asla yeni bir hata üretmez
     }
   }
+}
+
+
+/// v1.2.9: yakalanmış sorun kaydı (ör. "translate", "deepgram", "livekit", "friendly_error")
+class JuzzioHandledIssue {
+  final String area;
+  final String detail;
+  JuzzioHandledIssue(this.area, this.detail);
+  @override
+  String toString() => '[$area] $detail';
 }

@@ -13,10 +13,12 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../widgets/motion/juzzio_send_fx.dart' show juzzioBigEmojiCount;
+import '../widgets/juzzio_encrypted_image.dart' show JuzzioEncryptedMedia;
 import '../core/juzzio_community.dart';
 import '../core/juzzio_input_guard.dart';
 import 'juzzio_e2ee.dart';
@@ -30,7 +32,14 @@ import 'juzzio_media_crypto.dart';
 import 'juzzio_media_cache.dart';
 import 'juzzio_media_url.dart';
 import 'juzzio_net.dart';
+import 'juzzio_translation_memory.dart';
+import 'juzzio_file_guard.dart';
+import 'juzzio_health_monitor.dart';
+import 'juzzio_error_reporter.dart';
+import '../core/juzzio_server_errors.dart';
+import 'juzzio_video_compress.dart';
 import '../core/native_bridge.dart';
+import '../core/juzzio_text_safety.dart';
 
 // -----------------------------------------------------------------------------
 // MODELLER
@@ -292,8 +301,8 @@ class JuzzioMessage {
         messageType: messageType,
         sourceLang: sourceLang,
         targetLang: targetLang,
-        originalText: original,
-        translatedText: translated,
+        originalText: juzzioWellFormed(original),
+        translatedText: juzzioWellFormed(translated),
         audioUrl: audioUrl,
         imageUrl: imageUrl,
         videoUrl: videoUrl,
@@ -377,14 +386,14 @@ class JuzzioMessage {
       id: map['id'].toString(),
       roomId: map['room_id'].toString(),
       senderId: map['sender_id'].toString(),
-      senderName: (map['sender_name'] ?? storyMeta?['replierName'] ?? '').toString(),
+      senderName: juzzioWellFormed((map['sender_name'] ?? storyMeta?['replierName'] ?? '').toString()),
       receiverId: nonEmpty(map['receiver_id']),
       messageType: (map['message_type'] ?? 'text').toString(),
       sourceLang: (map['source_lang'] ?? 'auto').toString(),
       targetLang: (map['target_lang'] ?? 'tr').toString(),
-      originalText: (map['original_text'] ?? '').toString(),
+      originalText: juzzioWellFormed((map['original_text'] ?? '').toString()),
       // v0.9.3: eski kayıtlarda çeviri yerine saklanmış servis hata metni gösterilmez (yeniden çevrilir)
-      translatedText: isTranslationProviderError((map['translated_text'] ?? '').toString()) ? '' : (map['translated_text'] ?? '').toString(),
+      translatedText: isTranslationProviderError((map['translated_text'] ?? '').toString()) ? '' : juzzioWellFormed((map['translated_text'] ?? '').toString()),
       audioUrl: nonEmpty(rawAudioUrl),
       imageUrl: nonEmpty(map['image_url']) ?? nonEmpty(storyMeta?['replyImageUrl']),
       videoUrl: nonEmpty(map['video_url']),
@@ -542,7 +551,7 @@ class JuzzioStory {
       id: (map['id'] ?? '').toString(),
       userId: (map['user_id'] ?? '').toString(),
       username: (map['username'] ?? '').toString(),
-      displayName: (map['display_name'] ?? map['username'] ?? 'Juzzio').toString(),
+      displayName: juzzioWellFormed((map['display_name'] ?? map['username'] ?? 'Juzzio').toString()),
       userAvatar: map['user_avatar']?.toString(),
       mediaType: (map['media_type'] ?? 'image').toString(),
       mediaUrl: map['media_url']?.toString(),
@@ -865,7 +874,7 @@ class JuzzioConversation {
     Map<String, dynamic>? call;
     if (map['active_call'] is Map) call = Map<String, dynamic>.from(map['active_call'] as Map);
     // v1.2.0: Juzzio Topluluğu → yerelleştirilmiş ad + uygulama logosu
-    final rawTitle = (map['title'] ?? 'Juzzio').toString();
+    final rawTitle = juzzioWellFormed((map['title'] ?? 'Juzzio').toString());
     final community = map['is_community'] == true ||
         (map['is_group'] == true && map['is_channel'] != false && juzzioIsCommunityTitle(rawTitle));
     return JuzzioConversation(
@@ -877,7 +886,7 @@ class JuzzioConversation {
       avatarUrl: community ? kJuzzioLogoAvatar : map['avatar_url']?.toString(),
       partnerId: map['partner_id']?.toString(),
       partnerUsername: map['partner_username']?.toString(),
-      partnerDisplayName: map['partner_display_name']?.toString(),
+      partnerDisplayName: map['partner_display_name'] == null ? null : juzzioWellFormed(map['partner_display_name'].toString()),
       partnerAvatarUrl: map['partner_avatar_url']?.toString(),
       partnerLang: (map['partner_lang'] ?? 'tr').toString(),
       partnerIsOnline: map['partner_is_online'] == true,
@@ -887,7 +896,7 @@ class JuzzioConversation {
       lastMessageAt: DateTime.tryParse(map['last_message_at']?.toString() ?? ''),
       lastMessageSender: map['last_message_sender']?.toString(),
       lastMessageType: map['last_message_type']?.toString(),
-      lastMessagePreview: map['last_message_preview']?.toString(),
+      lastMessagePreview: map['last_message_preview'] == null ? null : juzzioWellFormed(map['last_message_preview'].toString()),
       unreadCount: (map['unread_count'] as num?)?.toInt() ?? 0,
       isMuted: map['is_muted'] == true,
       isPinned: map['is_pinned'] == true,
@@ -967,7 +976,38 @@ class JuzzioCallSession {
 class JuzzioLiveKitAccess {
   final String token;
   final String url;
-  const JuzzioLiveKitAccess({required this.token, required this.url});
+  /// v1.2.9: sunucunun verdiği yedek TURN listesi (boşsa uygulamadaki ExpressTURN yedeği)
+  final List<JuzzioIceServer> backupIceServers;
+  const JuzzioLiveKitAccess({required this.token, required this.url, this.backupIceServers = const []});
+}
+
+/// v1.2.9: ICE (TURN/STUN) sunucusu — saf model
+class JuzzioIceServer {
+  final List<String> urls;
+  final String username;
+  final String credential;
+  const JuzzioIceServer({required this.urls, this.username = '', this.credential = ''});
+
+  /// Sunucu yanıtındaki listeyi ayrıştırır; geçersiz kayıtları atar (saf; test edilir)
+  static List<JuzzioIceServer> parseList(Object? raw) {
+    if (raw is! List) return const [];
+    final out = <JuzzioIceServer>[];
+    for (final e in raw) {
+      if (e is! Map) continue;
+      final urls = (e['urls'] is List ? (e['urls'] as List) : [e['urls']])
+          .map((u) => '$u'.trim())
+          .where((u) => RegExp(r'^(turns?|stun):[A-Za-z0-9.-]+(:\d+)?(\?transport=(udp|tcp))?$').hasMatch(u))
+          .toList();
+      if (urls.isEmpty) continue;
+      out.add(JuzzioIceServer(urls: urls, username: '${e['username'] ?? ''}', credential: '${e['credential'] ?? ''}'));
+    }
+    return out;
+  }
+
+  /// Uygulamaya gömülü yedek (ExpressTURN)
+  static List<JuzzioIceServer> embeddedBackup() => JuzzioConfig.backupTurnUrls.isEmpty
+      ? const []
+      : [JuzzioIceServer(urls: JuzzioConfig.backupTurnUrls, username: JuzzioConfig.backupTurnUsername, credential: JuzzioConfig.backupTurnCredential)];
 }
 
 /// Kullanıcıya gösterilebilir, Türkçe/İngilizce hata
@@ -1020,6 +1060,18 @@ class SupabaseService {
           'Die Nachricht konnte nicht Ende-zu-Ende-verschlüsselt werden und wurde zu deiner Sicherheit nicht gesendet. Prüfe deine Verbindung und versuche es erneut.');
     } else {
       raw = e.toString();
+    }
+    // v1.2.9: telif / dosya güvenliği
+    if (raw.contains('watch_party_domain_blocked')) {
+      return _app.trEn('Bu site telif ihlali (korsan içerik) nedeniyle Sinema Parti\'de engellendi.',
+          'This site is blocked in Cinema Party for copyright infringement (pirated content).',
+          'Diese Seite ist wegen Urheberrechtsverletzung im Kino-Modus gesperrt.');
+    }
+    if (raw.contains('watch_party_rights_required')) {
+      return _app.trEn('Başlatmadan önce izleme hakkın olduğunu onaylamalısın.', 'Confirm you have the right to watch this before starting.', 'Bestätige zuerst deine Rechte.');
+    }
+    if (raw.contains('file_type_blocked')) {
+      return _app.trEn('Bu dosya türü güvenlik nedeniyle yüklenemez.', 'This file type cannot be uploaded for security reasons.', 'Dieser Dateityp ist aus Sicherheitsgründen gesperrt.');
     }
     // v0.6 içerik denetimi hataları
     if (raw.contains('avatar_not_moderated') || raw.contains('inappropriate_image')) {
@@ -1150,9 +1202,14 @@ class SupabaseService {
       if (raw.contains(entry.key)) return _app.t(entry.value);
     }
     if (e is AuthException && e.statusCode == '401') return _app.t('err_api_key');
-    // Tanınmayan hata: sorunun bulunabilmesi için kısa teknik kod eklenir.
-    final tech = code.trim().isNotEmpty ? code.trim() : e.runtimeType.toString();
-    return '${_app.t('err_generic')} ($tech)';
+    // v1.2.9: sunucu (RAISE EXCEPTION → P0001) kodları anlaşılır metne çevrilir
+    final server = juzzioServerErrorText(raw);
+    if (server != null) return server;
+    // Tanınmayan hata: kullanıcıya çıplak teknik kod (P0001 vb.) GÖSTERİLMEZ; ayrıntı yönetici
+    // paneline hata kaydı olarak gider (nokta atışı bulmak için).
+    unawaited(JuzzioErrorReporter.instance.reportHandled('friendly_error', '${e.runtimeType} $code ${raw.length > 300 ? juzzioSafeCut(raw, 300) : raw}'));
+    return _app.trEn('İşlem tamamlanamadı. Lütfen tekrar dene; sorun sürerse ekibimize otomatik bildirildi.',
+        'The action could not be completed. Please try again; if it persists our team has been notified automatically.');
   }
 
   // Geriye dönük uyumluluk (eski çağrılar)
@@ -1329,10 +1386,18 @@ class SupabaseService {
     return {'user': user, 'username': resolvedUsername, 'preferredLang': resolvedLang};
   }
 
+  /// v1.2.9: hesap yaşam döngüsü kaydı (IP sunucuda istek başlığından alınır; hata akışı bozmaz)
+  Future<void> recordLifecycle(String event, [String detail = '']) async {
+    try {
+      await client.rpc('juzzio_record_lifecycle', params: {'p_event': event, 'p_detail': detail}).timeout(const Duration(seconds: 4));
+    } catch (_) {}
+  }
+
   Future<void> signOut() async {
     try {
       await setPresence(false);
     } catch (_) {}
+    await recordLifecycle('sign_out');
     await clearLocalCacheForCurrentUser();
     JuzzioMediaUrl.clearCache();
     await JuzzioMediaDiskCache.instance.init(null);
@@ -1354,6 +1419,7 @@ class SupabaseService {
       throw AuthException(_app.t('err_password_wrong'));
     }
     await client.auth.updateUser(UserAttributes(password: newPassword));
+    await recordLifecycle('password_changed');
   }
 
   /// Sunucu kontrolü: ok | taken | reserved | invalid | inappropriate | error
@@ -1401,6 +1467,7 @@ class SupabaseService {
     } on AuthException {
       throw AuthException(_app.t('err_password_wrong'));
     }
+    await recordLifecycle('account_delete_requested');
     await client.rpc('delete_my_juzzio_account');
     // Hesap silinince bu cihazdaki önbellek (sohbetler, mesajlar, medya) de silinir
     await clearLocalCacheForCurrentUser();
@@ -2013,6 +2080,7 @@ class SupabaseService {
     if (newAvatarFile != null && newAvatarFile.existsSync()) {
       // v0.9.4: avatars kovası 5 MB — yüklemeden önce sıkıştır
       newAvatarFile = await juzzioCompressImageForUpload(newAvatarFile, maxSide: 1080);
+      await guardUpload(newAvatarFile, name: newAvatarFile.path, kind: JuzzioUploadKind.image, maxBytes: 5 * 1024 * 1024);
       final ext = newAvatarFile.path.split('.').last.toLowerCase();
       final mime = ext == 'png' ? 'image/png' : (ext == 'webp' ? 'image/webp' : 'image/jpeg');
       final path = '$userId/avatar_${DateTime.now().millisecondsSinceEpoch}.$ext';
@@ -2153,6 +2221,8 @@ class SupabaseService {
     required String text,
     String sourceLang = 'auto',
     required String targetLang,
+    // v1.2.9: sağlık yoklaması önbelleği atlar (gerçek ağ yolunu sınar)
+    bool noCache = false,
   }) async {
     final clean = text.trim();
     if (clean.isEmpty) return clean;
@@ -2161,8 +2231,16 @@ class SupabaseService {
     if (sl == tl && sl != 'auto') return clean;
 
     final cacheKey = '$sl|$tl|$clean';
-    final cached = _translationCache[cacheKey];
+    final cached = noCache ? null : _translationCache[cacheKey];
     if (cached != null && cached.isNotEmpty) return cached;
+    // v1.2.8: kalıcı çeviri hafızası (cihazda) — aynı metin bir daha ağa gitmez
+    if (!noCache && clean.length <= translationChunkMax) {
+      final mem = await JuzzioTranslationMemory.instance.lookup(sl, tl, clean);
+      if (mem != null && mem.isNotEmpty) {
+        _translationCache[cacheKey] = mem;
+        return mem;
+      }
+    }
 
     // v0.9.3: uzun metin (sesli mesaj dökümü vb.) parçalara bölünür — tek uzun istek hem
     // adres sınırına takılıyor hem de yedek servisin "500 karakter" hata metnini döndürüyordu
@@ -2178,7 +2256,12 @@ class SupabaseService {
       return joined;
     }
 
-    try {
+    // v1.2.8: Google uç noktası yoğun kullanımda (aramada ara altyazılar) 429 dönüyordu;
+    // bu durumda 60 sn boyunca doğrudan sunucu köprüsü kullanılır (çeviri kesilmez).
+    final googleCooling = _googleCooldownUntil != null && DateTime.now().isBefore(_googleCooldownUntil!);
+    // v1.2.9 (politika): sunucuda resmî çeviri API'si tanımlıysa (Sistem Sağlığı bildirir) cihaz
+    // resmî olmayan Google uç noktasına hiç gitmez; çeviri sunucu köprüsünden yapılır.
+    if (!googleCooling && !preferServerTranslation) try {
       final uri = Uri.parse(
         'https://translate.googleapis.com/translate_a/single'
         '?client=gtx&sl=auto&tl=${Uri.encodeComponent(juzzioGoogleLangCode(tl))}&dt=t&q=${Uri.encodeComponent(clean)}',
@@ -2193,11 +2276,15 @@ class SupabaseService {
           }
           final result = buffer.toString().trim();
           if (result.isNotEmpty && !isTranslationProviderError(result)) {
+            if (noCache) return result;
             if (_translationCache.length > 500) _translationCache.clear();
             _translationCache[cacheKey] = result;
+            unawaited(JuzzioTranslationMemory.instance.put(sl, tl, clean, result));
             return result;
           }
         }
+      } else if (response.statusCode == 429 || response.statusCode >= 500) {
+        _googleCooldownUntil = DateTime.now().add(const Duration(seconds: 60));
       }
     } catch (_) {}
 
@@ -2211,12 +2298,49 @@ class SupabaseService {
       final data = res.data is String ? jsonDecode(res.data as String) : res.data;
       final translated = (data is Map) ? data['translatedText']?.toString() : null;
       if (translated != null && translated.isNotEmpty && !isTranslationProviderError(translated)) {
+        if (noCache) return translated;
         _translationCache[cacheKey] = translated;
+        unawaited(JuzzioTranslationMemory.instance.put(sl, tl, clean, translated));
         return translated;
       }
     } catch (_) {}
 
+    // v1.2.9: hiçbir yol çevirmedi → sağlık modülü 30 sn içinde yoklayıp onarır
+    if (!noCache && clean.length > 3) JuzzioHealthMonitor.instance.reportFailure('translate');
     return clean;
+  }
+
+  DateTime? _googleCooldownUntil;
+
+  /// v1.2.9: true → metin çevirisi doğrudan sunucu köprüsünden (resmî API) yapılır.
+  /// JuzzioHealthMonitor sunucunun resmî sağlayıcı kullandığını görünce açar; sunucu köprüsü
+  /// art arda başarısız olursa geçici olarak kapatır (otomatik onarım).
+  bool preferServerTranslation = false;
+
+  /// v1.2.9: Dosya Güvenlik Denetimi — yüklemeden önce (şifrelemeden önce) cihazda. Geçmezse
+  /// yükleme yapılmaz, kullanıcıya nedeni gösterilir, olay güvenlik günlüğüne düşer.
+  Future<void> guardUpload(File file, {required String name, required JuzzioUploadKind kind, int maxBytes = 200 * 1024 * 1024}) async {
+    final c = await juzzioInspectFile(file, name: name, kind: kind, maxBytes: maxBytes);
+    if (c.ok) return;
+    unawaited(logFileGuardEvent(direction: 'out', verdict: c.verdict.name, detail: c.detail));
+    throw JuzzioServiceException(juzzioFileVerdictMessage(c, _app.trEn));
+  }
+
+  /// Engellenen dosya olayını sunucu güvenlik günlüğüne yazar (dosya içeriği/adı gönderilmez)
+  Future<void> logFileGuardEvent({required String direction, required String verdict, String detail = ''}) async {
+    try {
+      await client.rpc('juzzio_log_file_block', params: {
+        'p_direction': direction,
+        'p_verdict': verdict,
+        'p_detail': detail.length > 40 ? detail.substring(0, 40) : detail,
+      });
+    } catch (_) {}
+  }
+
+  /// v1.2.9: Google bekleme süresini sıfırla (sağlık modülünün onarım adımı)
+  void resetTranslationCooldown() {
+    _googleCooldownUntil = null;
+    _translationCache.removeWhere((k, v) => v.trim().isEmpty);
   }
 
   String get _defaultTargetLang => _app.subtitleLang == 'tr' ? 'en' : 'tr';
@@ -3008,6 +3132,10 @@ class SupabaseService {
     if (!file.existsSync()) {
       throw JuzzioServiceException(_app.trEn('Dosya okunamadı.', 'File could not be read.', 'Datei konnte nicht gelesen werden.'));
     }
+    // v1.2.9: dosya güvenlik denetimi (uzantı + içerik imzası; şifrelemeden önce)
+    await guardUpload(file, name: file.path, kind: isVideo ? JuzzioUploadKind.video : JuzzioUploadKind.image);
+    // v1.2.8: video en çok 720p / 30 fps'e sıkıştırılır (gerekiyorsa)
+    if (isVideo) file = await juzzioPrepareVideoForSend(file);
     final size = file.lengthSync();
     if (size > (isVideo ? 100 : 20) * 1024 * 1024) {
       throw JuzzioServiceException(_app.trEn(
@@ -3063,6 +3191,7 @@ class SupabaseService {
       throw JuzzioServiceException(_app.trEn('Medya yüklenemedi: ${_friendlyError(e)}', 'Upload failed: ${_friendlyError(e)}', 'Hochladen fehlgeschlagen: ${_friendlyError(e)}'));
     }
     final url = client.storage.from(JuzzioConfig.chatMediaBucket).getPublicUrl(path);
+    unawaited(JuzzioMediaDiskCache.instance.seedFile(url, file)); // v1.2.8: yeniden indirme yok
     final cleanCaption = caption.trim();
     final translated = cleanCaption.isEmpty
         ? ''
@@ -3107,8 +3236,10 @@ class SupabaseService {
     if (size <= 0 || size > juzzioDocumentMaxBytes) {
       throw JuzzioServiceException(_app.trEn('Dosya en fazla 25 MB olabilir.', 'Files must be under 25 MB.', 'Dateien dürfen höchstens 25 MB groß sein.'));
     }
-    final name = juzzioSafeFileName(fileName);
-    final mime = juzzioDocumentMime(name);
+    final name = juzzioCleanFileName(juzzioSafeFileName(fileName));
+    // v1.2.9: php/jsp/exe/apk/html/svg… ve sahte uzantılı dosyalar gönderilmez
+    await guardUpload(file, name: fileName, kind: JuzzioUploadKind.document, maxBytes: juzzioDocumentMaxBytes);
+    final mime = juzzioSafeUploadMime(juzzioDocumentMime(name));
     final isDirect = await JuzzioE2ee.instance.isDirectRoom(roomId);
     if (isDirect == null) throw const JuzzioE2eeRequiredException(JuzzioE2eeStatus.unavailable);
     final bucket = client.storage.from(JuzzioConfig.chatMediaBucket);
@@ -3192,7 +3323,9 @@ class SupabaseService {
     } catch (e) {
       throw JuzzioServiceException(_app.trEn('Medya yüklenemedi: ${_friendlyError(e)}', 'Upload failed: ${_friendlyError(e)}', 'Hochladen fehlgeschlagen: ${_friendlyError(e)}'));
     }
-    return (bucket.getPublicUrl(path), path, Map<String, dynamic>.from(outcome.payload!));
+    final pub = bucket.getPublicUrl(path);
+    unawaited(JuzzioMediaDiskCache.instance.seedBytes(pub, sealed.cipher)); // v1.2.8: yeniden indirme yok
+    return (pub, path, Map<String, dynamic>.from(outcome.payload!));
   }
 
   Future<void> _removeChatMedia(String path) async {
@@ -3210,7 +3343,8 @@ class SupabaseService {
     bool viewOnce = false,
     String? clientMsgId,
   }) async {
-    final sealed = await JuzzioMediaCrypto.seal(await file.readAsBytes(), mime: _mimeFor(ext, isVideo: false));
+    final plain = await file.readAsBytes();
+    final sealed = await JuzzioMediaCrypto.seal(plain, mime: _mimeFor(ext, isVideo: false));
     final outcome = await JuzzioE2ee.instance.encryptForRoomStrict(roomId, text: caption, translated: '', media: sealed.key.toJson());
     if (outcome.status != JuzzioE2eeStatus.encrypted || outcome.payload == null) {
       // Anahtar yoksa / şifreleme yapılamıyorsa fotoğraf GÖNDERİLMEZ (şifresiz yedek yok)
@@ -3225,8 +3359,9 @@ class SupabaseService {
     } catch (e) {
       throw JuzzioServiceException(_app.trEn('Medya yüklenemedi: ${_friendlyError(e)}', 'Upload failed: ${_friendlyError(e)}', 'Hochladen fehlgeschlagen: ${_friendlyError(e)}'));
     }
+    unawaited(JuzzioMediaDiskCache.instance.seedBytes(bucket.getPublicUrl(path), sealed.cipher));
     try {
-      await client.from('messages').insert({
+      final row = await client.from('messages').insert({
         'room_id': roomId,
         if (clientMsgId != null) 'client_msg_id': clientMsgId,
         'sender_id': uid,
@@ -3238,7 +3373,10 @@ class SupabaseService {
         'image_url': bucket.getPublicUrl(path),
         'metadata': <String, dynamic>{'e2ee': outcome.payload, 'media_e2ee': 1},
         if (viewOnce) 'is_view_once': true,
-      });
+      }).select('id').maybeSingle();
+      // v1.2.8: gönderenin cihazında açık hâl zaten var → balon anında, indirmeden görünür
+      final newId = row?['id']?.toString();
+      if (newId != null && newId.isNotEmpty && !viewOnce) JuzzioEncryptedMedia.seed(newId, Uint8List.fromList(plain));
     } catch (e) {
       try {
         await bucket.remove([path]); // mesaj yazılamadıysa yetim şifreli dosya bırakılmaz
@@ -3521,6 +3659,7 @@ class SupabaseService {
     if (!file.existsSync() || file.lengthSync() > 5 * 1024 * 1024) {
       throw JuzzioServiceException(_app.trEn('Görsel 5 MB\'tan küçük olmalı.', 'The image must be under 5 MB.', 'Das Bild muss kleiner als 5 MB sein.'));
     }
+    await guardUpload(file, name: file.path, kind: JuzzioUploadKind.image, maxBytes: 5 * 1024 * 1024);
     final ext = file.path.split('.').last.toLowerCase();
     final safeExt = const ['png', 'webp', 'jpg', 'jpeg'].contains(ext) ? ext : 'jpg';
     final mime = safeExt == 'png' ? 'image/png' : (safeExt == 'webp' ? 'image/webp' : 'image/jpeg');
@@ -3546,6 +3685,7 @@ class SupabaseService {
     if (!file.existsSync() || file.lengthSync() > 5 * 1024 * 1024) {
       throw JuzzioServiceException(_app.trEn('Görsel 5 MB\'tan küçük olmalı.', 'The image must be under 5 MB.', 'Das Bild muss kleiner als 5 MB sein.'));
     }
+    await guardUpload(file, name: file.path, kind: JuzzioUploadKind.image, maxBytes: 5 * 1024 * 1024);
     final ext = file.path.split('.').last.toLowerCase();
     final safeExt = const ['png', 'webp', 'jpg', 'jpeg'].contains(ext) ? ext : 'jpg';
     final mime = safeExt == 'png' ? 'image/png' : (safeExt == 'webp' ? 'image/webp' : 'image/jpeg');
@@ -3625,6 +3765,7 @@ class SupabaseService {
           isVideo ? 'Das Story-Video darf höchstens 100 MB groß sein.' : 'Das Story-Bild darf höchstens 20 MB groß sein.',
         ));
       }
+      await guardUpload(mediaFile, name: mediaFile.path, kind: isVideo ? JuzzioUploadKind.video : JuzzioUploadKind.image);
       final ext = _storageExt(mediaFile.path, isVideo: isVideo);
       final path = '$uid/story_${DateTime.now().millisecondsSinceEpoch}.$ext';
       try {
@@ -3724,13 +3865,15 @@ class SupabaseService {
         throw JuzzioServiceException(_app.trEn(kind == 'video' ? 'Video en fazla 100 MB olabilir.' : 'Dosya en fazla 25 MB olabilir.',
             kind == 'video' ? 'Video must be under 100 MB.' : 'Files must be under 25 MB.', 'Datei zu groß.'));
       }
-      name = juzzioSafeFileName(file.path.split(Platform.pathSeparator).last);
+      name = juzzioCleanFileName(juzzioSafeFileName(file.path.split(Platform.pathSeparator).last));
+      await guardUpload(file, name: name,
+          kind: kind == 'image' ? JuzzioUploadKind.image : (kind == 'video' ? JuzzioUploadKind.video : (kind == 'audio' ? JuzzioUploadKind.audio : JuzzioUploadKind.document)));
       final ext = name.contains('.') ? name.split('.').last.toLowerCase() : 'bin';
       final mime = kind == 'image'
           ? _mimeFor(_storageExt(file.path, isVideo: false), isVideo: false)
           : kind == 'video'
               ? _mimeFor(_storageExt(file.path, isVideo: true), isVideo: true)
-              : juzzioDocumentMime(name);
+              : juzzioSafeUploadMime(juzzioDocumentMime(name));
       final path = '$uid/${roomId ?? 'community'}/community_${DateTime.now().millisecondsSinceEpoch}.$ext';
       final bucket = client.storage.from(JuzzioConfig.chatMediaBucket);
       try {
@@ -3810,7 +3953,11 @@ class SupabaseService {
 
   /// Hikâye medyasını (fotoğraf/video/ses) arka planda önbelleğe indirir; zaten
   /// indirilmiş olanlar atlanır. Mobil veride de çalışır ama tek seferde en fazla 12 dosya.
+  ///
+  /// v1.2.8 (Supabase veri çıkışı/egress): yalnız Wi-Fi'de ve veri tasarrufu kapalıyken; mobil
+  /// veride hikâye medyası ancak AÇILINCA iner. Önbelleğe sığmayan dosyalar hiç indirilmez.
   void prefetchStoryMedia(List<JuzzioStory> stories) {
+    if (!juzzioShouldPrefetch(unmetered: JuzzioNet.instance.unmetered, dataSaver: _app.dataSaverEnabled)) return;
     var n = 0;
     for (final st in stories) {
       for (final url in <String?>[st.mediaUrl, st.musicUrl]) {
@@ -4106,6 +4253,7 @@ class SupabaseService {
       final seen = <String>{};
       final out = <JuzzioCallLog>[];
       for (final log in rows.map(JuzzioCallLog.fromMap)) {
+        if (_hiddenCallLogIds.contains(log.id)) continue;
         final key = (log.sessionId != null && log.callerId == currentUserId) ? log.sessionId! : log.id;
         if (seen.add(key)) out.add(log);
       }
@@ -4113,10 +4261,15 @@ class SupabaseService {
     });
   }
 
+  /// v1.2.8: arama kaydı yalnız KENDİ geçmişimden gizlenir (karşı tarafın geçmişi bozulmaz).
+  /// Canlı akış gizleme olayını yayınlamadığı için gizlenen kimlikler yerelde de süzülür.
+  final Set<String> _hiddenCallLogIds = <String>{};
+
   Future<void> deleteCallLogs(List<String> ids) async {
     if (ids.isEmpty) return;
+    _hiddenCallLogIds.addAll(ids);
     try {
-      await client.from('call_logs').delete().inFilter('id', ids);
+      await client.rpc('hide_my_call_logs', params: {'p_ids': ids});
     } catch (_) {}
   }
 
@@ -4174,7 +4327,8 @@ class SupabaseService {
       final url = (data['wsUrl']?.toString().trim().isNotEmpty ?? false)
           ? data['wsUrl'].toString()
           : JuzzioConfig.liveKitUrl;
-      return JuzzioLiveKitAccess(token: token, url: url);
+      final backup = JuzzioIceServer.parseList(data['backupIceServers']);
+      return JuzzioLiveKitAccess(token: token, url: url, backupIceServers: backup.isNotEmpty ? backup : JuzzioIceServer.embeddedBackup());
     } on FunctionException catch (e) {
       final details = e.details?.toString() ?? '';
       if (e.status == 403) {
@@ -4196,13 +4350,21 @@ class SupabaseService {
   /// Canlı altyazı (Deepgram WebSocket) için Authorization başlık değeri.
   /// Önce Edge Function'dan kısa ömürlü token alınır; yerel geliştirmede
   /// --dart-define ile verilen anahtar kullanılabilir.
+  /// v1.2.8: son Deepgram yetki hatasının nedeni (arayüzde gösterilir): '' | 'no_key' |
+  /// 'no_active_call' | 'rate_limited' | 'network' | 'server'
+  String lastDeepgramError = '';
+
   Future<String?> fetchDeepgramAuthorization() async {
+    lastDeepgramError = '';
     try {
       final res = await client.functions.invoke('translate-bridge', body: {'mode': 'deepgram_token'});
       final data = res.data is String ? jsonDecode(res.data as String) : res.data;
       final token = (data is Map) ? data['accessToken']?.toString() : null;
       if (token != null && token.isNotEmpty) return 'Bearer $token';
-    } catch (_) {}
+      lastDeepgramError = 'server';
+    } catch (e) {
+      lastDeepgramError = juzzioDeepgramErrorReason(e.toString());
+    }
     final devKey = JuzzioConfig.deepgramDevApiKey;
     if (devKey.isNotEmpty) return 'Token $devKey';
     return null;
@@ -4218,6 +4380,21 @@ class SupabaseService {
         .order('version_code', ascending: false)
         .limit(1);
   }
+}
+
+/// v1.2.8: arka planda medya ön yüklemesi yapılsın mı (saf; test edilir) — egress tasarrufu
+bool juzzioShouldPrefetch({required bool unmetered, required bool dataSaver}) => unmetered && !dataSaver;
+
+/// v1.2.8: Deepgram yetki hatasını kullanıcıya gösterilecek nedene çevirir (saf; test edilir)
+String juzzioDeepgramErrorReason(String raw) {
+  final r = raw.toLowerCase();
+  if (r.contains('no_active_call')) return 'no_active_call';
+  if (r.contains('rate_limited')) return 'rate_limited';
+  if (r.contains('deepgram_not_configured') || r.contains('service_not_configured') || r.contains('deepgram_grant')) {
+    return 'no_key';
+  }
+  if (r.contains('socket') || r.contains('failed host lookup') || r.contains('timeout') || r.contains('network')) return 'network';
+  return 'server';
 }
 
 /// v0.9.3: tek çeviri isteğinin en fazla karakter sayısı (sağlayıcı sınırlarının altında).
@@ -4251,8 +4428,9 @@ List<String> splitForTranslation(String text, {int max = translationChunkMax}) {
     while (rest.length > max) {
       var cut = rest.lastIndexOf(' ', max);
       if (cut < max * 0.5) cut = max;
-      out.add(rest.substring(0, cut).trim());
-      rest = rest.substring(cut);
+      final piece = juzzioSafeCut(rest, cut);
+      out.add(piece.trim());
+      rest = rest.substring(piece.isEmpty ? cut : piece.length);
     }
     buf = rest;
   }

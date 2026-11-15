@@ -275,13 +275,14 @@ class _JuzzioGlobalFeedViewState extends State<JuzzioGlobalFeedView> {
     setState(() {
       for (final p in pending) {
         final r = res[p.id];
-        if (r == null) {
+        // v1.2.8: sunucu çeviremediyse (kota/sağlayıcı hatası) ya da metni aynen döndürdüyse
+        // cihazdaki çeviri hattına düşülür — gönderiye girmeden, kaydırırken çevrilir
+        if (r == null || !r.ok || r.text.trim() == p.caption.trim()) {
           missing.add(p);
           continue;
         }
         _translating.remove(p.id);
         _translated[p.id] = r.text;
-        if (!r.ok) _translationFailed.add(p.id);
       }
     });
     for (final p in missing) {
@@ -289,10 +290,12 @@ class _JuzzioGlobalFeedViewState extends State<JuzzioGlobalFeedView> {
         if (!mounted) return;
         setState(() {
           _translating.remove(p.id);
-          _translated[p.id] = t;
+          _translated[p.id] = t; // aynı dildeyse metin aynen kalır (hata sayılmaz)
+          _translationFailed.remove(p.id);
         });
       }).catchError((_) {
         _translating.remove(p.id);
+        _translationFailed.add(p.id);
       });
     }
   }

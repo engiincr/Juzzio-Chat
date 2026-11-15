@@ -52,6 +52,10 @@
 
     <!-- url_launcher (Android 11+): web sitesi ve YouTube bağlantılarını açabilmek için -->
     <queries>
+        <!-- v1.2.8: yedek canlı altyazı için cihazın konuşma tanıma hizmeti -->
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="https" />

@@ -15,6 +15,8 @@ import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:video_player/video_player.dart';
 
+import '../services/juzzio_gallery_saver.dart' show JuzzioDownloadAction;
+
 import '../core/app_theme_and_locale.dart';
 import '../services/juzzio_media_cache.dart';
 import '../services/juzzio_media_url.dart';
@@ -422,7 +424,10 @@ class _LocalVideoPageState extends State<_LocalVideoPage> {
   @override
   Widget build(BuildContext context) => Scaffold(
         backgroundColor: Colors.black,
-        appBar: AppBar(backgroundColor: Colors.black, foregroundColor: Colors.white),
+        // v1.2.8: sağ üstte indir (çözülmüş video cihaza kaydedilir)
+        appBar: AppBar(backgroundColor: Colors.black, foregroundColor: Colors.white, actions: [
+          JuzzioDownloadAction(file: widget.file, isVideo: true),
+        ]),
         body: Center(
           child: _vc.value.isInitialized
               ? GestureDetector(

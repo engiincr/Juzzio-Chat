@@ -2,7 +2,7 @@
 
 const String kJuzzioPrivacyMd = r'''# Juzzio Gizlilik Politikası ve KVKK Aydınlatma Metni
 
-Son güncelleme: 10 Kasım 2026 · Uygulama sürümü: v1.2.7 (BETA · Erken Erişim)
+Son güncelleme: 15 Kasım 2026 · Uygulama sürümü: v1.2.9 (BETA · Erken Erişim)
 
 Bu metin, Juzzio mobil uygulamasının hangi kişisel verileri hangi amaçla işlediğini, kimlerle paylaştığını ve haklarınızı **olduğu gibi** açıklar. Uygulamanın kaynak kodu GitHub'da açıktır; buradaki her ifade koddan doğrulanabilir.
 
@@ -126,20 +126,40 @@ Juzzio'nun çalışması için aşağıdaki hizmetler kullanılır. Bunların bi
 - **Deepgram** (konuşmadan yazıya): yalnızca aramada **farklı dil konuşan** biri olduğunda veya canlı çeviriyi kendiniz açtığınızda, kendi sesiniz altyazı için gönderilir. Aynı dili konuşanlar arasında ses gönderilmez. Gönderildiğinde de yalnız gerçekten konuştuğunuz anların sesi gider: sessizlik ve oda sesi gönderilmeden önce cihazınızda dijital sessizlikle değiştirilir.
 - **Google** – Firebase Cloud Messaging (bildirimler); Google Çeviri (otomatik çeviri, cihazdan); isteğe bağlı Google Cloud Vision (yalnızca görüntülü aramada müstehcen görüntü denetimi; kareler saklanmaz).
 - **MyMemory** (Google çevirisi çalışmazsa yedek çeviri).
-- **Apple iTunes Search** (müzik ekle ekranında yazdığınız şarkı adı aranır, 30 sn önizleme dinletilir).
+- **Apple iTunes Search** (müzik ekle ekranında yazdığınız şarkı adı aranır, 30 sn önizleme dinletilir). Önizlemeler yalnız akıştan çalınır, cihaza kaydedilmez; her parçada "Apple Music'te aç" bağlantısı bulunur.
+- **ExpressTURN** (v1.2.9, yalnız yedek arama aktarıcısı): ana arama sunucusuna doğrudan ulaşılamadığında arama sesi/görüntüsü bu aktarıcı üzerinden **şifreli (DTLS-SRTP)** geçer; aktarıcı içeriği çözemez ve kaydetmez, yalnız bağlantı için IP adresinizi görür.
 - **GitHub** (uygulama güncellemeleri ve sürüm notları).
-- **Open-Meteo** (yalnız hava durumu teması açıksa; yuvarlanmış konum, kimliğiniz gönderilmez).
+- **Open-Meteo** (yalnız hava durumu teması açıksa; yuvarlanmış konum, kimliğiniz gönderilmez). Hava verisi: Open-Meteo.com, CC BY 4.0.
+
+## 5a. Dosya güvenlik denetimi ve sistem sağlığı (v1.2.9)
+
+- Gönderdiğiniz dosyalar **cihazınızda, şifrelenmeden önce** denetlenir: çalıştırılabilir ve betik dosyaları (ör. .php, .jsp, .exe, .apk, .html, .svg, .js), uzantısıyla içeriği uyuşmayan dosyalar ve gizli çift uzantılar gönderilmez. Sunucu da yalnız izin verilen dosya türlerini kabul eder.
+- Size gelen bir dosya açılmadan veya kaydedilmeden önce, şifresi **cihazınızda** çözüldükten sonra aynı denetimden geçer; tehlikeli görünüyorsa uyarılırsınız. Dosya içeriği hiçbir yere gönderilmez.
+- Mesajlardaki bağlantılara dokunduğunuzda, kimlik avı belirtileri (IP adresli bağlantı, harf benzetmeli alan adı, kısaltılmış bağlantı vb.) cihazınızda denetlenir ve gerekirse uyarı gösterilir.
+- Sistem Sağlığı modülü çeviri, altyazı ve arama bağlantısının çalışıp çalışmadığını arka planda kısa deneme istekleriyle yoklar; bu yoklamalarda kişisel içerik gönderilmez (ör. "merhaba" gibi sabit bir sınama metni).
+
+## 5b. Giriş kayıtları, cihaz bilgisi ve yasal talepler (v1.2.9)
+
+- **Ne kaydedilir:** her girişte ve uygulama açılışında; IP adresi, ağın ülkesi (barındırma sağlayıcısının bağlantı başlığından), cihaz markası/modeli, işletim sistemi ve uygulama sürümü, uygulamaya özgü cihaz kimliği ve zaman. Hesabınızdaki e-posta ve (varsa) telefon numarası zaten kayıtlıdır.
+- **Ne kaydedilmez:** IMEI (Android 10 ve sonrası uygulamaların IMEI okumasına izin vermez; Juzzio bunu istemez), şehir veya GPS konumu (konum yalnız siz konum paylaştığınızda mesajın içinde, uçtan uca şifreli gider), uçtan uca şifreli mesaj ve arama içerikleri.
+- **Amaç ve hukuki sebep:** hesap güvenliği ve kötüye kullanımın önlenmesi, hukuki yükümlülük ve yetkili makamların usulüne uygun talepleri (5651 sayılı Kanun, 5271 sayılı CMK, KVKK m.5/2-ç ve m.5/2-e). Bu kayıtlar yalnız kurucu süper yönetici tarafından, resmî talep gerekçesi girilerek ve her işlem denetim kaydına yazılarak dışa aktarılabilir.
+- **Paylaşım:** yalnız mahkeme, savcılık veya kanunen yetkili kolluk birimlerinin yazılı talebi üzerine; talepte belirtilen hesapla sınırlı olarak. Paket bütünlük özeti (SHA-256) ile verilir.
+- **Saklama:** giriş kayıtları 2 yıla kadar saklanır, sonra silinir.
+- **Hesap yaşam döngüsü:** çıkış yapma, diğer oturumları kapatma, cihaz kaldırma, şifre değiştirme ve hesap silme işlemleri IP adresi, ağ ülkesi ve uygulama kimliğiyle kaydedilir; hesap silinse de bu iz kaydı 2 yıl saklanır (5651 sayılı Kanun kapsamındaki trafik bilgisi yükümlülüğü).
+- **Veri koruma (dondurma) talepleri:** yetkili makamların usulüne uygun veri koruma talebi üzerine belirli bir hesabın verileri en çok 90 gün (makamın talebiyle en çok 365 gün) korunabilir. Bu sürede silinen içerik ve kayıtlar gizli bir arşivde tutulur; soruşturmanın gizliliği gereği ilgili kullanıcıya bildirilmeyebilir. Süre bitince arşiv otomatik silinir.
+- **Resmî taleplere verilebilecekler:** yukarıdaki kayıtlar, grup üyelikleri, bildirim belirteçleri (Google FCM), arama kayıtları (kim, kimi, ne zaman, ne kadar), şifresiz grup içerikleri ve şikâyet kanıtları. Birebir sohbet ve arama içerikleri uçtan uca şifreli olduğundan **verilemez**; bu içerik hiçbir zaman sunucuda okunur hâlde bulunmaz.
+- **Şikâyet kanıtı:** bir mesajı şikâyet ederken onay verirsen, o mesaj ve öncesindeki en çok 5 mesaj **kendi cihazında çözülmüş hâliyle** şikâyete eklenir ve inceleme/yasal süreçte kullanılabilir.
 
 ## 6. Yöneticinin görebildikleri ve göremedikleri
 
-- Görebilir: kullanıcı listesi ve e-postalar, arama kayıtlarının özeti, şikâyetler, hata bildirimleri; içerik silme, hesap kapatma ve ceza verme yetkisi vardır.
+- Görebilir: kullanıcı listesi ve e-postalar, arama kayıtlarının özeti, şikâyetler, hata bildirimleri; kurucu süper yönetici ayrıca giriş IP'lerini, ağ ülkesini ve cihaz modelini görebilir (bkz. 5b). İçerik silme, hesap kapatma ve ceza verme yetkisi vardır.
 - Göremez: uçtan uca şifreli mesaj ve medya içerikleri, şifreniz, kart/banka bilgisi (zaten yok). Yönetici panelinde serbest SQL konsolu yoktur; yasal dışa aktarım ve tüm oturumları kapatma gibi kritik işlemler yalnız süper yöneticiye açıktır ve denetim kaydına yazılır.
 - Şifresiz içerikler (grup mesajları, medya) teknik olarak veritabanında okunabilir durumdadır; yönetici panelinde mesaj içeriğini gösteren bir işlev yoktur.
 
 ## 7. Saklama süreleri
 
 - Hesabınız açık olduğu sürece veriler saklanır. Süreli mesajları açarsanız mesajlar seçtiğiniz süre sonunda silinir.
-- Hikâyeler 24 saat sonra görünmez olur.
+- Hikâyeler 24 saat sonra görünmez olur ve (v1.2.9) birkaç dakika içinde medya dosyalarıyla birlikte sunucudan **kalıcı olarak silinir**.
 - Hesabınızı silebilirsiniz (Ayarlar → Hesap). Silinen mesaj, hikâye ve hesaplara ait medya dosyaları otomatik silme kuyruğuna alınır ve sunucu tarafında depodan silinir. Otomatik çökme raporları 90 gün sonra silinir.
 
 ## 8. Güvenlik önlemleri
@@ -190,6 +210,9 @@ Kayıt ve giriş ekranındaki zorunlu kutuyu işaretleyerek bu koşulları kabul
 
 - Paylaştığınız içerikten siz sorumlusunuz. İçeriğinizin hakları sizde kalır; hizmetin çalışması için gereken ölçüde (saklama, iletme, gösterme) işlenmesine izin vermiş olursunuz.
 - Kurallara aykırı içerikler kaldırılabilir, hesaplar askıya alınabilir.
+- **Telif hakkı:** Hakkına sahip olmadığınız müzik, film, dizi, maç yayını veya başka korunan içeriği paylaşamaz, Sinema Parti'de açamazsınız. Juzzio içerik barındırmaz; Sinema Parti yalnız sizin açtığınız bağlantıyı katılımcılar arasında eş zamanlar. Korsan içerik sunan alan adları engellenir.
+- **Telif bildirimi:** Hakkınızın ihlal edildiğini düşünüyorsanız içerikteki "Şikâyet et → Telif hakkı" seçeneğiyle ya da engiincr@pm.me adresine eserin ve ihlalin bağlantısıyla bildirin. Bildirim incelenene kadar içerik gizlenebilir; tekrarlayan ihlallerde hesap kapatılır.
+- **Dosyalar:** Zararlı yazılım, betik veya çalıştırılabilir dosya (ör. .php, .jsp, .exe, .apk) göndermek yasaktır; bu dosyalar otomatik olarak engellenir.
 
 ## 5. Tüketici hakları
 
@@ -297,7 +320,7 @@ the Republic of Türkiye.
 
 const String kJuzzioPrivacyMdEn = r'''# 🔐 Juzzio Privacy Policy
 
-Last updated: November 10, 2026 · App version: v1.2.7 (BETA · Early Access)
+Last updated: November 15, 2026 · App version: v1.2.9 (BETA · Early Access)
 
 > 🇹🇷 The legally binding Turkish version (Privacy Policy and KVKK Disclosure Notice) is in [docs/legal/tr/PRIVACY.md](docs/legal/tr/PRIVACY.md). In the app, the Turkish text is shown when the app language is Turkish.
 
@@ -423,20 +446,40 @@ The following services are used to run Juzzio. Some are located abroad, so data 
 - **Deepgram** (speech-to-text): your own voice is sent for captions only when someone **speaking a different language** is in the call or when you turn on live translation yourself. No audio is sent between people speaking the same language. Even then, audio only goes out while you are actually speaking: silence and room sound are replaced with digital silence on your device before anything is sent.
 - **Google** – Firebase Cloud Messaging (notifications); Google Translate (automatic translation, from the device); optional Google Cloud Vision (only for explicit content checks in video calls; frames are not stored).
 - **MyMemory** (fallback translation if Google Translate fails).
-- **Apple iTunes Search** (the song name you type in the add-music screen is searched and a 30-second preview is played).
+- **Apple iTunes Search** (the song name you type in the add-music screen is searched and a 30-second preview is played). Previews are streamed only and never saved to your device; every track has an "Open in Apple Music" link.
+- **ExpressTURN** (v1.2.9, backup call relay only): when the main call server cannot be reached directly, call audio/video passes through this relay **encrypted (DTLS-SRTP)**; the relay cannot decrypt or record it and only sees your IP address to make the connection.
 - **GitHub** (app updates and release notes).
-- **Open-Meteo** (only when the weather theme is on; rounded location, no identity).
+- **Open-Meteo** (only when the weather theme is on; rounded location, no identity). Weather data by Open-Meteo.com, CC BY 4.0.
+
+## 5a. File safety checks and system health (v1.2.9)
+
+- Files you send are checked **on your device, before encryption**: executable and script files (e.g. .php, .jsp, .exe, .apk, .html, .svg, .js), files whose content does not match their extension and hidden double extensions are not sent. The server also accepts only allowed file types.
+- A file you receive is checked the same way **on your device**, after it is decrypted, before it is opened or saved; you are warned if it looks dangerous. File contents are never sent anywhere.
+- When you tap a link in a message, phishing signs (IP-address links, look-alike domains, shortened links, etc.) are checked on your device and a warning is shown if needed.
+- The System Health module checks in the background that translation, captions and call connectivity work, using short test requests that contain no personal content (a fixed test text such as "hello").
+
+## 5b. Login records, device information and legal requests (v1.2.9)
+
+- **What is recorded:** at each sign-in and app start: IP address, network country (from the hosting provider's connection header), device brand/model, operating system and app version, an app-specific device ID and the time. Your account email and phone number (if any) are already stored.
+- **What is not recorded:** IMEI (Android 10+ does not allow apps to read it and Juzzio never asks), city or GPS location (location is only sent inside a message, end-to-end encrypted, when you share it), end-to-end encrypted message and call content.
+- **Purpose and legal basis:** account security and abuse prevention, legal obligations and lawful requests by competent authorities (Turkish Law No. 5651, Code of Criminal Procedure No. 5271, KVKK art. 5/2-ç and 5/2-e). Only the founding super administrator can export these records, after entering the official request reference; every export is audit-logged.
+- **Disclosure:** only upon a written request from a court, prosecutor or legally authorised law-enforcement unit, limited to the account named in the request. Bundles are delivered with a SHA-256 integrity hash.
+- **Retention:** login records are kept for up to 2 years and then deleted.
+- **Account lifecycle:** signing out, signing out other sessions, removing a device, changing the password and deleting the account are recorded with IP address, network country and app identifier; this trail is kept for 2 years even after the account is deleted (traffic data obligation under Law No. 5651).
+- **Preservation requests:** upon a lawful preservation request from a competent authority, an account's data may be preserved for up to 90 days (up to 365 days on the authority's request). Content and records deleted during this period are kept in a hidden archive and, for the confidentiality of the investigation, the user may not be notified. The archive is deleted automatically when the period ends.
+- **What may be disclosed to authorities:** the records above, group memberships, push notification tokens (Google FCM), call records (who, whom, when, how long), unencrypted group content and report evidence. One-to-one chat and call content is end-to-end encrypted and **cannot** be disclosed; it never exists in readable form on the server.
+- **Report evidence:** if you agree when reporting a message, that message and up to 5 messages before it are attached **as decrypted on your own device** and may be used for review and legal proceedings.
 
 ## 6. What administrators can and cannot see
 
-- Can see: the user list and emails, call record summaries, reports, bug and crash reports; they can delete content, close accounts and issue penalties.
+- Can see: the user list and emails, call record summaries, reports, bug and crash reports; the founding super administrator can also see login IPs, network country and device model (see 5b). They can delete content, close accounts and issue penalties.
 - Cannot see: end-to-end encrypted message and media content, your password, card/bank details (there are none). There is no free-form SQL console in the admin panel; critical actions such as legal export and signing everyone out are limited to the super administrator and recorded in the audit log.
 - Unencrypted content (group messages, group media) is technically readable in the database; the admin panel has no feature that displays message content.
 
 ## 7. Retention periods
 
 - Data is kept while your account is open. If you turn on disappearing messages, messages are deleted after the period you choose.
-- Stories disappear after 24 hours.
+- Stories disappear after 24 hours and (v1.2.9) are **permanently deleted** from the server, including their media files, within minutes.
 - You can delete your account (Settings → Account). Media files of deleted messages, stories and accounts are queued for automatic deletion and removed from storage on the server. Automatic crash reports are deleted after 90 days.
 
 ## 8. Security measures
@@ -487,6 +530,9 @@ By ticking the required box on the sign-up and sign-in screen you accept these t
 
 - You are responsible for the content you share. You keep the rights to your content and allow it to be processed to the extent needed to run the service (storing, delivering, displaying).
 - Content that violates the rules may be removed and accounts may be suspended.
+- **Copyright:** You may not share, or open in Cinema Party, music, films, series, sports streams or other protected content you do not have the rights to. Juzzio hosts no content; Cinema Party only synchronizes the link you open between participants. Domains offering pirated content are blocked.
+- **Copyright notices:** If you believe your rights are infringed, use "Report → Copyright" on the content or e-mail engiincr@pm.me with links to the work and the infringement. Content may be hidden while the notice is reviewed; repeat infringers' accounts are closed.
+- **Files:** Sending malware, scripts or executable files (e.g. .php, .jsp, .exe, .apk) is prohibited; such files are blocked automatically.
 
 ## 5. Consumer rights
 

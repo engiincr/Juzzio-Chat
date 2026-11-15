@@ -60,6 +60,7 @@ import '../core/theme/juzzio_glass.dart';
 import '../widgets/juzzio_cloth_refresh.dart';
 import '../widgets/juzzio_ui_kit.dart';
 import '../widgets/juzzio_motion.dart';
+import '../core/juzzio_text_safety.dart';
 
 /// Üç dilli (tr/en/de) arayüz metni; diğer diller dil paketinden gelir.
 String _l3(String tr, String en, String de) => JuzzioAppController.instance.trEn(tr, en, de);
@@ -195,7 +196,7 @@ class _JuzzioSettingsMainPageState extends State<JuzzioSettingsMainPage> {
                                   child: _profile?.avatarUrl == null ||
                                           _profile!.avatarUrl!.isEmpty
                                       ? Text(
-                                          dname.isNotEmpty ? dname[0].toUpperCase() : 'J',
+                                          juzzioInitial(dname),
                                           style: const TextStyle(
                                             fontFamily: JuzzioConfig.fontRegularBold,
                                             color: Colors.white,
@@ -1506,7 +1507,7 @@ class _JuzzioEditProfilePageState extends State<JuzzioEditProfilePage> {
                                               (currentAvatar == null || currentAvatar.isEmpty))
                                           ? Text(
                                               _fullNameCtrl.text.isNotEmpty
-                                                  ? _fullNameCtrl.text[0].toUpperCase()
+                                                  ? juzzioInitial(_fullNameCtrl.text)
                                                   : 'J',
                                               style: const TextStyle(
                                                 fontFamily: JuzzioConfig.fontRegularBold,
@@ -5038,8 +5039,8 @@ class JuzzioAppearanceSettingsPage extends StatelessWidget {
                   secondary: Icon(Icons.thunderstorm_rounded, color: p.amberGlow),
                   title: Text(_l3('Hava durumuna göre tema', 'Theme follows the weather', 'Design folgt dem Wetter'), style: title),
                   subtitle: Text(
-                    _l3('Bulunduğun yerin havasına göre güneş, bulut, yağmur, kar ve sis efektleri. Konum ~10 km yuvarlanıp yalnız Open-Meteo\'ya gider, saklanmaz.',
-                        'Sun, clouds, rain, snow and fog effects from your local weather. Location is rounded to ~10 km, sent only to Open-Meteo and never stored.',
+                    _l3('Bulunduğun yerin havasına göre güneş, bulut, yağmur, kar ve sis efektleri. Konum ~10 km yuvarlanıp yalnız Open-Meteo\'ya gider, saklanmaz. Hava verisi: Open-Meteo.com (CC BY 4.0).',
+                        'Sun, clouds, rain, snow and fog effects from your local weather. Location is rounded to ~10 km, sent only to Open-Meteo and never stored. Weather data by Open-Meteo.com (CC BY 4.0).',
                         'Sonne, Wolken, Regen, Schnee je nach Wetter.'),
                     style: sub,
                   ),
@@ -6792,6 +6793,27 @@ class JuzzioBatteryOptimizationPage extends StatelessWidget {
                       ),
                       value: appCtrl.dataSaverEnabled,
                       onChanged: appCtrl.setDataSaverEnabled,
+                    ),
+                    // v1.2.8: veri tasarrufu göstergesi — önbellekten açılan medya ağa (Supabase) gitmez
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                      child: Builder(builder: (_) {
+                        final c = JuzzioMediaDiskCache.instance;
+                        String mb(int b) => (b / (1024 * 1024)).toStringAsFixed(1);
+                        return Row(children: [
+                          Icon(Icons.savings_rounded, size: 18, color: p.onlineGreen),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              appCtrl.trEn(
+                                'Bu oturumda ${c.cacheHits} medya (${mb(c.cacheHitBytes)} MB) cihazdan açıldı, internete gidilmedi · ağdan inen: ${mb(c.downloadedBytesThisSession)} MB. Hikâye ve akış ön yüklemesi yalnız Wi-Fi\'de yapılır.',
+                                '${c.cacheHits} media (${mb(c.cacheHitBytes)} MB) opened from this device this session, no network used · downloaded: ${mb(c.downloadedBytesThisSession)} MB. Story and feed preloading only on Wi-Fi.',
+                                '${c.cacheHits} Medien (${mb(c.cacheHitBytes)} MB) vom Gerät geöffnet · geladen: ${mb(c.downloadedBytesThisSession)} MB.'),
+                              style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textSecondary, fontSize: 11.5),
+                            ),
+                          ),
+                        ]);
+                      }),
                     ),
                     Divider(height: 1, color: p.glassBorder),
                     JuzzioSwitchListTile(style: JuzzioToggleStyle.check,

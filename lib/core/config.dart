@@ -15,11 +15,11 @@ class JuzzioConfig {
   JuzzioConfig._();
 
   // Uygulama Sürüm ve OTA Güncelleme Sabitleri
-  static const String appVersion = '1.2.7';
+  static const String appVersion = '1.2.9';
   /// CI her derlemede artan sürüm kodunu APP_BUILD olarak verir
   /// (`scripts/release_meta.py build-number`). Yerel derlemede pubspec.yaml'daki
   /// +N değeri kullanılır; `release_meta.py check` ikisinin aynı olmasını zorunlu kılar.
-  static const int appVersionCode = int.fromEnvironment('APP_BUILD', defaultValue: 127);
+  static const int appVersionCode = int.fromEnvironment('APP_BUILD', defaultValue: 129);
   /// v0.8.0: yayın imzası doğrulama anahtarı (ML-DSA-65, FIPS 204). Boşsa imza
   /// kontrolü yapılmaz; CI'da GitHub değişkeni ML_DSA_PUBLIC_KEY ile verilir.
   static const String mlDsaPublicKey = String.fromEnvironment('ML_DSA_PUBLIC_KEY');
@@ -40,7 +40,7 @@ class JuzzioConfig {
 
   static const String _defaultSupabaseUrl = 'https://hzoerzgbyklrutvifbrg.supabase.co';
   static const String _defaultSupabaseAnonKey = 'sb_publishable_7vQpeX8-Vpl4j28NOwZ2Ng_5hpBuKwQ';
-  static const String _defaultLiveKitUrl = 'wss://juzzii-gajiy6rg.livekit.cloud';
+  static const String _defaultLiveKitUrl = 'wss://juzzio-hbmkorss.livekit.cloud';
 
   static String _env(String value, String fallback) {
     final v = value.trim();
@@ -60,6 +60,20 @@ class JuzzioConfig {
   /// Yalnızca yerel geliştirme için isteğe bağlı (--dart-define=DEEPGRAM_API_KEY=...).
   /// Yayın derlemelerinde boş bırakılır; token Edge Function'dan alınır.
   static String get deepgramDevApiKey => const String.fromEnvironment('DEEPGRAM_API_KEY').trim();
+
+  // v1.2.9 — YEDEK TURN (ExpressTURN). Ana LiveKit bağlantısı kurulamazsa / koparsa arama bu
+  // aktarıcı üzerinden yeniden denenir. Değerler derlemede --dart-define ile değiştirilebilir;
+  // sunucu (get-livekit-token, BACKUP_TURN_* sırları) kendi listesini verirse o önceliklidir.
+  // Not: ses/görüntü DTLS-SRTP ile uçtan uca şifrelidir; aktarıcı içeriği çözemez.
+  static const String backupTurnHost = String.fromEnvironment('BACKUP_TURN_HOST', defaultValue: 'free.expressturn.com');
+  static const int backupTurnPort = int.fromEnvironment('BACKUP_TURN_PORT', defaultValue: 3478);
+  static const String backupTurnUsername = String.fromEnvironment('BACKUP_TURN_USERNAME', defaultValue: '000000002108137542');
+  static const String backupTurnCredential = String.fromEnvironment('BACKUP_TURN_CREDENTIAL', defaultValue: 'ddfQ8zpEanGDan4FFlQfkzn3U3w=');
+
+  /// Yedek TURN adresleri (UDP + TCP) — saf; test edilir
+  static List<String> get backupTurnUrls => backupTurnHost.isEmpty
+      ? const <String>[]
+      : <String>['turn:$backupTurnHost:$backupTurnPort?transport=udp', 'turn:$backupTurnHost:$backupTurnPort?transport=tcp'];
 
   // Storage Bucket'ları (her dosya yolu kullanıcının kendi klasörüyle başlar: <uid>/...)
   static const String voiceNoteBucket = 'voice-notes';
@@ -84,8 +98,10 @@ class JuzzioConfig {
     // v0.9.4: 180 ms çok kısaydı — konuşmacı nefes alırken cümle ikiye bölünüyordu.
     // Bölüt yalnız konuşma gerçekten bitince (speech_final / UtteranceEnd) kapanır.
     final endpointMs = batterySaver ? 700 : 550;
+    // v1.2.8: listede olmayan diller için çok dilli nova-3 (otomatik dil), diğerleri nova-2
+    final model = dgLang == 'multi' ? 'nova-3' : 'nova-2';
     return 'wss://api.deepgram.com/v1/listen'
-        '?model=nova-2'
+        '?model=$model'
         '&language=$dgLang'
         '&encoding=linear16'
         '&sample_rate=16000'

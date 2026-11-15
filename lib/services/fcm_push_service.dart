@@ -16,6 +16,7 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/app_theme_and_locale.dart';
+import '../core/juzzio_pip_state.dart';
 import '../core/config.dart';
 import '../core/native_bridge.dart';
 import 'juzzio_quick_reply.dart';
@@ -191,6 +192,7 @@ class JuzzioFcmPushService {
         case 'onPipChanged':
           final args = call.arguments;
           JuzzioActiveCall.instance.setPip(args is Map && args['inPip'] == true);
+          JuzzioPipState.inPip.value = args is Map && args['inPip'] == true; // v1.2.8: Sinema Parti
           break;
         case 'onCallHangupFromNotification':
           await JuzzioActiveCall.instance.hangUpFromNotification();

@@ -21,6 +21,12 @@ object JuzzioNotifAvatar {
     private const val SIZE = 192
     private val cache = LruCache<String, Bitmap>(24)
 
+    // v1.2.9: bildirim kimliği → gönderen fotoğrafı. Satır içi yanıttan sonra bildirim yeniden
+    // çizildiğinde fotoğraf kaybolmasın diye saklanır (MessagingStyle çıkarımı simgeyi taşımaz).
+    private val byNotification = LruCache<Int, Bitmap>(32)
+    fun remember(notificationId: Int, bmp: Bitmap?) { if (bmp != null) byNotification.put(notificationId, bmp) }
+    fun forNotification(notificationId: Int): Bitmap? = byNotification.get(notificationId)
+
     fun load(url: String?): Bitmap? {
         if (url.isNullOrBlank() || !url.startsWith("https://") || url.length > 1500) return null
         cache.get(url)?.let { return it }

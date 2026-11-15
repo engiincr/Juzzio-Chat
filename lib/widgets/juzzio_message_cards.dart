@@ -15,10 +15,21 @@ import 'social_common_widgets.dart';
 import 'juzzio_motion.dart';
 
 class JuzzioReactionBadge extends StatelessWidget {
-  const JuzzioReactionBadge({super.key, required this.messageId, required this.counts, this.popKeys = const <String>{}});
+  const JuzzioReactionBadge({
+    super.key,
+    required this.messageId,
+    required this.counts,
+    this.popKeys = const <String>{},
+    this.inBubble = false,
+    this.onMine = false,
+  });
 
   final String messageId;
   final Map<String, int> counts;
+
+  /// v1.2.9: balonun içinde (saatin yanında) küçük cam hap olarak çizilir — gölge/kenar taşması yok
+  final bool inBubble;
+  final bool onMine;
 
   /// '<mesajId>|<emoji>' — yalnız yeni eklenen tepki yaylı belirir
   final Set<String> popKeys;
@@ -30,12 +41,18 @@ class JuzzioReactionBadge extends StatelessWidget {
     final shown = entries.take(4).toList();
     final dark = Theme.of(context).brightness == Brightness.dark;
     return DecoratedBox(
-      decoration: BoxDecoration(
-        color: dark ? const Color(0xF21E2028) : const Color(0xF7FFFFFF),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: JuzzioGlassTokens.borderStrong),
-        boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius: 10, offset: Offset(0, 3))],
-      ),
+      decoration: inBubble
+          ? BoxDecoration(
+              color: onMine ? Colors.white.withValues(alpha: 0.16) : (dark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.05)),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: onMine ? Colors.white.withValues(alpha: 0.22) : JuzzioGlassTokens.border),
+            )
+          : BoxDecoration(
+              color: dark ? const Color(0xF21E2028) : const Color(0xF7FFFFFF),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: JuzzioGlassTokens.borderStrong),
+              boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius: 10, offset: Offset(0, 3))],
+            ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(7, 3, 9, 3),
         child: Row(
@@ -48,7 +65,7 @@ class JuzzioReactionBadge extends StatelessWidget {
                   key: ValueKey('rx_${messageId}_${e.key}'),
                   play: popKeys.contains('$messageId|${e.key}'),
                   // emoji kendi yazı tipiyle, kalın ağırlık olmadan → küçülme/bozulma olmaz
-                  child: Text(e.key, style: juzzioEmojiStyle(19), textScaler: TextScaler.noScaling),
+                  child: Text(e.key, style: juzzioEmojiStyle(inBubble ? 16 : 19), textScaler: TextScaler.noScaling),
                 ),
               ),
             if (total > 1) ...[
@@ -57,7 +74,7 @@ class JuzzioReactionBadge extends StatelessWidget {
                 value: total,
                 child: Text(
                   '$total',
-                  style: TextStyle(color: JuzzioGlassTokens.textPrimary, fontSize: 12.5, fontWeight: FontWeight.w700),
+                  style: TextStyle(color: inBubble && onMine ? Colors.white : JuzzioGlassTokens.textPrimary, fontSize: 12.5, fontWeight: FontWeight.w700),
                 ),
               ),
             ],

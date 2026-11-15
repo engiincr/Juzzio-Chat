@@ -1,6 +1,6 @@
 # Juzzio Gizlilik Politikası ve KVKK Aydınlatma Metni
 
-Son güncelleme: 10 Kasım 2026 · Uygulama sürümü: v1.2.7 (BETA · Erken Erişim)
+Son güncelleme: 15 Kasım 2026 · Uygulama sürümü: v1.2.9 (BETA · Erken Erişim)
 
 Bu metin, Juzzio mobil uygulamasının hangi kişisel verileri hangi amaçla işlediğini, kimlerle paylaştığını ve haklarınızı **olduğu gibi** açıklar. Uygulamanın kaynak kodu GitHub'da açıktır; buradaki her ifade koddan doğrulanabilir.
 
@@ -124,20 +124,40 @@ Juzzio'nun çalışması için aşağıdaki hizmetler kullanılır. Bunların bi
 - **Deepgram** (konuşmadan yazıya): yalnızca aramada **farklı dil konuşan** biri olduğunda veya canlı çeviriyi kendiniz açtığınızda, kendi sesiniz altyazı için gönderilir. Aynı dili konuşanlar arasında ses gönderilmez. Gönderildiğinde de yalnız gerçekten konuştuğunuz anların sesi gider: sessizlik ve oda sesi gönderilmeden önce cihazınızda dijital sessizlikle değiştirilir.
 - **Google** – Firebase Cloud Messaging (bildirimler); Google Çeviri (otomatik çeviri, cihazdan); isteğe bağlı Google Cloud Vision (yalnızca görüntülü aramada müstehcen görüntü denetimi; kareler saklanmaz).
 - **MyMemory** (Google çevirisi çalışmazsa yedek çeviri).
-- **Apple iTunes Search** (müzik ekle ekranında yazdığınız şarkı adı aranır, 30 sn önizleme dinletilir).
+- **Apple iTunes Search** (müzik ekle ekranında yazdığınız şarkı adı aranır, 30 sn önizleme dinletilir). Önizlemeler yalnız akıştan çalınır, cihaza kaydedilmez; her parçada "Apple Music'te aç" bağlantısı bulunur.
+- **ExpressTURN** (v1.2.9, yalnız yedek arama aktarıcısı): ana arama sunucusuna doğrudan ulaşılamadığında arama sesi/görüntüsü bu aktarıcı üzerinden **şifreli (DTLS-SRTP)** geçer; aktarıcı içeriği çözemez ve kaydetmez, yalnız bağlantı için IP adresinizi görür.
 - **GitHub** (uygulama güncellemeleri ve sürüm notları).
-- **Open-Meteo** (yalnız hava durumu teması açıksa; yuvarlanmış konum, kimliğiniz gönderilmez).
+- **Open-Meteo** (yalnız hava durumu teması açıksa; yuvarlanmış konum, kimliğiniz gönderilmez). Hava verisi: Open-Meteo.com, CC BY 4.0.
+
+## 5a. Dosya güvenlik denetimi ve sistem sağlığı (v1.2.9)
+
+- Gönderdiğiniz dosyalar **cihazınızda, şifrelenmeden önce** denetlenir: çalıştırılabilir ve betik dosyaları (ör. .php, .jsp, .exe, .apk, .html, .svg, .js), uzantısıyla içeriği uyuşmayan dosyalar ve gizli çift uzantılar gönderilmez. Sunucu da yalnız izin verilen dosya türlerini kabul eder.
+- Size gelen bir dosya açılmadan veya kaydedilmeden önce, şifresi **cihazınızda** çözüldükten sonra aynı denetimden geçer; tehlikeli görünüyorsa uyarılırsınız. Dosya içeriği hiçbir yere gönderilmez.
+- Mesajlardaki bağlantılara dokunduğunuzda, kimlik avı belirtileri (IP adresli bağlantı, harf benzetmeli alan adı, kısaltılmış bağlantı vb.) cihazınızda denetlenir ve gerekirse uyarı gösterilir.
+- Sistem Sağlığı modülü çeviri, altyazı ve arama bağlantısının çalışıp çalışmadığını arka planda kısa deneme istekleriyle yoklar; bu yoklamalarda kişisel içerik gönderilmez (ör. "merhaba" gibi sabit bir sınama metni).
+
+## 5b. Giriş kayıtları, cihaz bilgisi ve yasal talepler (v1.2.9)
+
+- **Ne kaydedilir:** her girişte ve uygulama açılışında; IP adresi, ağın ülkesi (barındırma sağlayıcısının bağlantı başlığından), cihaz markası/modeli, işletim sistemi ve uygulama sürümü, uygulamaya özgü cihaz kimliği ve zaman. Hesabınızdaki e-posta ve (varsa) telefon numarası zaten kayıtlıdır.
+- **Ne kaydedilmez:** IMEI (Android 10 ve sonrası uygulamaların IMEI okumasına izin vermez; Juzzio bunu istemez), şehir veya GPS konumu (konum yalnız siz konum paylaştığınızda mesajın içinde, uçtan uca şifreli gider), uçtan uca şifreli mesaj ve arama içerikleri.
+- **Amaç ve hukuki sebep:** hesap güvenliği ve kötüye kullanımın önlenmesi, hukuki yükümlülük ve yetkili makamların usulüne uygun talepleri (5651 sayılı Kanun, 5271 sayılı CMK, KVKK m.5/2-ç ve m.5/2-e). Bu kayıtlar yalnız kurucu süper yönetici tarafından, resmî talep gerekçesi girilerek ve her işlem denetim kaydına yazılarak dışa aktarılabilir.
+- **Paylaşım:** yalnız mahkeme, savcılık veya kanunen yetkili kolluk birimlerinin yazılı talebi üzerine; talepte belirtilen hesapla sınırlı olarak. Paket bütünlük özeti (SHA-256) ile verilir.
+- **Saklama:** giriş kayıtları 2 yıla kadar saklanır, sonra silinir.
+- **Hesap yaşam döngüsü:** çıkış yapma, diğer oturumları kapatma, cihaz kaldırma, şifre değiştirme ve hesap silme işlemleri IP adresi, ağ ülkesi ve uygulama kimliğiyle kaydedilir; hesap silinse de bu iz kaydı 2 yıl saklanır (5651 sayılı Kanun kapsamındaki trafik bilgisi yükümlülüğü).
+- **Veri koruma (dondurma) talepleri:** yetkili makamların usulüne uygun veri koruma talebi üzerine belirli bir hesabın verileri en çok 90 gün (makamın talebiyle en çok 365 gün) korunabilir. Bu sürede silinen içerik ve kayıtlar gizli bir arşivde tutulur; soruşturmanın gizliliği gereği ilgili kullanıcıya bildirilmeyebilir. Süre bitince arşiv otomatik silinir.
+- **Resmî taleplere verilebilecekler:** yukarıdaki kayıtlar, grup üyelikleri, bildirim belirteçleri (Google FCM), arama kayıtları (kim, kimi, ne zaman, ne kadar), şifresiz grup içerikleri ve şikâyet kanıtları. Birebir sohbet ve arama içerikleri uçtan uca şifreli olduğundan **verilemez**; bu içerik hiçbir zaman sunucuda okunur hâlde bulunmaz.
+- **Şikâyet kanıtı:** bir mesajı şikâyet ederken onay verirsen, o mesaj ve öncesindeki en çok 5 mesaj **kendi cihazında çözülmüş hâliyle** şikâyete eklenir ve inceleme/yasal süreçte kullanılabilir.
 
 ## 6. Yöneticinin görebildikleri ve göremedikleri
 
-- Görebilir: kullanıcı listesi ve e-postalar, arama kayıtlarının özeti, şikâyetler, hata bildirimleri; içerik silme, hesap kapatma ve ceza verme yetkisi vardır.
+- Görebilir: kullanıcı listesi ve e-postalar, arama kayıtlarının özeti, şikâyetler, hata bildirimleri; kurucu süper yönetici ayrıca giriş IP'lerini, ağ ülkesini ve cihaz modelini görebilir (bkz. 5b). İçerik silme, hesap kapatma ve ceza verme yetkisi vardır.
 - Göremez: uçtan uca şifreli mesaj ve medya içerikleri, şifreniz, kart/banka bilgisi (zaten yok). Yönetici panelinde serbest SQL konsolu yoktur; yasal dışa aktarım ve tüm oturumları kapatma gibi kritik işlemler yalnız süper yöneticiye açıktır ve denetim kaydına yazılır.
 - Şifresiz içerikler (grup mesajları, medya) teknik olarak veritabanında okunabilir durumdadır; yönetici panelinde mesaj içeriğini gösteren bir işlev yoktur.
 
 ## 7. Saklama süreleri
 
 - Hesabınız açık olduğu sürece veriler saklanır. Süreli mesajları açarsanız mesajlar seçtiğiniz süre sonunda silinir.
-- Hikâyeler 24 saat sonra görünmez olur.
+- Hikâyeler 24 saat sonra görünmez olur ve (v1.2.9) birkaç dakika içinde medya dosyalarıyla birlikte sunucudan **kalıcı olarak silinir**.
 - Hesabınızı silebilirsiniz (Ayarlar → Hesap). Silinen mesaj, hikâye ve hesaplara ait medya dosyaları otomatik silme kuyruğuna alınır ve sunucu tarafında depodan silinir. Otomatik çökme raporları 90 gün sonra silinir.
 
 ## 8. Güvenlik önlemleri

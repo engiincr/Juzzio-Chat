@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import '../core/app_theme_and_locale.dart';
 import '../core/theme/juzzio_colors.dart';
 import '../core/theme/juzzio_glass.dart';
+import 'juzzio_gif_stickers.dart';
 
 class _EmojiCategory {
   final IconData icon;
@@ -121,7 +122,10 @@ class JuzzioEmojiPicker extends StatefulWidget {
   final double height;
   final bool isDark;
 
-  const JuzzioEmojiPicker({super.key, required this.controller, this.height = 300, required this.isDark});
+  const JuzzioEmojiPicker({super.key, required this.controller, this.height = 300, required this.isDark, this.onGif});
+
+  /// v1.2.9: verilirse üstte "Emoji | GIF" sekmeleri çıkar; GIF seçilince çağrılır
+  final ValueChanged<JuzzioGifSpec>? onGif;
 
   /// Bu oturumda son kullanılanlar (uygulama açıkken korunur)
   static final List<String> recents = <String>[];
@@ -132,6 +136,7 @@ class JuzzioEmojiPicker extends StatefulWidget {
 
 class _JuzzioEmojiPickerState extends State<JuzzioEmojiPicker> {
   int _category = JuzzioEmojiPicker.recents.isEmpty ? 1 : 0;
+  int _tab = 0; // 0: emoji · 1: GIF
   final TextEditingController _search = TextEditingController();
 
   @override
@@ -214,11 +219,62 @@ class _JuzzioEmojiPickerState extends State<JuzzioEmojiPicker> {
     final bg = widget.isDark ? JuzzioColors.surface141519 : JuzzioColors.surfaceF6F7FA;
     final fg = widget.isDark ? Colors.white : JuzzioColors.ink;
     final emojis = _visible();
+    final glow = JuzzioGlassTokens.glow;
+    Widget tabBtn(int i, IconData icon, String label) {
+      final on = _tab == i;
+      return Expanded(
+        child: GestureDetector(
+          onTap: () => setState(() => _tab = i),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            height: 32,
+            decoration: BoxDecoration(
+              color: on ? glow.withValues(alpha: 0.22) : Colors.transparent,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Icon(icon, size: 17, color: on ? fg : JuzzioColors.slate500),
+              const SizedBox(width: 6),
+              Text(label, style: TextStyle(color: on ? fg : JuzzioColors.slate500, fontWeight: FontWeight.w800, fontSize: 13)),
+            ]),
+          ),
+        ),
+      );
+    }
+
+    final tabs = widget.onGif == null
+        ? null
+        : Padding(
+            padding: const EdgeInsets.fromLTRB(60, 8, 60, 2),
+            child: Container(
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                color: widget.isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: widget.isDark ? Colors.white12 : Colors.black12),
+              ),
+              child: Row(children: [
+                tabBtn(0, Icons.emoji_emotions_outlined, app.trEn('Emoji', 'Emoji', 'Emoji')),
+                tabBtn(1, Icons.gif_box_outlined, 'GIF'),
+              ]),
+            ),
+          );
+    if (_tab == 1 && widget.onGif != null) {
+      return Container(
+        height: widget.height,
+        color: bg,
+        child: Column(children: [
+          tabs!,
+          Expanded(child: JuzzioGifGrid(isDark: widget.isDark, onPick: widget.onGif!)),
+        ]),
+      );
+    }
     return Container(
       height: widget.height,
       color: bg,
       child: Column(
         children: [
+          if (tabs != null) tabs,
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 8, 6, 4),
             child: Row(
@@ -260,7 +316,7 @@ class _JuzzioEmojiPickerState extends State<JuzzioEmojiPicker> {
                     ),
                   )
                 : GridView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    padding: const EdgeInsets.fromLTRB(8, 2, 8, 6),
                     gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 44),
                     itemCount: emojis.length,
                     itemBuilder: (_, i) => InkWell(
@@ -288,10 +344,21 @@ class _JuzzioEmojiPickerState extends State<JuzzioEmojiPicker> {
                         message: i == 0
                             ? app.trEn('Son kullanılanlar', 'Recent', 'Zuletzt')
                             : app.trEn(_kCategories[i - 1].tr, _kCategories[i - 1].en, _kCategories[i - 1].de),
-                        child: Icon(
-                          i == 0 ? Icons.access_time_rounded : _kCategories[i - 1].icon,
-                          size: 21,
-                          color: _category == i && _search.text.isEmpty ? JuzzioColors.blue500 : JuzzioColors.slate500,
+                        child: Center(
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 160),
+                            width: 34,
+                            height: 30,
+                            decoration: BoxDecoration(
+                              color: _category == i && _search.text.isEmpty ? glow.withValues(alpha: 0.2) : Colors.transparent,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(
+                              i == 0 ? Icons.access_time_rounded : _kCategories[i - 1].icon,
+                              size: 20,
+                              color: _category == i && _search.text.isEmpty ? fg : JuzzioColors.slate500,
+                            ),
+                          ),
                         ),
                       ),
                     ),

@@ -19,16 +19,3 @@ Tapping "Update" right after a release was announced could show "The update's ve
 - An unverified or wrongly signed APK is still never downloaded or installed (fail-closed); the signature covers version name, build number and SHA-256 together
 - Updates never install by themselves; they start on the user's tap
 
-## ⬇️ Download
-
-- Latest: [Juzzio-latest.apk](https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk)
-- This version: `juzzio-v1.2.4-release.apk` (112.18 MB)
-
-## ✅ Verify the APK
-
-```bash
-sha256sum Juzzio-latest.apk
-# c76f065349909384479e1b2f4d29e622b171c72d0a31710cf615d78ea0868264  Juzzio-latest.apk
-```
-
-Built: 2026-11-10 07:20 UTC — GitHub Actions

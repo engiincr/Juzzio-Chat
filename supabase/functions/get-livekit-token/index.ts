@@ -49,6 +49,19 @@ async function removeParticipant(userId: string, body: Record<string, unknown>):
   return jsonResponse({ ok: true, removed: targetUserId, disconnected });
 }
 
+/**
+ * v1.2.9 — Yedek TURN listesi Supabase sırlarından (BACKUP_TURN_URLS virgülle ayrılmış,
+ * BACKUP_TURN_USERNAME, BACKUP_TURN_CREDENTIAL). Yalnız oturumlu ve odaya yetkili kullanıcıya döner.
+ */
+function backupIceServers(): Array<{ urls: string[]; username: string; credential: string }> {
+  const urls = (Deno.env.get("BACKUP_TURN_URLS") ?? "").split(",").map((u) => u.trim())
+    .filter((u) => /^turns?:[A-Za-z0-9.-]+(:\d+)?(\?transport=(udp|tcp))?$/.test(u));
+  const username = (Deno.env.get("BACKUP_TURN_USERNAME") ?? "").trim();
+  const credential = (Deno.env.get("BACKUP_TURN_CREDENTIAL") ?? "").trim();
+  if (urls.length === 0 || !username || !credential) return [];
+  return [{ urls, username, credential }];
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return jsonResponse({ error: "method_not_allowed" }, 405);
@@ -107,6 +120,8 @@ Deno.serve(async (req: Request) => {
       roomName,
       identity: `${user.id}_${lang}`,
       lang,
+      // v1.2.9: yedek TURN (isteğe bağlı sırlar). Tanımlı değilse istemci kendi yedeğini kullanır.
+      backupIceServers: backupIceServers(),
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown_error";

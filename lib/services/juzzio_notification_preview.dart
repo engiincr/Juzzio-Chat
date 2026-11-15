@@ -13,6 +13,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/app_theme_and_locale.dart';
 import 'juzzio_e2ee.dart';
 import 'supabase_service.dart';
+import '../core/juzzio_text_safety.dart';
 
 /// Kullanıcının bildirim önizleme kipi.
 enum JuzzioNotificationPreviewMode { full, sender, hidden }
@@ -45,7 +46,7 @@ class JuzzioNotificationPreview {
   static String clip(String s) {
     final one = s.replaceAll(RegExp(r'\s+'), ' ').trim();
     if (one.length <= maxLength) return one;
-    return '${one.substring(0, maxLength - 1)}…';
+    return juzzioEllipsize(one, maxLength);
   }
 
   /// Bildirimde gösterilecek metin; gösterilemiyorsa null (çağıran genel metne düşer).

@@ -11,13 +11,16 @@
 
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
+import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../core/app_theme_and_locale.dart';
 import '../core/native_bridge.dart';
 import '../widgets/juzzio_encrypted_image.dart' show JuzzioEncryptedMedia;
 import 'juzzio_media_cache.dart';
+import 'juzzio_file_guard.dart';
 import 'supabase_service.dart';
 
 /// Mesajdaki kaydedilebilir medya (saf; test edilir). Kaydedilecek bir şey yoksa null.
@@ -87,6 +90,7 @@ class JuzzioGallerySaver {
   void handleIncoming(JuzzioMessage m) {
     if (!JuzzioAppController.instance.autoSaveMedia) return;
     if (m.senderId == SupabaseService.instance.currentUserId) return;
+    if (_saved?.contains(m.id) == true) return; // v1.2.8: her çizimde çağrılabilir (ucuz çıkış)
     final t = juzzioGalleryTarget(m);
     if (t == null || !_inFlight.add(m.id)) return;
     _chain = _chain.then((_) => _save(m, t)).then((_) {}, onError: (_) {}).whenComplete(() {
@@ -101,7 +105,12 @@ class JuzzioGallerySaver {
     try {
       String? path;
       if (JuzzioEncryptedMedia.isEncrypted(m.metadata)) {
-        final bytes = await JuzzioEncryptedMedia.load(m.id, t.url, keepInMemory: false);
+        // v1.2.8: mesaj yeni geldiğinde şifre anahtarı birkaç saniye sonra hazır olabilir
+        Uint8List? bytes;
+        for (var i = 0; i < 4 && bytes == null; i++) {
+          if (i > 0) await Future<void>.delayed(Duration(seconds: 3 * i));
+          bytes = await JuzzioEncryptedMedia.load(m.id, t.url, keepInMemory: false);
+        }
         if (bytes == null) return false;
         final dir = await getTemporaryDirectory();
         tmp = File('${dir.path}/jgs_${m.id.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '')}');
@@ -129,4 +138,94 @@ class JuzzioGallerySaver {
       }
     }
   }
+}
+
+/// v1.2.8 — elle indirme: tam ekran görüntüleyicilerin sağ üstündeki indir düğmesi ve
+/// sohbette uzun basma → "İndir". Gönderilen ve alınan her fotoğraf/video cihaza kaydedilir.
+class JuzzioMediaDownload {
+  JuzzioMediaDownload._();
+
+  /// [file] hazır bir yerel dosya ise doğrudan, değilse [url] (gerekirse [messageId] ile
+  /// uçtan uca şifre çözülerek) indirip galeriye (Resimler/Juzzio, Filmler/Juzzio) kaydeder.
+  static Future<bool> save({String? url, File? file, required bool isVideo, String? messageId, bool encrypted = false}) async {
+    File? tmp;
+    try {
+      String? path = file?.path;
+      if (path == null && url != null && url.isNotEmpty) {
+        if (encrypted && messageId != null) {
+          final bytes = await JuzzioEncryptedMedia.load(messageId, url, keepInMemory: false);
+          if (bytes == null) return false;
+          final dir = await getTemporaryDirectory();
+          tmp = File('${dir.path}/jdl_${DateTime.now().microsecondsSinceEpoch}');
+          await tmp.writeAsBytes(bytes, flush: true);
+          path = tmp.path;
+        } else if (url.startsWith('/')) {
+          path = url;
+        } else {
+          path = (await JuzzioMediaDiskCache.instance.loadFile(url))?.path;
+        }
+      }
+      if (path == null) return false;
+      // v1.2.9: galeriye yalnız gerçekten fotoğraf/video olan dosya yazılır (sahte medya engellenir)
+      final check = await juzzioInspectFile(File(path), name: isVideo ? 'm.mp4' : 'm.jpg',
+          kind: isVideo ? JuzzioUploadKind.video : JuzzioUploadKind.image, maxBytes: 1 << 31);
+      if (!check.ok) return false;
+      final stamp = DateTime.now().millisecondsSinceEpoch;
+      return await JuzzioNative.saveToGallery(
+        path: path,
+        mime: isVideo ? 'video/mp4' : 'image/jpeg',
+        name: 'Juzzio_$stamp.${isVideo ? 'mp4' : 'jpg'}',
+        kind: isVideo ? 'video' : 'image',
+      );
+    } catch (_) {
+      return false;
+    } finally {
+      if (tmp != null) {
+        try {
+          await tmp.delete();
+        } catch (_) {}
+      }
+    }
+  }
+}
+
+/// v1.2.8: tam ekran görüntüleyicinin sağ üstündeki "İndir" düğmesi
+class JuzzioDownloadAction extends StatefulWidget {
+  const JuzzioDownloadAction({super.key, this.url, this.file, required this.isVideo, this.messageId, this.encrypted = false});
+  final String? url;
+  final File? file;
+  final bool isVideo;
+  final String? messageId;
+  final bool encrypted;
+
+  @override
+  State<JuzzioDownloadAction> createState() => _JuzzioDownloadActionState();
+}
+
+class _JuzzioDownloadActionState extends State<JuzzioDownloadAction> {
+  bool _busy = false;
+
+  Future<void> _go() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    final ok = await JuzzioMediaDownload.save(
+        url: widget.url, file: widget.file, isVideo: widget.isVideo, messageId: widget.messageId, encrypted: widget.encrypted);
+    if (!mounted) return;
+    setState(() => _busy = false);
+    final app = JuzzioAppController.instance;
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(
+      content: Text(ok
+          ? app.trEn('Galeriye kaydedildi (Juzzio klasörü).', 'Saved to your gallery (Juzzio folder).', 'In der Galerie gespeichert (Ordner Juzzio).')
+          : app.trEn('Kaydedilemedi. Lütfen tekrar deneyin.', 'Could not be saved. Please try again.', 'Konnte nicht gespeichert werden.')),
+    ));
+  }
+
+  @override
+  Widget build(BuildContext context) => IconButton(
+        tooltip: JuzzioAppController.instance.trEn('İndir', 'Download', 'Herunterladen'),
+        onPressed: _go,
+        icon: _busy
+            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+            : const Icon(Icons.download_rounded),
+      );
 }

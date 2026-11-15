@@ -67,6 +67,7 @@ class _JuzzioProfileCardPageState extends State<JuzzioProfileCardPage> with Sing
 
   @override
   void dispose() {
+    JuzzioMusicPlayer.instance.stop(); // v1.2.8: kartı kapatınca müzik durur
     _flip.dispose();
     super.dispose();
   }

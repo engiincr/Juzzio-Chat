@@ -7,6 +7,7 @@
 
 import 'package:flutter/material.dart';
 
+import '../core/juzzio_intro.dart';
 import '../core/app_theme_and_locale.dart';
 import '../core/config.dart';
 import '../core/release_notes.dart';
@@ -348,6 +349,9 @@ class JuzzioWhatsNewSheet {
     if (_shown || !app.whatsNewPending || !context.mounted) return;
     _shown = true;
     final version = JuzzioConfig.appVersion;
+    // v1.2.9: 1.2.8 ve öncesinden gelenlere önce bir kez "neler yeni" videosu
+    await juzzioMaybeShowWhatsNewVideo(context, previousVersion: app.whatsNewSeenVersion, currentVersion: version);
+    if (!context.mounted) return;
     // v0.9.7: en son görülen sürümden bu yana yayınlanan TÜM sürümler (yeniden eskiye)
     final notes = juzzioNotesSince(JuzzioReleaseNote.mergeAll(const <JuzzioReleaseNote>[]), app.whatsNewSeenVersion, version);
     final pages = <(JuzzioReleaseNote?, JuzzioReleaseSection)>[

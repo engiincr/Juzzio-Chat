@@ -23,6 +23,10 @@ class JuzzioNet extends ChangeNotifier {
   bool _online = true;
   bool get online => _online;
 
+  /// v1.2.8: Wi-Fi/Ethernet'te mi (mobil veride arka plan ön yüklemesi yapılmaz)
+  bool _unmetered = true;
+  bool get unmetered => _unmetered;
+
   StreamSubscription<List<ConnectivityResult>>? _sub;
   final StreamController<void> _regained = StreamController<void>.broadcast();
 
@@ -49,7 +53,10 @@ class JuzzioNet extends ChangeNotifier {
     }
   }
 
-  void _apply(List<ConnectivityResult> r) => setOnline(juzzioHasNetwork(r));
+  void _apply(List<ConnectivityResult> r) {
+    _unmetered = r.any((c) => c == ConnectivityResult.wifi || c == ConnectivityResult.ethernet);
+    setOnline(juzzioHasNetwork(r));
+  }
 
   /// Ağ isteği başarısız/başarılı olduğunda da çağrılabilir (gerçek durumu düzeltir).
   void setOnline(bool v) {

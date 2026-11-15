@@ -16,6 +16,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/app_theme_and_locale.dart';
 import 'juzzio_rich_text.dart';
+import '../core/juzzio_text_safety.dart';
 
 class JuzzioMentionSegment {
   const JuzzioMentionSegment(this.text, [this.username]);
@@ -253,7 +254,7 @@ class _JuzzioMentionSuggestionsState extends State<JuzzioMentionSuggestions> {
             return ActionChip(
               avatar: CircleAvatar(
                 backgroundColor: p.cardBg,
-                child: Text(c.username.isEmpty ? '?' : c.username[0].toUpperCase(),
+                child: Text(juzzioInitial(c.username),
                     style: TextStyle(color: p.textPrimary, fontSize: 11)),
               ),
               label: Text('@${c.username}', style: TextStyle(color: p.textPrimary)),

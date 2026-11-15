@@ -37,6 +37,15 @@ final RegExp _urlRe = RegExp(
   caseSensitive: false,
 );
 
+/// v1.2.9: metindeki ilk web bağlantısı ("Bağlantıyı kopyala"); e-posta/telefon değil. Saf.
+String? juzzioFirstLink(String text) {
+  for (final m in juzzioFindLinks(text)) {
+    final sc = m.uri.scheme.toLowerCase();
+    if (sc == 'http' || sc == 'https') return m.uri.toString();
+  }
+  return null;
+}
+
 /// Bağlantıları bulur (sondaki noktalama işaretleri bağlantıya dahil edilmez). Saf fonksiyon (test edilir).
 List<JuzzioLinkMatch> juzzioFindLinks(String text) {
   final out = <JuzzioLinkMatch>[];
@@ -80,6 +89,113 @@ Future<bool> juzzioOpenLink(Uri uri) async {
   } catch (_) {
     return false;
   }
+}
+
+/// v1.2.9 — Bağlantı güvenliği (kimlik avı / zararlı indirme). Saf; test edilir.
+/// Boş liste → güvenli görünüyor. Dolu → nedenler (kod) — dokununca uyarı penceresi gösterilir.
+const Set<String> _shorteners = {
+  'bit.ly', 'tinyurl.com', 't.co', 'goo.gl', 'is.gd', 'cutt.ly', 'shorturl.at', 'rb.gy', 'ow.ly', 'buff.ly',
+  'rebrand.ly', 'tiny.cc', 'bl.ink', 'lnkd.in', 'shorte.st', 'adf.ly', 'v.gd', 's.id', 'qr.ae',
+};
+const Set<String> _riskyTlds = {'zip', 'mov', 'top', 'xyz', 'click', 'country', 'gq', 'tk', 'ml', 'cf', 'ga', 'work', 'rest', 'fit', 'loan', 'kim', 'cam', 'quest'};
+const Map<String, List<String>> _brands = {
+  'google': ['google.com', 'google.com.tr', 'youtube.com', 'goo.gl', 'googleusercontent.com', 'gstatic.com'],
+  'apple': ['apple.com', 'icloud.com'],
+  'icloud': ['icloud.com', 'apple.com'],
+  'paypal': ['paypal.com'],
+  'instagram': ['instagram.com'],
+  'facebook': ['facebook.com', 'fb.com', 'fb.me'],
+  'whatsapp': ['whatsapp.com', 'wa.me'],
+  'juzzio': ['juzzio.app', 'github.io', 'github.com'],
+  'microsoft': ['microsoft.com', 'live.com', 'office.com'],
+  'netflix': ['netflix.com'],
+  'garanti': ['garantibbva.com.tr'],
+  'akbank': ['akbank.com'],
+  'ziraat': ['ziraatbank.com.tr'],
+  'isbank': ['isbank.com.tr'],
+  'yapikredi': ['yapikredi.com.tr'],
+  'turkcell': ['turkcell.com.tr'],
+  'edevlet': ['turkiye.gov.tr'],
+  'binance': ['binance.com'],
+  'steam': ['steampowered.com', 'steamcommunity.com'],
+};
+
+List<String> juzzioLinkRisks(Uri uri) {
+  final out = <String>[];
+  final scheme = uri.scheme.toLowerCase();
+  if (scheme != 'http' && scheme != 'https') return out; // mailto/tel/geo
+  final host = uri.host.toLowerCase();
+  if (scheme == 'http') out.add('no_tls');
+  if (uri.userInfo.isNotEmpty) out.add('userinfo'); // https://paypal.com@kotu.site
+  if (RegExp(r'^\d{1,3}(\.\d{1,3}){3}$').hasMatch(host) || host.startsWith('[')) out.add('ip_host');
+  if (host.split('.').any((l) => l.startsWith('xn--'))) out.add('punycode');
+  if (_shorteners.contains(host)) out.add('shortener');
+  final tld = host.contains('.') ? host.substring(host.lastIndexOf('.') + 1) : '';
+  if (_riskyTlds.contains(tld)) out.add('risky_tld');
+  if ('-'.allMatches(host).length >= 4 || host.length > 60) out.add('odd_host');
+  final normalized = host.replaceAll('0', 'o').replaceAll('1', 'l').replaceAll('3', 'e').replaceAll('5', 's').replaceAll('rn', 'm').replaceAll('-', '');
+  _brands.forEach((brand, domains) {
+    final official = domains.any((d) => host == d || host.endsWith('.$d'));
+    if (!official && (normalized.contains(brand) || host.contains(brand))) out.add('lookalike:$brand');
+  });
+  final path = uri.path.toLowerCase();
+  if (RegExp(r'\.(apk|xapk|aab|exe|msi|scr|bat|cmd|ps1|vbs|jar|dmg|pkg|deb|php|jsp|hta)$').hasMatch(path)) out.add('executable_download');
+  return out.toSet().toList();
+}
+
+String _riskText(String code) {
+  final app = JuzzioAppController.instance;
+  if (code.startsWith('lookalike:')) {
+    final b = code.substring(10);
+    return app.trEn('"$b" gibi görünüyor ama resmî adresi değil (taklit site olabilir).', 'Looks like "$b" but is not its official address (possible fake).', 'Sieht aus wie „$b", ist aber nicht die offizielle Adresse.');
+  }
+  switch (code) {
+    case 'no_tls':
+      return app.trEn('Şifresiz (http) bağlantı — girdiğin bilgiler görülebilir.', 'Unencrypted (http) link — what you type can be seen.', 'Unverschlüsselter Link (http).');
+    case 'userinfo':
+      return app.trEn('Adres "@" ile gizlenmiş; gerçek site @ işaretinden sonraki kısım.', 'The address is disguised with "@"; the real site is after the @.', 'Adresse mit „@" verschleiert.');
+    case 'ip_host':
+      return app.trEn('Alan adı yerine çıplak IP adresi kullanılmış.', 'Uses a bare IP address instead of a domain.', 'Nackte IP-Adresse statt Domain.');
+    case 'punycode':
+      return app.trEn('Alan adında benzer görünen yabancı harfler var.', 'The domain uses look-alike foreign letters.', 'Domain mit ähnlich aussehenden Zeichen.');
+    case 'shortener':
+      return app.trEn('Kısaltılmış bağlantı — gerçek hedef görünmüyor.', 'Shortened link — the real destination is hidden.', 'Gekürzter Link — Ziel verborgen.');
+    case 'risky_tld':
+      return app.trEn('Bu alan adı uzantısı dolandırıcılıkta sık kullanılır.', 'This domain ending is often used for scams.', 'Diese Domainendung wird oft für Betrug genutzt.');
+    case 'odd_host':
+      return app.trEn('Alan adı alışılmadık derecede uzun/karmaşık.', 'The domain is unusually long or complex.', 'Ungewöhnlich lange Domain.');
+    case 'executable_download':
+      return app.trEn('Bağlantı bir uygulama/program dosyası indiriyor.', 'The link downloads an app or program file.', 'Der Link lädt eine Programmdatei herunter.');
+  }
+  return code;
+}
+
+/// Riskliyse kullanıcıya sorar; true → aç
+Future<bool> juzzioConfirmRiskyLink(BuildContext context, Uri uri) async {
+  final risks = juzzioLinkRisks(uri);
+  if (risks.isEmpty) return true;
+  final app = JuzzioAppController.instance;
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      icon: const Icon(Icons.shield_moon_rounded, color: Color(0xFFFFB020), size: 34),
+      title: Text(app.trEn('Bu bağlantıya dikkat', 'Be careful with this link', 'Vorsicht bei diesem Link')),
+      content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        SelectableText(uri.host, style: const TextStyle(fontWeight: FontWeight.w900)),
+        const SizedBox(height: 8),
+        for (final r in risks.take(4))
+          Padding(padding: const EdgeInsets.only(bottom: 4), child: Text('• ${_riskText(r)}')),
+        const SizedBox(height: 6),
+        Text(app.trEn('Şifre, kart veya kod bilgisi girme. Juzzio asla şifreni sormaz.', 'Never enter passwords, card details or codes. Juzzio never asks for your password.',
+            'Gib keine Passwörter oder Codes ein.')),
+      ]),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(app.trEn('Vazgeç', 'Cancel', 'Abbrechen'))),
+        TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(app.trEn('Yine de aç', 'Open anyway', 'Trotzdem öffnen'))),
+      ],
+    ),
+  );
+  return ok == true;
 }
 
 /// Bağlantıları tıklanabilir gösteren metin (dokun → varsayılan uygulamada açılır).
@@ -130,6 +246,8 @@ class _JuzzioLinkTextState extends State<JuzzioLinkText> {
       final rec = TapGestureRecognizer()
         ..onTap = () async {
           HapticFeedback.selectionClick();
+          // v1.2.9: kimlik avı / zararlı indirme denetimi
+          if (!await juzzioConfirmRiskyLink(context, l.uri)) return;
           final ok = await juzzioOpenLink(l.uri);
           if (!ok && mounted) {
             ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(

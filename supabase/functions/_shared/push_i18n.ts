@@ -60,7 +60,20 @@ export function storyParts(preview: string): { kind: "react" | "comment"; value:
 }
 
 function clip(text: string, max = 40): string {
-  return text.length > max ? text.slice(0, max - 1) + "…" : text;
+  if (text.length <= max) return text;
+  // v1.2.9: emoji (vekil çift) ortasından kesilmez — bozuk UTF-16 bildirim metni oluşmaz
+  let cut = text.slice(0, max - 1);
+  const last = cut.charCodeAt(cut.length - 1);
+  if (last >= 0xd800 && last <= 0xdbff) cut = cut.slice(0, -1);
+  return cut + "…";
+}
+
+
+// v1.2.9: yalnız kurucuya giden yönetici bildirimleri ('admin_error|…', 'admin_alert|…')
+function adminSystem(preview: string, errTitle: string, alertTitle: string): { title: string; body: string } | null {
+  if (preview.startsWith("admin_error|")) return { title: errTitle, body: preview.slice(12) };
+  if (preview.startsWith("admin_alert|")) return { title: alertTitle, body: preview.slice(12) };
+  return null;
 }
 
 const T: Record<PushLang, Record<string, Builder>> = {
@@ -126,7 +139,8 @@ const T: Record<PushLang, Record<string, Builder>> = {
     }),
     chick_dying: (c) => ({ title: `🐥 ${c.preview || "Civciv"}`, body: "Ölüyorum! 3 gündür beni beslemedin 😢" }),
     chick_died: (c) => ({ title: "🪦 Civcivin öldü", body: `${c.preview || "Civciv"} 7 gün boyunca beslenmediği için öldü.` }),
-    system: (c) => ({ title: "Juzzio", body: c.preview || "Yeni bir bildiriminiz var." }),
+    system: (c) => adminSystem(c.preview, "🛠 Yeni hata kaydı", "⚠️ Yönetici uyarısı") ?? ({ title: "Juzzio", body: c.preview || "Yeni bir bildiriminiz var." }),
+    request_accepted: (c) => ({ title: c.actor, body: "Beklemedeki mesajını kabul etti. Sohbete devam edebilirsin." }),
     push_test: () => ({ title: "Juzzio ✅", body: "Bildirimler çalışıyor. Bu test bildirimi sunucudan gönderildi." }),
   },
   en: {
@@ -188,7 +202,8 @@ const T: Record<PushLang, Record<string, Builder>> = {
     }),
     chick_dying: (c) => ({ title: `🐥 ${c.preview || "Chick"}`, body: "I'm dying! You haven't fed me for 3 days 😢" }),
     chick_died: (c) => ({ title: "🪦 Your chick died", body: `${c.preview || "Chick"} died after 7 days without food.` }),
-    system: (c) => ({ title: "Juzzio", body: c.preview || "You have a new notification." }),
+    system: (c) => adminSystem(c.preview, "🛠 New error report", "⚠️ Admin alert") ?? ({ title: "Juzzio", body: c.preview || "You have a new notification." }),
+    request_accepted: (c) => ({ title: c.actor, body: "Accepted your pending message. You can keep chatting." }),
     push_test: () => ({ title: "Juzzio ✅", body: "Notifications are working. This test notification was sent by the server." }),
   },
   de: {
@@ -254,7 +269,8 @@ const T: Record<PushLang, Record<string, Builder>> = {
     }),
     chick_dying: (c) => ({ title: `🐥 ${c.preview || "Küken"}`, body: "Ich sterbe! Du hast mich seit 3 Tagen nicht gefüttert 😢" }),
     chick_died: (c) => ({ title: "🪦 Dein Küken ist gestorben", body: `${c.preview || "Küken"} ist nach 7 Tagen ohne Futter gestorben.` }),
-    system: (c) => ({ title: "Juzzio", body: c.preview || "Du hast eine neue Benachrichtigung." }),
+    system: (c) => adminSystem(c.preview, "🛠 Neue Fehlermeldung", "⚠️ Admin-Warnung") ?? ({ title: "Juzzio", body: c.preview || "Du hast eine neue Benachrichtigung." }),
+    request_accepted: (c) => ({ title: c.actor, body: "Hat deine wartende Nachricht angenommen." }),
     push_test: () => ({ title: "Juzzio ✅", body: "Benachrichtigungen funktionieren. Diese Testnachricht kam vom Server." }),
   },
 };
@@ -272,6 +288,32 @@ function googleLangCode(code: string): string {
 
 async function machineTranslate(text: string, target: string): Promise<string | null> {
   if (!text.trim()) return text;
+  // v1.2.9 (politika): sunucuda resmî Google Cloud Translation anahtarı varsa yalnız o kullanılır
+  let cloudKey = "";
+  try {
+    cloudKey = ((globalThis as unknown as { Deno?: { env: { get(k: string): string | undefined } } }).Deno?.env.get("GOOGLE_TRANSLATE_API_KEY") ?? "").trim();
+  } catch (_) {
+    cloudKey = "";
+  }
+  if (cloudKey) {
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 2500);
+      const res = await fetch(`https://translation.googleapis.com/language/translate/v2?key=${encodeURIComponent(cloudKey)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ q: text, source: "en", target: googleLangCode(target), format: "text" }),
+        signal: ctrl.signal,
+      });
+      clearTimeout(timer);
+      if (!res.ok) return null;
+      const json = await res.json() as { data?: { translations?: Array<{ translatedText?: string }> } };
+      const out = String(json?.data?.translations?.[0]?.translatedText ?? "").trim();
+      return out || null;
+    } catch (_) {
+      return null;
+    }
+  }
   try {
     const url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&dt=t" +
       `&tl=${encodeURIComponent(googleLangCode(target))}&q=${encodeURIComponent(text)}`;

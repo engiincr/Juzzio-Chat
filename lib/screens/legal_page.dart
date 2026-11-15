@@ -24,8 +24,8 @@ class JuzzioLegalPage extends StatelessWidget {
     final p = JuzzioPalette(app.isDark);
     final tr = app.uiLang.toLowerCase().startsWith('tr');
     return DefaultTabController(
-      length: 3,
-      initialIndex: initialTab.clamp(0, 2),
+      length: 4,
+      initialIndex: initialTab.clamp(0, 3),
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(
@@ -47,6 +47,7 @@ class JuzzioLegalPage extends StatelessWidget {
               Tab(text: app.trEn('Gizlilik ve KVKK', 'Privacy', 'Datenschutz')),
               Tab(text: app.trEn('Kullanım koşulları', 'Terms', 'Nutzungsbedingungen')),
               Tab(text: app.trEn('Lisans', 'License', 'Lizenz')),
+              Tab(text: app.trEn('Atıflar ve açık kaynak', 'Credits & open source', 'Credits & Open Source')),
             ],
           ),
         ),
@@ -56,6 +57,7 @@ class JuzzioLegalPage extends StatelessWidget {
             _MarkdownView(source: tr ? kJuzzioPrivacyMd : kJuzzioPrivacyMdEn, p: p),
             _MarkdownView(source: tr ? kJuzzioTermsMd : kJuzzioTermsMdEn, p: p),
             _MarkdownView(source: tr ? kJuzzioLicenseText : kJuzzioLicenseTextEn, p: p, plain: true),
+            _CreditsView(p: p),
           ],
         ),
       ),
@@ -163,6 +165,79 @@ class _MarkdownView extends StatelessWidget {
           radius: 22,
           padding: const EdgeInsets.all(16),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: widgets),
+        ),
+      ],
+    );
+  }
+}
+
+/// v1.2.9 (telif): üçüncü taraf atıfları ve açık kaynak lisansları (zorunlu bildirimler)
+class JuzzioThirdPartyCredit {
+  final String name;
+  final String license;
+  final String noteTr;
+  final String noteEn;
+  const JuzzioThirdPartyCredit(this.name, this.license, this.noteTr, this.noteEn);
+}
+
+/// Uygulamada kullanılan üçüncü taraf içerik/hizmetler ve lisansları (saf liste; test edilir)
+const List<JuzzioThirdPartyCredit> kJuzzioThirdPartyCredits = [
+  JuzzioThirdPartyCredit('Noto Color Emoji (Google)', 'SIL Open Font License 1.1',
+      'Uygulama genelindeki emoji yazı tipi.', 'The emoji font used across the app.'),
+  JuzzioThirdPartyCredit('Open-Meteo.com', 'CC BY 4.0',
+      'Hava durumu teması verisi: "Weather data by Open-Meteo.com".', 'Weather theme data: "Weather data by Open-Meteo.com".'),
+  JuzzioThirdPartyCredit('Apple Music / iTunes Search', 'Apple Media Services koşulları',
+      '30 sn şarkı önizlemeleri yalnız akıştan çalınır, cihaza kaydedilmez; her parçada Apple Music bağlantısı vardır.',
+      '30-second song previews are streamed only, never saved; every track links to Apple Music.'),
+  JuzzioThirdPartyCredit('LiveKit', 'Apache License 2.0', 'Sesli/görüntülü arama altyapısı.', 'Voice/video call infrastructure.'),
+  JuzzioThirdPartyCredit('Deepgram', 'Ticari API', 'Canlı altyazı ve sesli mesaj dökümü.', 'Live captions and voice-note transcription.'),
+  JuzzioThirdPartyCredit('MyMemory (Translated srl)', 'Ücretsiz API koşulları', 'Yedek çeviri sağlayıcısı.', 'Fallback translation provider.'),
+  JuzzioThirdPartyCredit('ExpressTURN', 'Hizmet koşulları', 'Yedek arama aktarıcısı (şifreli trafik).', 'Backup call relay (encrypted traffic).'),
+  JuzzioThirdPartyCredit('Juzzio müzik ve sesleri', 'Juzzio\'ya ait',
+      'Tanıtım videoları, zil ve uyarı sesleri kodla üretilmiş özgün eserlerdir; üçüncü taraf ses kullanılmaz.',
+      'Intro videos, ringtones and alert sounds are original works generated in code; no third-party audio is used.'),
+];
+
+class _CreditsView extends StatelessWidget {
+  final JuzzioPalette p;
+  const _CreditsView({required this.p});
+
+  @override
+  Widget build(BuildContext context) {
+    final app = JuzzioAppController.instance;
+    final tr = app.uiLang.toLowerCase().startsWith('tr');
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+      children: [
+        for (final c in kJuzzioThirdPartyCredits)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: JuzzioGlass(
+              radius: 20,
+              padding: const EdgeInsets.all(14),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  Expanded(child: Text(c.name, style: TextStyle(color: p.textPrimary, fontWeight: FontWeight.w900, fontSize: 14.5))),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(color: p.pillBg, borderRadius: BorderRadius.circular(99)),
+                    child: Text(c.license, style: TextStyle(color: p.textSecondary, fontSize: 10.5, fontWeight: FontWeight.w800)),
+                  ),
+                ]),
+                const SizedBox(height: 6),
+                Text(tr ? c.noteTr : c.noteEn, style: TextStyle(color: p.textSecondary, fontSize: 12.5, height: 1.4)),
+              ]),
+            ),
+          ),
+        const SizedBox(height: 6),
+        FilledButton.icon(
+          onPressed: () => showLicensePage(
+            context: context,
+            applicationName: 'Juzzio',
+            applicationVersion: JuzzioConfig.appVersion,
+          ),
+          icon: const Icon(Icons.article_rounded),
+          label: Text(app.trEn('Tüm açık kaynak lisansları', 'All open-source licenses', 'Alle Open-Source-Lizenzen')),
         ),
       ],
     );

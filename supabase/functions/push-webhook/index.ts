@@ -58,6 +58,8 @@ const ALLOWED_EVENT_TYPES = new Set([
   "qa_question",
   "qa_answer",
   "watch_party",
+  // v1.2.9: mesaj isteği kabul edildi
+  "request_accepted",
 ]);
 
 let cachedOAuthToken: string | null = null;

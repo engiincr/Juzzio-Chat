@@ -95,6 +95,13 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
     _load();
   }
 
+  // v1.2.8: profilden çıkınca (başka sayfa/sekme) profil müziği durur
+  @override
+  void deactivate() {
+    JuzzioMusicPlayer.instance.stop();
+    super.deactivate();
+  }
+
   @override
   void didUpdateWidget(covariant JuzzioProfileView oldWidget) {
     super.didUpdateWidget(oldWidget);

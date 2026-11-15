@@ -1,6 +1,6 @@
 # 🔐 Juzzio Privacy Policy
 
-Last updated: November 10, 2026 · App version: v1.2.7 (BETA · Early Access)
+Last updated: November 15, 2026 · App version: v1.2.9 (BETA · Early Access)
 
 > 🇹🇷 The legally binding Turkish version (Privacy Policy and KVKK Disclosure Notice) is in [docs/legal/tr/PRIVACY.md](docs/legal/tr/PRIVACY.md). In the app, the Turkish text is shown when the app language is Turkish.
 
@@ -126,20 +126,40 @@ The following services are used to run Juzzio. Some are located abroad, so data 
 - **Deepgram** (speech-to-text): your own voice is sent for captions only when someone **speaking a different language** is in the call or when you turn on live translation yourself. No audio is sent between people speaking the same language. Even then, audio only goes out while you are actually speaking: silence and room sound are replaced with digital silence on your device before anything is sent.
 - **Google** – Firebase Cloud Messaging (notifications); Google Translate (automatic translation, from the device); optional Google Cloud Vision (only for explicit content checks in video calls; frames are not stored).
 - **MyMemory** (fallback translation if Google Translate fails).
-- **Apple iTunes Search** (the song name you type in the add-music screen is searched and a 30-second preview is played).
+- **Apple iTunes Search** (the song name you type in the add-music screen is searched and a 30-second preview is played). Previews are streamed only and never saved to your device; every track has an "Open in Apple Music" link.
+- **ExpressTURN** (v1.2.9, backup call relay only): when the main call server cannot be reached directly, call audio/video passes through this relay **encrypted (DTLS-SRTP)**; the relay cannot decrypt or record it and only sees your IP address to make the connection.
 - **GitHub** (app updates and release notes).
-- **Open-Meteo** (only when the weather theme is on; rounded location, no identity).
+- **Open-Meteo** (only when the weather theme is on; rounded location, no identity). Weather data by Open-Meteo.com, CC BY 4.0.
+
+## 5a. File safety checks and system health (v1.2.9)
+
+- Files you send are checked **on your device, before encryption**: executable and script files (e.g. .php, .jsp, .exe, .apk, .html, .svg, .js), files whose content does not match their extension and hidden double extensions are not sent. The server also accepts only allowed file types.
+- A file you receive is checked the same way **on your device**, after it is decrypted, before it is opened or saved; you are warned if it looks dangerous. File contents are never sent anywhere.
+- When you tap a link in a message, phishing signs (IP-address links, look-alike domains, shortened links, etc.) are checked on your device and a warning is shown if needed.
+- The System Health module checks in the background that translation, captions and call connectivity work, using short test requests that contain no personal content (a fixed test text such as "hello").
+
+## 5b. Login records, device information and legal requests (v1.2.9)
+
+- **What is recorded:** at each sign-in and app start: IP address, network country (from the hosting provider's connection header), device brand/model, operating system and app version, an app-specific device ID and the time. Your account email and phone number (if any) are already stored.
+- **What is not recorded:** IMEI (Android 10+ does not allow apps to read it and Juzzio never asks), city or GPS location (location is only sent inside a message, end-to-end encrypted, when you share it), end-to-end encrypted message and call content.
+- **Purpose and legal basis:** account security and abuse prevention, legal obligations and lawful requests by competent authorities (Turkish Law No. 5651, Code of Criminal Procedure No. 5271, KVKK art. 5/2-ç and 5/2-e). Only the founding super administrator can export these records, after entering the official request reference; every export is audit-logged.
+- **Disclosure:** only upon a written request from a court, prosecutor or legally authorised law-enforcement unit, limited to the account named in the request. Bundles are delivered with a SHA-256 integrity hash.
+- **Retention:** login records are kept for up to 2 years and then deleted.
+- **Account lifecycle:** signing out, signing out other sessions, removing a device, changing the password and deleting the account are recorded with IP address, network country and app identifier; this trail is kept for 2 years even after the account is deleted (traffic data obligation under Law No. 5651).
+- **Preservation requests:** upon a lawful preservation request from a competent authority, an account's data may be preserved for up to 90 days (up to 365 days on the authority's request). Content and records deleted during this period are kept in a hidden archive and, for the confidentiality of the investigation, the user may not be notified. The archive is deleted automatically when the period ends.
+- **What may be disclosed to authorities:** the records above, group memberships, push notification tokens (Google FCM), call records (who, whom, when, how long), unencrypted group content and report evidence. One-to-one chat and call content is end-to-end encrypted and **cannot** be disclosed; it never exists in readable form on the server.
+- **Report evidence:** if you agree when reporting a message, that message and up to 5 messages before it are attached **as decrypted on your own device** and may be used for review and legal proceedings.
 
 ## 6. What administrators can and cannot see
 
-- Can see: the user list and emails, call record summaries, reports, bug and crash reports; they can delete content, close accounts and issue penalties.
+- Can see: the user list and emails, call record summaries, reports, bug and crash reports; the founding super administrator can also see login IPs, network country and device model (see 5b). They can delete content, close accounts and issue penalties.
 - Cannot see: end-to-end encrypted message and media content, your password, card/bank details (there are none). There is no free-form SQL console in the admin panel; critical actions such as legal export and signing everyone out are limited to the super administrator and recorded in the audit log.
 - Unencrypted content (group messages, group media) is technically readable in the database; the admin panel has no feature that displays message content.
 
 ## 7. Retention periods
 
 - Data is kept while your account is open. If you turn on disappearing messages, messages are deleted after the period you choose.
-- Stories disappear after 24 hours.
+- Stories disappear after 24 hours and (v1.2.9) are **permanently deleted** from the server, including their media files, within minutes.
 - You can delete your account (Settings → Account). Media files of deleted messages, stories and accounts are queued for automatic deletion and removed from storage on the server. Automatic crash reports are deleted after 90 days.
 
 ## 8. Security measures

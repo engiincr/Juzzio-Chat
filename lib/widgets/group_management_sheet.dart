@@ -27,6 +27,7 @@ import 'chat_lock_ui.dart';
 import '../screens/saved_messages_page.dart';
 import 'juzzio_motion.dart';
 import 'juzzio_space_kit.dart' show JuzzioSpacePhoto;
+import '../core/juzzio_text_safety.dart';
 
 Future<void> showJuzzioGroupManagementSheet(
   BuildContext context, {
@@ -573,7 +574,7 @@ class _GroupManagementSheetState extends State<_GroupManagementSheet> {
                       leading: CircleAvatar(
                         backgroundImage: m.avatarUrl != null ? NetworkImage(m.avatarUrl!) : null,
                         child: m.avatarUrl == null
-                            ? Text(m.displayName.isNotEmpty ? m.displayName[0].toUpperCase() : '?')
+                            ? TextjuzzioInitial(m.displayName)
                             : null,
                       ),
                       title: Row(

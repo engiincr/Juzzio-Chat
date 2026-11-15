@@ -77,17 +77,25 @@ class JuzzioSpaceEyebrow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      text.toUpperCase(),
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: TextStyle(
-        fontFamily: JuzzioConfig.fontRegularBold,
-        color: JuzzioGlassTokens.textSecondary,
-        fontSize: 12.5,
-        fontWeight: FontWeight.w700,
-        letterSpacing: 3.0,
-        height: 1.1,
+    // v1.2.9: dar alanda harf aralıklı başlık "Y Ö N E T…" diye kesilmez; sığacak kadar küçülür.
+    // Türkçe büyük harf: i → İ (YÖNETİCİ), ı → I.
+    final tr = JuzzioAppController.instance.uiLang.toLowerCase().startsWith('tr');
+    final up = tr ? text.replaceAll('i', 'İ').replaceAll('ı', 'I').toUpperCase() : text.toUpperCase();
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: AlignmentDirectional.centerStart,
+      child: Text(
+        up,
+        maxLines: 1,
+        softWrap: false,
+        style: TextStyle(
+          fontFamily: JuzzioConfig.fontRegularBold,
+          color: JuzzioGlassTokens.textSecondary,
+          fontSize: 12.5,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 2.2,
+          height: 1.1,
+        ),
       ),
     );
   }

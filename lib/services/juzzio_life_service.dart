@@ -13,6 +13,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'supabase_service.dart';
+import '../core/juzzio_text_safety.dart';
 
 class JuzzioLifeTask {
   const JuzzioLifeTask({
@@ -153,7 +154,7 @@ class JuzzioLifeService extends ChangeNotifier {
     final t = title.trim();
     if (t.isEmpty) throw ArgumentError('empty_title');
     await _c.from('life_tasks').insert({
-      'title': t.length > 200 ? t.substring(0, 200) : t,
+      'title': juzzioSafeCut(t, 200),
       'description': description.trim(),
       'due_at': dueAt?.toUtc().toIso8601String(),
       'remind_at': remindAt?.toUtc().toIso8601String(),

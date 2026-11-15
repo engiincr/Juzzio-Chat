@@ -11,6 +11,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import '../services/juzzio_media_url.dart';
 import '../services/juzzio_media_cache.dart';
+import '../services/juzzio_gallery_saver.dart' show JuzzioDownloadAction;
 import 'package:video_player/video_player.dart';
 import 'juzzio_motion.dart';
 
@@ -268,6 +269,8 @@ class _JuzzioMediaViewerPageState extends State<JuzzioMediaViewerPage> {
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
         elevation: 0,
+        // v1.2.8: sağ üstte indir (gönderilen/alınan her fotoğraf ve video)
+        actions: [JuzzioDownloadAction(url: widget.url, isVideo: widget.isVideo)],
       ),
       body: Center(
         child: widget.isVideo

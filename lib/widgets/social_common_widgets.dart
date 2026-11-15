@@ -17,6 +17,7 @@ import '../core/theme/juzzio_glass.dart';
 import 'juzzio_video_kit.dart';
 import 'juzzio_space_kit.dart';
 import 'juzzio_motion.dart';
+import '../core/juzzio_text_safety.dart';
 
 class JuzzioSocialTokens {
   JuzzioSocialTokens._();
@@ -168,7 +169,7 @@ class JuzzioUserAvatar extends StatelessWidget {
     if (parts.length >= 2) {
       return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
     }
-    return clean[0].toUpperCase();
+    return juzzioInitial(clean);
   }
 
   Widget _buildInnerAvatar(bool isDark) {
@@ -536,10 +537,13 @@ Future<bool?> showJuzzioReportModalSheet({
   required String targetType,
   required String targetId,
   String? targetOwnerId,
+  // v1.2.9: mesaj şikâyetinde kanıt (yalnız şikâyet eden onaylarsa gönderilir)
+  Map<String, dynamic>? evidence,
 }) async {
   final app = JuzzioAppController.instance;
   final isDark = app.isDark;
   String selectedReason = 'spam';
+  bool attachEvidence = evidence != null;
   final detailsCtrl = TextEditingController();
   bool submitting = false;
   String? errorText;
@@ -549,6 +553,9 @@ Future<bool?> showJuzzioReportModalSheet({
     MapEntry('harassment', app.loc('Taciz veya nefret söylemi', 'Harassment or hate speech', 'Belästigung oder Hassrede')),
     MapEntry('inappropriate', app.loc('Uygunsuz içerik', 'Inappropriate content', 'Unangemessene Inhalte')),
     MapEntry('fake_account', app.loc('Sahte hesap veya taklit', 'Fake account or impersonation', 'Fake-Konto oder Identitätsmissbrauch')),
+    // v1.2.9: telif bildirimi ve dolandırıcılık/kimlik avı (dosya, bağlantı)
+    MapEntry('copyright', app.loc('Telif hakkı ihlali (benim eserim)', 'Copyright infringement (my work)', 'Urheberrechtsverletzung (mein Werk)')),
+    MapEntry('scam', app.loc('Dolandırıcılık, kimlik avı veya zararlı dosya', 'Scam, phishing or malicious file', 'Betrug, Phishing oder schädliche Datei')),
     MapEntry('other', app.loc('Diğer', 'Other', 'Sonstiges')),
   ];
 
@@ -628,6 +635,25 @@ Future<bool?> showJuzzioReportModalSheet({
                           },
                   ),
                 ),
+                if (evidence != null)
+                  CheckboxListTile(
+                    value: attachEvidence,
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    controlAffinity: ListTileControlAffinity.leading,
+                    onChanged: submitting ? null : (v) => setModalState(() => attachEvidence = v ?? false),
+                    title: Text(
+                      app.loc('Mesajı ve öncesindeki en çok 5 mesajı şikâyete ekle',
+                          'Attach the message and up to 5 messages before it', 'Nachricht und bis zu 5 vorherige anhängen'),
+                      style: TextStyle(color: JuzzioSocialTokens.textPrimary(isDark), fontSize: 13.5, fontWeight: FontWeight.w700),
+                    ),
+                    subtitle: Text(
+                      app.loc('Sohbet uçtan uca şifrelidir; Juzzio içeriği yalnız sen eklersen görebilir. Eklenen mesajlar inceleme ve yasal süreçlerde kullanılabilir.',
+                          'The chat is end-to-end encrypted; Juzzio can only see the content if you attach it. Attached messages may be used for review and legal proceedings.',
+                          'Der Chat ist Ende-zu-Ende-verschlüsselt; Juzzio sieht den Inhalt nur, wenn du ihn anhängst.'),
+                      style: TextStyle(color: JuzzioSocialTokens.textSecondary(isDark), fontSize: 11.5),
+                    ),
+                  ),
                 const SizedBox(height: 8),
                 TextField(
                   controller: detailsCtrl,
@@ -685,6 +711,7 @@ Future<bool?> showJuzzioReportModalSheet({
                                     targetOwnerId: targetOwnerId,
                                     reasonCode: selectedReason,
                                     details: detailsCtrl.text,
+                                    evidence: attachEvidence ? evidence : null,
                                   );
                                   if (ctx.mounted) Navigator.pop(ctx, true);
                                 } catch (e) {

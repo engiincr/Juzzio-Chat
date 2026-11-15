@@ -97,7 +97,6 @@ class JuzzioBirthdayFx extends StatefulWidget {
 
 class _JuzzioBirthdayFxState extends State<JuzzioBirthdayFx> with SingleTickerProviderStateMixin {
   AnimationController? _c;
-  OverlayEntry? _overlay;
   bool _done = false;
 
   @override
@@ -113,30 +112,21 @@ class _JuzzioBirthdayFxState extends State<JuzzioBirthdayFx> with SingleTickerPr
     _c = c;
     c.addStatusListener((s) {
       if (s == AnimationStatus.completed) {
-        _removeOverlay();
         if (mounted) setState(() => _done = true);
       }
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final overlay = Overlay.maybeOf(context, rootOverlay: true);
-      if (overlay != null) {
-        _overlay = OverlayEntry(builder: (_) => Positioned.fill(child: IgnorePointer(child: JuzzioBirthdayStage(progress: c))));
-        overlay.insert(_overlay!);
-      }
-      JuzzioHaptics.success();
+      // v1.2.9: tam ekran sahne balondan bağımsız bir katmanda oynar. Geri tuşu klavyeyi/paneli
+      // kapatıp balonu yeniden kursa bile kutlama sürer; yalnız sohbetten çıkınca durur
+      // (JuzzioBirthdayFxHost.stop — sohbet ekranı _leaveConversation içinde çağırır).
+      JuzzioBirthdayFxHost.play(context);
       c.forward();
     });
   }
 
-  void _removeOverlay() {
-    _overlay?.remove();
-    _overlay = null;
-  }
-
   @override
   void dispose() {
-    _removeOverlay();
     _c?.dispose();
     super.dispose();
   }
@@ -775,4 +765,63 @@ class JuzzioBirthdayFxGate extends StatelessWidget {
   @override
   Widget build(BuildContext context) =>
       enabled ? JuzzioBirthdayFx(playKey: playKey, createdAt: createdAt, child: child) : child;
+}
+
+
+/// v1.2.9: Tam ekran doğum günü sahnesinin sahibi. Balon widget'ının yaşam döngüsünden
+/// bağımsızdır: geri tuşu (klavye/panel kapanması, liste yeniden kurulumu) sahneyi kesmez;
+/// sohbetten çıkıldığında [stop] çağrılır.
+class JuzzioBirthdayFxHost {
+  JuzzioBirthdayFxHost._();
+  static OverlayEntry? _entry;
+
+  static bool get isPlaying => _entry != null;
+
+  static void play(BuildContext context) {
+    final overlay = Overlay.maybeOf(context, rootOverlay: true);
+    if (overlay == null) return;
+    stop();
+    final entry = OverlayEntry(
+      builder: (_) => Positioned.fill(child: IgnorePointer(child: _JuzzioBirthdayStageRunner(onDone: stop))),
+    );
+    _entry = entry;
+    overlay.insert(entry);
+    JuzzioHaptics.success();
+  }
+
+  static void stop() {
+    final e = _entry;
+    _entry = null;
+    if (e != null && e.mounted) e.remove();
+  }
+}
+
+class _JuzzioBirthdayStageRunner extends StatefulWidget {
+  const _JuzzioBirthdayStageRunner({required this.onDone});
+  final VoidCallback onDone;
+
+  @override
+  State<_JuzzioBirthdayStageRunner> createState() => _JuzzioBirthdayStageRunnerState();
+}
+
+class _JuzzioBirthdayStageRunnerState extends State<_JuzzioBirthdayStageRunner> with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(vsync: this, duration: kJuzzioBirthdayDuration);
+
+  @override
+  void initState() {
+    super.initState();
+    _c.addStatusListener((s) {
+      if (s == AnimationStatus.completed) widget.onDone();
+    });
+    _c.forward();
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => JuzzioBirthdayStage(progress: _c);
 }

@@ -1,12 +1,12 @@
 {
-  "version": "1.2.7",
-  "buildNumber": 127,
-  "releaseDate": "2026-11-10",
-  "releaseTitle": "Tanıtım Videosu, 3B Doğum Günü ve Akıcı Gönderme",
+  "version": "1.2.9",
+  "buildNumber": 129,
+  "releaseDate": "2026-11-15",
+  "releaseTitle": "Cam Menü, GIF'ler, Mesaj İstekleri ve Sağlam Aramalar",
   "mandatory": false,
   "minSupportedVersion": "0.1.0",
   "apkUrl": "https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk",
-  "versionedApkUrl": "https://github.com/engiincr/Juzzio-Chat/releases/download/v1.2.7/juzzio-v1.2.7-release.apk",
+  "versionedApkUrl": "https://github.com/engiincr/Juzzio-Chat/releases/download/v1.2.9/juzzio-v1.2.9-release.apk",
   "apkSha256": "",
   "apkSize": "",
   "verifiedBuild": false,
@@ -18,72 +18,150 @@
     "email": "engiincr@pm.me"
   },
   "changelog": {
-    "tr": "v1.2.7: Uygulamayı ilk kez açanlar Juzzio'yu tanıyamıyordu; doğum günü kutlaması düz ve kısa kalıyordu; mesaj gönderirken uçan metnin altında sarı çizgi çıkıyordu; aşağı çekip yenilemede el ancak ikinci denemede sayfayı tutuyordu. Bu güncelleme hepsini düzeltir ve hava durumu temasına saate göre minik simgeler ekler.",
-    "en": "v1.2.7: First-time users had no introduction to Juzzio; the birthday celebration felt flat and short; a yellow line appeared under the flying text while sending; and the pull-to-refresh hand only grabbed the page on the second try. This update fixes all of that and adds tiny time-of-day icons to the weather theme.",
-    "de": "v1.2.7: First-time users had no introduction to Juzzio; the birthday celebration felt flat and short; a yellow line appeared under the flying text while sending; and the pull-to-refresh hand only grabbed the page on the second try. This update fixes all of that and adds tiny time-of-day icons to the weather theme."
+    "tr": "v1.2.9: Bazı telefonlarda emojiyle başlayan adlar uygulamayı çökertiyordu; bazı işlemler anlaşılmaz \"P0001\" hatası veriyordu; mesaj tepkileri balonun dışına taşıyordu; doğum günü kutlaması geri tuşuyla kapanıyordu; mesaj gönderirken sarı çizgi görünüyordu; tanımadığın kişiler sınırsız mesaj atabiliyordu. Ayrıca telif denetimi yapıldı, dosya güvenliği güçlendirildi ve aramalar zayıf internette daha dayanıklı hâle getirildi.",
+    "en": "v1.2.9: On some phones names starting with an emoji crashed the app; some actions showed an unreadable \"P0001\" error; message reactions spilled outside the bubble; the birthday celebration closed with the back button; a yellow line appeared while sending; strangers could send unlimited messages. A copyright audit was also done, file security was hardened and calls are sturdier on weak internet.",
+    "de": "v1.2.9: On some phones names starting with an emoji crashed the app; some actions showed an unreadable \"P0001\" error; message reactions spilled outside the bubble; the birthday celebration closed with the back button; a yellow line appeared while sending; strangers could send unlimited messages. A copyright audit was also done, file security was hardened and calls are sturdier on weak internet."
   },
-  "build": 127,
-  "versionCode": 127,
+  "build": 129,
+  "versionCode": 129,
   "url": "https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk",
-  "changelog_tr": "v1.2.7: Uygulamayı ilk kez açanlar Juzzio'yu tanıyamıyordu; doğum günü kutlaması düz ve kısa kalıyordu; mesaj gönderirken uçan metnin altında sarı çizgi çıkıyordu; aşağı çekip yenilemede el ancak ikinci denemede sayfayı tutuyordu. Bu güncelleme hepsini düzeltir ve hava durumu temasına saate göre minik simgeler ekler.",
-  "changelog_en": "v1.2.7: First-time users had no introduction to Juzzio; the birthday celebration felt flat and short; a yellow line appeared under the flying text while sending; and the pull-to-refresh hand only grabbed the page on the second try. This update fixes all of that and adds tiny time-of-day icons to the weather theme.",
-  "changelog_de": "v1.2.7: First-time users had no introduction to Juzzio; the birthday celebration felt flat and short; a yellow line appeared under the flying text while sending; and the pull-to-refresh hand only grabbed the page on the second try. This update fixes all of that and adds tiny time-of-day icons to the weather theme.",
+  "changelog_tr": "v1.2.9: Bazı telefonlarda emojiyle başlayan adlar uygulamayı çökertiyordu; bazı işlemler anlaşılmaz \"P0001\" hatası veriyordu; mesaj tepkileri balonun dışına taşıyordu; doğum günü kutlaması geri tuşuyla kapanıyordu; mesaj gönderirken sarı çizgi görünüyordu; tanımadığın kişiler sınırsız mesaj atabiliyordu. Ayrıca telif denetimi yapıldı, dosya güvenliği güçlendirildi ve aramalar zayıf internette daha dayanıklı hâle getirildi.",
+  "changelog_en": "v1.2.9: On some phones names starting with an emoji crashed the app; some actions showed an unreadable \"P0001\" error; message reactions spilled outside the bubble; the birthday celebration closed with the back button; a yellow line appeared while sending; strangers could send unlimited messages. A copyright audit was also done, file security was hardened and calls are sturdier on weak internet.",
+  "changelog_de": "v1.2.9: On some phones names starting with an emoji crashed the app; some actions showed an unreadable \"P0001\" error; message reactions spilled outside the bubble; the birthday celebration closed with the back button; a yellow line appeared while sending; strangers could send unlimited messages. A copyright audit was also done, file security was hardened and calls are sturdier on weak internet.",
   "details": {
     "tr": {
-      "reason": "Uygulamayı ilk kez açanlar Juzzio'yu tanıyamıyordu; doğum günü kutlaması düz ve kısa kalıyordu; mesaj gönderirken uçan metnin altında sarı çizgi çıkıyordu; aşağı çekip yenilemede el ancak ikinci denemede sayfayı tutuyordu. Bu güncelleme hepsini düzeltir ve hava durumu temasına saate göre minik simgeler ekler.",
+      "reason": "Bazı telefonlarda emojiyle başlayan adlar uygulamayı çökertiyordu; bazı işlemler anlaşılmaz \"P0001\" hatası veriyordu; mesaj tepkileri balonun dışına taşıyordu; doğum günü kutlaması geri tuşuyla kapanıyordu; mesaj gönderirken sarı çizgi görünüyordu; tanımadığın kişiler sınırsız mesaj atabiliyordu. Ayrıca telif denetimi yapıldı, dosya güvenliği güçlendirildi ve aramalar zayıf internette daha dayanıklı hâle getirildi.",
       "features": [
-        "🎬 20 saniyelik tanıtım videosu (müzikli): uygulamayı ilk kez açanlara ve yeni hesap açanlara bir kez gösterilir; bu güncellemede herkes bir kez görür. \"Atla\" ile geçilebilir, Yapımcı sayfasındaki \"Uygulama Tanıtımı\" düğmesiyle istediğin zaman yeniden izlenir (Türkçe ve İngilizce)",
-        "🎂 Doğum günü kutlaması 3 boyutlu: patlatıcı eller perspektifle döner, konfeti 3B uzayda döner ve ışığa göre parlar, kurdeleler bükülür, parlak küreler ve yıldızlar saçılır; iki patlama, toplam 7 saniye",
-        "🌙 Hava durumu temasında saate göre minik vektör simgeler: gece hilal ve yıldız, gündüz güneş ve bulut, akşam turuncu güneş; yağmurda damla, karda kar tanesi, fırtınada şimşek",
-        "🤚 Yenileme eli biraz daha büyük ve tombul"
+        "✨ Yeni cam bağlam menüsü: 7 hızlı tepki + tüm emojiler; Yanıtla, Kopyala, Çevir, Bağlantıyı kopyala, İlet, Adı gizleyerek ilet, Buluta kaydet, Bildir, Seç ve Yazardan seç",
+        "☑️ Çoklu seçim: birden çok mesajı seç, kopyala, ilet veya sil (geri tuşu seçimi kapatır)",
+        "🎞️ 42 komik, sözsüz hareketli GIF (uykulu, kahkaha, dans, utanç…) — Juzzio'nun kendi çizimi; kendi dilinde aranır. Emoji panelinde yeni \"GIF\" sekmesi",
+        "✉️ Mesaj istekleri: arkadaşın olmayan biri sen yanıtlayana kadar en fazla 3 mesaj atabilir (\"2 mesaj hakkınız kaldı\"); sende İstek Kutusu ve Spam kutusu; kabul edince karşı tarafa \"beklemedeki mesajınızı kabul etti\" bildirimi. Gizli hesaba önce arkadaşlık isteği gerekir",
+        "⚠️ Tanımadığın birinden gelen dosyayı indirmeden önce açık risk uyarısı",
+        "🔎 Kullanıcı adıyla ara ve profili eklemeden görüntüle",
+        "🎵 Sohbette müzik paylaş: kapak, oynat/durdur, ⋮ menüsü (Profil müziği yap, Apple Music'te tamamını dinle, Şikâyet et). Arama gelince, uygulama arka plana alınınca veya başka ses çalınca müzik otomatik durur",
+        "📞 Aramalarda kim bağlantısını kaybettiyse iki tarafta da yazar (\"… bekleniyor\"), yeniden bağlanırken yumuşak bir ton çalar; görüntü kalitesi internete göre 720p → 480p → 360p arasında kendiliğinden ayarlanır; ana sunucuya ulaşılamazsa yedek sunucuya geçilir",
+        "🔐 Kilitli sohbetler yeni yeşil doğrulama ekranıyla açılır (adım göstergesi, kod kutuları, \"Doğrulandı\")",
+        "👉 Sohbet listesinde sağa çek → sabitle; silmeden sonra 5 sn \"Geri al\"",
+        "🌙 \"Senin alanın\" başlığında Juzzio yazısının yanında bugünkü gerçek Ay evresi; hava teması daha gerçekçi (gölgeli bulut, kraterli ay, ışıltılı güneş)",
+        "🎨 Varsayılan tema artık Gece Mavisi",
+        "🎬 Giriş ve kayıt sayfaları arasında akıcı sayfa geçişleri",
+        "📎 Ataş menüsü yeni Liquid Glass görünümünde; yazma alanında ataş ve beyaz mikrofon",
+        "🎥 1.2.8'den güncelleyenlere bir kez \"Neler yeni?\" videosu",
+        "🩺 Sistem Sağlığı: çeviri, altyazı (Deepgram), arama sunucusu ve yedek sunucu kendiliğinden yoklanır, sorun varsa otomatik onarılır"
       ],
       "fixes": [
-        "Mesaj gönderirken uçan metnin altında çıkan sarı çizgi kaldırıldı",
-        "Gönderme animasyonu artık gerçek balonun yerine sıçramadan, yumuşakça iner",
-        "Aşağı çekip yenilemede el ilk çekişte sayfayı tutar: daha kısa çekiş yeter, el yumruk yaptıktan sonra parmak biraz geri gelse de yenileme başlar, listenin ortasından tepeye varan çekiş de çalışır"
+        "Adı emojiyle başlayan kişilerde \"string is not well-formed UTF-16\" çökmesi giderildi",
+        "\"P0001\" ve benzeri anlaşılmaz hata kodları yerine her dilde açık hata mesajı",
+        "Mesaj tepkileri artık balonun İÇİNDE, saatin yanında; tepki animasyonu balonun köşesinde oynar (özellik korunur)",
+        "Doğum günü kutlaması geri tuşuna basınca kapanmıyor; yalnız sohbetten çıkınca durur",
+        "Mesaj gönderirken görünen sarı çizgi tamamen kaldırıldı; metin mesajları da emojiler gibi yaylı animasyonla gelir",
+        "Arama gelince açık hikâye ve hikâye müziği durur; profil müziği de hemen susar",
+        "Hava teması hikâyelerin, videoların ve sohbet penceresinin üstüne binmez",
+        "Juzzio Topluluğu görselleri tam boyutta gönderilir; görsel yüklenemese bile alan kaybolmaz, kayma olmaz",
+        "Uygulama arka plandayken \"çevrimiçi\" görünmezsin",
+        "Bildirimden yanıt verince gönderenin fotoğrafı kaybolmuyor",
+        "Yönetici başlığındaki taşma ve \"Hoş geldin\" taşması giderildi; uzun adlar her yerde düzgün kısaltılır",
+        "Hikâyeler 24 saat sonra medya dosyalarıyla birlikte kalıcı olarak silinir"
       ],
       "security": [
-        "Tanıtım videosu uygulamanın içindedir; internet gerekmez, hiçbir veri gönderilmez",
-        "Videonun gösterildiği bilgisi yalnız cihazda tutulur"
+        "Dosya güvenliği: .php, .jsp, .exe, .apk, .html, .svg, .js gibi çalıştırılabilir/betik dosyaları, gizli çift uzantılar ve içeriği uzantısıyla uyuşmayan dosyalar hem gönderirken hem açarken cihazda engellenir; sunucu da yalnız izinli türleri kabul eder",
+        "Eski, fazla geniş depolama kuralları kaldırıldı (bir kullanıcının başkasının dosyasını silebilmesi/üzerine yazabilmesi engellendi)",
+        "Kimlik avı bağlantı uyarısı: kısaltılmış, IP adresli, harf benzetmeli veya çalıştırılabilir dosya indiren bağlantılar açılmadan önce uyarılır",
+        "Yorum, biyografi ve açıklamalarda betik kalıpları sunucuda temizlenir (XSS)",
+        "Yönetici güvenliği: tek kurucu yönetici kilidi, değiştirilemez (zincirleme özetli) denetim kaydı ve toplu yıkıcı işlemlere otomatik fren",
+        "Telif denetimi: tüm müzik ve videolar Juzzio'nun kendi üretimi; üçüncü taraf atıfları ve açık kaynak lisansları Yasal sayfasında",
+        "Hata raporları yalnız kurucu yöneticiye bildirilir"
       ]
     },
     "en": {
-      "reason": "First-time users had no introduction to Juzzio; the birthday celebration felt flat and short; a yellow line appeared under the flying text while sending; and the pull-to-refresh hand only grabbed the page on the second try. This update fixes all of that and adds tiny time-of-day icons to the weather theme.",
+      "reason": "On some phones names starting with an emoji crashed the app; some actions showed an unreadable \"P0001\" error; message reactions spilled outside the bubble; the birthday celebration closed with the back button; a yellow line appeared while sending; strangers could send unlimited messages. A copyright audit was also done, file security was hardened and calls are sturdier on weak internet.",
       "features": [
-        "🎬 A 20-second intro video with music: shown once to anyone opening the app for the first time and to new accounts; everyone sees it once with this update. Skip it with \"Skip\", or replay it any time from the \"App Introduction\" button on the Creator page (Turkish and English)",
-        "🎂 3D birthday celebration: the popper hands turn in perspective, confetti spins in 3D space and catches the light, ribbons twist, glossy orbs and stars burst out; two pops, 7 seconds in total",
-        "🌙 Tiny vector icons in the weather theme by time of day: crescent moon and stars at night, sun and clouds by day, an orange sun in the evening; raindrops in rain, snowflakes in snow, lightning in storms",
-        "🤚 The refresh hand is a little bigger and chubbier"
+        "✨ New glass context menu: 7 quick reactions + every emoji; Reply, Copy, Translate, Copy link, Forward, Forward without name, Save to cloud, Report, Select and Select from author",
+        "☑️ Multi-select: select several messages, copy, forward or delete them (back closes the selection)",
+        "🎞️ 42 funny, wordless animated GIFs (sleepy, laughing, dancing, shy…) — drawn by Juzzio itself; searchable in your language. New \"GIF\" tab in the emoji panel",
+        "✉️ Message requests: someone who is not your friend can send at most 3 messages until you reply (\"2 messages left\"); you get a Request box and a Spam box; accepting notifies them \"accepted your pending message\". Private accounts require a friend request first",
+        "⚠️ A clear risk warning before downloading a file from someone you don't know",
+        "🔎 Search by username and view a profile without adding the person",
+        "🎵 Share music in chats: cover, play/stop, ⋮ menu (Set as profile music, Listen to the full song on Apple Music, Report). Music stops automatically on a call, when the app goes to the background or when other audio plays",
+        "📞 In calls both sides see who lost connection (\"… waiting\"), a soft tone plays while reconnecting; video quality adapts to the network 720p → 480p → 360p; if the main server is unreachable a backup server is used",
+        "🔐 Locked chats open with the new green verification screen (step indicator, code boxes, \"Verified\")",
+        "👉 Swipe right in the chat list → pin; 5-second \"Undo\" after deleting",
+        "🌙 The real moon phase of today next to Juzzio under \"Your space\"; a more realistic weather theme (shaded clouds, cratered moon, glowing sun)",
+        "🎨 The default theme is now Midnight Blue",
+        "🎬 Smooth page transitions between the welcome, sign-in and sign-up pages",
+        "📎 The attach menu has a new Liquid Glass look; paperclip and a white mic in the composer",
+        "🎥 A one-time \"What's new?\" video for people updating from 1.2.8",
+        "🩺 System Health: translation, captions (Deepgram), the call server and the backup server are checked automatically and repaired when possible"
       ],
       "fixes": [
-        "Removed the yellow line under the flying text when sending a message",
-        "The send animation now lands smoothly on the real bubble without jumping",
-        "Pull-to-refresh grabs the page on the first pull: a shorter pull is enough, the refresh still starts if your finger moves back a little after the fist, and pulls that start mid-list and reach the top work too"
+        "Fixed the \"string is not well-formed UTF-16\" crash for names starting with an emoji",
+        "Clear error messages in every language instead of codes like \"P0001\"",
+        "Message reactions now sit INSIDE the bubble next to the time; the reaction animation plays at the bubble corner (the feature is kept)",
+        "The birthday celebration no longer stops when you press back; it only stops when you leave the chat",
+        "The yellow line while sending is gone; text messages now arrive with the same springy animation as emojis",
+        "An incoming call pauses the open story and its music; profile music stops immediately",
+        "The weather theme no longer draws over stories, videos or the chat window",
+        "Juzzio Community images are sent at full size; even if an image fails to load its space stays visible, with no jumping",
+        "You no longer appear \"online\" while the app is in the background",
+        "Replying from a notification no longer removes the sender's photo",
+        "Fixed the admin header and \"Welcome\" overflow; long names are shortened neatly everywhere",
+        "Stories are permanently deleted together with their media files after 24 hours"
       ],
       "security": [
-        "The intro video is bundled in the app; no internet needed, no data sent",
-        "Whether the video was shown is stored only on the device"
+        "File security: executable/script files like .php, .jsp, .exe, .apk, .html, .svg, .js, hidden double extensions and files whose content doesn't match their extension are blocked on the device both when sending and opening; the server also accepts only allowed types",
+        "Old overly broad storage rules were removed (one user could delete or overwrite another user's files)",
+        "Phishing link warning: shortened, IP-address, look-alike or executable-download links are flagged before opening",
+        "Script patterns in comments, bios and captions are stripped on the server (XSS)",
+        "Admin security: single founder admin lock, tamper-evident (hash-chained) audit log and an automatic brake on mass destructive actions",
+        "Copyright audit: all music and videos are Juzzio's own; third-party attributions and open-source licenses are on the Legal page",
+        "Error reports are notified only to the founding administrator"
       ]
     },
     "de": {
-      "reason": "First-time users had no introduction to Juzzio; the birthday celebration felt flat and short; a yellow line appeared under the flying text while sending; and the pull-to-refresh hand only grabbed the page on the second try. This update fixes all of that and adds tiny time-of-day icons to the weather theme.",
+      "reason": "On some phones names starting with an emoji crashed the app; some actions showed an unreadable \"P0001\" error; message reactions spilled outside the bubble; the birthday celebration closed with the back button; a yellow line appeared while sending; strangers could send unlimited messages. A copyright audit was also done, file security was hardened and calls are sturdier on weak internet.",
       "features": [
-        "🎬 A 20-second intro video with music: shown once to anyone opening the app for the first time and to new accounts; everyone sees it once with this update. Skip it with \"Skip\", or replay it any time from the \"App Introduction\" button on the Creator page (Turkish and English)",
-        "🎂 3D birthday celebration: the popper hands turn in perspective, confetti spins in 3D space and catches the light, ribbons twist, glossy orbs and stars burst out; two pops, 7 seconds in total",
-        "🌙 Tiny vector icons in the weather theme by time of day: crescent moon and stars at night, sun and clouds by day, an orange sun in the evening; raindrops in rain, snowflakes in snow, lightning in storms",
-        "🤚 The refresh hand is a little bigger and chubbier"
+        "✨ New glass context menu: 7 quick reactions + every emoji; Reply, Copy, Translate, Copy link, Forward, Forward without name, Save to cloud, Report, Select and Select from author",
+        "☑️ Multi-select: select several messages, copy, forward or delete them (back closes the selection)",
+        "🎞️ 42 funny, wordless animated GIFs (sleepy, laughing, dancing, shy…) — drawn by Juzzio itself; searchable in your language. New \"GIF\" tab in the emoji panel",
+        "✉️ Message requests: someone who is not your friend can send at most 3 messages until you reply (\"2 messages left\"); you get a Request box and a Spam box; accepting notifies them \"accepted your pending message\". Private accounts require a friend request first",
+        "⚠️ A clear risk warning before downloading a file from someone you don't know",
+        "🔎 Search by username and view a profile without adding the person",
+        "🎵 Share music in chats: cover, play/stop, ⋮ menu (Set as profile music, Listen to the full song on Apple Music, Report). Music stops automatically on a call, when the app goes to the background or when other audio plays",
+        "📞 In calls both sides see who lost connection (\"… waiting\"), a soft tone plays while reconnecting; video quality adapts to the network 720p → 480p → 360p; if the main server is unreachable a backup server is used",
+        "🔐 Locked chats open with the new green verification screen (step indicator, code boxes, \"Verified\")",
+        "👉 Swipe right in the chat list → pin; 5-second \"Undo\" after deleting",
+        "🌙 The real moon phase of today next to Juzzio under \"Your space\"; a more realistic weather theme (shaded clouds, cratered moon, glowing sun)",
+        "🎨 The default theme is now Midnight Blue",
+        "🎬 Smooth page transitions between the welcome, sign-in and sign-up pages",
+        "📎 The attach menu has a new Liquid Glass look; paperclip and a white mic in the composer",
+        "🎥 A one-time \"What's new?\" video for people updating from 1.2.8",
+        "🩺 System Health: translation, captions (Deepgram), the call server and the backup server are checked automatically and repaired when possible"
       ],
       "fixes": [
-        "Removed the yellow line under the flying text when sending a message",
-        "The send animation now lands smoothly on the real bubble without jumping",
-        "Pull-to-refresh grabs the page on the first pull: a shorter pull is enough, the refresh still starts if your finger moves back a little after the fist, and pulls that start mid-list and reach the top work too"
+        "Fixed the \"string is not well-formed UTF-16\" crash for names starting with an emoji",
+        "Clear error messages in every language instead of codes like \"P0001\"",
+        "Message reactions now sit INSIDE the bubble next to the time; the reaction animation plays at the bubble corner (the feature is kept)",
+        "The birthday celebration no longer stops when you press back; it only stops when you leave the chat",
+        "The yellow line while sending is gone; text messages now arrive with the same springy animation as emojis",
+        "An incoming call pauses the open story and its music; profile music stops immediately",
+        "The weather theme no longer draws over stories, videos or the chat window",
+        "Juzzio Community images are sent at full size; even if an image fails to load its space stays visible, with no jumping",
+        "You no longer appear \"online\" while the app is in the background",
+        "Replying from a notification no longer removes the sender's photo",
+        "Fixed the admin header and \"Welcome\" overflow; long names are shortened neatly everywhere",
+        "Stories are permanently deleted together with their media files after 24 hours"
       ],
       "security": [
-        "The intro video is bundled in the app; no internet needed, no data sent",
-        "Whether the video was shown is stored only on the device"
+        "File security: executable/script files like .php, .jsp, .exe, .apk, .html, .svg, .js, hidden double extensions and files whose content doesn't match their extension are blocked on the device both when sending and opening; the server also accepts only allowed types",
+        "Old overly broad storage rules were removed (one user could delete or overwrite another user's files)",
+        "Phishing link warning: shortened, IP-address, look-alike or executable-download links are flagged before opening",
+        "Script patterns in comments, bios and captions are stripped on the server (XSS)",
+        "Admin security: single founder admin lock, tamper-evident (hash-chained) audit log and an automatic brake on mass destructive actions",
+        "Copyright audit: all music and videos are Juzzio's own; third-party attributions and open-source licenses are on the Legal page",
+        "Error reports are notified only to the founding administrator"
       ]
     }
   },
-  "releaseTitleEn": "Intro Video, 3D Birthday & Smooth Sending",
+  "releaseTitleEn": "Glass Menu, GIFs, Message Requests & Sturdier Calls",
   "signatureAlg": "ML-DSA-65 (FIPS 204)"
 }

@@ -284,6 +284,15 @@ JuzzioAuditLine juzzioFormatAudit(Map<String, dynamic> a, String lang) {
       tone = 2;
       sentence = t('$who, $target için yasal veri dışa aktarımı yaptı', '$who exported legal data for $target', '$who hat Rechtsdaten für $target exportiert');
       add(t('Gerekçe', 'Reason', 'Grund'), d['reason']);
+    case 'legal_hold':
+      icon = Icons.ac_unit_rounded;
+      tone = 2;
+      sentence = t('$who, $target hesabını yasal inceleme için dondurdu', '$who preserved $target for legal review', '$who hat $target rechtlich gesichert');
+      add(t('Gerekçe', 'Reason', 'Grund'), d['reason']);
+      add(t('Bitiş', 'Until', 'Bis'), d['until']);
+    case 'legal_hold_release':
+      icon = Icons.lock_open_rounded;
+      sentence = t('$who, $target için veri dondurmayı kaldırdı', '$who released the preservation for $target', '$who hat die Sicherung für $target aufgehoben');
     case 'business_status':
       icon = Icons.storefront_outlined;
       sentence = t('$who bir işletme başvurusunu “${_status('${d['status'] ?? ''}', t)}” yaptı', '$who set a business application to “${_status('${d['status'] ?? ''}', t)}”',
