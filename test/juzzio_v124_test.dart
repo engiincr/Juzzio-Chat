@@ -222,7 +222,8 @@ void main() {
       final c = _src('lib/screens/chat_screen.dart');
       expect(c.contains("realFriends.where((f) => !storyOwners.containsKey(f.id))"), isFalse);
       expect(c.contains('_showReactionsWho(p, msg)'), isTrue);
-      expect(c.contains("action(Icons.delete_outline_rounded, app.trEn('Sil', 'Delete', 'Löschen')"), isTrue);
+      // v1.2.9: menü cam satırlara (row) çevrildi; "Sil" her türde mesajda durur
+      expect(c.contains("row(Icons.delete_outline_rounded, app.trEn('Sil', 'Delete', 'Löschen')"), isTrue);
       expect(c.contains('_queueLocalMedia(roomId'), isTrue);
       final kt = _src('android/app/src/main/kotlin/com/juzzio/app/MainActivity.kt');
       expect(kt.contains('NotificationCompat.MessagingStyle'), isTrue);

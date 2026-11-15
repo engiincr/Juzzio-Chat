@@ -144,8 +144,8 @@ void main() {
     expect(_src('lib/screens/chat_screen.dart').contains("ValueKey<String>('story_music_\${st.id}')"), isTrue);
   });
 
-  test('v1.2.8 sürüm notu en üstte', () {
-    final n = kJuzzioBundledReleaseNotes.first;
+  test('v1.2.8 sürüm notu', () {
+    final n = kJuzzioBundledReleaseNotes.firstWhere((r) => r.versionName == '1.2.8');
     expect(n.versionName, '1.2.8');
     expect(n.versionCode, 128);
   });
