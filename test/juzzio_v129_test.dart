@@ -20,6 +20,7 @@ import 'package:juzzio/services/juzzio_features_service.dart' show JuzzioDmReque
 import 'package:juzzio/services/juzzio_file_guard.dart';
 import 'package:juzzio/services/juzzio_health_monitor.dart';
 import 'package:juzzio/services/juzzio_legal_package.dart';
+import 'package:juzzio/services/juzzio_speech_gate.dart';
 import 'package:juzzio/services/supabase_service.dart' show JuzzioIceServer;
 import 'package:juzzio/widgets/juzzio_chat_music.dart';
 import 'package:juzzio/widgets/juzzio_gif_stickers.dart';
@@ -471,6 +472,28 @@ void main() {
       final s = _src('lib/services/supabase_service.dart');
       expect(s.contains("mime: 'audio/mp4', text: transcript, translated: translated"), isTrue);
       expect(s.contains('encryptForRoomStrict(roomId, text: text, translated: translated, media: sealed.key.toJson())'), isTrue);
+    });
+  });
+
+  group('Arama altyazısı: uzun karşı konuşmada kendi sesim kaybolmaz', () {
+    test('eşik üst sınırlı: taban ne olursa olsun normal ses geçer', () {
+      expect(juzzioGateThreshold(180), 520);
+      expect(juzzioGateThreshold(4000), 2400);
+    });
+    test('karşı taraf konuşurken taban yükselmez; sessizlikte hızla iner', () {
+      expect(juzzioNextNoiseFloor(300, 2000, 100, remoteActive: true), 300);
+      expect(juzzioNextNoiseFloor(2000, 150, 100), lessThan(1500));
+    });
+    test('60 sn hoparlör sızıntısından sonra da konuşmam kapıyı açar', () {
+      var floor = 180.0;
+      for (var i = 0; i < 600; i++) {
+        floor = juzzioNextNoiseFloor(floor, 1800, 100);
+      }
+      expect(floor, lessThanOrEqualTo(1800));
+      expect(5000 > juzzioGateThreshold(floor), isTrue);
+    });
+    test('kapıya karşı tarafın konuşma durumu verilir', () {
+      expect(_src('lib/services/deepgram_livekit_service.dart').contains('remoteActive: _anyRemoteSpeaking()'), isTrue);
     });
   });
 

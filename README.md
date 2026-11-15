@@ -26,7 +26,17 @@
 <!-- JUZZIO_VERIFIED_APK_START -->
 | Version | APK | Size | SHA-256 | Built |
 | :-- | :-- | :-- | :-- | :-- |
-| v1.2.9 (+1068) | [Juzzio-latest.apk](https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk) | 120.67 MB | `97f9a69317bfbf0b9d9cab4d49069e993a21734f6438b04081f14ca5909ba468` | 2026-11-15 15:21 UTC |
+| v1.2.9 (+129) | Waiting for the GitHub Actions build | — | — | — |
+| v1.2.8 (+128) | Waiting for the GitHub Actions build | — | — | — |
+| v1.2.7 (+127) | Waiting for the GitHub Actions build | — | — | — |
+| v1.2.6 (+126) | Waiting for the GitHub Actions build | — | — | — |
+| v1.2.5 (+125) | Waiting for the GitHub Actions build | — | — | — |
+| v1.2.4 (+1061) | [Juzzio-latest.apk](https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk) | 112.18 MB | `c76f065349909384479e1b2f4d29e622b171c72d0a31710cf615d78ea0868264` | 2026-11-10 07:20 UTC |
+| v1.2.3 (+123) | Waiting for the GitHub Actions build | — | — | — |
+| v1.2.2 (+122) | Waiting for the GitHub Actions build | — | — | — |
+| v1.2.1 (+121) | Waiting for the GitHub Actions build | — | — | — |
+| v1.2.0 (+120) | Waiting for the GitHub Actions build | — | — | — |
+| v1.1.1 (+1057) | [Juzzio-latest.apk](https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk) | 109.91 MB | `c1f854315430f9b182eb59c24bcdb405a32502e82d9560d4644fd55b28ed85e2` | 2026-11-09 21:37 UTC |
 <!-- JUZZIO_VERIFIED_APK_END -->
 
 ---
@@ -93,6 +103,7 @@ On some phones names starting with an emoji crashed the app; some actions showed
 - The locked-chat PIN screen is full screen, with no edge lines or overflow
 - The My tasks & reminders shortcut on Profile is hidden by default; turn it on in Settings › Accessibility
 - In one-to-one (encrypted) chats the translation of the transcript now appears under voice messages
+- Fixed your own live captions and translation stopping after a few words in calls when the other person talks a lot
 
 ### 🔐 Security & privacy
 - File security: executable/script files like .php, .jsp, .exe, .apk, .html, .svg, .js, hidden double extensions and files whose content doesn't match their extension are blocked on the device both when sending and opening; the server also accepts only allowed types

@@ -1322,7 +1322,7 @@ class DeepgramLiveKitController extends ChangeNotifier {
         final ch = _deepgramChannel;
         if (!isMicEnabled || ch == null) return;
         // Konuşma kapısı: konuşulmuyorsa gerçek ses yerine dijital sessizlik gider
-        for (final out in _speechGate.process(pcmChunk, DateTime.now())) {
+        for (final out in _speechGate.process(pcmChunk, DateTime.now(), remoteActive: _anyRemoteSpeaking())) {
           ch.sink.add(out);
         }
         if (_speechGate.isOpen) _updateVoiceFingerprintFromPcm(pcmChunk);
@@ -1387,6 +1387,13 @@ class DeepgramLiveKitController extends ChangeNotifier {
       }
       await _emitOwnSegment(segmentId, transcript, isFinal: isFinal);
     } catch (_) {}
+  }
+
+  bool _anyRemoteSpeaking() {
+    for (final p in remoteParticipants) {
+      if (isParticipantSpeaking(p)) return true;
+    }
+    return false;
   }
 
   /// v1.1.0: bu tanıma parçası gerçekten benim konuşmam mı?

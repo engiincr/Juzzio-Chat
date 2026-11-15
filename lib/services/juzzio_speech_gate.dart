@@ -28,7 +28,12 @@ class JuzzioSpeechGate {
     this.hangoverMs = 700,
     this.preRollMs = 240,
     this.sampleRate = 16000,
+    this.maxThreshold = 2400,
   });
+
+  /// v1.2.9: eşik bu değeri asla geçmez — gürültü tabanı ne kadar yükselirse yükselsin, mikrofona
+  /// normal sesle konuşan kişinin sesi (PCM16 RMS ≈ 2500–9000) her zaman geçer.
+  final double maxThreshold;
 
   /// Konuşma sayılması için en düşük mutlak RMS (PCM16)
   final double minRms;
@@ -89,18 +94,25 @@ class JuzzioSpeechGate {
 
   /// Bir PCM16 parçasını işler; tanıyıcıya gönderilecek parçaları döndürür.
   /// Kapı kapalıyken aynı uzunlukta dijital sessizlik döner.
-  List<Uint8List> process(Uint8List pcm, DateTime now) {
+  ///
+  /// v1.2.9 düzeltme: [remoteActive] = karşı taraf şu an konuşuyor (hoparlörden gelen sesi).
+  /// Önceden taban, eşiğin altındaki HER parçanın ortalamasından öğreniliyordu; hoparlörden
+  /// mikrofona sızan karşı ses (özellikle uzun konuşan, gürültülü ortamdaki karşı taraf) tabanı
+  /// dakikalar içinde 11 000'e kadar çıkarıyor, kapı bir daha açılmıyordu → aramanın başında 1–2
+  /// kelime çevrilip sonra kendi konuşmam hiç yazılmıyordu. Artık taban "en düşük seviye izleyici":
+  /// sessizliğe hızla iner, yalnız yavaşça yükselir, karşı taraf konuşurken hiç yükselmez ve eşik
+  /// [maxThreshold] ile sınırlıdır.
+  List<Uint8List> process(Uint8List pcm, DateTime now, {bool remoteActive = false}) {
     final dur = chunkMs(pcm);
     final rms = rmsOf(pcm);
-    final threshold = math.max(minRms, _floor * ratio);
+    final threshold = juzzioGateThreshold(_floor, minRms: minRms, ratio: ratio, maxThreshold: maxThreshold);
     final voiced = rms > threshold;
 
     if (voiced) {
       _voicedRunMs += dur;
     } else {
       _voicedRunMs = 0;
-      // gürültü tabanı yalnız sessiz parçalardan öğrenilir (konuşma tabanı yükseltmez)
-      _floor = (_floor * 0.94 + rms * 0.06).clamp(40.0, 4000.0);
+      _floor = juzzioNextNoiseFloor(_floor, rms, dur, remoteActive: remoteActive);
     }
 
     if (_open) {
@@ -130,6 +142,20 @@ class JuzzioSpeechGate {
     }
     return [Uint8List(pcm.length)];
   }
+}
+
+/// v1.2.9: kapı eşiği (saf): tabanın [ratio] katı, en az [minRms], en çok [maxThreshold]
+double juzzioGateThreshold(double floor, {double minRms = 520, double ratio = 2.8, double maxThreshold = 2400}) {
+  return math.min(math.max(minRms, floor * ratio), math.max(minRms, maxThreshold));
+}
+
+/// v1.2.9: gürültü tabanının bir sonraki değeri (saf). Sessizlikte hızla iner; yükselirken
+/// 100 ms'de en fazla %0,6 artar ve ölçülen seviyeyi aşamaz; karşı taraf konuşurken yükselmez.
+double juzzioNextNoiseFloor(double floor, double rms, int chunkMs, {bool remoteActive = false}) {
+  if (rms < floor) return (floor * 0.6 + rms * 0.4).clamp(40.0, 4000.0);
+  if (remoteActive) return floor;
+  final grown = floor * (1 + 0.006 * (chunkMs / 100.0));
+  return math.min(grown, rms).clamp(40.0, 4000.0);
 }
 
 /// Tanıyıcıların sessizlik/gürültüden sık ürettiği kalıp ifadeler (normalize edilmiş)
