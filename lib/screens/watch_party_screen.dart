@@ -340,7 +340,8 @@ class _JuzzioWatchPartyScreenState extends State<JuzzioWatchPartyScreen> {
       _heartbeat = Timer.periodic(const Duration(seconds: 20), (_) {
         unawaited(_db.rpc('watch_party_heartbeat', params: {'p_session': s.id}).then((_) {}, onError: (_) {}));
       });
-      unawaited(_native.invokeMethod('setWatchActive', {'active': true}).then((_) {}, onError: (_) {}));
+      // v1.2.9: otomatik küçük pencere yalnız yerel oynatıcıda (web sayfası küçük pencerede siyah kalıyordu)
+      unawaited(_native.invokeMethod('setWatchActive', {'active': true, 'auto': s.kind == 'direct' || s.kind == 'hls'}).then((_) {}, onError: (_) {}));
       if (lk.isNotEmpty) unawaited(_joinVoice(lk));
     } catch (e) {
       final raw = e.toString();
@@ -690,7 +691,7 @@ class _JuzzioWatchPartyScreenState extends State<JuzzioWatchPartyScreen> {
 
   Future<void> _enterPip() async {
     try {
-      await _native.invokeMethod('setWatchActive', {'active': true});
+      await _native.invokeMethod('setWatchActive', {'active': true, 'auto': _s?.kind == 'direct' || _s?.kind == 'hls'});
       final ok = await _native.invokeMethod('enterCallPip') == true;
       if (!ok && mounted) {
         ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(

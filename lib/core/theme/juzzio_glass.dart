@@ -354,37 +354,26 @@ class JuzzioGlassBorderPainter extends CustomPainter {
   void _paintRealGlass(Canvas canvas, Rect rect, RRect rr) {
     final side = rect.shortestSide;
     if (side < 28) return; // çok küçük rozetlerde gereksiz
-    final bevel = (side * 0.09).clamp(3.0, 9.0);
+    // v1.2.9 düzeltme: kalın/bulanık pah ve içteki "dikiş" çizgisi kaldırıldı — iç içe cam yüzeylerde
+    // çift çerçeve ve köşe yarıçapı uyumsuzluğu yaratıyor, bulanıklık maskesi de her karede pahalıydı
+    // (kaydırma ve aramalarda takılma). Pah artık kenara yapışık, ince ve maskesiz tek bir geçiş.
+    final bevel = (side * 0.04).clamp(1.5, 3.0);
     canvas.save();
     canvas.clipRRect(RRect.fromRectAndRadius(rect, Radius.circular(radius)));
-    // 1) Kırılma pahı: kalın camın kenarı — sol üst aydınlık, sağ alt gölgeli yumuşak bant
     canvas.drawRRect(
       rr.deflate(bevel / 2),
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = bevel
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, bevel * 0.45)
         ..shader = LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Colors.white.withValues(alpha: dark ? 0.13 : 0.30),
+            Colors.white.withValues(alpha: dark ? 0.10 : 0.24),
             Colors.white.withValues(alpha: 0.0),
-            Colors.black.withValues(alpha: dark ? 0.20 : 0.07),
+            Colors.black.withValues(alpha: dark ? 0.14 : 0.05),
           ],
           stops: const [0.0, 0.5, 1.0],
-        ).createShader(rect),
-    );
-    // ince koyu dikiş: ışığın kenarda büküldüğü yer
-    canvas.drawRRect(
-      rr.deflate(bevel),
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 0.8
-        ..shader = LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Colors.black.withValues(alpha: dark ? 0.14 : 0.05), Colors.white.withValues(alpha: dark ? 0.06 : 0.16)],
         ).createShader(rect),
     );
     // 2) Gökkuşağı kenar: köşelerde renklere ayrılan ince çizgi

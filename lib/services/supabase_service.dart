@@ -4390,7 +4390,7 @@ String juzzioDeepgramErrorReason(String raw) {
   final r = raw.toLowerCase();
   if (r.contains('no_active_call')) return 'no_active_call';
   if (r.contains('rate_limited')) return 'rate_limited';
-  if (r.contains('deepgram_not_configured') || r.contains('service_not_configured') || r.contains('deepgram_grant')) {
+  if (r.contains('deepgram_not_configured') || r.contains('service_not_configured') || r.contains('deepgram_grant') || r.contains('deepgram_key_rejected')) {
     return 'no_key';
   }
   if (r.contains('socket') || r.contains('failed host lookup') || r.contains('timeout') || r.contains('network')) return 'network';

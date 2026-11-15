@@ -34,6 +34,7 @@ import '../services/social_service.dart';
 import '../services/supabase_service.dart';
 import '../services/juzzio_features_service.dart';
 import 'admin_panel_screen.dart';
+import 'life_center_page.dart';
 import 'release_notes_screen.dart';
 import 'close_friends_page.dart';
 import 'sound_settings_page.dart';
@@ -737,9 +738,14 @@ class _JuzzioNotificationsFeedPageState
         );
 
     if (item.eventType == 'system') {
-      await Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const JuzzioOtaUpdateSettingsPage()),
-      );
+      // v1.2.9: hata kaydı bildirimi → yönetici paneli "Hata bildirimleri" (güncelleme sayfası değil)
+      if (juzzioIsAdminSystemNotice(item.previewText)) {
+        await openJuzzioAdminPanel(context, initialTab: kJuzzioAdminErrorsTab);
+      } else {
+        await Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const JuzzioOtaUpdateSettingsPage()),
+        );
+      }
       return;
     }
 
@@ -1886,7 +1892,10 @@ class _JuzzioAccountSettingsPageState extends State<JuzzioAccountSettingsPage> {
     return Scaffold(
       backgroundColor: p.bgPrimary,
       appBar: AppBar(
-        backgroundColor: p.sheetBg,
+        // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            scrolledUnderElevation: 0,
         foregroundColor: p.textPrimary,
         elevation: 0,
         title: Text(
@@ -2250,7 +2259,10 @@ class _JuzzioChangePasswordPageState extends State<JuzzioChangePasswordPage> {
     return Scaffold(
       backgroundColor: p.bgPrimary,
       appBar: AppBar(
-        backgroundColor: p.sheetBg,
+        // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            scrolledUnderElevation: 0,
         foregroundColor: p.textPrimary,
         elevation: 0,
         title: Text(JuzzioAppController.instance.loc('Şifre Değiştir', 'Change Password', 'Passwort ändern'), style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, fontWeight: FontWeight.w800)),
@@ -2402,7 +2414,10 @@ class JuzzioSecurityNotificationsPage extends StatelessWidget {
         return Scaffold(
           backgroundColor: p.bgPrimary,
           appBar: AppBar(
-            backgroundColor: p.sheetBg,
+            // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            scrolledUnderElevation: 0,
             foregroundColor: p.textPrimary,
             elevation: 0,
             title: Text(JuzzioAppController.instance.loc('Güvenlik bildirimleri', 'Security notifications', 'Sicherheitsbenachrichtigungen'), style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, fontWeight: FontWeight.w800)),
@@ -2643,7 +2658,10 @@ class _JuzzioUsernameSettingsPageState extends State<JuzzioUsernameSettingsPage>
     return Scaffold(
       backgroundColor: p.bgPrimary,
       appBar: AppBar(
-        backgroundColor: p.sheetBg,
+        // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            scrolledUnderElevation: 0,
         foregroundColor: p.textPrimary,
         elevation: 0,
         title: Text(JuzzioAppController.instance.loc('Kullanıcı adı', 'Username', 'Benutzername'), style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, fontWeight: FontWeight.w800)),
@@ -2862,7 +2880,10 @@ class _JuzzioDeleteAccountPageState extends State<JuzzioDeleteAccountPage> {
     return Scaffold(
       backgroundColor: p.bgPrimary,
       appBar: AppBar(
-        backgroundColor: p.sheetBg,
+        // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            scrolledUnderElevation: 0,
         foregroundColor: p.textPrimary,
         elevation: 0,
         title: Text(JuzzioAppController.instance.loc('Hesabımı Sil', 'Delete My Account', 'Mein Konto löschen'), style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, fontWeight: FontWeight.w800)),
@@ -3012,7 +3033,10 @@ class JuzzioPrivacySettingsPage extends StatelessWidget {
         return Scaffold(
           backgroundColor: p.bgPrimary,
           appBar: AppBar(
-            backgroundColor: p.sheetBg,
+            // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            scrolledUnderElevation: 0,
             foregroundColor: p.textPrimary,
             elevation: 0,
             title: Text(JuzzioAppController.instance.loc('Gizlilik', 'Privacy', 'Datenschutz'), style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, fontWeight: FontWeight.w800)),
@@ -3387,7 +3411,10 @@ class JuzzioLastSeenOnlinePrivacyPage extends StatelessWidget {
         return Scaffold(
           backgroundColor: p.bgPrimary,
           appBar: AppBar(
-            backgroundColor: p.sheetBg,
+            // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            scrolledUnderElevation: 0,
             foregroundColor: p.textPrimary,
             elevation: 0,
             title: Text(JuzzioAppController.instance.loc('Son görülme ve çevrim içi', 'Last seen and online', 'Zuletzt online & Status'), style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, fontWeight: FontWeight.w800)),
@@ -3489,7 +3516,10 @@ class JuzzioSingleChoicePrivacyPage extends StatelessWidget {
         return Scaffold(
           backgroundColor: p.bgPrimary,
           appBar: AppBar(
-            backgroundColor: p.sheetBg,
+            // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            scrolledUnderElevation: 0,
             foregroundColor: p.textPrimary,
             elevation: 0,
             title: Text(pageTitle, style: const TextStyle(fontFamily: JuzzioConfig.fontRegularBold, fontWeight: FontWeight.w800)),
@@ -3556,7 +3586,10 @@ class JuzzioDefaultMessageTimerPage extends StatelessWidget {
         return Scaffold(
           backgroundColor: p.bgPrimary,
           appBar: AppBar(
-            backgroundColor: p.sheetBg,
+            // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            scrolledUnderElevation: 0,
             foregroundColor: p.textPrimary,
             elevation: 0,
             title: Text(JuzzioAppController.instance.loc('Varsayılan mesaj süresi', 'Default message timer', 'Standard-Nachrichtentimer'), style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, fontWeight: FontWeight.w800)),
@@ -3626,7 +3659,10 @@ class JuzzioGroupsPrivacyPage extends StatelessWidget {
         return Scaffold(
           backgroundColor: p.bgPrimary,
           appBar: AppBar(
-            backgroundColor: p.sheetBg,
+            // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            scrolledUnderElevation: 0,
             foregroundColor: p.textPrimary,
             elevation: 0,
             title: Text(JuzzioAppController.instance.trEn('Gruplar', 'Groups', 'Gruppen'), style: const TextStyle(fontFamily: JuzzioConfig.fontRegularBold, fontWeight: FontWeight.w800)),
@@ -3730,7 +3766,10 @@ class _JuzzioContactsAndBlockedPageState extends State<JuzzioContactsAndBlockedP
         return Scaffold(
           backgroundColor: p.bgPrimary,
           appBar: AppBar(
-            backgroundColor: p.sheetBg,
+            // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            scrolledUnderElevation: 0,
             foregroundColor: p.textPrimary,
             elevation: 0,
             title: Text(JuzzioAppController.instance.loc('Kişiler', 'Contacts', 'Kontakte'), style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, fontWeight: FontWeight.w800)),
@@ -3871,7 +3910,10 @@ class JuzzioAdvancedPrivacyPage extends StatelessWidget {
         return Scaffold(
           backgroundColor: p.bgPrimary,
           appBar: AppBar(
-            backgroundColor: p.sheetBg,
+            // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            scrolledUnderElevation: 0,
             foregroundColor: p.textPrimary,
             elevation: 0,
             title: Text(JuzzioAppController.instance.loc('Gelişmiş', 'Advanced', 'Erweitert'), style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, fontWeight: FontWeight.w800)),
@@ -4013,7 +4055,10 @@ class _JuzzioStrictAccountSettingsPageState extends State<JuzzioStrictAccountSet
     return Scaffold(
       backgroundColor: p.bgPrimary,
       appBar: AppBar(
-        backgroundColor: p.sheetBg,
+        // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            scrolledUnderElevation: 0,
         foregroundColor: p.textPrimary,
         elevation: 0,
         title: Text(JuzzioAppController.instance.loc('Katı hesap ayarları', 'Strict account settings', 'Strenge Kontoeinstellungen'), style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, fontWeight: FontWeight.w800)),
@@ -4291,7 +4336,10 @@ class JuzzioChatsSettingsPage extends StatelessWidget {
         return Scaffold(
           backgroundColor: p.bgPrimary,
           appBar: AppBar(
-            backgroundColor: p.sheetBg,
+            // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            scrolledUnderElevation: 0,
             foregroundColor: p.textPrimary,
             elevation: 0,
             title: Text(JuzzioAppController.instance.loc('Sohbetler', 'Chats', 'Chats'), style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, fontWeight: FontWeight.w800)),
@@ -4645,7 +4693,10 @@ class JuzzioChatThemeCustomizerPage extends StatelessWidget {
         return Scaffold(
           backgroundColor: p.bgPrimary,
           appBar: AppBar(
-            backgroundColor: p.sheetBg,
+            // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            scrolledUnderElevation: 0,
             foregroundColor: p.textPrimary,
             elevation: 0,
             title: Text(JuzzioAppController.instance.loc('Varsayılan sohbet teması', 'Default chat theme', 'Standard-Chatdesign'), style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, fontWeight: FontWeight.w800)),
@@ -4926,7 +4977,10 @@ class JuzzioChatHistoryPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: p.bgPrimary,
       appBar: AppBar(
-        backgroundColor: p.sheetBg,
+        // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            scrolledUnderElevation: 0,
         foregroundColor: p.textPrimary,
         elevation: 0,
         title: Text(JuzzioAppController.instance.loc('Sohbet geçmişi', 'Chat history', 'Chatverlauf'), style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, fontWeight: FontWeight.w800)),
@@ -5015,7 +5069,10 @@ class JuzzioAppearanceSettingsPage extends StatelessWidget {
         return Scaffold(
           backgroundColor: p.bgPrimary,
           appBar: AppBar(
-            backgroundColor: p.sheetBg,
+            // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            scrolledUnderElevation: 0,
             foregroundColor: p.textPrimary,
             elevation: 0,
             title: Text(appCtrl.loc('Görünüm', 'Appearance', 'Darstellung'),
@@ -5134,7 +5191,7 @@ class JuzzioAppearanceSettingsPage extends StatelessWidget {
                           appCtrl.chatPalette?.swatchA ?? appCtrl.currentChatTheme.primaryColor,
                           appCtrl.chatPalette?.swatchB ?? appCtrl.currentChatTheme.secondaryColor,
                         ]),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.6)),
+                        border: Border.all(color: p.glassBorder),
                       ),
                     ),
                     const SizedBox(width: 14),
@@ -5338,7 +5395,10 @@ class _JuzzioStorageSettingsPageState extends State<JuzzioStorageSettingsPage> {
     return Scaffold(
       backgroundColor: p.bgPrimary,
       appBar: AppBar(
-        backgroundColor: p.sheetBg,
+        // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            scrolledUnderElevation: 0,
         foregroundColor: p.textPrimary,
         elevation: 0,
         title: Text(
@@ -5431,7 +5491,10 @@ class JuzzioNotificationsSettingsPage extends StatelessWidget {
         return Scaffold(
           backgroundColor: p.bgPrimary,
           appBar: AppBar(
-            backgroundColor: p.sheetBg,
+            // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            scrolledUnderElevation: 0,
             foregroundColor: p.textPrimary,
             elevation: 0,
             title: Text(
@@ -5757,7 +5820,10 @@ class JuzzioLanguageSettingsPage extends StatelessWidget {
         return Scaffold(
           backgroundColor: p.bgPrimary,
           appBar: AppBar(
-            backgroundColor: p.sheetBg,
+            // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            scrolledUnderElevation: 0,
             foregroundColor: p.textPrimary,
             elevation: 0,
             title: Text(
@@ -5848,7 +5914,10 @@ class JuzzioHelpAndSupportPage extends StatelessWidget {
         return Scaffold(
           backgroundColor: p.bgPrimary,
           appBar: AppBar(
-            backgroundColor: p.sheetBg,
+            // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            scrolledUnderElevation: 0,
             foregroundColor: p.textPrimary,
             elevation: 0,
             title: Text(
@@ -5967,7 +6036,10 @@ class JuzzioAccessibilitySettingsPage extends StatelessWidget {
         return Scaffold(
           backgroundColor: p.bgPrimary,
           appBar: AppBar(
-            backgroundColor: p.sheetBg,
+            // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            scrolledUnderElevation: 0,
             foregroundColor: p.textPrimary,
             elevation: 0,
             title: Text(JuzzioAppController.instance.loc('Erişilebilirlik', 'Accessibility', 'Barrierefreiheit'), style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, fontWeight: FontWeight.w800)),
@@ -5995,6 +6067,23 @@ class JuzzioAccessibilitySettingsPage extends StatelessWidget {
                       title: Text(JuzzioAppController.instance.loc('Animasyonları azalt', 'Reduce motion', 'Bewegung reduzieren'), style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w700)),
                       value: appCtrl.reduceMotion,
                       onChanged: appCtrl.setReduceMotion,
+                    ),
+                    Divider(height: 1, color: p.glassBorder),
+                    // v1.2.9: görevler/hatırlatıcılar kısayolu Profil'de sürekli görünmez; buradan açılır
+                    ListTile(
+                      leading: Icon(Icons.checklist_rounded, color: p.amberGlow),
+                      title: Text(JuzzioAppController.instance.loc('Görevlerim ve hatırlatıcılar', 'My tasks & reminders', 'Aufgaben & Erinnerungen'),
+                          style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w700)),
+                      trailing: Icon(Icons.chevron_right_rounded, color: p.textMuted),
+                      onTap: () => JuzzioLifeCenterPage.open(context),
+                    ),
+                    Divider(height: 1, color: p.glassBorder),
+                    JuzzioSwitchListTile(
+                      activeColor: p.amberGlow,
+                      title: Text(JuzzioAppController.instance.loc('Profilde görevler kısayolunu göster', 'Show tasks shortcut on Profile', 'Aufgaben-Kürzel im Profil zeigen'),
+                          style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w700)),
+                      value: appCtrl.showLifeCenterShortcut,
+                      onChanged: appCtrl.setShowLifeCenterShortcut,
                     ),
                   ],
                 ),
@@ -6742,7 +6831,10 @@ class JuzzioBatteryOptimizationPage extends StatelessWidget {
         return Scaffold(
           backgroundColor: p.bgPrimary,
           appBar: AppBar(
-            backgroundColor: p.sheetBg,
+            // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            scrolledUnderElevation: 0,
             foregroundColor: p.textPrimary,
             elevation: 0,
             title: Text(
@@ -6997,7 +7089,10 @@ class _JuzzioPermissionsCenterPageState extends State<JuzzioPermissionsCenterPag
     return Scaffold(
       backgroundColor: p.bgPrimary,
       appBar: AppBar(
-        backgroundColor: p.sheetBg,
+        // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            scrolledUnderElevation: 0,
         foregroundColor: p.textPrimary,
         elevation: 0,
         title: Text(

@@ -13,6 +13,7 @@ import 'package:juzzio/core/juzzio_duration_format.dart';
 import 'package:juzzio/core/juzzio_intro.dart';
 import 'package:juzzio/core/juzzio_server_errors.dart';
 import 'package:juzzio/core/juzzio_text_safety.dart';
+import 'package:juzzio/core/notification_text.dart';
 import 'package:juzzio/core/release_notes.dart';
 import 'package:juzzio/screens/admin_legal_report.dart';
 import 'package:juzzio/services/juzzio_features_service.dart' show JuzzioDmRequestState;
@@ -383,6 +384,85 @@ void main() {
       final tab = _src('lib/screens/admin_god_tab.dart');
       expect(tab.contains('juzzioBuildEncryptedZip(files, password)'), isTrue);
       expect(tab.contains('.json\')'), isFalse, reason: 'ham JSON açık dosya olarak yazılmaz');
+    });
+  });
+
+  group('Arama, Sinema Parti ve bildirim düzeltmeleri', () {
+    test('hata bildirimi yönetici paneline gider (güncelleme sayfasına değil)', () {
+      expect(juzzioIsAdminSystemNotice('admin_error|TimeoutException: LiveKit'), isTrue);
+      expect(juzzioIsAdminSystemNotice('🛠 Yeni hata kaydı TimeoutException'), isTrue);
+      expect(juzzioIsAdminSystemNotice('Juzzio v1.2.9 yayınlandı'), isFalse);
+      expect(_src('lib/screens/settings_suite_screens.dart').contains('openJuzzioAdminPanel(context, initialTab: kJuzzioAdminErrorsTab)'), isTrue);
+    });
+    test('yedek aktarıcı kalıcı tercih edilmez; mikrofon yayını yeniden denenir', () {
+      final s = _src('lib/services/deepgram_livekit_service.dart');
+      expect(s.contains('Duration(minutes: 3)'), isTrue);
+      expect(s.contains('_rejoinAttempts >= 3'), isTrue);
+      expect(s.contains('attempt >= 3'), isTrue);
+      final h = _src('lib/services/juzzio_health_monitor.dart');
+      expect(h.contains('DeepgramLiveKitController.markPrimaryUnreachable()'), isFalse);
+    });
+    test('biten Sinema Parti kartı SONLANDIRILDI; web kaynakta otomatik küçük pencere yok', () {
+      final c = _src('lib/screens/chat_screen.dart');
+      expect(c.contains("'SONLANDIRILDI'"), isTrue);
+      expect(c.contains("'watch_party_is_active'"), isTrue);
+      final kt = _src('android/app/src/main/kotlin/com/juzzio/app/MainActivity.kt');
+      expect(kt.contains('watchActive && watchAutoPip'), isTrue);
+      expect(kt.contains('finishAndRemoveTask()'), isTrue);
+    });
+    test('kaydırma rengi temanın vurgu rengi; cam yüzeyde bulanık pah yok', () {
+      expect(_src('lib/screens/chat_screen.dart').contains('0xFFC6F432'), isFalse);
+      final g = _src('lib/core/theme/juzzio_glass.dart');
+      final start = g.indexOf('void _paintRealGlass');
+      final real = g.substring(start, g.indexOf('void paint(Canvas canvas, Size size)', start));
+      expect(real.contains('MaskFilter'), isFalse);
+    });
+  });
+
+  group('Arama başarımı, topluluk çevirisi, PIN ekranı, kısayol ayarı', () {
+    test('arama ekranı olay başına değil, aralıklı yeniden çizilir; görüntüde saveLayer yok', () {
+      final c = _src('lib/screens/call_screen.dart');
+      expect(c.contains('kCallRebuildMinGapMs = 50'), isTrue);
+      expect(c.contains('_scheduleRebuild();'), isTrue);
+      expect(c.contains('BlendMode.dst'), isFalse);
+      expect('RepaintBoundary('.allMatches(c).length >= 2, isTrue);
+    });
+    test('uzak ara altyazı çevirisi seyreltilir ve eski çeviri yenisini ezemez', () {
+      final s = _src('lib/services/deepgram_livekit_service.dart');
+      expect(s.contains('kRemoteInterimGapMs = 600'), isTrue);
+      expect(s.contains('ticket != _remoteInterimTicket[incoming.speakerId]'), isTrue);
+    });
+    test('topluluk mesajları arayüz diline çevrilir; çeviri hatası özgün metne düşer', () {
+      final c = _src('lib/screens/chat_screen.dart');
+      expect(c.contains('_inCommunity && !msg.isLocalPending'), isTrue);
+    });
+    test('PIN ekranı tam ekran ve kenar çizgisiz', () {
+      final c = _src('lib/widgets/chat_lock_ui.dart');
+      expect(c.contains('side: BorderSide.none'), isTrue);
+      expect(c.contains('enableDrag: false'), isTrue);
+    });
+    test('görevler kısayolu varsayılan kapalı ve ayara bağlı', () {
+      final a = _src('lib/core/app_theme_and_locale.dart');
+      expect(a.contains('bool _showLifeCenterShortcut = false'), isTrue);
+      expect(_src('lib/screens/chat_screen.dart').contains('if (appCtrl.showLifeCenterShortcut) _buildLifeCenterEntryBar'), isTrue);
+    });
+    test('hava görselleri pakette ve kodla üretilmiş', () {
+      final y = _src('pubspec.yaml');
+      for (final f in ['moon.png', 'sun.png', 'cloud_a.png', 'cloud_b.png']) {
+        expect(y.contains('assets/weather/$f') || y.contains('assets/weather/'), isTrue);
+        expect(File('assets/weather/$f').existsSync(), isTrue);
+      }
+      expect(File('tools/weather_sprites.py').existsSync(), isTrue);
+    });
+  });
+
+  group('Deepgram dayanıklılığı', () {
+    test('sesli mesajda Deepgram hatası açık kodla döner; yetkisiz anahtar sağlıkta görünür', () {
+      final t = _src('supabase/functions/translate-bridge/index.ts');
+      expect(t.contains('sttError: code'), isTrue);
+      expect(t.contains('detect_language=true'), isTrue);
+      expect(t.contains('"key_cannot_grant"'), isTrue);
+      expect(_src('lib/services/juzzio_health_monitor.dart').contains("'key_cannot_grant'"), isTrue);
     });
   });
 

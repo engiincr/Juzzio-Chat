@@ -18285,3 +18285,73 @@ BEGIN
     END LOOP;
     RAISE NOTICE '10.41 F: % yinelenen dizin kaldırıldı', n;
 END $$;
+
+-- =============================================================================
+-- 10.42 (v1.2.9) — Sinema Parti: odada kimse kalmayınca oturum kendiliğinden kapanır
+--  • Son izleyici çıkınca (leave_watch_party) oturum hemen "ended" olur.
+--  • Uygulama zorla kapatılırsa çıkış çağrısı gelmez: 90 sn'dir yoklama (heartbeat) göndermeyen
+--    izleyici çıkmış sayılır; dakikada bir çalışan görev boş oturumları kapatır.
+--  • Sohbetteki kart "KATIL" yerine "SONLANDIRILDI" gösterir (istemci oturum durumunu okur).
+-- =============================================================================
+CREATE OR REPLACE FUNCTION public.juzzio_watch_party_close_if_empty(p_session UUID)
+RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_n INT;
+BEGIN
+    UPDATE public.watch_party_sessions s
+       SET status = 'ended', is_playing = false, state_changed_at = NOW()
+     WHERE s.id = p_session AND s.status = 'active'
+       AND NOT EXISTS (SELECT 1 FROM public.watch_party_viewers v
+                        WHERE v.session_id = s.id AND v.left_at IS NULL AND v.last_seen_at > NOW() - INTERVAL '90 seconds');
+    GET DIAGNOSTICS v_n = ROW_COUNT;
+    RETURN v_n > 0;
+END $$;
+REVOKE ALL ON FUNCTION public.juzzio_watch_party_close_if_empty(UUID) FROM PUBLIC, anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.leave_watch_party(p_session UUID)
+RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_n INT;
+BEGIN
+    UPDATE public.watch_party_viewers SET left_at = NOW()
+     WHERE session_id = p_session AND user_id = auth.uid() AND left_at IS NULL;
+    GET DIAGNOSTICS v_n = ROW_COUNT;
+    IF v_n > 0 THEN PERFORM public.juzzio_watch_party_close_if_empty(p_session); END IF;
+    RETURN v_n > 0;
+END $$;
+REVOKE ALL ON FUNCTION public.leave_watch_party(UUID) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.leave_watch_party(UUID) TO authenticated;
+
+-- Zorla kapatılan uygulamalar: yoklaması kesilen izleyiciler ve boş kalan oturumlar
+CREATE OR REPLACE FUNCTION public.juzzio_watch_party_sweep()
+RETURNS INTEGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_n INT;
+BEGIN
+    UPDATE public.watch_party_viewers v SET left_at = NOW()
+     WHERE v.left_at IS NULL AND v.last_seen_at < NOW() - INTERVAL '90 seconds';
+    UPDATE public.watch_party_sessions s
+       SET status = 'ended', is_playing = false, state_changed_at = NOW()
+     WHERE s.status = 'active' AND s.created_at < NOW() - INTERVAL '2 minutes'
+       AND NOT EXISTS (SELECT 1 FROM public.watch_party_viewers v WHERE v.session_id = s.id AND v.left_at IS NULL);
+    GET DIAGNOSTICS v_n = ROW_COUNT;
+    RETURN v_n;
+END $$;
+REVOKE ALL ON FUNCTION public.juzzio_watch_party_sweep() FROM PUBLIC, anon, authenticated;
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
+        BEGIN PERFORM cron.unschedule('juzzio_watch_party_sweep'); EXCEPTION WHEN OTHERS THEN NULL; END;
+        BEGIN
+            PERFORM cron.schedule('juzzio_watch_party_sweep', '* * * * *', 'SELECT public.juzzio_watch_party_sweep()');
+        EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'pg_cron görevi (juzzio_watch_party_sweep) oluşturulamadı: %', SQLERRM;
+        END;
+    END IF;
+END $$;
+
+-- Kart için: oturum hâlâ açık mı? (yalnız oda üyesi sorabilir)
+CREATE OR REPLACE FUNCTION public.watch_party_is_active(p_session UUID)
+RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+    SELECT EXISTS (SELECT 1 FROM public.watch_party_sessions s
+                    JOIN public.room_participants rp ON rp.room_id = s.room_id AND rp.user_id = auth.uid()
+                   WHERE s.id = p_session AND s.status = 'active');
+$$;
+REVOKE ALL ON FUNCTION public.watch_party_is_active(UUID) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.watch_party_is_active(UUID) TO authenticated;

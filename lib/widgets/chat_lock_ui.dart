@@ -84,8 +84,15 @@ Future<String?> showJuzzioPinPad(
     showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      barrierColor: Colors.black.withValues(alpha: 0.72),
+      // v1.2.9 düzeltme: TAM EKRAN — temadan gelen beyaz kenar çizgisi, yuvarlak köşe ve üstteki boşluk yok
+      backgroundColor: JuzzioAuthPalette.graphite,
+      barrierColor: JuzzioAuthPalette.graphite,
+      elevation: 0,
+      useSafeArea: false,
+      enableDrag: false,
+      clipBehavior: Clip.hardEdge,
+      shape: const RoundedRectangleBorder(side: BorderSide.none, borderRadius: BorderRadius.zero),
+      constraints: const BoxConstraints(minWidth: double.infinity, maxWidth: double.infinity),
       builder: (_) => _PinPad(title: title, subtitle: subtitle, autoLength: autoLength, verify: verify, errorText: errorText, step: step),
     );
 
@@ -324,10 +331,10 @@ class _PinPadState extends State<_PinPad> with TickerProviderStateMixin {
     Widget digit(String d) =>
         _key(Text(d, style: const TextStyle(color: JuzzioAuthPalette.bone, fontSize: 26, fontWeight: FontWeight.w600)), () => _tap(d));
     final h = MediaQuery.of(context).size.height;
-    return ClipRRect(
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+    return ClipRect(
       child: Container(
-        constraints: BoxConstraints(maxHeight: h * 0.94),
+        height: h,
+        width: double.infinity,
         color: JuzzioAuthPalette.graphite,
         child: Stack(children: [
           // limon ve mercan ışık lekeleri (yavaşça nefes alır)
@@ -347,12 +354,11 @@ class _PinPadState extends State<_PinPad> with TickerProviderStateMixin {
             ]),
           ),
           SafeArea(
-            top: false,
-            child: SingleChildScrollView(
+            child: Center(
+              child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 14),
               child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Container(width: 42, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(4))),
-                const SizedBox(height: 16),
+                const SizedBox(height: 4),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(26),
                   child: BackdropFilter(
@@ -459,6 +465,7 @@ class _PinPadState extends State<_PinPad> with TickerProviderStateMixin {
                   child: Text(app.trEn('Vazgeç', 'Cancel', 'Abbrechen'), style: const TextStyle(color: Colors.white60)),
                 ),
               ]),
+              ),
             ),
           ),
         ]),

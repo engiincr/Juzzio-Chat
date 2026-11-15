@@ -402,7 +402,10 @@ class _JuzzioBusinessOnboardingPageState extends State<JuzzioBusinessOnboardingP
     return Scaffold(
       backgroundColor: p.bgPrimary,
       appBar: AppBar(
-        backgroundColor: p.sheetBg,
+        // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            scrolledUnderElevation: 0,
         foregroundColor: p.textPrimary,
         elevation: 0,
         title: Text(_t('Business\'a Geç', 'Switch to Business', 'Zu Business wechseln')),

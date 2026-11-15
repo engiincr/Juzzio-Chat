@@ -45,7 +45,10 @@ const List<String> kJuzzioBanReasons = [
 ];
 
 /// Paneli açar: kayıtlı geçerli belirteç varsa doğrudan, yoksa şifre sorar.
-Future<void> openJuzzioAdminPanel(BuildContext context) async {
+/// v1.2.9: hata bildirimine dokununca açılan sekme (Hata bildirimleri)
+const int kJuzzioAdminErrorsTab = 11;
+
+Future<void> openJuzzioAdminPanel(BuildContext context, {int? initialTab}) async {
   final app = JuzzioAppController.instance;
   final features = JuzzioFeaturesService.instance;
   final messenger = ScaffoldMessenger.maybeOf(context);
@@ -58,7 +61,7 @@ Future<void> openJuzzioAdminPanel(BuildContext context) async {
       messenger?.showSnackBar(SnackBar(content: Text(app.t('err_not_allowed'))));
       return;
     }
-    await navigator.push(MaterialPageRoute(builder: (_) => JuzzioAdminPanelScreen(token: '', permissions: perms)));
+    await navigator.push(MaterialPageRoute(builder: (_) => JuzzioAdminPanelScreen(token: '', permissions: perms, initialTab: initialTab)));
     return;
   }
   var token = await features.storedAdminToken();
@@ -70,7 +73,7 @@ Future<void> openJuzzioAdminPanel(BuildContext context) async {
     );
   }
   if (token == null) return;
-  await navigator.push(MaterialPageRoute(builder: (_) => JuzzioAdminPanelScreen(token: token!)));
+  await navigator.push(MaterialPageRoute(builder: (_) => JuzzioAdminPanelScreen(token: token!, initialTab: initialTab)));
 }
 
 class _AdminUnlockDialog extends StatefulWidget {
@@ -277,7 +280,10 @@ class JuzzioAdminPanelScreen extends StatefulWidget {
   final String token;
   /// v0.9.0 (G21): Görünür sekmeleri belirleyen izinler. Süper yönetici: {'*'}.
   final Set<String> permissions;
-  const JuzzioAdminPanelScreen({super.key, required this.token, this.permissions = const {'*'}});
+  const JuzzioAdminPanelScreen({super.key, required this.token, this.permissions = const {'*'}, this.initialTab});
+
+  /// Açılışta gösterilecek sekmenin mantıksal numarası (izin yoksa ilk sekme)
+  final int? initialTab;
 
   @override
   State<JuzzioAdminPanelScreen> createState() => _JuzzioAdminPanelScreenState();
@@ -301,7 +307,11 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> with Si
     for (var i = 0; i < _tabPermissions.length; i++)
       if (_can(_tabPermissions[i])) i,
   ];
-  late final TabController _tabs = TabController(length: _visibleTabs.isEmpty ? 1 : _visibleTabs.length, vsync: this);
+  late final TabController _tabs = TabController(
+    length: _visibleTabs.isEmpty ? 1 : _visibleTabs.length,
+    vsync: this,
+    initialIndex: widget.initialTab != null && _visibleTabs.contains(widget.initialTab) ? _visibleTabs.indexOf(widget.initialTab!) : 0,
+  );
 
   Map<String, dynamic> _stats = const {};
   List<Map<String, dynamic>> _reports = const [];

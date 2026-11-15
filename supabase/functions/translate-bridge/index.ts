@@ -143,20 +143,27 @@ async function translateFast(text: string, sourceLang: string, targetLang: strin
   return r?.text ?? clean;
 }
 
+// v1.2.9: Deepgram çağrısı tek yerde. Dil nova-2'de desteklenmiyorsa (400) dil algılamayla bir kez
+// daha denenir; yetki/bakiye hataları ayrı kodlarla günlüğe düşer (anahtar ASLA yazılmaz).
+async function deepgramListen(audio: ArrayBuffer, mime: string, query: string): Promise<Response> {
+  return await fetch(`https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&punctuate=true&${query}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Token ${requiredEnv("DEEPGRAM_API_KEY")}`,
+      "Content-Type": mime,
+    },
+    body: audio,
+    signal: AbortSignal.timeout(45_000),
+  });
+}
+
 async function transcribeWithDeepgram(audio: ArrayBuffer, mime: string, lang: string) {
   const dgLang = lang === "tr" ? "tr" : (lang === "en" ? "en-US" : lang);
-  const res = await fetch(
-    `https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&punctuate=true&language=${encodeURIComponent(dgLang)}`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Token ${requiredEnv("DEEPGRAM_API_KEY")}`,
-        "Content-Type": mime,
-      },
-      body: audio,
-      signal: AbortSignal.timeout(45_000),
-    },
-  );
+  let res = await deepgramListen(audio, mime, `language=${encodeURIComponent(dgLang)}`);
+  if (res.status === 400) {
+    await res.body?.cancel();
+    res = await deepgramListen(audio, mime, "detect_language=true");
+  }
   if (!res.ok) {
     await res.body?.cancel();
     throw new Error(`deepgram_stt_failed_${res.status}`);
@@ -231,7 +238,19 @@ async function handleVoiceNote(
   if (!mime.startsWith("audio/")) return jsonResponse({ error: "unsupported_media_type" }, 415);
   const bytes = await blob.arrayBuffer();
 
-  const { transcript, confidence } = await transcribeWithDeepgram(bytes, mime, sourceLang === "auto" ? "tr" : sourceLang);
+  // v1.2.9: Deepgram hatası sesli mesajın gönderilmesini engellemez; neden açık kodla döner
+  let transcript = "";
+  let confidence = 0;
+  try {
+    ({ transcript, confidence } = await transcribeWithDeepgram(bytes, mime, sourceLang === "auto" ? "tr" : sourceLang));
+  } catch (e) {
+    const m = e instanceof Error ? e.message : "";
+    const code = m.startsWith("missing_secret:")
+      ? "deepgram_not_configured"
+      : (m.endsWith("_401") || m.endsWith("_403") ? "deepgram_key_rejected" : (m.endsWith("_402") ? "deepgram_no_credit" : "deepgram_stt_failed"));
+    console.error("voice_note_stt", m.startsWith("missing_secret:") ? "missing_secret" : m);
+    return jsonResponse({ mode: "voice_note", sourceLang, targetLang, originalText: "", translatedText: "", confidence: 0, sttError: code });
+  }
   const translatedText = transcript ? await translateFast(transcript, sourceLang, targetLang) : "";
   return jsonResponse({ mode: "voice_note", sourceLang, targetLang, originalText: transcript, translatedText, confidence });
 }
@@ -320,6 +339,17 @@ async function systemHealth(): Promise<Record<string, unknown>> {
       });
       await r.body?.cancel();
       deepgram = r.ok ? "ok" : (r.status === 401 || r.status === 403 ? "invalid_key" : `failed_${r.status}`);
+      // v1.2.9: anahtar geçerli ama "Member" yetkisi yoksa canlı altyazı jetonu verilemez (403)
+      if (r.ok) {
+        const g = await fetch("https://api.deepgram.com/v1/auth/grant", {
+          method: "POST",
+          headers: { Authorization: `Token ${key}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ ttl_seconds: 30 }),
+          signal: AbortSignal.timeout(6000),
+        });
+        await g.body?.cancel();
+        if (g.status === 401 || g.status === 403) deepgram = "key_cannot_grant";
+      }
     } catch (_) {
       deepgram = "unreachable";
     }
@@ -382,7 +412,10 @@ Deno.serve(async (req: Request) => {
       } catch (e) {
         const m = e instanceof Error ? e.message : "";
         console.error("deepgram_grant", m.startsWith("missing_secret:") ? "missing_secret" : m);
-        return jsonResponse({ error: m.startsWith("missing_secret:") ? "deepgram_not_configured" : "deepgram_grant_failed" }, 503);
+        const code = m.startsWith("missing_secret:")
+          ? "deepgram_not_configured"
+          : (m.endsWith("_401") || m.endsWith("_403") ? "deepgram_key_rejected" : "deepgram_grant_failed");
+        return jsonResponse({ error: code }, 503);
       }
       if (!grant.accessToken) return jsonResponse({ error: "deepgram_grant_empty" }, 502);
       return jsonResponse({ accessToken: grant.accessToken, expiresIn: grant.expiresIn });

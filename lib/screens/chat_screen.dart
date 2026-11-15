@@ -75,6 +75,8 @@ import 'call_screen.dart';
 import 'call_detail_page.dart';
 import 'contact_settings_page.dart';
 import 'settings_suite_screens.dart';
+import 'admin_panel_screen.dart' show openJuzzioAdminPanel, kJuzzioAdminErrorsTab;
+import '../core/notification_text.dart' show juzzioIsAdminSystemNotice;
 import 'release_notes_screen.dart';
 import '../core/theme/juzzio_colors.dart';
 import '../core/theme/juzzio_glass.dart';
@@ -1197,6 +1199,29 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     return langs;
   }
 
+  /// v1.2.9: Juzzio Topluluğu sürüm duyurusu → kullanıcının uygulama dilinde.
+  /// Türkçe: özgün metin; İngilizce: hazır İngilizce metin; diğer diller: İngilizceden (yoksa Türkçeden) çeviri.
+  Future<String> _resolveReleaseText(JuzzioMessage msg) async {
+    final lang = JuzzioAppController.instance.uiLang.toLowerCase().split(RegExp('[-_]')).first;
+    final en = msg.translatedText.trim();
+    if (lang == 'tr') return msg.originalText;
+    if (lang == 'en') return en.isNotEmpty ? en : msg.originalText;
+    final key = '${msg.id}_rel_$lang';
+    final cached = _localRetranslatedText[key];
+    if (cached != null) return cached;
+    try {
+      final out = await SupabaseService.instance.translateText(
+        text: en.isNotEmpty ? en : msg.originalText,
+        sourceLang: en.isNotEmpty ? 'en' : 'tr',
+        targetLang: lang,
+      );
+      if (out.trim().isNotEmpty) _localRetranslatedText[key] = out;
+      return out.trim().isNotEmpty ? out : (en.isNotEmpty ? en : msg.originalText);
+    } catch (_) {
+      return en.isNotEmpty ? en : msg.originalText;
+    }
+  }
+
   Future<String> _resolveTranslatedMessageText(JuzzioMessage msg, String desiredLang) async {
     final cleanDesired = desiredLang.toLowerCase();
     if (msg.originalText.trim().isEmpty) return '';
@@ -1215,13 +1240,17 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     if (_localRetranslatedText.containsKey(cacheKey)) {
       return _localRetranslatedText[cacheKey]!;
     }
-    final retranslated = await SupabaseService.instance.translateText(
-      text: msg.originalText,
-      sourceLang: 'auto',
-      targetLang: cleanDesired,
-    );
-    _localRetranslatedText[cacheKey] = retranslated;
-    return retranslated;
+    try {
+      final retranslated = await SupabaseService.instance.translateText(
+        text: msg.originalText,
+        sourceLang: 'auto',
+        targetLang: cleanDesired,
+      );
+      if (retranslated.trim().isNotEmpty) _localRetranslatedText[cacheKey] = retranslated;
+      return retranslated;
+    } catch (_) {
+      return msg.originalText; // çeviri servisine ulaşılamadı: metin yine görünür
+    }
   }
 
   void _showSnack(String text, {bool isError = false}) {
@@ -2776,7 +2805,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
     // v1.2.9: hava katmanı sohbet penceresinde (video/fotoğraf/çıkartmalar) ve keşfet/profil
     // sekmelerinde (gönderi videoları, profil müziği kartı) çizilmez — yalnız sohbet listesi/aramalarda
-    JuzzioAmbienceRouteObserver.instance.hold(_ambienceKey, _isInsideConversation || _selectedBottomTab == 3 || _selectedBottomTab == 4);
+    // v1.2.9: hava katmanı sohbet, keşfet ve profilde de görünür (kullanıcı isteği); hikâye ve tam ekran
+    // video sayfalarında gizli kalır (JuzzioAmbienceHide / rota izleyici)
+    JuzzioAmbienceRouteObserver.instance.hold(_ambienceKey, false);
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
@@ -3056,9 +3087,15 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     }
     final et = payload.eventType;
     if (et == 'system') {
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const JuzzioOtaUpdateSettingsPage()),
-      );
+      // v1.2.9: hata/uyarı bildirimi (yalnız kurucuya gider) → yönetici paneli "Hata bildirimleri";
+      // sürüm duyurusu → güncelleme sayfası
+      if (juzzioIsAdminSystemNotice('${payload.title} ${payload.body}')) {
+        unawaited(openJuzzioAdminPanel(context, initialTab: kJuzzioAdminErrorsTab));
+      } else {
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const JuzzioOtaUpdateSettingsPage()),
+        );
+      }
       return;
     }
     if ((et == 'like' || et == 'comment' || et == 'reply' || et == 'save') && payload.targetId.isNotEmpty) {
@@ -3620,7 +3657,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             children: [
               Flexible(child: JuzzioSpaceBrand()),
               SizedBox(width: 8),
-              JuzzioMoonPhaseIcon(size: 26),
+              JuzzioMoonPhaseIcon(size: 30),
             ],
           ),
           actions: [
@@ -4070,13 +4107,14 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
               padding: const EdgeInsets.only(left: 22),
               alignment: Alignment.centerLeft,
               decoration: BoxDecoration(
-                color: (pinPull > 70 ? const Color(0xFFC6F432) : Colors.white).withValues(alpha: pinPull > 70 ? 0.9 : 0.10),
+                // v1.2.9 düzeltme: cırtlak yeşil yerine o anki temanın vurgu rengi (yumuşak)
+                color: (pinPull > 70 ? JuzzioGlassTokens.glow : Colors.white).withValues(alpha: pinPull > 70 ? 0.38 : 0.10),
                 borderRadius: BorderRadius.circular(JuzzioSpaceMetrics.cardRadius),
               ),
               child: Transform.scale(
                 scale: 0.7 + (pinPull / 90) * 0.5,
                 child: Icon(pinnedNow ? Icons.push_pin_outlined : Icons.push_pin_rounded,
-                    color: pinPull > 70 ? const Color(0xFF0C0D0A) : p.textPrimary, size: 24),
+                    color: p.textPrimary, size: 24),
               ),
             ),
           ),
@@ -6220,9 +6258,31 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
   /// v0.7.0: Sohbet içinde arama kaydı (yapılan / cevaplanan / cevapsız)
   /// v1.2.8: "🎬 Sinema Parti" davet kartı — KATIL ile sinemaya girilir (en fazla 4 kişi)
+  // v1.2.9: Sinema Parti kartı — oturum bitmişse "KATIL" yerine "SONLANDIRILDI"
+  final Map<String, bool> _watchPartyActive = <String, bool>{};
+  final Map<String, DateTime> _watchPartyChecked = <String, DateTime>{};
+
+  void _checkWatchParty(String sessionId, {bool force = false}) {
+    if (sessionId.isEmpty) return;
+    final last = _watchPartyChecked[sessionId];
+    // bitmiş oturum yeniden açılmaz → bir daha sorulmaz; açık oturum 20 sn'de bir yoklanır
+    if (_watchPartyActive[sessionId] == false) return;
+    if (!force && last != null && DateTime.now().difference(last) < const Duration(seconds: 20)) return;
+    _watchPartyChecked[sessionId] = DateTime.now();
+    unawaited(() async {
+      try {
+        final ok = await SupabaseService.instance.client.rpc('watch_party_is_active', params: {'p_session': sessionId}) == true;
+        if (mounted && _watchPartyActive[sessionId] != ok) setState(() => _watchPartyActive[sessionId] = ok);
+      } catch (_) {}
+    }());
+  }
+
   Widget _buildWatchPartyCard(JuzzioPalette p, JuzzioMessage msg) {
     final app = JuzzioAppController.instance;
     final meta = msg.metadata;
+    final sessionId = '${meta['session_id'] ?? ''}';
+    _checkWatchParty(sessionId);
+    final ended = _watchPartyActive[sessionId] == false;
     final title = '${meta['title'] ?? ''}'.trim();
     final site = '${meta['site'] ?? ''}'.replaceFirst('www.', '');
     final kind = '${meta['source_kind'] ?? 'web'}';
@@ -6270,16 +6330,33 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
               ),
             ),
             const SizedBox(width: 8),
-            FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF34D399),
-                foregroundColor: const Color(0xFF062A1C),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            if (ended)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.white24),
+                ),
+                child: Text(app.trEn('SONLANDIRILDI', 'ENDED', 'BEENDET'),
+                    style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w900, fontSize: 11.5, letterSpacing: 0.3)),
+              )
+            else
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF34D399),
+                  foregroundColor: const Color(0xFF062A1C),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                onPressed: () async {
+                  await JuzzioWatchPartyScreen.open(context, msg.roomId);
+                  // dönüşte hemen yeniden sor (son çıkan bizsek parti kapanmıştır)
+                  await Future<void>.delayed(const Duration(milliseconds: 900));
+                  if (mounted) _checkWatchParty(sessionId, force: true);
+                },
+                child: Text(app.trEn('KATIL', 'JOIN', 'BEITRETEN'), style: const TextStyle(fontWeight: FontWeight.w900)),
               ),
-              onPressed: () => JuzzioWatchPartyScreen.open(context, msg.roomId),
-              child: Text(app.trEn('KATIL', 'JOIN', 'BEITRETEN'), style: const TextStyle(fontWeight: FontWeight.w900)),
-            ),
           ],
         ),
       ),
@@ -6857,16 +6934,31 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                               msg.metadata['event_id'] == null && msg.messageType != 'document')
                           FutureBuilder<String>(
                             // v1.0.0: mesaj yazıldığı gibi gösterilir; çeviri hazır olunca ALTINDA belirir
-                            future: isMe || msg.isLocalPending
-                                ? Future.value(msg.translatedText)
-                                : _resolveTranslatedMessageText(msg, mySubtitleLang),
+                            // v1.2.9 düzeltme: Juzzio Topluluğu paylaşımları herkesin UYGULAMA dilinde gösterilir
+                            // (önceden arama altyazı dili kullanılıyordu ve paylaşan yöneticide hiç çevrilmiyordu)
+                            future: msg.metadata['release'] is Map
+                                ? _resolveReleaseText(msg)
+                                : _inCommunity && !msg.isLocalPending
+                                    ? _resolveTranslatedMessageText(msg, JuzzioAppController.instance.uiLang.toLowerCase().split(RegExp('[-_]')).first)
+                                : isMe || msg.isLocalPending
+                                    ? Future.value(msg.translatedText)
+                                    : _resolveTranslatedMessageText(msg, mySubtitleLang),
                             initialData: msg.translatedText,
                             builder: (context, snap) {
                               // v1.2.0: Juzzio Topluluğu sürüm duyurusu → uygulama dilindeki metin (TR / EN)
                               final release = msg.metadata['release'] is Map;
                               final useEn = release && !JuzzioAppController.instance.uiLang.startsWith('tr') && msg.translatedText.trim().isNotEmpty;
-                              final mainText = useEn ? msg.translatedText : msg.originalText;
-                              final secondaryText = release ? '' : (snap.data ?? '').trim();
+                              // v1.2.9: sürüm duyurusu her kullanıcının KENDİ uygulama dilinde (yalnız TR/EN değil);
+                              // çeviri gelene kadar TR/EN gösterilir
+                              final localized = release && snap.connectionState == ConnectionState.done ? (snap.data ?? '').trim() : '';
+                              // toplulukta çeviri ana metin olur (resmî duyuru kendi dilinde okunur)
+                              final communityText = !release && _inCommunity && snap.connectionState == ConnectionState.done ? (snap.data ?? '').trim() : '';
+                              final mainText = localized.isNotEmpty
+                                  ? localized
+                                  : communityText.isNotEmpty
+                                      ? communityText
+                                      : (useEn ? msg.translatedText : msg.originalText);
+                              final secondaryText = release || _inCommunity ? '' : (snap.data ?? '').trim();
                               return Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -7831,11 +7923,11 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                 // v1.2.6: Juzzio Community'de tepki yok (resmî duyuru kanalı)
                 if (!msg.isDeleted && !_inCommunity)
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(10, 4, 10, 10),
-                    child: JuzzioGlass(
-                      radius: 999,
-                      blur: false,
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                    padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
+                    // v1.2.9 düzeltme: iç yüzeyler düz (çerçevesiz) — dış cam çerçeveyle çift kenar/yarıçap uyumsuzluğu olmaz
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.07), borderRadius: BorderRadius.circular(22)),
                       child: Row(
                         children: [
                           for (final emoji in _reactionEmojis)
@@ -7878,11 +7970,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                     ),
                   ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
-                  child: JuzzioGlass(
-                    radius: 22,
-                    blur: false,
-                    padding: EdgeInsets.zero,
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                  child: Container(
+                    clipBehavior: Clip.antiAlias,
+                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.07), borderRadius: BorderRadius.circular(22)),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -8973,7 +9064,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   ) {
     final me = _effectiveCurrentUserProfile;
     return Column(children: [
-      _buildLifeCenterEntryBar(p, appCtrl),
+      // v1.2.9: varsayılan kapalı; Ayarlar → Erişilebilirlik ve görünüm'den açılır
+      if (appCtrl.showLifeCenterShortcut) _buildLifeCenterEntryBar(p, appCtrl),
       Expanded(child: JuzzioProfileView(
       key: const ValueKey('juzzio_my_profile_tab'),
       userId: me.id,

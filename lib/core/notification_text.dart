@@ -203,3 +203,11 @@ List<String>? juzzioPreviewParts(String preview, String prefix) {
   return null;
 }
 
+
+
+/// v1.2.9: sistem bildirimi bir yönetici hata/uyarı kaydı mı? (ham önizleme "admin_error|…" ya da
+/// push başlığındaki 🛠/⚠️ işareti). Saf; test edilir.
+bool juzzioIsAdminSystemNotice(String text) {
+  final t = text.trim();
+  return t.startsWith('admin_error|') || t.startsWith('admin_alert|') || t.contains('🛠') || t.contains('⚠️') || t.contains('admin_error|') || t.contains('admin_alert|');
+}

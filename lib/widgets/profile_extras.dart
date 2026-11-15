@@ -1153,8 +1153,9 @@ class _JuzzioGlassMusicCapsuleState extends State<JuzzioGlassMusicCapsule> with 
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                Color.alphaBlend(Colors.white.withValues(alpha: 0.16), Colors.black.withValues(alpha: 0.32)),
-                Color.alphaBlend(Colors.white.withValues(alpha: 0.04), Colors.black.withValues(alpha: 0.32)),
+                // v1.2.9: açık temada kapsül daha koyu — beyaz şarkı adı açık zeminde okunmuyordu
+                Color.alphaBlend(Colors.white.withValues(alpha: 0.16), (JuzzioAppController.instance.isDark ? Colors.black.withValues(alpha: 0.32) : const Color(0xFF15254D).withValues(alpha: 0.92))),
+                Color.alphaBlend(Colors.white.withValues(alpha: 0.04), (JuzzioAppController.instance.isDark ? Colors.black.withValues(alpha: 0.32) : const Color(0xFF15254D).withValues(alpha: 0.92))),
               ],
             ),
           ),

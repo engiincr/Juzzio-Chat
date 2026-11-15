@@ -10,6 +10,7 @@ Yeni bir görsel/ses/video eklenmeden önce bu tabloya satır eklenmelidir.
 | `assets/creator/juzzio_creator_reel.mp4` | Görüntü: `tools/creator_reel/reel.py` (kodla çizildi). Ses: `tools/juzzio_music_synth.py 26.6 11` | Juzzio'ya ait, özgün |
 | `assets/intro/juzzio_intro_tr.mp4`, `_en.mp4` | Görüntü: `tools/intro_video/intro.py`. Ses: `tools/juzzio_music_synth.py 20 7` | Juzzio'ya ait, özgün |
 | `assets/intro/juzzio_whatsnew_tr.mp4`, `_en.mp4` | Görüntü: `tools/intro_video/whatsnew.py` (kodla çizildi; bayraklar Noto Color Emoji). Ses: `tools/juzzio_music_synth.py 18 129` (v1.2.9) | Juzzio'ya ait, özgün |
+| `assets/weather/moon.png`, `sun.png`, `cloud_a.png`, `cloud_b.png` | `tools/weather_sprites.py` (tamamen kodla üretildi; fotoğraf ya da üçüncü taraf görsel yok) | Juzzio'ya ait, özgün |
 | Hareketli "GIF" çıkartmalar (`lib/widgets/juzzio_gif_stickers.dart`) | Dosya yok: emoji yazı tipi + kodla çizilen hareket/efektler (v1.2.9) | Juzzio'ya ait; emoji glifleri SIL OFL 1.1 |
 | `docs/images/juzzio-social-preview.png` | `tools/github_banner.py` (logo + Inter yazı tipi, kodla çizildi) | Juzzio'ya ait; Inter SIL OFL 1.1 |
 | `assets/images/pdf_logo.png` | Yasal PDF raporunun antet logosu (şeffaf arka plan); Juzzio logosu + "Juzzio." yazısı (v1.2.9). Uygulama logosundan ayrı dosyadır | Juzzio'ya ait |

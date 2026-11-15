@@ -87,6 +87,11 @@ On some phones names starting with an emoji crashed the app; some actions showed
 - Replying from a notification no longer removes the sender's photo
 - Fixed the admin header and "Welcome" overflow; long names are shortened neatly everywhere
 - Stories are permanently deleted together with their media files after 24 hours
+- Fewer freezes and stutters in calls: the screen refreshes at intervals instead of on every network event; live translation is smoother and a late, older translation can no longer overwrite a newer one
+- Juzzio Community announcements are translated into your language
+- Fixed colour mismatches on the sign-in, sign-up and settings pages in the light theme
+- The locked-chat PIN screen is full screen, with no edge lines or overflow
+- The My tasks & reminders shortcut on Profile is hidden by default; turn it on in Settings › Accessibility
 
 ### 🔐 Security & privacy
 - File security: executable/script files like .php, .jsp, .exe, .apk, .html, .svg, .js, hidden double extensions and files whose content doesn't match their extension are blocked on the device both when sending and opening; the server also accepts only allowed types

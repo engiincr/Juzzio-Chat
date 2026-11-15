@@ -142,7 +142,10 @@ class DeepgramLiveKitController extends ChangeNotifier {
   List<JuzzioIceServer> _backupIce = const [];
   static DateTime? _preferBackupUntil;
   static bool get preferBackupTurn => _preferBackupUntil != null && DateTime.now().isBefore(_preferBackupUntil!);
-  static void markPrimaryUnreachable() => _preferBackupUntil = DateTime.now().add(const Duration(minutes: 30));
+  // v1.2.9 düzeltme: yedek aktarıcı LiveKit'in kendi sunucularının YERİNE geçer (istemci birleştirmez) ve
+  // ücretsiz olduğundan yavaştır. Tercih süresi 30 dk → 3 dk: yalnız gerçek bir bağlantı hatasından hemen
+  // sonraki denemeler yedekle başlar; kalıcı olarak yedekte kalıp gecikme/donma yaratmaz.
+  static void markPrimaryUnreachable() => _preferBackupUntil = DateTime.now().add(const Duration(minutes: 3));
   static void clearBackupPreference() => _preferBackupUntil = null;
 
   ConnectOptions _connectOptions(bool backup) =>
@@ -163,7 +166,7 @@ class DeepgramLiveKitController extends ChangeNotifier {
     await Future<void>.delayed(Duration(milliseconds: 1000 * _rejoinAttempts.clamp(1, 5)));
     final room = _room;
     if (room == null || _isDisconnecting || _isDisposed) return;
-    final backup = _rejoinAttempts >= 2 && _backupIce.isNotEmpty;
+    final backup = _rejoinAttempts >= 3 && _backupIce.isNotEmpty; // önce ana yol 2 kez denenir
     if (backup && !usingBackupTurn) {
       usingBackupTurn = true;
       notifyListeners();
@@ -583,27 +586,49 @@ class DeepgramLiveKitController extends ChangeNotifier {
     try {
       await _room!.connect(access.url, access.token, connectOptions: _connectOptions(usingBackupTurn), fastConnectOptions: fast);
     } catch (e) {
-      // v1.2.9: ana yol kurulamadı → yedek TURN ile bir kez daha (ör. kurumsal ağ, UDP engeli, TURN kotası)
-      if (usingBackupTurn || _backupIce.isEmpty || _isDisposed) rethrow;
-      usingBackupTurn = true;
-      notifyListeners();
-      await _room!.connect(access.url, access.token, connectOptions: _connectOptions(true), fastConnectOptions: fast);
-      markPrimaryUnreachable();
+      // v1.2.9: ana yol kurulamadı → önce ANA yol bir kez daha (anlık ağ hatası), sonra yedek TURN
+      if (_isDisposed) rethrow;
+      try {
+        await Future<void>.delayed(const Duration(milliseconds: 900));
+        usingBackupTurn = false;
+        await _room!.connect(access.url, access.token, connectOptions: _connectOptions(false), fastConnectOptions: fast);
+      } catch (_) {
+        if (_backupIce.isEmpty || _isDisposed) rethrow;
+        usingBackupTurn = true;
+        notifyListeners();
+        await _room!.connect(access.url, access.token, connectOptions: _connectOptions(true), fastConnectOptions: fast);
+        markPrimaryUnreachable();
+      }
     }
 
     // v1.2.8: önceden burada gürültü engelleme/ses izolasyonu zorla KAPATILIYORDU (ayar yok
     // sayılıyordu); artık odanın kullanıcı ayarına göre kurulan ses seçenekleri korunur
-    await _room!.localParticipant?.setMicrophoneEnabled(
-      true,
-      audioCaptureOptions: AudioCaptureOptions(
-        autoGainControl: true,
-        echoCancellation: true,
-        noiseSuppression: denoise,
-        voiceIsolation: denoise,
-        highPassFilter: denoise,
-        typingNoiseDetection: denoise,
-      ),
-    );
+    // v1.2.9 düzeltme: "TimeoutException: LiveKit Exception" — yayın (publisher) bağlantısı 10 sn'de
+    // kurulamayınca mikrofon yayını hata verip aramayı düşürüyordu. Artık 3 kez (1 sn, 2 sn arayla)
+    // denenir; yayın bağlantısı çoğu zaman ikinci denemede hazırdır.
+    Future<void> publishMic() async {
+      await _room!.localParticipant?.setMicrophoneEnabled(
+        true,
+        audioCaptureOptions: AudioCaptureOptions(
+          autoGainControl: true,
+          echoCancellation: true,
+          noiseSuppression: denoise,
+          voiceIsolation: denoise,
+          highPassFilter: denoise,
+          typingNoiseDetection: denoise,
+        ),
+      );
+    }
+
+    for (var attempt = 1; ; attempt++) {
+      try {
+        await publishMic();
+        break;
+      } catch (_) {
+        if (attempt >= 3 || _isDisposed || _isDisconnecting || _room == null) rethrow;
+        await Future<void>.delayed(Duration(seconds: attempt));
+      }
+    }
 
     await Hardware.instance.setSpeakerphoneOn(true);
     isConnected = true;
@@ -1034,11 +1059,26 @@ class DeepgramLiveKitController extends ChangeNotifier {
             final desiredLang = JuzzioAppController.instance.subtitleLang.toLowerCase();
             if (incoming.targetLang.toLowerCase() != desiredLang &&
                 incoming.originalText.trim().isNotEmpty) {
+              // v1.2.9 başarım: ara sonuçların her biri için çeviri isteği atılmaz (konuşmacı başına
+              // ~0,6 sn'de bir); geç dönen eski çeviri yenisini ya da kesin sonucu ezemez.
+              int? ticket;
+              if (!incoming.isFinal) {
+                final now = DateTime.now();
+                final last = _remoteInterimAt[incoming.speakerId];
+                if (last != null && now.difference(last).inMilliseconds < kRemoteInterimGapMs) return;
+                _remoteInterimAt[incoming.speakerId] = now;
+                ticket = (_remoteInterimTicket[incoming.speakerId] ?? 0) + 1;
+                _remoteInterimTicket[incoming.speakerId] = ticket;
+              }
               final retranslated = await SupabaseService.instance.translateText(
                 text: incoming.originalText,
                 sourceLang: 'auto',
                 targetLang: desiredLang,
               );
+              if (ticket != null &&
+                  (ticket != _remoteInterimTicket[incoming.speakerId] || _finalizedSegmentIds.contains(incoming.id))) {
+                return;
+              }
               addSubtitlePacket(
                 LiveSubtitlePacket(
                   id: incoming.id,
@@ -1073,9 +1113,12 @@ class DeepgramLiveKitController extends ChangeNotifier {
             if (sentAt != null) {
               final rtt = DateTime.now().millisecondsSinceEpoch - sentAt;
               if (rtt > 0 && rtt < 5000) {
+                final before = latencyMs;
+                final beforeHealth = networkHealth;
                 latencyMs = ((latencyMs * 0.3) + (rtt * 0.7)).round().clamp(14, 999);
                 _recalculateHealthLevel();
-                notifyListeners();
+                // v1.2.9 başarım: birkaç ms'lik oynama için ekran yeniden çizilmez
+                if (networkHealth != beforeHealth || (latencyMs - before).abs() >= 8) notifyListeners();
               }
             }
           }
@@ -1402,6 +1445,9 @@ class DeepgramLiveKitController extends ChangeNotifier {
   }
 
   String _mySegmentBuffer = '';
+  static const int kRemoteInterimGapMs = 600;
+  final Map<String, DateTime> _remoteInterimAt = {};
+  final Map<String, int> _remoteInterimTicket = {};
 
   Future<void> _emitOwnSegment(String segmentId, String transcript, {required bool isFinal}) async {
     try {
@@ -1473,14 +1519,11 @@ class DeepgramLiveKitController extends ChangeNotifier {
   bool get lowPowerActive => _lowPower;
 
   /// v1.2.9: bir kişinin görüntü katmanını uygular (HIGH ≈720p, MEDIUM ≈480p, LOW ≈360p)
+  // v1.2.9 düzeltme: kademe artık elle ZORLANMAZ. Oda "adaptiveStream + dynacast + simulcast" ile kurulu;
+  // LiveKit çözünürlüğü (720p/480p/360p katmanları) ağa ve görüntü boyutuna göre kendisi seçer. Elle
+  // setVideoQuality/setVideoFPS çağrıları bu otomatikle çakışıp katman değişimlerini ve donmayı artırıyordu.
+  // Burada yalnız ekrandaki kalite rozeti güncellenir.
   Future<void> _applyTier(RemoteParticipant p, String tier) async {
-    final q = tier == 'LOW' ? VideoQuality.LOW : (tier == 'MEDIUM' ? VideoQuality.MEDIUM : VideoQuality.HIGH);
-    for (final pub in p.videoTrackPublications) {
-      try {
-        await pub.setVideoQuality(q);
-        await pub.setVideoFPS(tier == 'LOW' ? 15 : (tier == 'MEDIUM' ? 24 : 30));
-      } catch (_) {}
-    }
     notifyListeners();
   }
 

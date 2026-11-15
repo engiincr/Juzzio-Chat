@@ -89,6 +89,11 @@ class _JuzzioSystemHealthPageState extends State<JuzzioSystemHealthPage> {
           return _app.trEn('Sunucuda DEEPGRAM_API_KEY yok — aramalarda cihaz tanıyıcısı kullanılır',
               'DEEPGRAM_API_KEY missing — calls use the device recognizer', 'DEEPGRAM_API_KEY fehlt');
         }
+        if (d == 'key_cannot_grant') {
+          return _app.trEn('Deepgram anahtarı geçerli ama yetkisi yetersiz — "Member" rolünde yeni anahtar gerekli (canlı altyazı çalışmaz)',
+              'Deepgram key is valid but lacks permission — a new key with the "Member" role is needed (live captions will not work)',
+              'Deepgram-Schlüssel gültig, aber ohne Berechtigung — neuer Schlüssel mit Rolle „Member“ nötig');
+        }
         if (d == 'invalid_key') return _app.trEn('Deepgram anahtarı geçersiz/iptal', 'Deepgram key invalid/revoked', 'Deepgram-Schlüssel ungültig');
         return d;
       case 'translate':

@@ -591,13 +591,16 @@ class MainActivity : FlutterActivity() {
     private var callVideo = false
     // v1.2.8: Sinema Parti — uygulamadan çıkınca film küçük pencerede (16:9) sürer
     private var watchActive = false
+    // v1.2.9: Sinema Parti'de uygulamadan çıkınca KENDİLİĞİNDEN küçük pencere yalnız yerel video
+    // oynatıcıda açılır. Web sayfası (WebView) küçük pencerede siyah kalıyordu; orada otomatik giriş yok.
+    private var watchAutoPip = false
 
     private fun pipParams(): PictureInPictureParams? {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return null
         val b = PictureInPictureParams.Builder()
             .setAspectRatio(if (watchActive) Rational(16, 9) else if (callVideo) Rational(9, 16) else Rational(3, 4))
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            b.setAutoEnterEnabled(callActive || watchActive)
+            b.setAutoEnterEnabled(callActive || (watchActive && watchAutoPip))
             b.setSeamlessResizeEnabled(true)
         }
         return b.build()
@@ -623,7 +626,7 @@ class MainActivity : FlutterActivity() {
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
         // Android 12+ otomatik girer (setAutoEnterEnabled); daha eskilerde elle
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) enterCallPip()
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S && (callActive || (watchActive && watchAutoPip))) enterCallPip()
     }
 
     override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: Configuration) {
@@ -631,7 +634,26 @@ class MainActivity : FlutterActivity() {
         try {
             activeMethodChannel?.invokeMethod("onPipChanged", mapOf("inPip" to isInPictureInPictureMode))
         } catch (_: Exception) {}
+        // v1.2.9: küçük pencere KAPATILDI mı (× / aşağı sürükleme / uygulamanın son uygulamalardan atılması)?
+        // Büyütülünce etkinlik yeniden öne gelir; kapatılınca gelmez. Sinema Parti'de (arama yokken)
+        // kapatılan pencere arkada siyah bir etkinlik bırakıyor ve uygulama yeniden açılamıyordu:
+        // etkinlik temiz biçimde sonlandırılır, bir sonraki açılış sıfırdan başlar.
+        if (!isInPictureInPictureMode && watchActive && !callActive) {
+            window.decorView.postDelayed({
+                try {
+                    if (!isAppInForeground && !isFinishing && !isInPictureInPictureModeCompat()) {
+                        watchActive = false
+                        watchAutoPip = false
+                        try { activeMethodChannel?.invokeMethod("onWatchPipDismissed", null) } catch (_: Exception) {}
+                        finishAndRemoveTask()
+                    }
+                } catch (_: Exception) {}
+            }, 600)
+        }
     }
+
+    private fun isInPictureInPictureModeCompat(): Boolean =
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && isInPictureInPictureMode
 
     override fun onResume() {
         super.onResume()
@@ -812,6 +834,7 @@ class MainActivity : FlutterActivity() {
                 "enterCallPip" -> result.success(enterCallPip())
                 "setWatchActive" -> {
                     watchActive = call.argument<Boolean>("active") ?: false
+                    watchAutoPip = watchActive && (call.argument<Boolean>("auto") ?: false)
                     applyPipParams()
                     result.success(true)
                 }

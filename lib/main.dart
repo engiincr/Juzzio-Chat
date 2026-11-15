@@ -579,17 +579,26 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
     final appCtrl = JuzzioAppController.instance;
     // İlk iki karşılama adımı ("Harika!" ve "Bildirimleri aç") kullanıcının
     // isteğiyle özgün görünümünde kalır; giriş/kayıttan itibaren cam tema.
-    final onboarding = !_booting && _step < 2;
-    final p = JuzzioPalette(onboarding ? false : appCtrl.isDark);
+    // v1.2.9 düzeltme: karşılama adımları açık zemine ZORLANIYORDU ama yazı renkleri gerçek temadan
+    // geliyordu → koyu temada açık zemin üstünde beyaz yazı (okunmuyordu). Zemin de yazı da artık
+    // aynı kaynaktan (gerçek gece/gündüz modu) gelir.
+    // v1.2.9 düzeltme (2): açık zeminde beyaz yazı / koyu kart sorunu sürüyordu çünkü zemin ile yazı
+    // rengi farklı kaynaklardan gelebiliyordu (gece-gündüz modu, özel tema, hava teması). Artık zemin,
+    // GERÇEKTE kullanılan yazı renginden türetilir ve opaktır: yazı açıksa zemin koyu, yazı koyuysa
+    // zemin açık. Karşılama, bildirim izni ve giriş/kayıt sayfalarında karşıtlık her koşulda sağlanır.
+    final lightText = JuzzioGlassTokens.textPrimary.computeLuminance() > 0.5;
+    final p = JuzzioPalette(lightText);
     final s = JuzzioStrings(appCtrl.uiLang);
+    final authBg = lightText
+        ? const [Color(0xFF050916), Color(0xFF0A1230), Color(0xFF070B1C)]
+        : const [Color(0xFFF6F8FE), Color(0xFFE9EEFA), Color(0xFFF3F6FD)];
 
     return Scaffold(
-      backgroundColor: p.bgPrimary,
+      backgroundColor: authBg.first,
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        // Giriş/kayıttan itibaren nötr cam zemin; ilk iki karşılama adımı özgün kalır
-        decoration: onboarding ? BoxDecoration(gradient: p.backgroundGradient) : JuzzioGlassTokens.backdrop,
+        decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: authBg)),
         child: SafeArea(
           child: Column(
             children: [

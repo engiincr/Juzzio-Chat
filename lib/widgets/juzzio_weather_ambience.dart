@@ -30,6 +30,7 @@ import '../core/app_theme_and_locale.dart';
 import '../core/theme/juzzio_glass.dart';
 import '../services/juzzio_weather_service.dart';
 import 'juzzio_moon_phase.dart';
+import 'juzzio_weather_sprites.dart';
 
 /// v1.2.8: hava katmanının hangi sayfada görüneceğini izler. Yalnız ana ekranda (yığında tek
 /// tam sayfa varken) görünür; hikâye, video, arama, profil vb. tam sayfalar açılınca söner.
@@ -166,6 +167,7 @@ class _JuzzioWeatherAmbienceState extends State<JuzzioWeatherAmbience> with Tick
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    unawaited(JuzzioWeatherSprites.load());
     _svc.addListener(_sync);
     JuzzioAppController.instance.addListener(_sync);
     _route.onHome.addListener(_sync);
@@ -507,6 +509,19 @@ class _WeatherPainter extends CustomPainter {
         canvas.drawPath(p, fill(dark ? Colors.white : const Color(0xFFB9C3E6)));
       case JuzzioWeatherDoodle.sun:
       case JuzzioWeatherDoodle.sunset:
+        final ss = JuzzioWeatherSprites.sun;
+        if (ss != null) {
+          canvas.drawImageRect(
+            ss,
+            Rect.fromLTWH(0, 0, ss.width.toDouble(), ss.height.toDouble()),
+            Rect.fromCircle(center: Offset.zero, radius: r * 2.4),
+            Paint()
+              ..filterQuality = FilterQuality.low
+              ..color = Colors.white.withValues(alpha: math.min(1.0, alpha * 1.8))
+              ..colorFilter = k == JuzzioWeatherDoodle.sunset ? const ColorFilter.mode(Color(0xFFFF9A6B), BlendMode.modulate) : null,
+          );
+          break;
+        }
         final core = k == JuzzioWeatherDoodle.sun ? const Color(0xFFFFE27A) : const Color(0xFFFFB067);
         final edge = k == JuzzioWeatherDoodle.sun ? const Color(0xFFFFA81F) : const Color(0xFFFF6A3D);
         canvas.drawCircle(Offset.zero, r * 1.25, Paint()
@@ -525,6 +540,21 @@ class _WeatherPainter extends CustomPainter {
         canvas.drawCircle(Offset.zero, r * 0.58, Paint()
           ..shader = RadialGradient(center: const Alignment(-0.3, -0.3), colors: [core.withValues(alpha: math.min(1.0, alpha * 1.6)), edge.withValues(alpha: alpha)]).createShader(Rect.fromCircle(center: Offset.zero, radius: r * 0.58)));
       case JuzzioWeatherDoodle.cloud:
+        // v1.2.9: gerçekçi kümülüs görseli (kodla üretilmiş); yüklenemezse aşağıdaki vektör çizim
+        final cs = r > 14 ? JuzzioWeatherSprites.cloudA : JuzzioWeatherSprites.cloudB;
+        if (cs != null) {
+          final w = r * 2.6, h = w * cs.height / cs.width;
+          canvas.drawImageRect(
+            cs,
+            Rect.fromLTWH(0, 0, cs.width.toDouble(), cs.height.toDouble()),
+            Rect.fromCenter(center: Offset.zero, width: w, height: h),
+            Paint()
+              ..filterQuality = FilterQuality.low
+              ..color = Colors.white.withValues(alpha: math.min(1.0, alpha * (dark ? 1.5 : 2.0)))
+              ..colorFilter = dark ? null : const ColorFilter.mode(Color(0xFF8FA3C8), BlendMode.modulate),
+          );
+          break;
+        }
         final top = dark ? const Color(0xFFF2F6FF) : const Color(0xFFB4C3DE);
         final bottom = dark ? const Color(0xFF9AA8C4) : const Color(0xFF7F92B6);
         final p = Path()

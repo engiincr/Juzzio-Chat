@@ -67,7 +67,10 @@ class _JuzzioBusinessCustomersTabState extends State<JuzzioBusinessCustomersTab>
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
-        backgroundColor: p.sheetBg,
+        // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            scrolledUnderElevation: 0,
         foregroundColor: p.textPrimary,
         elevation: 0,
         title: Text(_bt('Müşteriler', 'Customers', 'Kunden')),

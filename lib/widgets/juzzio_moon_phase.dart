@@ -6,11 +6,13 @@
 //  Doğruluk ±0,5 gün — simge için fazlasıyla yeterli.
 // =============================================================================
 
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
 import '../core/app_theme_and_locale.dart';
+import 'juzzio_weather_sprites.dart';
 
 const double kJuzzioSynodicMonth = 29.530588853;
 final DateTime _kRefNewMoon = DateTime.utc(2000, 1, 6, 18, 14);
@@ -64,16 +66,32 @@ Path juzzioMoonLitPath(double phase, double r) {
   return Path.combine(gibbous ? PathOperation.union : PathOperation.difference, half, ellipse);
 }
 
-/// Gerçekçi ay çizimi: karanlık disk (dünya ışığı) + aydınlık kısım (radyal gölgeleme) + kraterler + hâle
+/// Gerçekçi ay çizimi. v1.2.9: görsel yüklüyse (assets/weather/moon.png — kraterli, denizli, kodla
+/// üretilmiş Ay) o kullanılır ve karanlık kısım evreye göre gölgelenir; yüklü değilse vektör çizim.
 void juzzioPaintMoon(Canvas canvas, double phase, double r, {double alpha = 1, bool glow = true}) {
   final disk = Rect.fromCircle(center: Offset.zero, radius: r);
   if (glow) {
     canvas.drawCircle(Offset.zero, r * 1.7,
-        Paint()..shader = RadialGradient(colors: [const Color(0xFFFFF4D6).withValues(alpha: 0.28 * alpha), const Color(0x00FFF4D6)]).createShader(Rect.fromCircle(center: Offset.zero, radius: r * 1.7)));
+        Paint()..shader = RadialGradient(colors: [const Color(0xFFFFF4D6).withValues(alpha: 0.26 * alpha), const Color(0x00FFF4D6)]).createShader(Rect.fromCircle(center: Offset.zero, radius: r * 1.7)));
+  }
+  final lit = juzzioMoonLitPath(phase, r);
+  final sprite = JuzzioWeatherSprites.moon;
+  if (sprite != null) {
+    canvas.drawImageRect(
+      sprite,
+      Rect.fromLTWH(0, 0, sprite.width.toDouble(), sprite.height.toDouble()),
+      disk,
+      Paint()
+        ..filterQuality = FilterQuality.medium
+        ..color = Colors.white.withValues(alpha: alpha),
+    );
+    // karanlık yüz: tam siyah değil — "dünya ışığı" ile yüzey hafifçe seçilir
+    final dark = Path.combine(PathOperation.difference, Path()..addOval(disk.inflate(0.6)), lit);
+    canvas.drawPath(dark, Paint()..color = const Color(0xFF070B18).withValues(alpha: 0.88 * alpha));
+    return;
   }
   // dünya ışığı (karanlık kısım hafifçe seçilir)
   canvas.drawCircle(Offset.zero, r, Paint()..color = const Color(0xFF3A4256).withValues(alpha: 0.55 * alpha));
-  final lit = juzzioMoonLitPath(phase, r);
   canvas.save();
   canvas.clipPath(lit);
   canvas.drawCircle(
@@ -87,19 +105,12 @@ void juzzioPaintMoon(Canvas canvas, double phase, double r, {double alpha = 1, b
         stops: const [0, 0.6, 1],
       ).createShader(disk),
   );
-  // kraterler (sabit konum; yalnız aydınlık kısımda görünür)
   final crater = Paint()..color = const Color(0xFF9E9478).withValues(alpha: 0.42 * alpha);
   for (final c in const [Offset(-0.32, -0.18), Offset(0.22, 0.3), Offset(0.38, -0.32), Offset(-0.12, 0.45), Offset(0.05, -0.02)]) {
     final rr = r * (0.09 + (c.dx.abs() * 0.12));
     canvas.drawCircle(Offset(c.dx * r, c.dy * r), rr, crater);
-    canvas.drawCircle(Offset(c.dx * r - rr * 0.25, c.dy * r - rr * 0.25), rr * 0.55, Paint()..color = Colors.white.withValues(alpha: 0.18 * alpha));
   }
   canvas.restore();
-  // kenar
-  canvas.drawCircle(Offset.zero, r, Paint()
-    ..style = PaintingStyle.stroke
-    ..strokeWidth = math.max(0.6, r * 0.05)
-    ..color = Colors.white.withValues(alpha: 0.18 * alpha));
 }
 
 /// Başlıkta küçük ay simgesi (dokununca evre adı ve aydınlanma yüzdesi)
@@ -110,6 +121,7 @@ class JuzzioMoonPhaseIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    unawaited(JuzzioWeatherSprites.load());
     final phase = juzzioMoonPhase(when ?? DateTime.now());
     final name = juzzioMoonPhaseName(phase);
     final pct = (juzzioMoonIllumination(phase) * 100).round();
@@ -121,7 +133,10 @@ class JuzzioMoonPhaseIcon extends StatelessWidget {
         child: SizedBox(
           width: size,
           height: size,
-          child: CustomPaint(painter: _MoonIconPainter(phase)),
+          child: ValueListenableBuilder<int>(
+            valueListenable: JuzzioWeatherSprites.ready,
+            builder: (_, v, __) => CustomPaint(painter: _MoonIconPainter(phase, v)),
+          ),
         ),
       ),
     );
@@ -129,8 +144,9 @@ class JuzzioMoonPhaseIcon extends StatelessWidget {
 }
 
 class _MoonIconPainter extends CustomPainter {
-  _MoonIconPainter(this.phase);
+  _MoonIconPainter(this.phase, this.spriteVersion);
   final double phase;
+  final int spriteVersion;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -141,5 +157,5 @@ class _MoonIconPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _MoonIconPainter old) => old.phase != phase;
+  bool shouldRepaint(covariant _MoonIconPainter old) => old.phase != phase || old.spriteVersion != spriteVersion;
 }

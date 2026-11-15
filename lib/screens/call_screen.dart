@@ -867,6 +867,29 @@ class _CallScreenState extends State<CallScreen> {
     } catch (_) {}
   }
 
+  // v1.2.9 başarım: LiveKit saniyede onlarca olay üretir (konuşan kişi, kalite, altyazı, ağ ölçümü).
+  // Her olayda bütün arama ekranını yeniden kurmak donmaya yol açıyordu; yeniden çizim en fazla
+  // ~50 ms'de bir yapılır (son olay asla kaybolmaz — bekleyen çizim süre dolunca uygulanır).
+  static const int kCallRebuildMinGapMs = 50;
+  Timer? _rebuildTimer;
+  DateTime _lastRebuildAt = DateTime.fromMillisecondsSinceEpoch(0);
+
+  void _scheduleRebuild() {
+    if (!mounted || _rebuildTimer != null) return;
+    final since = DateTime.now().difference(_lastRebuildAt).inMilliseconds;
+    if (since >= kCallRebuildMinGapMs) {
+      _lastRebuildAt = DateTime.now();
+      setState(() {});
+      return;
+    }
+    _rebuildTimer = Timer(Duration(milliseconds: kCallRebuildMinGapMs - since), () {
+      _rebuildTimer = null;
+      if (!mounted) return;
+      _lastRebuildAt = DateTime.now();
+      setState(() {});
+    });
+  }
+
   void _onControllerUpdate() {
     if (!mounted) return;
     unawaited(_syncReconnectTone(_controller.isReconnecting || _controller.peerReconnectingName != null));
@@ -893,7 +916,7 @@ class _CallScreenState extends State<CallScreen> {
     final currentLen = _controller.subtitleHistory.length;
     final shouldScroll = currentLen != _lastHistoryCount;
     _lastHistoryCount = currentLen;
-    setState(() {});
+    _scheduleRebuild();
     if (shouldScroll && _inlineHistoryScrollController.hasClients) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_inlineHistoryScrollController.hasClients) {
@@ -1056,6 +1079,7 @@ class _CallScreenState extends State<CallScreen> {
     _controller.onModerationViolation = null;
     _inlineHistoryScrollController.dispose();
     _controller.removeListener(_onControllerUpdate);
+    _rebuildTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }
@@ -2071,8 +2095,7 @@ class _CallScreenState extends State<CallScreen> {
       fit: StackFit.expand,
       children: [
         if (hasVideo)
-          ColorFiltered(
-            colorFilter: const ColorFilter.mode(Colors.transparent, BlendMode.dst),
+          RepaintBoundary(
             child: VideoTrackRenderer(
               slot.videoTrack!,
               fit: VideoViewFit.cover,
@@ -2237,8 +2260,7 @@ class _CallScreenState extends State<CallScreen> {
               fit: StackFit.expand,
               children: [
                 if (hasVideo)
-                  ColorFiltered(
-                    colorFilter: const ColorFilter.mode(Colors.transparent, BlendMode.dst),
+                  RepaintBoundary(
                     child: VideoTrackRenderer(
                       pipSlot.videoTrack!,
                       fit: VideoViewFit.cover,

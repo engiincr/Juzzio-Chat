@@ -566,6 +566,8 @@ class JuzzioAppController extends ChangeNotifier {
   // Erişilebilirlik & Sosyal Akış Tercihleri
   bool _highContrastMode = false;
   bool _reduceMotion = false;
+  // v1.2.9: Profil'deki "Görevlerim ve hatırlatıcılar" kısayolu — varsayılan KAPALI (Ayarlar'dan açılır)
+  bool _showLifeCenterShortcut = false;
   bool _autoplayVideos = true;
   bool _isPrivateAccount = false;
   String _postsPrivacy = 'public';
@@ -732,6 +734,7 @@ class JuzzioAppController extends ChangeNotifier {
 
   bool get highContrastMode => _highContrastMode;
   bool get reduceMotion => _reduceMotion;
+  bool get showLifeCenterShortcut => _showLifeCenterShortcut;
   bool get autoplayVideos => _autoplayVideos && !_reduceMotion;
   bool get isPrivateAccount => _isPrivateAccount;
   String get postsPrivacy => _postsPrivacy;
@@ -1158,6 +1161,7 @@ class JuzzioAppController extends ChangeNotifier {
       _strictAccountSettings = raw['strictAccountSettings'] == true;
       _highContrastMode = raw['highContrastMode'] == true;
       _reduceMotion = raw['reduceMotion'] == true;
+      _showLifeCenterShortcut = raw['showLifeCenterShortcut'] == true;
       _autoplayVideos = raw['autoplayVideos'] is bool ? raw['autoplayVideos'] as bool : _autoplayVideos;
       _notifyDirectMessages = raw['notifyDirectMessages'] is bool ? raw['notifyDirectMessages'] as bool : _notifyDirectMessages;
       _notifyGroupMessages = raw['notifyGroupMessages'] is bool ? raw['notifyGroupMessages'] as bool : _notifyGroupMessages;
@@ -1293,6 +1297,7 @@ class JuzzioAppController extends ChangeNotifier {
         'strictAccountSettings': _strictAccountSettings,
         'highContrastMode': _highContrastMode,
         'reduceMotion': _reduceMotion,
+        'showLifeCenterShortcut': _showLifeCenterShortcut,
         'autoplayVideos': _autoplayVideos,
         'notifyDirectMessages': _notifyDirectMessages,
         'notifyGroupMessages': _notifyGroupMessages,
@@ -1924,6 +1929,12 @@ class JuzzioAppController extends ChangeNotifier {
 
   void setReduceMotion(bool val) {
     _reduceMotion = val;
+    _persistUserPreferences();
+    notifyListeners();
+  }
+
+  void setShowLifeCenterShortcut(bool val) {
+    _showLifeCenterShortcut = val;
     _persistUserPreferences();
     notifyListeners();
   }

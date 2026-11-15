@@ -57,7 +57,7 @@ JuzzioHealthState juzzioOverallHealth(Iterable<JuzzioHealthState> states) {
 /// Deepgram sunucu yanıtını duruma çevirir (saf; test edilir)
 JuzzioHealthState juzzioDeepgramState(String v) {
   if (v == 'ok') return JuzzioHealthState.ok;
-  if (v == 'missing' || v == 'invalid_key') return JuzzioHealthState.down;
+  if (v == 'missing' || v == 'invalid_key' || v == 'key_cannot_grant') return JuzzioHealthState.down;
   return JuzzioHealthState.degraded;
 }
 
@@ -135,9 +135,10 @@ class JuzzioHealthMonitor extends ChangeNotifier {
       await Future.wait([_server(), _bridge(), _tcp('livekit', _liveKitHost(), 443), _tcp('backup_turn', JuzzioConfig.backupTurnHost, JuzzioConfig.backupTurnPort), _deviceSpeech()]);
       await _translate();
       // Arama yolu onarımı: ana sunucuya ulaşılamıyor, yedek açıksa → aramalar yedekle başlar
+      // v1.2.9 düzeltme: tek bir yoklama hatası aramaları yedek (yavaş) aktarıcıya ZORLAMAZ; yedek yalnız
+      // arama sırasında ana yol gerçekten kurulamazsa devreye girer (deepgram_livekit_service).
       if (items['livekit']!.state == JuzzioHealthState.down && items['backup_turn']!.state == JuzzioHealthState.ok) {
-        DeepgramLiveKitController.markPrimaryUnreachable();
-        _fix('livekit', 'Ana arama sunucusuna ulaşılamadı → aramalar 30 dk yedek TURN ile başlayacak');
+        _fix('livekit', 'Ana arama sunucusuna ulaşılamadı → arama kurulamazsa yedek aktarıcı denenecek');
       } else if (items['livekit']!.state == JuzzioHealthState.ok && DeepgramLiveKitController.preferBackupTurn) {
         DeepgramLiveKitController.clearBackupPreference();
         _fix('livekit', 'Ana arama sunucusu yeniden erişilebilir → yedek tercihi kaldırıldı');

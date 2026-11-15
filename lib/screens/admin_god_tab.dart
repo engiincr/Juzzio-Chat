@@ -213,8 +213,11 @@ class _JuzzioAdminGodTabState extends State<JuzzioAdminGodTab> {
 
   Widget _card(Widget child) => Card(margin: const EdgeInsets.only(bottom: 10), child: Padding(padding: const EdgeInsets.all(12), child: child));
 
+  // v1.2.9 düzeltme: kartlar iki eşit sütun olarak ekranı doldurur ve aynı yükseklikte durur
+  // (sabit 150 px genişlik sağda boşluk bırakıyor, iki satırlı etiketler kartları eşitsiz yapıyordu)
   Widget _metric(String label, Object? v, {Color? color}) => Container(
-        width: 150,
+        width: (((MediaQuery.sizeOf(context).width - 32 - 8) / 2).floorToDouble()).clamp(130.0, 280.0),
+        constraints: const BoxConstraints(minHeight: 92),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
@@ -223,7 +226,7 @@ class _JuzzioAdminGodTabState extends State<JuzzioAdminGodTab> {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('${v ?? '—'}', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: color)),
           const SizedBox(height: 2),
-          Text(label, style: const TextStyle(fontSize: 11.5)),
+          Text(label, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11.5)),
         ]),
       );
 

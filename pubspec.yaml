@@ -93,6 +93,11 @@ flutter:
     - assets/intro/juzzio_whatsnew_en.mp4
     # v1.2.9: yasal PDF raporu — şeffaf antet logosu ve Türkçe karakterli gömülü yazı tipi (Liberation Sans, OFL)
     - assets/images/pdf_logo.png
+    # v1.2.9: hava teması ve Ay evresi görselleri (kodla üretildi: tools/weather_sprites.py)
+    - assets/weather/moon.png
+    - assets/weather/sun.png
+    - assets/weather/cloud_a.png
+    - assets/weather/cloud_b.png
     - assets/fonts/pdf/LiberationSans-Regular.ttf
     - assets/fonts/pdf/LiberationSans-Bold.ttf
     - assets/fonts/pdf/LiberationSans-LICENSE.txt
