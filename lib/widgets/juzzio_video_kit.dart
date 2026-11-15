@@ -16,6 +16,7 @@ import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 
 import '../services/juzzio_media_url.dart';
+import '../core/juzzio_duration_format.dart';
 import '../core/app_theme_and_locale.dart';
 import '../core/config.dart';
 import '../core/native_bridge.dart';
@@ -35,7 +36,8 @@ String juzzioFormatClock(int ms) {
 
 String juzzioFormatSeconds(int ms) {
   final sec = ms / 1000;
-  return sec >= 10 ? '${sec.round()} sn' : '${sec.toStringAsFixed(1)} sn';
+  // v1.2.9: "sn" yalnız Türkçede; her dil kendi saniye kısaltmasıyla
+  return juzzioSecondsLabel(sec >= 10 ? '${sec.round()}' : sec.toStringAsFixed(1), JuzzioAppController.instance.uiLang);
 }
 
 // -----------------------------------------------------------------------------

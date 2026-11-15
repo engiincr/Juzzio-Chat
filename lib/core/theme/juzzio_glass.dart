@@ -78,6 +78,14 @@ class JuzzioGlassTokens {
   /// v0.9.7: buzlu cam dokusu (grain). Düşük donanımda / performans modunda kapalı.
   static bool grain = true;
 
+  /// v1.2.9: "Gerçek cam" katmanları — TÜM temalarda, her cam yüzeyde:
+  ///  1) Kırılma (refraction): kenarda kalın cam pahı — içe doğru aydınlık/karanlık geçiş ve ince koyu dikiş
+  ///  2) Gökkuşağı kenar (dispersion): ışığın köşelerde renklere ayrılması (çok ince, düşük alfa)
+  ///  3) Buz (frost): bulanıklık + süt tonu + grain (zaten vardı)
+  ///  4) Işık: sol üstte keskin speküler parlama, sağ altta zayıf yansıma
+  /// Performans modunda ("Hareketi/efekti azalt") otomatik kapanır.
+  static bool realGlass = true;
+
   /// v0.8.1 Cam yoğunluğu (Ayarlar → Görünüm): 0.6 sade … 1.4 belirgin. Yüzey/kenar
   /// opaklığını ve blur miktarını güvenli sınırlar içinde ölçekler.
   static double intensity = 1.0;
@@ -329,8 +337,95 @@ class JuzzioGlassBorderPainter extends CustomPainter {
   /// v0.8.4: temanın kenar ışığı rengi ve neon parıltısı
   final Color? rim;
   final double glow;
+  /// v1.2.9: gerçek cam katmanları (kırılma pahı, gökkuşağı kenar, speküler ışık)
+  final bool realGlass;
   const JuzzioGlassBorderPainter(
-      {required this.radius, this.strong = false, this.dark = true, this.iridescent = true, this.rim, this.glow = 0});
+      {required this.radius, this.strong = false, this.dark = true, this.iridescent = true, this.rim, this.glow = 0, this.realGlass = true});
+
+  // Görünür tayf (kırmızı → mor); köşelerde belirir, kenar ortalarında kaybolur
+  static const List<Color> _spectrum = <Color>[
+    Color(0x00FF3B30), Color(0xFFFF3B30), Color(0xFFFFCC00), Color(0xFF34C759), Color(0x0034C759), // sağ üst köşe
+    Color(0x0000C7BE), Color(0x0000C7BE),
+    Color(0x0032ADE6), Color(0xFF32ADE6), Color(0xFF5856D6), Color(0xFFFF2D92), Color(0x00FF2D92), // sol alt köşe
+    Color(0x00FF3B30),
+  ];
+  static const List<double> _spectrumStops = <double>[0.00, 0.035, 0.07, 0.105, 0.14, 0.30, 0.46, 0.50, 0.535, 0.57, 0.605, 0.64, 1.0];
+
+  void _paintRealGlass(Canvas canvas, Rect rect, RRect rr) {
+    final side = rect.shortestSide;
+    if (side < 28) return; // çok küçük rozetlerde gereksiz
+    final bevel = (side * 0.09).clamp(3.0, 9.0);
+    canvas.save();
+    canvas.clipRRect(RRect.fromRectAndRadius(rect, Radius.circular(radius)));
+    // 1) Kırılma pahı: kalın camın kenarı — sol üst aydınlık, sağ alt gölgeli yumuşak bant
+    canvas.drawRRect(
+      rr.deflate(bevel / 2),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = bevel
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, bevel * 0.45)
+        ..shader = LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.white.withValues(alpha: dark ? 0.13 : 0.30),
+            Colors.white.withValues(alpha: 0.0),
+            Colors.black.withValues(alpha: dark ? 0.20 : 0.07),
+          ],
+          stops: const [0.0, 0.5, 1.0],
+        ).createShader(rect),
+    );
+    // ince koyu dikiş: ışığın kenarda büküldüğü yer
+    canvas.drawRRect(
+      rr.deflate(bevel),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.8
+        ..shader = LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Colors.black.withValues(alpha: dark ? 0.14 : 0.05), Colors.white.withValues(alpha: dark ? 0.06 : 0.16)],
+        ).createShader(rect),
+    );
+    // 2) Gökkuşağı kenar: köşelerde renklere ayrılan ince çizgi
+    canvas.drawRRect(
+      rr.deflate(1.7),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.3
+        ..blendMode = BlendMode.plus
+        ..color = Colors.white.withValues(alpha: dark ? 0.30 : 0.20)
+        ..shader = SweepGradient(
+          center: Alignment.center,
+          startAngle: -math.pi / 2, // üstten başla (saat yönünde: sağ üst → sağ alt → sol alt → sol üst)
+          endAngle: math.pi * 1.5,
+          colors: [for (final c in _spectrum) c.withValues(alpha: c.a * (dark ? 0.34 : 0.22))],
+          stops: _spectrumStops,
+        ).createShader(rect),
+    );
+    // 4) Işık: sol üst köşede keskin speküler parlama + sağ altta zayıf yansıma
+    final hot = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5
+      ..shader = RadialGradient(
+        center: Alignment.topLeft,
+        radius: 0.9,
+        colors: [Colors.white.withValues(alpha: dark ? 0.85 : 1.0), Colors.white.withValues(alpha: 0.0)],
+        stops: const [0.0, 0.62],
+      ).createShader(rect);
+    canvas.drawRRect(rr.deflate(0.4), hot);
+    final back = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.1
+      ..shader = RadialGradient(
+        center: Alignment.bottomRight,
+        radius: 0.7,
+        colors: [Colors.white.withValues(alpha: dark ? 0.28 : 0.55), Colors.white.withValues(alpha: 0.0)],
+        stops: const [0.0, 0.55],
+      ).createShader(rect);
+    canvas.drawRRect(rr.deflate(0.4), back);
+    canvas.restore();
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -379,11 +474,18 @@ class JuzzioGlassBorderPainter extends CustomPainter {
     canvas.clipRRect(RRect.fromRectAndRadius(rect, Radius.circular(radius)));
     canvas.drawRRect(rr.deflate(2), innerGlow);
     canvas.restore();
+    if (realGlass && JuzzioGlassTokens.realGlass && !JuzzioGlassTokens.reducedEffects) _paintRealGlass(canvas, rect, rr);
   }
 
   @override
   bool shouldRepaint(covariant JuzzioGlassBorderPainter old) =>
-      old.radius != radius || old.strong != strong || old.dark != dark || old.iridescent != iridescent || old.rim != rim || old.glow != glow;
+      old.radius != radius ||
+      old.strong != strong ||
+      old.dark != dark ||
+      old.iridescent != iridescent ||
+      old.rim != rim ||
+      old.glow != glow ||
+      old.realGlass != realGlass;
 }
 
 class JuzzioGlassCard extends StatelessWidget {

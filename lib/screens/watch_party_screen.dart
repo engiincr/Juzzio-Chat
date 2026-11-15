@@ -23,6 +23,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:livekit_client/livekit_client.dart';
 import 'package:video_player/video_player.dart';
 
+import '../core/juzzio_duration_format.dart';
 import '../core/app_theme_and_locale.dart';
 import '../core/juzzio_pip_state.dart';
 import '../services/deepgram_livekit_service.dart' show DeepgramLiveKitController, juzzioBackupConnectOptions;
@@ -908,13 +909,13 @@ class _JuzzioWatchPartyScreenState extends State<JuzzioWatchPartyScreen> {
           children: [
             roundBtn(_micOn ? Icons.mic_rounded : Icons.mic_off_rounded, _app.trEn('Mikrofon', 'Microphone', 'Mikrofon'), _toggleMic,
                 bg: _micOn ? null : const Color(0xFFEF4444)),
-            roundBtn(Icons.replay_10_rounded, '-10 sn', () {
+            roundBtn(Icons.replay_10_rounded, juzzioSecondsLabel('-10', _app.uiLang), () {
               final cur = vc != null && vc.value.isInitialized ? vc.value.position.inMilliseconds : (_webFrame != null ? _webPosMs : s.expectedPositionMs(JuzzioClock.nowUtc()));
               _control(positionMs: (cur - 10000).clamp(0, 1 << 31));
             }),
             roundBtn(s.playing ? Icons.pause_rounded : Icons.play_arrow_rounded, s.playing ? _app.trEn('Duraklat', 'Pause', 'Pause') : _app.trEn('Oynat', 'Play', 'Abspielen'),
                 () => _control(playing: !s.playing), bg: const Color(0xFF7B5CFF), size: 30),
-            roundBtn(Icons.forward_10_rounded, '+10 sn', () {
+            roundBtn(Icons.forward_10_rounded, juzzioSecondsLabel('+10', _app.uiLang), () {
               final cur = vc != null && vc.value.isInitialized ? vc.value.position.inMilliseconds : (_webFrame != null ? _webPosMs : s.expectedPositionMs(JuzzioClock.nowUtc()));
               _control(positionMs: cur + 10000);
             }),

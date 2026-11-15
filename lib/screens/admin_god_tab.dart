@@ -12,6 +12,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart' as crypto;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:open_filex/open_filex.dart';
@@ -22,10 +23,11 @@ import '../core/config.dart';
 import '../core/release_notes.dart';
 import '../core/theme/juzzio_colors.dart';
 import '../services/juzzio_features_service.dart';
+import '../services/juzzio_legal_package.dart';
+import '../services/juzzio_legal_pdf.dart';
 import '../services/supabase_service.dart';
 import '../widgets/juzzio_cloth_refresh.dart';
 import '../widgets/juzzio_motion.dart';
-import 'admin_legal_report.dart';
 import 'system_health_page.dart';
 
 String _t(String tr, String en, String de) => JuzzioAppController.instance.trEn(tr, en, de);
@@ -702,61 +704,190 @@ class _JuzzioAdminGodTabState extends State<JuzzioAdminGodTab> {
         ),
       ];
 
+  /// v1.2.9: Yasal teslim paketi — zorunlu adli başlık formu → antetli PDF + ham JSON →
+  /// AES-256 şifreli ZIP. Açık dosya diske yazılmaz; şifre yalnız bir kez ekranda gösterilir.
   Future<void> _legalExport() async {
     final userCtrl = TextEditingController();
-    final reasonCtrl = TextEditingController();
+    final authorityCtrl = TextEditingController();
+    final caseCtrl = TextEditingController();
+    final purposeCtrl = TextEditingController();
+    String? error;
     final ok = await showDialog<bool>(
       context: context,
-      builder: (d) => AlertDialog(
-        title: Text(_t('Yasal dışa aktarım', 'Legal export', 'Rechtlicher Export')),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextField(controller: userCtrl, decoration: InputDecoration(labelText: _t('Kullanıcı adı', 'Username', 'Benutzername'), prefixText: '@')),
-          TextField(
-            controller: reasonCtrl,
-            maxLines: 2,
-            decoration: InputDecoration(labelText: _t('Gerekçe (resmî yazı no vb.)', 'Reason (official request no.)', 'Begründung')),
+      barrierDismissible: false,
+      builder: (d) => StatefulBuilder(
+        builder: (d, setD) => AlertDialog(
+          title: Text(_t('Yasal rapor (PDF + şifreli ZIP)', 'Legal report (PDF + encrypted ZIP)', 'Rechtsbericht (PDF + verschlüsseltes ZIP)')),
+          content: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              TextField(controller: userCtrl, decoration: InputDecoration(labelText: _t('Kullanıcı adı', 'Username', 'Benutzername'), prefixText: '@')),
+              TextField(
+                controller: authorityCtrl,
+                textCapitalization: TextCapitalization.words,
+                decoration: InputDecoration(
+                  labelText: _t('Talep eden kurum / makam *', 'Requesting authority *', 'Anfragende Behörde *'),
+                  hintText: _t('Örn: İstanbul 1. Sulh Ceza Hâkimliği', 'e.g. Istanbul 1st Criminal Judgeship of Peace', 'z. B. Amtsgericht'),
+                ),
+              ),
+              TextField(
+                controller: caseCtrl,
+                decoration: InputDecoration(
+                  labelText: _t('Dosya / esas numarası *', 'Case / file number *', 'Aktenzeichen *'),
+                  hintText: _t('Örn: 2026/1453 Esas', 'e.g. 2026/1453', 'z. B. 2026/1453'),
+                ),
+              ),
+              TextField(
+                controller: purposeCtrl,
+                maxLines: 2,
+                decoration: InputDecoration(
+                  labelText: _t('Talep sebebi *', 'Reason for request *', 'Grund der Anfrage *'),
+                  hintText: _t('Örn: Siber suç soruşturması kapsamında trafik kaydı talebi', 'e.g. traffic records for a cybercrime investigation', 'z. B. Verkehrsdaten'),
+                ),
+              ),
+              const SizedBox(height: 8),
+              if (error != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Text(error!, style: const TextStyle(color: JuzzioColors.red500, fontSize: 12.5, fontWeight: FontWeight.w700)),
+                ),
+              Text(
+                _t('Üç alan da zorunludur; rapor antetine ve denetim kaydına yazılır. Uçtan uca şifreli mesaj içerikleri pakete giremez (sunucuda yoktur). '
+                    'Rapor üretilirken IP adreslerinin servis sağlayıcısı RIPE açık kayıtlarından sorgulanır ve ham verinin özeti için zaman damgası istenir.',
+                    'All three fields are required; they are printed on the letterhead and audit-logged. End-to-end encrypted content cannot be included (not on the server). '
+                        'While building, the ISP of each IP is looked up in RIPE public records and a timestamp is requested for the data hash.',
+                    'Alle drei Felder sind Pflicht. E2EE-Inhalte sind nicht enthalten.'),
+                style: const TextStyle(fontSize: 11.5),
+              ),
+            ]),
           ),
-          const SizedBox(height: 8),
-          Text(
-            _t('Uçtan uca şifreli mesaj içerikleri pakete giremez (sunucuda yoktur). İşlem denetim kaydına yazılır.',
-                'End-to-end encrypted content cannot be included (not on the server). The export is audit-logged.', 'E2EE-Inhalte sind nicht enthalten.'),
-            style: const TextStyle(fontSize: 11.5),
-          ),
-        ]),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(d, false), child: Text(_t('Vazgeç', 'Cancel', 'Abbrechen'))),
-          FilledButton(onPressed: () => Navigator.pop(d, true), child: Text(_t('Dışa aktar', 'Export', 'Exportieren'))),
-        ],
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(d, false), child: Text(_t('Vazgeç', 'Cancel', 'Abbrechen'))),
+            FilledButton(
+              onPressed: () {
+                final info = JuzzioLegalRequestInfo(authority: authorityCtrl.text, caseNo: caseCtrl.text, purpose: purposeCtrl.text);
+                if (userCtrl.text.trim().replaceAll('@', '').isEmpty) {
+                  setD(() => error = _t('Kullanıcı adı girin.', 'Enter a username.', 'Benutzernamen eingeben.'));
+                } else if (!info.isComplete) {
+                  setD(() => error = _t('Kurum / makam, dosya numarası ve talep sebebi zorunludur (en az 3 karakter).',
+                      'Authority, case number and reason are required (at least 3 characters).', 'Behörde, Aktenzeichen und Grund sind Pflicht.'));
+                } else {
+                  Navigator.pop(d, true);
+                }
+              },
+              child: Text(_t('Raporu oluştur', 'Create report', 'Bericht erstellen')),
+            ),
+          ],
+        ),
       ),
     );
     if (ok != true) return;
     final uname = userCtrl.text.trim().replaceAll('@', '').toLowerCase();
-    final reason = reasonCtrl.text.trim();
-    // v1.2.4: P0001 düzeltmesi — eksik alan sunucuya gitmeden açıkça söylenir
-    if (uname.isEmpty) {
-      _snack(_t('Kullanıcı adı girin.', 'Enter a username.', 'Benutzernamen eingeben.'), error: true);
-      return;
-    }
-    if (reason.length < 5) {
-      _snack(_t('Gerekçe en az 5 karakter olmalı (ör. resmî yazı no).', 'Reason must be at least 5 characters (e.g. official request no.).',
-          'Begründung mindestens 5 Zeichen.'), error: true);
-      return;
-    }
+    final info = JuzzioLegalRequestInfo(authority: authorityCtrl.text, caseNo: caseCtrl.text, purpose: purposeCtrl.text);
+    if (uname.isEmpty || !info.isComplete) return; // form doldurulmadan üretim başlamaz
     await _run(() async {
+      _snack(_t('Rapor hazırlanıyor… (servis sağlayıcı ve zaman damgası sorgulanıyor)', 'Preparing the report… (looking up ISPs and timestamp)', 'Bericht wird erstellt…'));
       // kullanıcı adı SUNUCUDA çözülür (büyük/küçük harf duyarsız; RLS'ye takılmaz)
-      final res = await _db.rpc('admin_legal_export_by_username', params: {'p_token': widget.token, 'p_username': uname, 'p_reason': reason});
-      final json = const JsonEncoder.withIndent('  ').convert(res);
-      final dir = await getApplicationDocumentsDirectory();
-      final stamp = DateTime.now().millisecondsSinceEpoch;
-      final f = File('${dir.path}/juzzio_legal_${uname}_$stamp.json');
-      await f.writeAsString(json, flush: true);
-      // v1.2.9: makamlara teslim için okunur TXT rapor (JSON + sha256 ile birlikte)
-      final txt = File('${dir.path}/juzzio_legal_${uname}_$stamp.txt');
-      await txt.writeAsString(juzzioLegalReportText(Map<String, dynamic>.from(res as Map)), flush: true);
-      await Clipboard.setData(ClipboardData(text: json));
-      _snack(_t('Paket oluşturuldu: TXT rapor + JSON (panoya kopyalandı)', 'Bundle created: TXT report + JSON (copied)', 'Paket erstellt'));
-      await OpenFilex.open(txt.path, type: 'text/plain');
+      final res = await _db.rpc('admin_legal_export_by_username', params: {'p_token': widget.token, 'p_username': uname, 'p_reason': info.toReason()});
+      final bundle = Map<String, dynamic>.from(res as Map);
+      final jsonBytes = utf8.encode(const JsonEncoder.withIndent('  ').convert(bundle));
+      final jsonDigest = crypto.sha256.convert(jsonBytes);
+      final ips = juzzioCollectIps(bundle);
+      final isp = await juzzioLookupIsps(ips);
+      final ts = await juzzioRequestTimestamp(jsonDigest.bytes);
+      final pdf = await juzzioBuildLegalPdf(JuzzioLegalPdfInput(
+        bundle: bundle,
+        info: info,
+        jsonSha256: jsonDigest.toString(),
+        isp: isp,
+        timestamp: ts,
+        ispLookupTried: true,
+      ));
+      final files = <String, List<int>>{
+        'juzzio_rapor.pdf': pdf,
+        'juzzio_veri.json': jsonBytes,
+        if (ts != null) 'zaman_damgasi.tsr': ts.token,
+        'DOGRULAMA.txt': utf8.encode(juzzioVerificationReadme(hasTimestamp: ts != null, tsaHost: ts?.authority ?? '')),
+      };
+      files['SHA256SUMS.txt'] = utf8.encode(juzzioSha256Sums(files));
+      final password = juzzioLegalPassword();
+      final zip = juzzioBuildEncryptedZip(files, password);
+      final archiveId = (bundle['archive_id'] ?? 'JZ-LEGAL').toString();
+      final name = 'juzzio_yasal_${archiveId}_$uname.zip';
+      final saved = await _saveLegalZip(name, zip);
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (d) => AlertDialog(
+          icon: const Icon(Icons.lock_rounded, size: 34),
+          title: Text(_t('Dosya şifreniz', 'Your file password', 'Ihr Dateipasswort')),
+          content: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Center(
+                child: SelectableText(password,
+                    style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, letterSpacing: 2.5, fontFamily: 'monospace')),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                _t('Lütfen resmî makamlara bu şifreyi iletin. Şifre yalnız şimdi gösterilir; hiçbir yere kaydedilmez ve yeniden gösterilemez. '
+                    'Güvenlik için şifreyi dosyadan AYRI bir yolla (ör. telefonla veya elden) verin.',
+                    'Please give this password to the authorities. It is shown only now; it is not stored anywhere and cannot be shown again. '
+                        'For safety, deliver the password through a DIFFERENT channel than the file (e.g. by phone or in person).',
+                    'Bitte geben Sie dieses Passwort an die Behörde weiter. Es wird nur jetzt angezeigt.'),
+                style: const TextStyle(fontSize: 12.5, height: 1.35),
+              ),
+              const SizedBox(height: 10),
+              SelectableText(
+                '${_t('Dosya', 'File', 'Datei')}: $saved\n'
+                '${_t('İşlem no', 'Request ID', 'Vorgangs-ID')}: $archiveId\n'
+                '${_t('Şifreleme', 'Encryption', 'Verschlüsselung')}: AES-256 (ZIP)\n'
+                '${_t('İçerik', 'Contents', 'Inhalt')}: juzzio_rapor.pdf, juzzio_veri.json${ts != null ? ', zaman_damgasi.tsr' : ''}, SHA256SUMS.txt, DOGRULAMA.txt\n'
+                '${_t('Ham veri SHA-256', 'Raw data SHA-256', 'Rohdaten SHA-256')}: $jsonDigest\n'
+                '${_t('Zaman damgası', 'Timestamp', 'Zeitstempel')}: ${ts != null ? ts.authority : _t('alınamadı', 'not obtained', 'nicht erhalten')}\n'
+                '${_t('Servis sağlayıcı eşleşen IP', 'IPs with ISP match', 'IPs mit Provider')}: ${isp.length} / ${ips.length}',
+                style: const TextStyle(fontSize: 11, height: 1.35),
+              ),
+            ]),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Clipboard.setData(ClipboardData(text: password)),
+              child: Text(_t('Şifreyi kopyala', 'Copy password', 'Passwort kopieren')),
+            ),
+            TextButton(
+              onPressed: () => OpenFilex.open(saved, type: 'application/zip'),
+              child: Text(_t('Dosyayı aç / paylaş', 'Open / share file', 'Datei öffnen / teilen')),
+            ),
+            FilledButton(onPressed: () => Navigator.pop(d), child: Text(_t('Şifreyi not aldım', 'I noted the password', 'Passwort notiert'))),
+          ],
+        ),
+      );
     });
+  }
+
+  /// Şifreli ZIP'i kaydeder: önce İndirilenler/Juzzio, olmazsa uygulamanın dış klasörü, o da olmazsa uygulama belgeleri
+  Future<String> _saveLegalZip(String name, List<int> bytes) async {
+    final candidates = <Directory>[];
+    if (Platform.isAndroid) {
+      candidates.add(Directory('/storage/emulated/0/Download/Juzzio'));
+      try {
+        final ext = await getExternalStorageDirectory();
+        if (ext != null) candidates.add(Directory('${ext.path}/yasal'));
+      } catch (_) {}
+    }
+    candidates.add(Directory('${(await getApplicationDocumentsDirectory()).path}/yasal'));
+    Object? last;
+    for (final dir in candidates) {
+      try {
+        await dir.create(recursive: true);
+        final f = File('${dir.path}/$name');
+        await f.writeAsBytes(bytes, flush: true);
+        return f.path;
+      } catch (e) {
+        last = e;
+      }
+    }
+    throw last ?? Exception('zip_save_failed');
   }
 
   /// v1.2.9: Veri dondurma (resmî "veri koruma" talebi) — 90 gün; kullanıcı silse de arşivde kalır
@@ -932,8 +1063,8 @@ class _JuzzioAdminGodTabState extends State<JuzzioAdminGodTab> {
           contentPadding: EdgeInsets.zero,
           leading: const Icon(Icons.inventory_2_rounded),
           title: Text(_t('Yasal paket (Legal Bundle Vault)', 'Legal bundle vault', 'Rechtspaket')),
-          subtitle: Text(_t('Bir kullanıcının hesap, telefon, IP, cihaz, sohbet (üst veri), arama, gönderi ve şikâyet kayıtlarını okunur TXT rapor + JSON olarak dışa aktarır.',
-              'Exports a user\'s account, phone, IPs, devices, chats (metadata), calls, posts and reports as a readable TXT report + JSON.', 'Exportiert Nutzerdaten als JSON.')),
+          subtitle: Text(_t('Bir kullanıcının hesap, telefon, IP (servis sağlayıcısıyla), cihaz, sohbet (üst veri), arama, gönderi ve şikâyet kayıtlarını antetli PDF + ham JSON olarak, AES-256 şifreli ZIP içinde dışa aktarır.',
+              'Exports a user\'s account, phone, IPs (with ISP), devices, chats (metadata), calls, posts and reports as a letterhead PDF + raw JSON inside an AES-256 encrypted ZIP.', 'Exportiert Nutzerdaten als PDF + JSON in verschlüsseltem ZIP.')),
           trailing: const Icon(Icons.chevron_right_rounded),
           onTap: _legalExport,
         )),

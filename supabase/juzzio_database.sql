@@ -17293,7 +17293,7 @@ DECLARE
     v_auth JSONB := '{}'::jsonb;
     v_sessions JSONB := '[]'::jsonb;
     v_auth_audit JSONB := '[]'::jsonb;
-    v_hash TEXT;
+    v_req BIGINT; v_hash TEXT;
     v_username TEXT;
 BEGIN
     IF NOT public.admin_check_token(p_token) THEN RAISE EXCEPTION 'super_admin_required'; END IF;
@@ -17371,10 +17371,14 @@ BEGIN
     ) || public.juzzio_legal_extras(p_user) INTO v;
     v_hash := encode(extensions.digest(v::text, 'sha256'), 'hex');
     INSERT INTO public.legal_requests (user_id, username, reason, exported_by, integrity_sha256)
-    VALUES ((SELECT id FROM public.profiles WHERE id = p_user), COALESCE(v_username, ''), LEFT(p_reason, 500), auth.uid(), v_hash);
+    VALUES ((SELECT id FROM public.profiles WHERE id = p_user), COALESCE(v_username, ''), LEFT(p_reason, 500), auth.uid(), v_hash)
+    RETURNING id INTO v_req;
     INSERT INTO public.admin_audit_log (admin_id, action, target, details)
-    VALUES (auth.uid(), 'legal_export', p_user::text, jsonb_build_object('reason', LEFT(p_reason, 500), 'sha256', v_hash));
-    RETURN v || jsonb_build_object('integrity_sha256', v_hash);
+    VALUES (auth.uid(), 'legal_export', p_user::text, jsonb_build_object('reason', LEFT(p_reason, 500), 'sha256', v_hash, 'request_id', v_req));
+    -- v1.2.9: işlem kimliği ve dışa aktaran yönetici (PDF'teki imza bloğu). Yönetici oturum anahtarı ASLA dönmez.
+    RETURN v || jsonb_build_object('integrity_sha256', v_hash, 'request_id', v_req, 'archive_id', 'JZ-LEGAL-' || LPAD(v_req::text, 6, '0'),
+        'exported_by', (SELECT username FROM public.profiles WHERE id = auth.uid()), 'exported_by_id', auth.uid(),
+        'exported_role', 'super_admin', 'server_time_utc', to_char(NOW() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'));
 END $$;
 REVOKE ALL ON FUNCTION public.admin_legal_export(TEXT, UUID, TEXT) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.admin_legal_export(TEXT, UUID, TEXT) TO authenticated;
@@ -18067,3 +18071,217 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION public.admin_legal_export_by_username(TEXT, TEXT, TEXT) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.admin_legal_export_by_username(TEXT, TEXT, TEXT) TO authenticated;
+
+-- =============================================================================
+-- 10.41 (v1.2.9) — Supabase Güvenlik/Performans Danışmanı (Advisor) uyarılarının giderilmesi
+--  Hepsi veritabanının GERÇEK durumuna bakarak çalışır (ad listesi tutulmaz) ve yeniden çalıştırılabilir.
+--  A) "Auth RLS Initialization Plan": ilkelerde auth.uid()/auth.role()/auth.jwt() her SATIR için yeniden
+--     hesaplanıyordu → (SELECT auth.uid()) biçimine çevrilir (anlam aynı, sorgu başına bir kez hesaplanır).
+--  B) "Function Search Path Mutable": search_path'i sabit olmayan işlevlere sabit yol verilir.
+--  C) "Public Can Execute SECURITY DEFINER Function": oturumsuz (anon) çağrı, yalnız bilinçli olarak
+--     açılmış işlevlerde kalır (giriş/kayıt/sürüm kontrolü); diğerlerinde PUBLIC ve anon yetkisi alınır.
+--     Tetikleyici işlevleri API'den hiç çağrılamaz. Oturum açmış kullanıcının yetkisi DEĞİŞMEZ.
+--  D) "RLS Enabled No Policy": yalnız sunucu işlevleriyle erişilen kapalı tablolara açık bir
+--     "doğrudan erişim yok" ilkesi yazılır (davranış aynı; niyet belgelenir).
+--  E) "Unindexed foreign keys": dizini olmayan yabancı anahtarlara dizin.
+--  F) "Duplicate Index": birebir aynı dizinlerden fazlası kaldırılır (kısıt dizinleri korunur).
+--  G) "Multiple Permissive Policies" (typing_indicators): FOR ALL ilkesi INSERT/UPDATE/DELETE olarak ayrılır.
+--  Bilinçli olarak DOKUNULMAYANLAR:
+--   • "Signed-In Users Can Execute SECURITY DEFINER": uygulamanın çağırdığı RPC'ler tanım gereği böyledir;
+--     her biri içeride auth.uid() / yönetici oturumu denetimi yapar.
+--   • "Unused Index": istatistik yeni olduğunda yanıltıcıdır; veri büyüyünce gereken dizinler silinmez.
+-- =============================================================================
+
+-- ---- G) typing_indicators: tek SELECT ilkesi ----
+DO $$
+BEGIN
+    IF to_regclass('public.typing_indicators') IS NOT NULL THEN
+        DROP POLICY IF EXISTS typing_indicators_write_own ON public.typing_indicators;
+        DROP POLICY IF EXISTS typing_indicators_insert_own ON public.typing_indicators;
+        DROP POLICY IF EXISTS typing_indicators_update_own ON public.typing_indicators;
+        DROP POLICY IF EXISTS typing_indicators_delete_own ON public.typing_indicators;
+        CREATE POLICY typing_indicators_insert_own ON public.typing_indicators FOR INSERT TO authenticated
+            WITH CHECK (user_id = auth.uid() AND public.is_room_member(room_id));
+        CREATE POLICY typing_indicators_update_own ON public.typing_indicators FOR UPDATE TO authenticated
+            USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid() AND public.is_room_member(room_id));
+        CREATE POLICY typing_indicators_delete_own ON public.typing_indicators FOR DELETE TO authenticated
+            USING (user_id = auth.uid());
+    END IF;
+END $$;
+
+-- ---- A) RLS ilkelerinde auth.*() çağrılarını alt sorguya al ----
+CREATE OR REPLACE FUNCTION public.juzzio_wrap_auth_calls(p_expr TEXT)
+RETURNS TEXT LANGUAGE plpgsql IMMUTABLE SET search_path = public AS $$
+DECLARE v TEXT := p_expr;
+BEGIN
+    IF v IS NULL THEN RETURN NULL; END IF;
+    -- zaten sarılmış olanlar "( SELECT auth.uid() AS uid)" biçiminde geri okunur → yeniden sarılmaz
+    v := regexp_replace(v, 'auth\.uid\(\)(?! AS uid)', '(SELECT auth.uid())', 'g');
+    v := regexp_replace(v, 'auth\.role\(\)(?! AS role)', '(SELECT auth.role())', 'g');
+    v := regexp_replace(v, 'auth\.jwt\(\)(?! AS jwt)', '(SELECT auth.jwt())', 'g');
+    v := regexp_replace(v, 'auth\.email\(\)(?! AS email)', '(SELECT auth.email())', 'g');
+    RETURN v;
+END $$;
+REVOKE ALL ON FUNCTION public.juzzio_wrap_auth_calls(TEXT) FROM PUBLIC, anon, authenticated;
+
+DO $$
+DECLARE r RECORD; v_q TEXT; v_c TEXT; v_sql TEXT; n INTEGER := 0;
+BEGIN
+    FOR r IN
+        SELECT n.nspname AS sch, c.relname AS tbl, p.polname AS pol,
+               pg_get_expr(p.polqual, p.polrelid) AS q, pg_get_expr(p.polwithcheck, p.polrelid) AS wc
+          FROM pg_policy p JOIN pg_class c ON c.oid = p.polrelid JOIN pg_namespace n ON n.oid = c.relnamespace
+         WHERE n.nspname IN ('public', 'realtime')
+    LOOP
+        v_q := public.juzzio_wrap_auth_calls(r.q);
+        v_c := public.juzzio_wrap_auth_calls(r.wc);
+        IF v_q IS NOT DISTINCT FROM r.q AND v_c IS NOT DISTINCT FROM r.wc THEN CONTINUE; END IF;
+        v_sql := format('ALTER POLICY %I ON %I.%I', r.pol, r.sch, r.tbl);
+        IF v_q IS NOT NULL THEN v_sql := v_sql || format(' USING (%s)', v_q); END IF;
+        IF v_c IS NOT NULL THEN v_sql := v_sql || format(' WITH CHECK (%s)', v_c); END IF;
+        BEGIN
+            EXECUTE v_sql;
+            n := n + 1;
+        EXCEPTION WHEN OTHERS THEN
+            -- (ör. realtime şemasında yetki yok) ilke eski hâliyle kalır; güvenlik etkilenmez
+            RAISE NOTICE 'RLS ilkesi güncellenemedi (%.%/%): %', r.sch, r.tbl, r.pol, SQLERRM;
+        END;
+    END LOOP;
+    RAISE NOTICE '10.41 A: % RLS ilkesi (SELECT auth.uid()) biçimine alındı', n;
+END $$;
+
+-- ---- B) sabit search_path ----
+DO $$
+DECLARE r RECORD; n INTEGER := 0;
+BEGIN
+    FOR r IN
+        SELECT p.oid::regprocedure AS sig
+          FROM pg_proc p JOIN pg_namespace ns ON ns.oid = p.pronamespace
+         WHERE ns.nspname = 'public' AND p.prokind = 'f'
+           AND NOT EXISTS (SELECT 1 FROM unnest(COALESCE(p.proconfig, '{}'::text[])) c WHERE c LIKE 'search_path=%')
+           AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.objid = p.oid AND d.deptype = 'e')   -- eklenti işlevleri hariç
+    LOOP
+        BEGIN
+            EXECUTE format('ALTER FUNCTION %s SET search_path = public, extensions', r.sig);
+            n := n + 1;
+        EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'search_path ayarlanamadı (%): %', r.sig, SQLERRM;
+        END;
+    END LOOP;
+    RAISE NOTICE '10.41 B: % işleve sabit search_path verildi', n;
+END $$;
+
+-- ---- C) SECURITY DEFINER işlevlerde PUBLIC/anon yetkisi ----
+DO $$
+DECLARE
+    r RECORD; n INTEGER := 0;
+    -- oturum açmadan çağrılması BİLEREK istenenler (giriş, kayıt, cihaz/yasak denetimi, yapılandırma, saat)
+    v_anon_ok CONSTANT TEXT[] := ARRAY[
+        'resolve_email_by_username', 'check_username_available', 'check_device_access', 'get_app_config',
+        'juzzio_check_signup', 'get_server_time', 'juzzio_text_is_clean', 'juzzio_username_reserved',
+        'juzzio_username_grants_verified', 'is_blocked_between', 'is_following_accepted', 'is_friends_accepted',
+        'can_view_user_content', 'get_active_global_theme'];   -- tema: giriş ekranı da yayınlanan temayı gösterir
+    v_auth BOOLEAN; v_srv BOOLEAN; v_in_anon_policy BOOLEAN;
+BEGIN
+    FOR r IN
+        SELECT p.oid, p.oid::regprocedure AS sig, p.proname, (p.prorettype = 'trigger'::regtype) AS is_trigger
+          FROM pg_proc p JOIN pg_namespace ns ON ns.oid = p.pronamespace
+         WHERE ns.nspname = 'public' AND p.prosecdef AND p.prokind = 'f'
+           AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.objid = p.oid AND d.deptype = 'e')
+    LOOP
+        IF r.is_trigger THEN
+            -- tetikleyici işlevi API'den çağrılmaz (tetikleyici çalışması EXECUTE yetkisine bakmaz)
+            EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon, authenticated', r.sig);
+            n := n + 1;
+            CONTINUE;
+        END IF;
+        IF r.proname = ANY (v_anon_ok) OR NOT has_function_privilege('anon', r.oid, 'EXECUTE') THEN CONTINUE; END IF;
+        -- anon/public rolüne açık bir RLS ilkesi bu işlevi kullanıyorsa dokunma (oturumsuz okuma bozulmasın)
+        SELECT EXISTS (
+            SELECT 1 FROM pg_policies pp
+             WHERE (pp.roles && ARRAY['anon', 'public']::name[])
+               AND (COALESCE(pp.qual, '') || ' ' || COALESCE(pp.with_check, '')) ~ ('(^|[^a-z0-9_])' || r.proname || '\(')
+        ) INTO v_in_anon_policy;
+        IF v_in_anon_policy THEN CONTINUE; END IF;
+        v_auth := has_function_privilege('authenticated', r.oid, 'EXECUTE');
+        v_srv := has_function_privilege('service_role', r.oid, 'EXECUTE');
+        EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon', r.sig);
+        -- PUBLIC üzerinden gelen yetki kaybolmasın: önceki durum aynen korunur
+        IF v_auth THEN EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO authenticated', r.sig); END IF;
+        IF v_srv THEN EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO service_role', r.sig); END IF;
+        n := n + 1;
+    END LOOP;
+    RAISE NOTICE '10.41 C: % SECURITY DEFINER işlevde oturumsuz/PUBLIC çağrı kapatıldı', n;
+END $$;
+
+-- ---- D) ilkesiz kapalı tablolara açık "doğrudan erişim yok" ilkesi ----
+DO $$
+DECLARE r RECORD; n INTEGER := 0;
+BEGIN
+    FOR r IN
+        SELECT c.relname AS tbl
+          FROM pg_class c JOIN pg_namespace ns ON ns.oid = c.relnamespace
+         WHERE ns.nspname = 'public' AND c.relkind = 'r' AND c.relrowsecurity
+           AND NOT EXISTS (SELECT 1 FROM pg_policy p WHERE p.polrelid = c.oid)
+    LOOP
+        EXECUTE format('CREATE POLICY juzzio_no_direct_access ON public.%I FOR ALL TO anon, authenticated USING (false) WITH CHECK (false)', r.tbl);
+        n := n + 1;
+    END LOOP;
+    RAISE NOTICE '10.41 D: % kapalı tabloya "doğrudan erişim yok" ilkesi yazıldı', n;
+END $$;
+
+-- ---- E) dizinsiz yabancı anahtarlar ----
+DO $$
+DECLARE r RECORD; n INTEGER := 0; v_name TEXT;
+BEGIN
+    FOR r IN
+        SELECT con.oid, con.conname, con.conrelid::regclass AS tbl, con.conkey,
+               (SELECT string_agg(quote_ident(a.attname), ', ' ORDER BY k.ord)
+                  FROM unnest(con.conkey) WITH ORDINALITY k(attnum, ord)
+                  JOIN pg_attribute a ON a.attrelid = con.conrelid AND a.attnum = k.attnum) AS cols
+          FROM pg_constraint con JOIN pg_namespace ns ON ns.oid = con.connamespace
+         WHERE con.contype = 'f' AND ns.nspname = 'public'
+           AND NOT EXISTS (
+               SELECT 1 FROM pg_index i
+                WHERE i.indrelid = con.conrelid AND i.indisvalid
+                  AND (i.indkey::int2[])[0:cardinality(con.conkey) - 1] = con.conkey)
+    LOOP
+        v_name := LEFT('idx_fk_' || r.conname, 63);
+        BEGIN
+            EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %s (%s)', v_name, r.tbl, r.cols);
+            n := n + 1;
+        EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'FK dizini oluşturulamadı (%): %', r.conname, SQLERRM;
+        END;
+    END LOOP;
+    RAISE NOTICE '10.41 E: % yabancı anahtara dizin eklendi', n;
+END $$;
+
+-- ---- F) birebir aynı dizinler ----
+DO $$
+DECLARE r RECORD; n INTEGER := 0;
+BEGIN
+    FOR r IN
+        SELECT dup.indexrelid::regclass AS idx
+          FROM pg_index dup
+          JOIN pg_class dc ON dc.oid = dup.indexrelid
+          JOIN pg_namespace ns ON ns.oid = dc.relnamespace
+         WHERE ns.nspname = 'public'
+           AND NOT EXISTS (SELECT 1 FROM pg_constraint k WHERE k.conindid = dup.indexrelid)   -- PK/UNIQUE kısıt dizini silinmez
+           AND EXISTS (
+               SELECT 1 FROM pg_index keep JOIN pg_class kc ON kc.oid = keep.indexrelid
+                WHERE keep.indrelid = dup.indrelid AND keep.indexrelid <> dup.indexrelid
+                  AND keep.indkey = dup.indkey AND keep.indclass = dup.indclass AND keep.indoption = dup.indoption
+                  AND keep.indisunique = dup.indisunique AND keep.indisvalid
+                  AND COALESCE(pg_get_expr(keep.indpred, keep.indrelid), '') = COALESCE(pg_get_expr(dup.indpred, dup.indrelid), '')
+                  AND COALESCE(pg_get_expr(keep.indexprs, keep.indrelid), '') = COALESCE(pg_get_expr(dup.indexprs, dup.indrelid), '')
+                  AND (SELECT amname FROM pg_am WHERE oid = kc.relam) = (SELECT amname FROM pg_am WHERE oid = dc.relam)
+                  -- kısıt dizini her zaman kalır; değilse adı alfabetik olarak önce gelen kalır
+                  AND (EXISTS (SELECT 1 FROM pg_constraint k2 WHERE k2.conindid = keep.indexrelid) OR kc.relname < dc.relname))
+    LOOP
+        BEGIN
+            EXECUTE format('DROP INDEX IF EXISTS %s', r.idx);
+            n := n + 1;
+        EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'yinelenen dizin silinemedi (%): %', r.idx, SQLERRM;
+        END;
+    END LOOP;
+    RAISE NOTICE '10.41 F: % yinelenen dizin kaldırıldı', n;
+END $$;

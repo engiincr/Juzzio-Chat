@@ -32,6 +32,11 @@ permissions:
 
 env:
   FLUTTER_CHANNEL: stable
+  # v1.2.9: sürüm SABİT. Flutter 3.50 (Kasım 2026) Android Gradle Plugin 9.1+, Gradle 9.3+ ve Kotlin 2.4+
+  # ister; proje AGP 8.11.1 / Gradle 8.14 / Kotlin 2.2.20 ile kurulu (3.47'nin en düşük sürümleri).
+  # "stable" kendiliğinden 3.50'ye geçince APK derlemesi "ApplicationExtension.getDefaultConfig()" hatasıyla
+  # kırıldı. AGP 9'a geçiş ayrı ve denenmiş bir iş olarak yapılana kadar son çalışan sürümde kalınır.
+  FLUTTER_VERSION: "3.47.9"
   JAVA_VERSION: "17"
 
 jobs:
@@ -89,6 +94,7 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: ${{ env.FLUTTER_CHANNEL }}
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
 
       - name: Flutter sürümü (kanıt kaydı)
@@ -206,6 +212,7 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: ${{ env.FLUTTER_CHANNEL }}
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
 
       - name: Firebase yapılandırması (google-services.json)

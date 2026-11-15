@@ -50,6 +50,7 @@ import '../widgets/juzzio_gif_stickers.dart';
 import '../widgets/juzzio_weather_ambience.dart';
 import '../widgets/juzzio_moon_phase.dart';
 import '../widgets/juzzio_chat_music.dart';
+import '../core/juzzio_duration_format.dart';
 import '../widgets/juzzio_event_widgets.dart';
 import '../widgets/juzzio_poll_widgets.dart';
 import '../widgets/juzzio_safety_number.dart';
@@ -9537,9 +9538,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
   String _formatCallDuration(int seconds) {
     if (seconds <= 0) return JuzzioAppController.instance.trEn('Cevaplandı', 'Answered', 'Angenommen');
-    final m = seconds ~/ 60;
-    final sec = seconds % 60;
-    return m > 0 ? '$m dk ${sec.toString().padLeft(2, '0')} sn' : '$sec sn';
+    // v1.2.9: "dk/sn" yalnız Türkçede; her dil kendi birim kısaltmasıyla (bilinmeyen dilde 2:05)
+    return juzzioFormatDuration(seconds, JuzzioAppController.instance.uiLang);
   }
 
   String _formatRelativeMinutes(DateTime dt) {

@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Juzzio "1.2.8'den bu yana neler yeni?" videosu — 720x1280, 30 fps, 17 sn.
+"""Juzzio "1.2.7'den bu yana neler yeni?" videosu (1.2.7 + 1.2.8 + 1.2.9) — 720x1280, 30 fps, ~24 sn.
 
-Güncelleme alan kullanıcılara (1.2.8 veya öncesinden gelenler) BİR KEZ gösterilir.
+Güncelleme alan kullanıcılara (1.2.9'dan önceki bir sürümden gelenler) BİR KEZ gösterilir.
+Yasal/yönetici özellikleri bu videoda YER ALMAZ (yalnız kullanıcıya dönük yenilikler).
 Kullanım:
-  python3 tools/juzzio_music_synth.py 18 129 /tmp/wn.wav     # ÖZGÜN müzik (telifsiz)
+  python3 tools/juzzio_music_synth.py 25 129 /tmp/wn.wav     # ÖZGÜN müzik (telifsiz)
   python3 tools/intro_video/whatsnew.py tr --music /tmp/wn.wav
   python3 tools/intro_video/whatsnew.py en --music /tmp/wn.wav
   python3 tools/intro_video/whatsnew.py stills tr           # kontrol kareleri
@@ -24,24 +25,46 @@ EMOJI_FONT = os.path.join(I.ROOT, 'assets/fonts/NotoColorEmoji.ttf')
 
 TEXT = {
     'tr': dict(
-        v='Sürüm 1.2.9', q="1.2.8'den bu yana neler yeni?",
-        a=[('✨', 'Cam menü ve 7 hızlı tepki', 'Yanıtla · Çevir · İlet · Seç'),
-           ('🎞️', 'Komik hareketli GIF\'ler', 'Sözsüz, kendi dilinde aranır'),
-           ('✉️', 'Mesaj istekleri', 'İstek kutusu ve spam kutusu')],
-        b=[('🎵', 'Sohbette müzik', 'Önizle, profil müziği yap'),
-           ('🌙', 'Gerçek Ay evresi', 'Daha gerçekçi hava teması'),
-           ('📶', 'Daha sağlam aramalar', 'Yeniden bağlanma, 720p → 360p')],
+        v='Sürüm 1.2.9', q="1.2.7'den bu yana neler yeni?",
+        scenes=[
+            ('1.2.7', [('🎬', 'Tanıtım videosu', 'İlk girişte 20 saniyede Juzzio'),
+                       ('🎂', '3B doğum günü kutlaması', 'Daha uzun, daha görkemli'),
+                       ('🌦️', 'Canlı hava teması', 'Saate göre minik simgeler')]),
+            ('1.2.8', [('🍿', 'Sinema Parti yenilendi', 'Her bağlantı, 4 kişi, sesli oda'),
+                       ('🗣️', 'Canlı çeviri düzeldi', 'Kopunca kendiliğinden bağlanır'),
+                       ('📥', 'Medyayı indir, 720p video', 'Titreme yok, daha az veri')]),
+            ('1.2.9', [('✨', 'Cam menü ve 7 hızlı tepki', 'Yanıtla · Çevir · İlet · Seç'),
+                       ('🎞️', 'Komik hareketli GIF\'ler', 'Sözsüz, kendi dilinde aranır'),
+                       ('✉️', 'Mesaj istekleri', 'İstek kutusu ve spam kutusu')]),
+            ('1.2.9', [('🎵', 'Sohbette müzik', 'Önizle, profil müziği yap'),
+                       ('🌙', 'Gerçek Ay evresi', 'Daha gerçekçi hava teması'),
+                       ('📶', 'Daha sağlam aramalar', 'Yeniden bağlanma, 720p → 360p')]),
+            ('Düzeltmeler', [('🛠️', 'Çökme ve hata kodları giderildi', 'Emoji adlar, P0001 yerine açık mesaj'),
+                             ('💬', 'Tepkiler balonun içinde', 'Sarı çizgi yok, akıcı gönderim'),
+                             ('🔒', 'Daha güvenli dosyalar', 'Zararlı dosya ve bağlantı uyarısı')]),
+        ],
         thanks='Teşekkürler!', thanksb="Juzzio'yu birlikte büyütüyoruz",
         credits='Katkılarıyla', end='Keyfini çıkar', endb='Juzzio 1.2.9',
     ),
     'en': dict(
-        v='Version 1.2.9', q="What's new since 1.2.8?",
-        a=[('✨', 'Glass menu & 7 quick reactions', 'Reply · Translate · Forward · Select'),
-           ('🎞️', 'Funny animated GIFs', 'Wordless, searchable in your language'),
-           ('✉️', 'Message requests', 'Request box and spam box')],
-        b=[('🎵', 'Music in chats', 'Preview it, set as profile music'),
-           ('🌙', 'Real moon phase', 'A more realistic weather theme'),
-           ('📶', 'Sturdier calls', 'Reconnects, 720p → 360p')],
+        v='Version 1.2.9', q="What's new since 1.2.7?",
+        scenes=[
+            ('1.2.7', [('🎬', 'Intro video', 'Juzzio in 20 seconds on first sign-in'),
+                       ('🎂', '3D birthday celebration', 'Longer and grander'),
+                       ('🌦️', 'Live weather theme', 'Tiny icons that follow the hour')]),
+            ('1.2.8', [('🍿', 'Cinema Party rebuilt', 'Any link, 4 people, voice room'),
+                       ('🗣️', 'Live translation fixed', 'Reconnects by itself'),
+                       ('📥', 'Download media, 720p video', 'No flicker, less data')]),
+            ('1.2.9', [('✨', 'Glass menu & 7 quick reactions', 'Reply · Translate · Forward · Select'),
+                       ('🎞️', 'Funny animated GIFs', 'Wordless, searchable in your language'),
+                       ('✉️', 'Message requests', 'Request box and spam box')]),
+            ('1.2.9', [('🎵', 'Music in chats', 'Preview it, set as profile music'),
+                       ('🌙', 'Real moon phase', 'A more realistic weather theme'),
+                       ('📶', 'Sturdier calls', 'Reconnects, 720p → 360p')]),
+            ('Fixes', [('🛠️', 'Crashes and error codes fixed', 'Emoji names, clear messages not P0001'),
+                       ('💬', 'Reactions inside the bubble', 'No yellow line, smooth sending'),
+                       ('🔒', 'Safer files', 'Warnings for harmful files and links')]),
+        ],
         thanks='Thank you!', thanksb="We're growing Juzzio together",
         credits='With contributions from', end='Enjoy', endb='Juzzio 1.2.9',
     ),
@@ -87,10 +110,18 @@ def s_open(t, T, X):
     text_center(img, X['q'], F('InterDisplay-Bold.otf', 46), 760 + 18 * (1 - a2), WHITE, a2)
     return img
 
-def feature_scene(items, tint_t):
+def feature_scene(label, items, tint_t):
     def s(t, T, X):
         img = aurora(t + tint_t)
-        y0 = 300
+        # sürüm rozeti (hangi sürümde geldi)
+        ab = ease_out(seg(t, 0.0, 0.4))
+        if ab > 0:
+            L = layer(); d = ImageDraw.Draw(L)
+            f = F('Inter-Bold.otf', 34); tw = d.textlength(label, font=f)
+            rrect(d, [(W - tw) / 2 - 30, 196, (W + tw) / 2 + 30, 262], 33, fill=LIME + (int(255 * ab),))
+            d.text(((W - tw) / 2, 208), label, font=f, fill=(16, 12, 40, int(255 * ab)))
+            img.alpha_composite(L)
+        y0 = 320
         for i, (em, title, sub) in enumerate(items):
             a = ease_out(seg(t, 0.15 + i * 0.35, 0.65 + i * 0.35))
             if a <= 0: continue
@@ -153,7 +184,8 @@ def s_end(t, T, X):
     return img
 
 def scenes(X):
-    return [(s_open, 2.6), (feature_scene(X['a'], 3), 3.4), (feature_scene(X['b'], 7), 3.4), (s_thanks, 2.4), (s_credits, 3.0), (s_end, 2.2)]
+    return ([(s_open, 2.4)] + [(feature_scene(lbl, items, 3 + 4 * i), 3.0) for i, (lbl, items) in enumerate(X['scenes'])]
+            + [(s_thanks, 2.2), (s_credits, 2.8), (s_end, 2.0)])
 
 def frame_at(gt, X):
     S = scenes(X); acc = 0.0
@@ -193,7 +225,7 @@ if __name__ == '__main__':
         lang = args[1] if len(args) > 1 else 'tr'
         out = sys.argv[-1] if len(args) > 2 else '/tmp/claude-0/wn'
         os.makedirs(out, exist_ok=True)
-        for s in (1.8, 4.8, 8.2, 10.4, 12.6, 15.6):
+        for s in (1.8, 4.6, 7.6, 10.6, 13.6, 16.6, 19.0, 21.4, 23.9):
             frame_at(s, TEXT[lang]).convert('RGB').save(f'{out}/wn_{lang}_{s:04.1f}.jpg', quality=85)
     else:
         lang = args[0] if args else 'tr'

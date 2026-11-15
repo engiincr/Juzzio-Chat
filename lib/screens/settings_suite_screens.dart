@@ -6497,10 +6497,11 @@ class JuzzioOtaUpdateSettingsPage extends StatelessWidget {
                             const SizedBox(width: 6),
                             Expanded(
                               child: Text(
+                                // v1.2.9: yalnız saat değil, TARİH + saat (ör. 1 hafta ertelemede "22 Kasım 2026 Pazar 13:22")
                                 appCtrl.trEn(
-                                  'Ertelendi: ${TimeOfDay.fromDateTime(appCtrl.otaSnoozedUntil!).format(context)} sonrasına kadar bildirim yok',
-                                  'Snoozed: no notifications until ${TimeOfDay.fromDateTime(appCtrl.otaSnoozedUntil!).format(context)}',
-                                  'Aufgeschoben bis ${TimeOfDay.fromDateTime(appCtrl.otaSnoozedUntil!).format(context)}',
+                                  'Ertelendi: ${juzzioSnoozeUntilLabel(context, appCtrl.otaSnoozedUntil!)} tarihine kadar bildirim yok',
+                                  'Snoozed: no notifications until ${juzzioSnoozeUntilLabel(context, appCtrl.otaSnoozedUntil!)}',
+                                  'Aufgeschoben bis ${juzzioSnoozeUntilLabel(context, appCtrl.otaSnoozedUntil!)}',
                                 ),
                                 style: TextStyle(color: p.textSecondary, fontSize: 12),
                               ),
@@ -7324,5 +7325,18 @@ class _JuzzioSaveNotifSwitchState extends State<_JuzzioSaveNotifSwitch> {
       value: _value ?? false,
       onChanged: (_value == null || _busy) ? null : _set,
     );
+  }
+}
+
+
+/// v1.2.9: erteleme bitişi — uygulama dilinde tam tarih + saat ("22 Kasım 2026 Pazar 13:22")
+String juzzioSnoozeUntilLabel(BuildContext context, DateTime until) {
+  final local = until.toLocal();
+  final time = TimeOfDay.fromDateTime(local).format(context);
+  try {
+    return '${MaterialLocalizations.of(context).formatFullDate(local)} $time';
+  } catch (_) {
+    String two(int v) => v.toString().padLeft(2, '0');
+    return '${two(local.day)}.${two(local.month)}.${local.year} $time';
   }
 }

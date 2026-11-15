@@ -2,10 +2,14 @@
 // GIF çıkartmaları, müzik kartı, Ay evresi, mesaj istekleri, yasal rapor, neler yeni videosu
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
+
+import 'package:archive/archive.dart';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:juzzio/core/app_theme_and_locale.dart';
+import 'package:juzzio/core/juzzio_duration_format.dart';
 import 'package:juzzio/core/juzzio_intro.dart';
 import 'package:juzzio/core/juzzio_server_errors.dart';
 import 'package:juzzio/core/juzzio_text_safety.dart';
@@ -14,6 +18,7 @@ import 'package:juzzio/screens/admin_legal_report.dart';
 import 'package:juzzio/services/juzzio_features_service.dart' show JuzzioDmRequestState;
 import 'package:juzzio/services/juzzio_file_guard.dart';
 import 'package:juzzio/services/juzzio_health_monitor.dart';
+import 'package:juzzio/services/juzzio_legal_package.dart';
 import 'package:juzzio/services/supabase_service.dart' show JuzzioIceServer;
 import 'package:juzzio/widgets/juzzio_chat_music.dart';
 import 'package:juzzio/widgets/juzzio_gif_stickers.dart';
@@ -257,6 +262,127 @@ void main() {
     test('hikâye görüntüleyici hava katmanını gizler; varsayılan tema Gece Mavisi', () {
       expect(_src('lib/screens/chat_screen.dart').contains('JuzzioAmbienceHide(child: JuzzioStoryViewerModal('), isTrue);
       expect(_src('lib/core/app_theme_and_locale.dart').contains("_defaultGlassPaletteId = 'ocean'"), isTrue);
+    });
+  });
+
+  group('Süre birimleri her dilde', () {
+    test('dk/sn yalnız Türkçede', () {
+      expect(juzzioFormatDuration(125, 'tr'), '2 dk 05 sn');
+      expect(juzzioFormatDuration(125, 'en'), '2 min 05 s');
+      expect(juzzioFormatDuration(125, 'en-US'), '2 min 05 s');
+      expect(juzzioFormatDuration(125, 'de'), '2 Min. 05 Sek.');
+      expect(juzzioFormatDuration(125, 'ja'), '2分05秒');
+      expect(juzzioFormatDuration(3725, 'en'), '1 h 02 min');
+      expect(juzzioFormatDuration(9, 'en'), '9 s');
+      expect(juzzioFormatDuration(125, 'xx'), '2:05'); // bilinmeyen dil: evrensel biçim
+      expect(juzzioFormatDuration(125, 'en').contains('dk'), isFalse);
+      expect(juzzioSecondsLabel('10', 'tr'), '10 sn');
+      expect(juzzioSecondsLabel('10', 'en'), '10 s');
+    });
+  });
+
+  group('Yasal teslim paketi (PDF + AES-256 ZIP)', () {
+    test('üç adli alan zorunlu; gerekçe satırı', () {
+      expect(const JuzzioLegalRequestInfo(authority: 'İstanbul 1. Sulh Ceza Hâkimliği', caseNo: '', purpose: 'HTS').isComplete, isFalse);
+      const ok = JuzzioLegalRequestInfo(authority: 'İstanbul 1. Sulh Ceza Hâkimliği', caseNo: '2026/1453 Esas', purpose: 'Trafik kaydı talebi');
+      expect(ok.isComplete, isTrue);
+      expect(ok.toReason(), contains('2026/1453 Esas'));
+    });
+    test('şifre 12 hane, her talepte farklı, karışan karakter yok', () {
+      final a = juzzioLegalPassword(), b = juzzioLegalPassword();
+      expect(a.length, 12);
+      expect(a == b, isFalse);
+      expect(RegExp(r'^[A-HJ-NP-Za-km-z2-9]{12}$').hasMatch(a), isTrue);
+      expect(juzzioLegalPassword(random: Random(1)), juzzioLegalPassword(random: Random(1)));
+    });
+    test('ZIP şifreli: doğru şifreyle açılır, içerik düz metin olarak görünmez', () {
+      final secret = utf8.encode('{"gizli":"juzzio-yasal-veri-0123456789"}');
+      final zip = juzzioBuildEncryptedZip({'juzzio_veri.json': secret, 'juzzio_rapor.pdf': [37, 80, 68, 70]}, 'Abc234defGHJ');
+      expect(latin1.decode(zip).contains('juzzio-yasal-veri'), isFalse);
+      final dec = ZipDecoder().decodeBytes(zip, password: 'Abc234defGHJ');
+      expect(dec.files.map((f) => f.name).toSet(), {'juzzio_veri.json', 'juzzio_rapor.pdf'});
+      expect(utf8.decode(dec.findFile('juzzio_veri.json')!.content as List<int>), utf8.decode(secret));
+      expect(() => juzzioBuildEncryptedZip({'a': [1]}, 'kisa'), throwsArgumentError);
+    });
+    test('SHA256SUMS biçimi', () {
+      final sums = juzzioSha256Sums({'a.txt': utf8.encode('abc')});
+      expect(sums, 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad  a.txt\n');
+    });
+    test('RFC 3161 isteği ve yanıt denetimi', () {
+      final req = juzzioTsaRequest(List<int>.filled(32, 7));
+      expect(req.length, 59);
+      expect(req.sublist(0, 2), [0x30, 0x39]);
+      expect(req.sublist(req.length - 3), [0x01, 0x01, 0xff]);
+      expect(() => juzzioTsaRequest([1, 2, 3]), throwsArgumentError);
+      // granted + belirteç
+      expect(juzzioTsaGranted([0x30, 0x09, 0x30, 0x03, 0x02, 0x01, 0x00, 0x30, 0x02, 0x05, 0x00]), isTrue);
+      // rejection (2)
+      expect(juzzioTsaGranted([0x30, 0x05, 0x30, 0x03, 0x02, 0x01, 0x02]), isFalse);
+      expect(juzzioTsaGranted([1, 2, 3]), isFalse);
+    });
+    test('IP toplama, genel IP ayrımı ve servis sağlayıcı çözümleme', () {
+      final b = {
+        'login_events': [
+          {'ip': '88.240.1.5'},
+          {'ip': '88.240.1.5'},
+          {'ip': '192.168.1.9'}
+        ],
+        'devices': [
+          {'last_ip': '2a02:ff0::1'}
+        ],
+        'lifecycle': [
+          {'ip': ''}
+        ],
+      };
+      expect(juzzioCollectIps(b), ['192.168.1.9', '2a02:ff0::1', '88.240.1.5']);
+      expect(juzzioIsPublicIp('88.240.1.5'), isTrue);
+      expect(juzzioIsPublicIp('192.168.1.9'), isFalse);
+      expect(juzzioIsPublicIp('100.64.0.1'), isFalse);
+      expect(juzzioIsPublicIp('fe80::1'), isFalse);
+      expect(juzzioIsPublicIp('999.1.1.1'), isFalse);
+      expect(
+          juzzioIspFromRipe({
+            'data': {
+              'asns': [
+                {'asn': 9121, 'holder': 'TTNET Turk Telekomunikasyon'}
+              ]
+            }
+          }),
+          'AS9121 — TTNET Turk Telekomunikasyon');
+      expect(juzzioIspFromRipe({'data': {'asns': []}}), isNull);
+    });
+    test('özet tablo: hesap, IP sayısı ve şifreleme uyarısı', () {
+      final rows = juzzioLegalSummary({
+        'profile': {'username': 'x', 'id': 'u1'},
+        'login_events': [
+          {'ip': '1.1.1.1'},
+          {'ip': '8.8.8.8'}
+        ],
+        'messages': [
+          {'encrypted': true},
+          {'encrypted': false}
+        ],
+      });
+      final m = {for (final r in rows) r.key: r.value};
+      expect(m['İncelenen hesap'], '@x');
+      expect(m['Benzersiz IP adresi sayısı'], '2');
+      expect(m['Mesaj kaydı (üst veri)'], contains('1 tanesi uçtan uca şifreli'));
+      expect(m['Kritik uyarı'], contains('uçtan uca şifreli'));
+    });
+    test('PDF varlıkları ve antet logosu ayrı dosya (uygulama logosuna dokunulmaz)', () {
+      expect(File('assets/images/pdf_logo.png').existsSync(), isTrue);
+      expect(File('assets/fonts/pdf/LiberationSans-Regular.ttf').existsSync(), isTrue);
+      final pub = _src('pubspec.yaml');
+      for (final w in ['pdf:', 'archive:', 'assets/images/pdf_logo.png', 'assets/fonts/pdf/LiberationSans-Bold.ttf']) {
+        expect(pub.contains(w), isTrue, reason: w);
+      }
+      final pdf = _src('lib/services/juzzio_legal_pdf.dart');
+      expect(pdf.contains('juzzio_logo.png\','), isFalse);
+      expect(pdf.contains('Bu belge Juzzio Sistemleri tarafından resmi makamların talebi üzerine otomatik olarak oluşturulmuştur.'), isTrue);
+      expect(pdf.contains('Uçtan uca şifreleme sebebiyle birebir sohbet içerikleri sunucuda barındırılmamakta ve okunamamaktadır.'), isTrue);
+      final tab = _src('lib/screens/admin_god_tab.dart');
+      expect(tab.contains('juzzioBuildEncryptedZip(files, password)'), isTrue);
+      expect(tab.contains('.json\')'), isFalse, reason: 'ham JSON açık dosya olarak yazılmaz');
     });
   });
 

@@ -30,6 +30,7 @@ import 'package:battery_plus/battery_plus.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:just_audio/just_audio.dart' as ja;
 import 'package:livekit_client/livekit_client.dart';
+import '../core/juzzio_duration_format.dart';
 import '../core/app_theme_and_locale.dart';
 import '../core/config.dart';
 import '../services/deepgram_livekit_service.dart';
@@ -341,7 +342,7 @@ class _CallScreenState extends State<CallScreen> {
               ? 30
               : (DeepgramLiveKitController.peerGrace.inSeconds - DateTime.now().difference(since).inSeconds).clamp(0, 30);
           title = _app.loc('$peer adlı kişinin bağlantısı kesildi', '$peer lost their connection', 'Die Verbindung von $peer ist unterbrochen');
-          sub = _app.loc('Yeniden bağlanması bekleniyor · $left sn', 'Waiting for them to reconnect · ${left}s', 'Warte auf erneute Verbindung · $left s');
+          sub = '${_app.loc('Yeniden bağlanması bekleniyor', 'Waiting for them to reconnect', 'Warte auf erneute Verbindung')} · ${juzzioSecondsLabel('$left', _app.uiLang)}';
         }
         return Padding(
           padding: const EdgeInsets.only(bottom: 8),
@@ -952,7 +953,6 @@ class _CallScreenState extends State<CallScreen> {
     }
   }
 
-  @override
   /// v1.1.0 Live Activity: arama sayfasının üstüne başka sayfa açılırsa üstte süre sayan
   /// arama kapsülü görünür; dokununca aramaya geri dönülür.
   void _syncCallIsland() {

@@ -300,7 +300,7 @@ class _JuzzioChickGameScreenState extends State<JuzzioChickGameScreen> with Tick
                         return ListTile(
                           leading: CircleAvatar(
                             backgroundImage: f.avatarUrl != null ? NetworkImage(f.avatarUrl!) : null,
-                            child: f.avatarUrl == null ? TextjuzzioInitial(f.displayName) : null,
+                            child: f.avatarUrl == null ? Text(juzzioInitial(f.displayName)) : null,
                           ),
                           title: Text(f.displayName),
                           subtitle: Text('@${f.username}'),
@@ -462,7 +462,7 @@ class _JuzzioChickGameScreenState extends State<JuzzioChickGameScreen> with Tick
                   leading: CircleAvatar(
                     backgroundImage: inv.otherAvatar != null && inv.otherAvatar!.isNotEmpty ? NetworkImage(inv.otherAvatar!) : null,
                     child: (inv.otherAvatar == null || inv.otherAvatar!.isEmpty)
-                        ? TextjuzzioInitial(inv.otherName)
+                        ? Text(juzzioInitial(inv.otherName))
                         : null,
                   ),
                   title: Text(inv.otherName),
@@ -637,7 +637,7 @@ class _JuzzioChickGameScreenState extends State<JuzzioChickGameScreen> with Tick
           leading: CircleAvatar(
             backgroundImage: st.partnerAvatar != null && st.partnerAvatar!.isNotEmpty ? NetworkImage(st.partnerAvatar!) : null,
             child: (st.partnerAvatar == null || st.partnerAvatar!.isEmpty)
-                ? TextjuzzioInitial(st.partnerName)
+                ? Text(juzzioInitial(st.partnerName))
                 : null,
           ),
           title: Text(app.t('chick_partner'), style: TextStyle(color: p.textSecondary, fontSize: 12.5)),

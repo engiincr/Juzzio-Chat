@@ -140,3 +140,7 @@ Thumbs.db
 /push.txt
 /log.txt
 /build_error.log
+
+# ---- Python önbelleği (araç betikleri) -----------------------------------------
+__pycache__/
+*.pyc

@@ -574,7 +574,7 @@ class _GroupManagementSheetState extends State<_GroupManagementSheet> {
                       leading: CircleAvatar(
                         backgroundImage: m.avatarUrl != null ? NetworkImage(m.avatarUrl!) : null,
                         child: m.avatarUrl == null
-                            ? TextjuzzioInitial(m.displayName)
+                            ? Text(juzzioInitial(m.displayName))
                             : null,
                       ),
                       title: Row(
