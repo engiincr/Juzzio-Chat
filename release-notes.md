@@ -51,13 +51,13 @@ On some phones names starting with an emoji crashed the app; some actions showed
 ## ⬇️ Download
 
 - Latest: [Juzzio-latest.apk](https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk)
-- This version: `juzzio-v1.2.9-release.apk` (120.44 MB)
+- This version: `juzzio-v1.2.9-release.apk` (120.67 MB)
 
 ## ✅ Verify the APK
 
 ```bash
 sha256sum Juzzio-latest.apk
-# 799574d7e8ddacda41ba927f0afcb0608f3d9315081fa2834d704a69a4ed8f6a  Juzzio-latest.apk
+# 922d38a5ac17e12ac7b83a6b0c5d25adb341239d38f3f0b33d2bb0ec552697ad  Juzzio-latest.apk
 ```
 
-Built: 2026-11-15 13:43 UTC — GitHub Actions
+Built: 2026-11-15 15:02 UTC — GitHub Actions
