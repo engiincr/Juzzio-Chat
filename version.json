@@ -1,16 +1,16 @@
 {
   "version": "1.2.9",
-  "buildNumber": 129,
+  "buildNumber": 1068,
   "releaseDate": "2026-11-15",
   "releaseTitle": "Cam Menü, GIF'ler, Mesaj İstekleri ve Sağlam Aramalar",
   "mandatory": false,
   "minSupportedVersion": "0.1.0",
   "apkUrl": "https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk",
   "versionedApkUrl": "https://github.com/engiincr/Juzzio-Chat/releases/download/v1.2.9/juzzio-v1.2.9-release.apk",
-  "apkSha256": "",
-  "apkSize": "",
-  "verifiedBuild": false,
-  "verifiedAt": "",
+  "apkSha256": "97f9a69317bfbf0b9d9cab4d49069e993a21734f6438b04081f14ca5909ba468",
+  "apkSize": "120.67 MB",
+  "verifiedBuild": true,
+  "verifiedAt": "2026-11-15 15:21 UTC",
   "developer": {
     "name": "Engin ÇIRPAN",
     "instagram": "https://ig.me/tugkancr",
@@ -22,8 +22,8 @@
     "en": "v1.2.9: On some phones names starting with an emoji crashed the app; some actions showed an unreadable \"P0001\" error; message reactions spilled outside the bubble; the birthday celebration closed with the back button; a yellow line appeared while sending; strangers could send unlimited messages. A copyright audit was also done, file security was hardened and calls are sturdier on weak internet.",
     "de": "v1.2.9: On some phones names starting with an emoji crashed the app; some actions showed an unreadable \"P0001\" error; message reactions spilled outside the bubble; the birthday celebration closed with the back button; a yellow line appeared while sending; strangers could send unlimited messages. A copyright audit was also done, file security was hardened and calls are sturdier on weak internet."
   },
-  "build": 129,
-  "versionCode": 129,
+  "build": 1068,
+  "versionCode": 1068,
   "url": "https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk",
   "changelog_tr": "v1.2.9: Bazı telefonlarda emojiyle başlayan adlar uygulamayı çökertiyordu; bazı işlemler anlaşılmaz \"P0001\" hatası veriyordu; mesaj tepkileri balonun dışına taşıyordu; doğum günü kutlaması geri tuşuyla kapanıyordu; mesaj gönderirken sarı çizgi görünüyordu; tanımadığın kişiler sınırsız mesaj atabiliyordu. Ayrıca telif denetimi yapıldı, dosya güvenliği güçlendirildi ve aramalar zayıf internette daha dayanıklı hâle getirildi.",
   "changelog_en": "v1.2.9: On some phones names starting with an emoji crashed the app; some actions showed an unreadable \"P0001\" error; message reactions spilled outside the bubble; the birthday celebration closed with the back button; a yellow line appeared while sending; strangers could send unlimited messages. A copyright audit was also done, file security was hardened and calls are sturdier on weak internet.",
@@ -163,5 +163,6 @@
     }
   },
   "releaseTitleEn": "Glass Menu, GIFs, Message Requests & Sturdier Calls",
-  "signatureAlg": "ML-DSA-65 (FIPS 204)"
+  "signatureAlg": "ML-DSA-65 (FIPS 204)",
+  "mldsa65Sig": "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"
 }
