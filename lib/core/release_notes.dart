@@ -157,6 +157,88 @@ class JuzzioReleaseNote {
 /// Uygulamaya gömülü sürüm geçmişi (yayınlanmış sürümlerin gerçek içeriği)
 final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
   JuzzioReleaseNote(
+    versionName: '1.3.0',
+    versionCode: 130,
+    publishedAt: DateTime(2026, 11, 19),
+    sections: const {
+      'tr': JuzzioReleaseSection(
+        reason: "Hoparlörde konuşurken karşı taraf konuşunca senin sesin kesiliyor ve çeviri çalışmıyordu; görüntülü aramada görüntü donabiliyordu; yönetici paneline çevrimdışı telefonlardan sahte sistem hataları düşüyordu; gündüz modunda bazı başlıklar görünmüyordu; çift tıkla gönderilen tepki mesajın altında zıplıyordu. Ayrıca aramalarda çevirili mesajlaşma ve yeni temalar geldi, yönetici paneli güvenliği sıkılaştırıldı.",
+        features: [
+          "💬 Sesli ve görüntülü aramada mesaj: alt çubuktaki 💬 ile yaz; mesaj karşı tarafa kendi dilinde çevrilerek ulaşır, aynı dili konuşanlarda çeviri yapılmaz",
+          "🔐 Kilitli sohbetlerde PIN yenileme ve PIN'i 0000'a sıfırlama (sağ üstteki anahtar menüsü)",
+          "🎨 Yeni temalar: Orman Nane ve Grafit Limon",
+          "🔔 Bildirimlerde büyük okunmamış sayacı ve tek dokunuşla \"Tümünü okundu yap\"",
+          "📞 Aramalar sayfasında hızlı \"Sesli arama\" ve \"Görüntülü\" kartları",
+          "⛅ Juzzio yazısının yanındaki simge hava bulutluysa bulutlu görünür",
+          "👋 Sohbetler başlığında günün saatine göre selam",
+        ],
+        fixes: [
+          "Hoparlörde karşı taraf konuşunca sesinin kesilmesi ve çevirinin çalışmaması giderildi (altyazı artık aramanın yankısı temizlenmiş mikrofon sesini kullanır)",
+          "Görüntülü aramada ağ zayıflayınca görüntü donmak yerine çözünürlük düşer",
+          "Çevrimdışıyken ya da uygulama arka plandayken sistem sağlığı artık sahte hata kaydı açmaz",
+          "Gündüz modunda görünmeyen beyaz başlık, geri oku ve filtreler düzeltildi",
+          "Bildirimler başlığının \"Bil...\" diye kesilmesi giderildi",
+          "Çift tık tepkisinin mesajın altında zıplaması giderildi",
+          "Aramadaki uzun \"aynı dili konuşuyorsunuz\" bilgisi kaldırıldı; yer kaplamıyor",
+          "Sayfa arkasındaki bulut/ay/güneş süsleri sadeleşti, yalnız üst kısımda görünür",
+        ],
+        security: [
+          "Yönetici paneli: oturum süresi 4 saat (hatırla: 7 gün), 24 saatte en fazla 15 hatalı şifre denemesi, aynı anda en fazla 3 oturum; hatalı denemeler denetim kaydına yazılır",
+        ],
+      ),
+      'en': JuzzioReleaseSection(
+        reason: "On speakerphone your voice cut out when the other person spoke and translation stopped working; video could freeze during calls; offline phones sent false system errors to the admin panel; some headers were invisible in light mode; the double-tap reaction bounced below the message. Calls now also have translated in-call messaging, there are new themes, and admin panel security was tightened.",
+        features: [
+          "💬 Messages during voice and video calls: tap 💬 in the bottom bar; messages reach the other person translated into their language, with no translation between people who speak the same language",
+          "🔐 Change your locked-chats PIN or reset it to 0000 (key menu at the top right)",
+          "🎨 New themes: Forest Mint and Graphite Lime",
+          "🔔 Large unread counter in Notifications with one-tap \"Mark all as read\"",
+          "📞 Quick \"Voice call\" and \"Video\" cards on the Calls page",
+          "⛅ The icon next to Juzzio shows clouds when the weather is cloudy",
+          "👋 Time-of-day greeting on the Chats header",
+        ],
+        fixes: [
+          "Fixed your voice cutting out and translation failing on speakerphone when the other person spoke (captions now use the call's echo-cancelled microphone audio)",
+          "On weak networks video calls lower the resolution instead of freezing",
+          "System health no longer files false errors while offline or in the background",
+          "Fixed white headers, back arrows and filters that were invisible in light mode",
+          "Fixed the Notifications title being cut off as \"Not...\"",
+          "Fixed the double-tap reaction bouncing below the message",
+          "Removed the long \"you speak the same language\" notice in calls to save space",
+          "Background cloud/moon/sun decorations are simpler and only appear at the top",
+        ],
+        security: [
+          "Admin panel: sessions last 4 hours (remember: 7 days), at most 15 wrong passwords per 24 hours, at most 3 sessions at once; failed attempts are written to the audit log",
+        ],
+      ),
+      'de': JuzzioReleaseSection(
+        reason: "Im Lautsprechermodus wurde deine Stimme unterbrochen, sobald die andere Person sprach, und die Übersetzung funktionierte nicht; das Video konnte in Anrufen einfrieren; Offline-Telefone meldeten falsche Systemfehler an das Admin-Panel; einige Überschriften waren im hellen Modus unsichtbar; die Doppeltipp-Reaktion hüpfte unter der Nachricht. Außerdem gibt es übersetzte Nachrichten im Anruf, neue Designs und strengere Sicherheit für das Admin-Panel.",
+        features: [
+          "💬 Nachrichten während Sprach- und Videoanrufen: tippe auf 💬 in der unteren Leiste; Nachrichten kommen übersetzt in der Sprache der anderen Person an, ohne Übersetzung bei gleicher Sprache",
+          "🔐 PIN für gesperrte Chats ändern oder auf 0000 zurücksetzen (Schlüsselmenü oben rechts)",
+          "🎨 Neue Designs: Waldminze und Graphit Limette",
+          "🔔 Großer Zähler für ungelesene Benachrichtigungen mit \"Alle als gelesen markieren\" per Tipp",
+          "📞 Schnellkarten \"Sprachanruf\" und \"Video\" auf der Anrufe-Seite",
+          "⛅ Das Symbol neben Juzzio zeigt Wolken, wenn es bewölkt ist",
+          "👋 Begrüßung je nach Tageszeit im Chats-Kopf",
+        ],
+        fixes: [
+          "Behoben: Im Lautsprechermodus wurde deine Stimme unterbrochen und die Übersetzung fiel aus, wenn die andere Person sprach (Untertitel nutzen jetzt das echofreie Mikrofonsignal des Anrufs)",
+          "Bei schwachem Netz senken Videoanrufe die Auflösung, statt einzufrieren",
+          "Die Systemprüfung meldet offline oder im Hintergrund keine falschen Fehler mehr",
+          "Weiße Überschriften, Zurück-Pfeile und Filter, die im hellen Modus unsichtbar waren, behoben",
+          "Abgeschnittener Titel der Benachrichtigungen behoben",
+          "Hüpfende Doppeltipp-Reaktion unter der Nachricht behoben",
+          "Langer Hinweis \"ihr sprecht dieselbe Sprache\" im Anruf entfernt",
+          "Wolken-, Mond- und Sonnendekor im Hintergrund ist schlichter und nur oben sichtbar",
+        ],
+        security: [
+          "Admin-Panel: Sitzungen dauern 4 Stunden (merken: 7 Tage), höchstens 15 falsche Passwörter in 24 Stunden, höchstens 3 gleichzeitige Sitzungen; Fehlversuche werden im Prüfprotokoll gespeichert",
+        ],
+      ),
+    },
+  ),
+  JuzzioReleaseNote(
     versionName: '1.2.9',
     versionCode: 129,
     publishedAt: DateTime(2026, 11, 15),
