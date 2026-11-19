@@ -1,21 +1,19 @@
 // CI: Maven Central "429 Too Many Requests" (GitHub paylaşımlı makinelerin indirme sınırı)
-// derlemeyi düşürüyordu. Tüm projelerde ve eklenti (buildscript) çözümlemesinde önce Google'ın
-// resmî Maven Central aynası denenir; ulaşılamazsa projenin kendi depoları (mavenCentral) kullanılır.
+// derlemeyi düşürüyordu. Eklenti alt projelerinin kendi buildscript çözümlemesinde de önce
+// Google'ın resmî Maven Central aynası denenir; ulaşılamazsa projenin kendi depoları kullanılır.
+//
+// Yalnız ANA derlemeye uygulanır: Flutter'ın kendi Gradle eklenti yapısı (flutter_tools/gradle,
+// "dahil edilmiş derleme") ayarlarında PREFER_SETTINGS kullanır; ona proje deposu eklenirse
+// "Build was configured to prefer settings repositories…" hatası verir. Ana derlemenin
+// settings.gradle / build.gradle dosyaları aynayı zaten kendileri tanımlar.
 def juzzioMirror = 'https://maven-central.storage-download.googleapis.com/maven2/'
 
-settingsEvaluated { settings ->
-    settings.pluginManagement.repositories {
-        maven { url juzzioMirror; name 'MavenCentralGoogleMirror' }
-    }
-}
-
-allprojects {
-    buildscript {
-        repositories {
+if (gradle.parent == null) {
+    allprojects { p ->
+        // kök proje depoları build.gradle'da zaten tanımlı; yalnız eklenti alt projelerinin
+        // buildscript (classpath) çözümlemesine ayna eklenir
+        p.buildscript.repositories {
             maven { url juzzioMirror; name 'MavenCentralGoogleMirror' }
         }
-    }
-    repositories {
-        maven { url juzzioMirror; name 'MavenCentralGoogleMirror' }
     }
 }
