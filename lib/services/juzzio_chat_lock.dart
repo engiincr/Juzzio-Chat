@@ -17,6 +17,7 @@
 // =============================================================================
 
 import 'dart:convert';
+import 'dart:isolate';
 import 'dart:math' as math;
 
 import 'package:cryptography/cryptography.dart';
@@ -32,7 +33,14 @@ class JuzzioChatLockMath {
 
   static bool validPin(String pin) => pinRe.hasMatch(pin);
 
-  static Future<List<int>> derive(String pin, List<int> salt, {int rounds = iterations}) async {
+  /// v1.3.0 performans: 60 000 turluk PBKDF2 ana iş parçacığında PIN tuş takımını donduruyordu;
+  /// artık ayrı bir isolate'te hesaplanır (sonuç aynı).
+  static Future<List<int>> derive(String pin, List<int> salt, {int rounds = iterations}) {
+    final s = List<int>.from(salt);
+    return Isolate.run(() => _derive(pin, s, rounds));
+  }
+
+  static Future<List<int>> _derive(String pin, List<int> salt, int rounds) async {
     final algo = Pbkdf2(macAlgorithm: Hmac.sha256(), iterations: rounds, bits: 256);
     final key = await algo.deriveKey(secretKey: SecretKey(utf8.encode(pin)), nonce: salt);
     return key.extractBytes();

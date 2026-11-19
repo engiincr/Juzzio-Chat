@@ -17,6 +17,7 @@
 // =============================================================================
 
 import 'dart:convert';
+import 'dart:isolate';
 import 'dart:math';
 
 import 'package:cryptography/cryptography.dart';
@@ -53,9 +54,7 @@ class JuzzioBackupService {
   static const FlutterSecureStorage _secure = FlutterSecureStorage();
 
   final GoogleSignIn _google = GoogleSignIn(scopes: const [_scope]);
-  final AesGcm _aes = AesGcm.with256bits();
-  // OWASP 2024 önerisi: Argon2id, 19 MiB bellek, 2 tur, 1 iş parçacığı
-  final Argon2id _kdf = Argon2id(parallelism: 1, memory: 19456, iterations: 2, hashLength: 32);
+  // Argon2id (OWASP 2024: 19 MiB bellek, 2 tur, 1 iş parçacığı) _sealIsolate/_openIsolate içinde, ayrı isolate'te çalışır
 
   String? get googleEmail => _google.currentUser?.email;
 
@@ -177,10 +176,32 @@ class JuzzioBackupService {
       'app': JuzzioConfig.appVersion,
       'created': DateTime.now().toUtc().toIso8601String(),
     });
-    final key = await _kdf.deriveKey(secretKey: SecretKey(utf8.encode(password)), nonce: salt);
-    final box = await _aes.encrypt(utf8.encode(jsonEncode(payload)),
-        secretKey: key, nonce: _aes.newNonce(), aad: utf8.encode(header));
-    return '$header\n${base64Encode(box.concatenation())}';
+    // v1.3.0 performans: Argon2id (19 MB) + AES-GCM saf Dart ile ana iş parçacığında birkaç saniye
+    // arayüzü donduruyordu → ayrı isolate
+    final body = jsonEncode(payload);
+    final cipher = await Isolate.run(() => _sealIsolate(password, salt, body, header));
+    return '$header\n$cipher';
+  }
+
+  static Future<String> _sealIsolate(String password, List<int> salt, String body, String header) async {
+    final aes = AesGcm.with256bits();
+    final kdf = Argon2id(parallelism: 1, memory: 19456, iterations: 2, hashLength: 32);
+    final key = await kdf.deriveKey(secretKey: SecretKey(utf8.encode(password)), nonce: salt);
+    final box = await aes.encrypt(utf8.encode(body), secretKey: key, nonce: aes.newNonce(), aad: utf8.encode(header));
+    return base64Encode(box.concatenation());
+  }
+
+  /// null → şifre yanlış (GCM doğrulaması başarısız)
+  static Future<String?> _openIsolate(String password, String salt, int m, int t, int p, String body, String header) async {
+    final kdf = Argon2id(parallelism: p, memory: m, iterations: t, hashLength: 32);
+    final key = await kdf.deriveKey(secretKey: SecretKey(utf8.encode(password)), nonce: base64Decode(salt));
+    try {
+      final box = SecretBox.fromConcatenation(base64Decode(body), nonceLength: 12, macLength: 16);
+      final clear = await AesGcm.with256bits().decrypt(box, secretKey: key, aad: utf8.encode(header));
+      return utf8.decode(clear);
+    } on SecretBoxAuthenticationError {
+      return null;
+    }
   }
 
   Future<Map<String, dynamic>> _decrypt(String uid, String password, String file) async {
@@ -190,20 +211,23 @@ class JuzzioBackupService {
     final h = jsonDecode(header);
     if (h is! Map || h['magic'] != _magic) throw const JuzzioBackupException('corrupt');
     if (h['uid'] != uid) throw const JuzzioBackupException('not_found');
-    final kdf = Argon2id(
-      parallelism: (h['p'] as num?)?.toInt() ?? 1,
-      memory: (h['m'] as num?)?.toInt() ?? 19456,
-      iterations: (h['t'] as num?)?.toInt() ?? 2,
-      hashLength: 32,
-    );
-    final key = await kdf.deriveKey(secretKey: SecretKey(utf8.encode(password)), nonce: base64Decode('${h['salt']}'));
+    // v1.3.0 güvenlik: başlıktaki Argon2 parametreleri dosyadan gelir (güvenilmez). Sınırsız
+    // bırakılırsa hazırlanmış bir yedek dosyası GB'larca bellek / milyonlarca tur isteyip
+    // uygulamayı kilitleyebilirdi → makul aralığa sıkıştırılır, aralık dışıysa dosya bozuk sayılır.
+    final m = (h['m'] as num?)?.toInt() ?? 19456;
+    final t = (h['t'] as num?)?.toInt() ?? 2;
+    final p = (h['p'] as num?)?.toInt() ?? 1;
+    if (m < 8192 || m > 65536 || t < 1 || t > 10 || p < 1 || p > 4) throw const JuzzioBackupException('corrupt');
+    final salt = '${h['salt']}';
+    final body = file.substring(nl + 1).trim();
+    final String? clear;
     try {
-      final box = SecretBox.fromConcatenation(base64Decode(file.substring(nl + 1).trim()), nonceLength: 12, macLength: 16);
-      final clear = await _aes.decrypt(box, secretKey: key, aad: utf8.encode(header));
-      return Map<String, dynamic>.from(jsonDecode(utf8.decode(clear)) as Map);
-    } on SecretBoxAuthenticationError {
-      throw const JuzzioBackupException('wrong_password');
+      clear = await Isolate.run(() => _openIsolate(password, salt, m, t, p, body, header));
+    } on FormatException {
+      throw const JuzzioBackupException('corrupt');
     }
+    if (clear == null) throw const JuzzioBackupException('wrong_password');
+    return Map<String, dynamic>.from(jsonDecode(clear) as Map);
   }
 
   /// Yedekle: Google hesabı seçilir, şifreli yedek Drive'a yazılır (varsa güncellenir).

@@ -101,6 +101,14 @@ class LiveSubtitlePacket {
   }
 }
 
+/// Çeviri, metnin kendisinden anlamlı biçimde farklı mı? (büyük/küçük harf, noktalama ve
+/// boşluk farkı "aynı dil" sayılır → çeviri gösterilmez)
+bool juzzioInCallNeedsTranslation(String original, String translated) {
+  String norm(String s) => s.toLowerCase().replaceAll(RegExp(r'[\s\p{P}]+', unicode: true), '');
+  final a = norm(original), b = norm(translated);
+  return b.isNotEmpty && a != b;
+}
+
 /// Arama içi tek mesaj
 class JuzzioInCallMessage {
   JuzzioInCallMessage({
@@ -285,18 +293,22 @@ class DeepgramLiveKitController extends ChangeNotifier {
     if (inCallMessages.length > 200) inCallMessages.removeAt(0);
     if (!inCallChatOpen) inCallUnread++;
     notifyListeners();
-    final target = JuzzioAppController.instance.subtitleLang.toLowerCase();
-    if (lang.isNotEmpty && lang != target && lang != _myLang) {
-      try {
-        final t = await SupabaseService.instance
-            .translateText(text: text, sourceLang: lang, targetLang: target)
-            .timeout(const Duration(seconds: 10));
-        if (t.trim().isNotEmpty && t.trim() != text) {
-          msg.translated = t.trim();
-          notifyListeners();
-        }
-      } catch (_) {}
-    }
+    // v1.3.0 düzeltme: çeviri kararı gönderenin PROFİL diline göre veriliyordu; profil dili
+    // alıcınınkiyle aynı görünüp kişi başka dilde yazınca (ör. @ari) hiç çevrilmiyordu.
+    // Artık altyazılar gibi kaynak dil metinden otomatik algılanır; sonuç metnin aynısıysa
+    // (aynı dili konuşanlar) çeviri gösterilmez.
+    var target = baseLang(JuzzioAppController.instance.subtitleLang);
+    if (target.isEmpty) target = _myLang;
+    try {
+      final t = (await SupabaseService.instance
+              .translateText(text: text, sourceLang: 'auto', targetLang: target)
+              .timeout(const Duration(seconds: 10)))
+          .trim();
+      if (t.isNotEmpty && juzzioInCallNeedsTranslation(text, t)) {
+        msg.translated = t;
+        notifyListeners();
+      }
+    } catch (_) {}
   }
 
   void markInCallChatRead() {
@@ -626,7 +638,10 @@ class DeepgramLiveKitController extends ChangeNotifier {
       roomOptions: RoomOptions(
         adaptiveStream: true,
         dynacast: true,
-        defaultCameraCaptureOptions: saver ? const CameraCaptureOptions(params: VideoParametersPresets.h360_169) : const CameraCaptureOptions(),
+        // v1.3.0 (kullanıcı isteği: en iyi kalite): kamera 720p / 30 fps yakalar
+        defaultCameraCaptureOptions: saver
+            ? const CameraCaptureOptions(params: VideoParametersPresets.h360_169)
+            : const CameraCaptureOptions(params: VideoParametersPresets.h720_169),
         defaultAudioCaptureOptions: AudioCaptureOptions(
           autoGainControl: true,
           echoCancellation: true,
@@ -642,9 +657,16 @@ class DeepgramLiveKitController extends ChangeNotifier {
         defaultVideoPublishOptions: VideoPublishOptions(
           name: 'juzzio_video_track',
           simulcast: !saver,
-          videoEncoding: saver ? const VideoEncoding(maxBitrate: 350 * 1000, maxFramerate: 15) : null,
-          // v1.3.0 donma düzeltmesi: bant daralınca kare atlamak (donma) yerine çözünürlük düşer
-          degradationPreference: DegradationPreference.maintainFramerate,
+          // v1.3.0 (kullanıcı isteği: internet yavaşlasa da görüntü bozulmasın, en iyi kalite):
+          //  • 720p / 30 fps, 2,5 Mbps üst sınır
+          //  • kodlayıcı çözünürlüğü KORUR (bant daralırsa önce kare hızı düşer)
+          //  • simulcast yedek katmanı 360p/180p yerine 540p → görüntü 540p'nin altına inmez
+          //    (katman tamamen kapatılmaz: grup aramasında zayıf ağlı katılımcıda görüntü tümden durur)
+          videoEncoding: saver
+              ? const VideoEncoding(maxBitrate: 350 * 1000, maxFramerate: 15)
+              : const VideoEncoding(maxBitrate: 2500 * 1000, maxFramerate: 30),
+          videoSimulcastLayers: saver ? const [] : const [VideoParametersPresets.h540_169],
+          degradationPreference: saver ? DegradationPreference.maintainFramerate : DegradationPreference.maintainResolution,
         ),
       ),
     );
@@ -1705,11 +1727,14 @@ class DeepgramLiveKitController extends ChangeNotifier {
     _lowPower = low;
     final room = _room;
     if (room == null) return;
+    // v1.3.0 (kullanıcı isteği: görüntü kalitesi düşmesin): yalnız internet zayıf diye gelen
+    // görüntü artık DÜŞÜK kaliteye çekilmez; yalnız uygulama arka plandayken / PiP'te düşer.
+    final viewLow = low && _lowPowerReasons.any((r) => r != 'network');
     for (final p in room.remoteParticipants.values) {
       for (final pub in p.videoTrackPublications) {
         try {
-          await pub.setVideoQuality(low ? VideoQuality.LOW : VideoQuality.HIGH);
-          await pub.setVideoFPS(low ? 15 : 30);
+          await pub.setVideoQuality(viewLow ? VideoQuality.LOW : VideoQuality.HIGH);
+          await pub.setVideoFPS(viewLow ? 15 : 30);
         } catch (_) {}
       }
     }
@@ -1727,7 +1752,7 @@ class DeepgramLiveKitController extends ChangeNotifier {
       try {
         await lp.setCameraEnabled(false);
         await lp.setCameraEnabled(true,
-            cameraCaptureOptions: low ? const CameraCaptureOptions(params: kLowPowerVideo) : const CameraCaptureOptions());
+            cameraCaptureOptions: low ? const CameraCaptureOptions(params: kLowPowerVideo) : const CameraCaptureOptions(params: VideoParametersPresets.h720_169));
         // v1.2.9: kamera yeniden başlayınca yeni ize güzelleştirme yeniden bağlanır (yük koruması sıfırlanır)
         await _applyBeautyFilter();
       } catch (_) {}

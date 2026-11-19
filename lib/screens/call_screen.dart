@@ -874,6 +874,19 @@ class _CallScreenState extends State<CallScreen> {
   Timer? _rebuildTimer;
   DateTime _lastRebuildAt = DateTime.fromMillisecondsSinceEpoch(0);
 
+  /// v1.3.0 başarım: canlı videonun üstündeki cam bulanıklığı (BackdropFilter) her video karesinde
+  /// (saniyede 30 kez) yeniden hesaplanıyor, orta seviye Android'de görüntü kasıyordu. Ekranda
+  /// görüntü varken bulanıklık kapanır (altındaki yarı saydam renk kalır); sesli aramada açık.
+  bool get _callBlurEnabled {
+    if (_controller.isCameraEnabled) return false;
+    for (final p in _controller.remoteParticipants) {
+      for (final pub in p.videoTrackPublications) {
+        if (pub.subscribed && !pub.muted) return false;
+      }
+    }
+    return true;
+  }
+
   void _scheduleRebuild() {
     if (!mounted || _rebuildTimer != null) return;
     final since = DateTime.now().difference(_lastRebuildAt).inMilliseconds;
@@ -1298,8 +1311,7 @@ class _CallScreenState extends State<CallScreen> {
               builder: (_, scrollCtrl) {
                 return ClipRRect(
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: JuzzioGlassTokens.blurModal, sigmaY: JuzzioGlassTokens.blurModal),
+                  child: BackdropFilter(enabled: _callBlurEnabled,                     filter: ImageFilter.blur(sigmaX: JuzzioGlassTokens.blurModal, sigmaY: JuzzioGlassTokens.blurModal),
                     child: Container(
                       decoration: BoxDecoration(
                         color: _callGlassTint(0.82),
@@ -1738,8 +1750,7 @@ class _CallScreenState extends State<CallScreen> {
               constraints: const BoxConstraints(maxWidth: 460),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(24),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: JuzzioGlassTokens.blurModal, sigmaY: JuzzioGlassTokens.blurModal),
+                child: BackdropFilter(enabled: _callBlurEnabled,                   filter: ImageFilter.blur(sigmaX: JuzzioGlassTokens.blurModal, sigmaY: JuzzioGlassTokens.blurModal),
                   child: Container(
                     padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
                     decoration: BoxDecoration(
@@ -2097,6 +2108,7 @@ class _CallScreenState extends State<CallScreen> {
         if (hasVideo)
           RepaintBoundary(
             child: VideoTrackRenderer(
+              key: ValueKey('vt_${slot.videoTrack!.sid}'),
               slot.videoTrack!,
               fit: VideoViewFit.cover,
             ),
@@ -2262,6 +2274,7 @@ class _CallScreenState extends State<CallScreen> {
                 if (hasVideo)
                   RepaintBoundary(
                     child: VideoTrackRenderer(
+                      key: ValueKey('vt_${pipSlot.videoTrack!.sid}'),
                       pipSlot.videoTrack!,
                       fit: VideoViewFit.cover,
                     ),
@@ -2561,8 +2574,7 @@ class _CallScreenState extends State<CallScreen> {
               button: true,
               label: _app.loc('Aramayı küçült', 'Minimize call', 'Anruf minimieren'),
               child: ClipOval(
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: JuzzioGlassTokens.blurNavigation, sigmaY: JuzzioGlassTokens.blurNavigation),
+                child: BackdropFilter(enabled: _callBlurEnabled,                   filter: ImageFilter.blur(sigmaX: JuzzioGlassTokens.blurNavigation, sigmaY: JuzzioGlassTokens.blurNavigation),
                   child: Material(
                     color: _callGlassTint(0.38),
                     child: InkWell(
@@ -2597,8 +2609,7 @@ class _CallScreenState extends State<CallScreen> {
         Expanded(
           child: ClipRRect(
             borderRadius: BorderRadius.circular(999),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: JuzzioGlassTokens.blurNavigation, sigmaY: JuzzioGlassTokens.blurNavigation),
+            child: BackdropFilter(enabled: _callBlurEnabled,               filter: ImageFilter.blur(sigmaX: JuzzioGlassTokens.blurNavigation, sigmaY: JuzzioGlassTokens.blurNavigation),
               child: Container(
                 padding: const EdgeInsets.fromLTRB(6, 6, 14, 6),
                 color: _callGlassTint(0.38),
@@ -2718,8 +2729,7 @@ class _CallScreenState extends State<CallScreen> {
         onTap();
       },
       child: ClipOval(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: JuzzioGlassTokens.blurNavigation, sigmaY: JuzzioGlassTokens.blurNavigation),
+        child: BackdropFilter(enabled: _callBlurEnabled,           filter: ImageFilter.blur(sigmaX: JuzzioGlassTokens.blurNavigation, sigmaY: JuzzioGlassTokens.blurNavigation),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 160),
             width: 40,
@@ -2928,8 +2938,7 @@ class _CallScreenState extends State<CallScreen> {
           onTap: collapsed ? () => setState(() => _isTranslatorMinimized = false) : null,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(collapsed ? 999 : 22),
-            child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: JuzzioGlassTokens.blurNavigation, sigmaY: JuzzioGlassTokens.blurNavigation),
+            child: BackdropFilter(enabled: _callBlurEnabled,             filter: ImageFilter.blur(sigmaX: JuzzioGlassTokens.blurNavigation, sigmaY: JuzzioGlassTokens.blurNavigation),
             child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeOutCubic,
@@ -3145,8 +3154,7 @@ class _CallScreenState extends State<CallScreen> {
   }
 
   Widget _glassIconCircle(IconData icon) => ClipOval(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: JuzzioGlassTokens.blurNavigation, sigmaY: JuzzioGlassTokens.blurNavigation),
+        child: BackdropFilter(enabled: _callBlurEnabled,           filter: ImageFilter.blur(sigmaX: JuzzioGlassTokens.blurNavigation, sigmaY: JuzzioGlassTokens.blurNavigation),
           child: Container(
             width: 46,
             height: 46,
@@ -3300,8 +3308,7 @@ class _CallScreenState extends State<CallScreen> {
 
   Widget _reactionCircleBtn() {
     return ClipOval(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: JuzzioGlassTokens.blurNavigation, sigmaY: JuzzioGlassTokens.blurNavigation),
+      child: BackdropFilter(enabled: _callBlurEnabled,         filter: ImageFilter.blur(sigmaX: JuzzioGlassTokens.blurNavigation, sigmaY: JuzzioGlassTokens.blurNavigation),
         child: Container(
           width: 46,
           height: 46,
@@ -3332,8 +3339,7 @@ class _CallScreenState extends State<CallScreen> {
     return GestureDetector(
       onTap: onTap,
       child: ClipOval(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: JuzzioGlassTokens.blurNavigation, sigmaY: JuzzioGlassTokens.blurNavigation),
+        child: BackdropFilter(enabled: _callBlurEnabled,           filter: ImageFilter.blur(sigmaX: JuzzioGlassTokens.blurNavigation, sigmaY: JuzzioGlassTokens.blurNavigation),
           child: Container(
             width: 46,
             height: 46,

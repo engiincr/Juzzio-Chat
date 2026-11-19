@@ -449,12 +449,65 @@ class _JuzzioGlobalFeedViewState extends State<JuzzioGlobalFeedView> {
                   // v1.2.4: önbelleğin bittiği yerde çevrimdışı bilgi satırı
                   itemCount: _posts.length + (_offline ? 1 : 0),
                   separatorBuilder: (_, __) => const SizedBox(height: 10),
-                  itemBuilder: (_, i) => i < _posts.length ? _postCard(i) : _offlineTail(),
+                  // Figma 02: ilk gönderinin altında "Sohbetten öneriler" kısayolları
+                  itemBuilder: (_, i) => i >= _posts.length
+                      ? _offlineTail()
+                      : i == 0 && _topic == 'all'
+                          ? Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [_postCard(0), const SizedBox(height: 12), _suggestions()])
+                          : _postCard(i),
                 ),
               ),
           ],
         ),
     );
+  }
+
+  Widget _suggestions() {
+    Widget chip(IconData icon, String label, VoidCallback onTap) => Expanded(
+          child: Material(
+            color: JuzzioGlassTokens.spaceCard,
+            borderRadius: BorderRadius.circular(16),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: onTap,
+              child: Container(
+                height: 46,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
+                ),
+                child: Row(children: [
+                  Icon(icon, size: 18, color: JuzzioGlassTokens.glowText),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: JuzzioGlassTokens.textPrimary, fontWeight: FontWeight.w700, fontSize: 13)),
+                  ),
+                  Icon(Icons.north_east_rounded, size: 15, color: JuzzioGlassTokens.textSecondary),
+                ]),
+              ),
+            ),
+          ),
+        );
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Padding(
+        padding: const EdgeInsets.only(left: 4, bottom: 8),
+        child: Text(_app.trEn('SOHBETTEN ÖNERİLER', 'SUGGESTED FOR YOU', 'VORSCHLÄGE'),
+            style: TextStyle(color: JuzzioGlassTokens.textSecondary, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1.1)),
+      ),
+      Row(children: [
+        chip(Icons.person_add_alt_1_outlined, _app.trEn('Kişileri bul', 'Find people', 'Leute finden'), widget.onAddFriend),
+        const SizedBox(width: 10),
+        chip(Icons.tag_rounded, _topicLabel('technology'), () {
+          HapticFeedback.selectionClick();
+          setState(() => _topic = 'technology');
+          _load();
+        }),
+      ]),
+    ]);
   }
 
   Widget _offlineTail() => Padding(

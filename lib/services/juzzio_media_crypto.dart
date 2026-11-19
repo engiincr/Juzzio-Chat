@@ -9,6 +9,7 @@
 // =============================================================================
 
 import 'dart:convert';
+import 'dart:isolate';
 import 'dart:math';
 import 'dart:typed_data';
 
@@ -56,7 +57,24 @@ class JuzzioMediaCrypto {
 
   static Future<String> sha256Hex(List<int> data) async => _hex((await Sha256().hash(data)).bytes);
 
-  static Future<JuzzioSealedMedia> seal(List<int> plain, {required String mime}) async {
+  /// v1.3.0 performans: dosyanın tamamını şifrelemek (AES-GCM + SHA-256) saf Dart ile ve ANA iş
+  /// parçacığında yapılıyordu; birkaç MB'lık videoda arayüz saniyelerce donuyordu. Artık ayrı bir
+  /// isolate'te çalışır. 64 KB altı küçük veriler için isolate açma maliyeti değmez, yerinde yapılır.
+  static const int _isolateThreshold = 64 * 1024;
+
+  static Future<JuzzioSealedMedia> seal(List<int> plain, {required String mime}) {
+    if (plain.length < _isolateThreshold) return _seal(plain, mime: mime);
+    final data = plain is Uint8List ? plain : Uint8List.fromList(plain);
+    return Isolate.run(() => _seal(data, mime: mime));
+  }
+
+  static Future<Uint8List?> open(List<int> cipher, JuzzioMediaKey k) {
+    if (cipher.length < _isolateThreshold) return _open(cipher, k);
+    final data = cipher is Uint8List ? cipher : Uint8List.fromList(cipher);
+    return Isolate.run(() => _open(data, k));
+  }
+
+  static Future<JuzzioSealedMedia> _seal(List<int> plain, {required String mime}) async {
     final key = _random(32);
     final nonce = _random(12);
     final box = await _aes.encrypt(plain, secretKey: SecretKey(key), nonce: nonce, aad: utf8.encode('juzzio-media-v1'));
@@ -68,7 +86,7 @@ class JuzzioMediaCrypto {
   }
 
   /// Özet veya GCM doğrulaması başarısızsa null (fail-closed).
-  static Future<Uint8List?> open(List<int> cipher, JuzzioMediaKey k) async {
+  static Future<Uint8List?> _open(List<int> cipher, JuzzioMediaKey k) async {
     if (cipher.length < 16) return null;
     if (await sha256Hex(cipher) != k.sha256Hex) return null;
     try {

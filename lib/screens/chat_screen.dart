@@ -3638,7 +3638,12 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       (appCtrl.trEn('Tümü', 'All', 'Alle'), null, 0),
       (appCtrl.trEn('Kişiler', 'Contacts', 'Kontakte'), null, 1),
       (appCtrl.trEn('Gruplar', 'Groups', 'Gruppen'), Icons.group_outlined, 2),
+      // Figma: "Arkadaşlar" çipi (önceden yalnız ⋯ menüsünden açılıyordu)
+      (appCtrl.trEn('Arkadaşlar', 'Friends', 'Freunde'), Icons.people_alt_outlined, 3),
     ];
+    final chatCount = _conversations
+        .where((c) => !c.isMessageRequest && (c.isGroup || c.lastMessageAt != null) && !_deletedConversationIds.contains(c.roomId))
+        .length;
     Widget storyPhoto(String? url, String name) => JuzzioSpacePhoto(url: url, name: name, size: JuzzioSpaceMetrics.storyAvatar);
 
     // v1.0.0 Juzzio Space (Figma): sabit başlık + arama, altında kayan hikâyeler, INBOX ve kartlar.
@@ -3774,7 +3779,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                           ),
                           const SizedBox(height: 22),
                           JuzzioSpaceSectionHeader(
-                            eyebrow: appCtrl.trEn('Gelen kutusu', 'Inbox', 'Posteingang'),
+                            // Figma 01: "Mesajlar · 03 sohbet"
+                            eyebrow: chatCount > 0
+                                ? '${appCtrl.trEn('Gelen kutusu', 'Inbox', 'Posteingang')} · ${chatCount.toString().padLeft(2, '0')} ${appCtrl.trEn('sohbet', 'chats', 'Chats')}'
+                                : appCtrl.trEn('Gelen kutusu', 'Inbox', 'Posteingang'),
                             title: appCtrl.trEn('Mesajlar', 'Messages', 'Nachrichten'),
                             moreTooltip: appCtrl.trEn('Diğer seçenekler', 'More options', 'Weitere Optionen'),
                             onMore: () => _showInboxMoreMenu(p, s, appCtrl, lockedCount),
@@ -3927,6 +3935,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                                 ],
                               ),
                             ),
+                          // Figma 01: liste sonunda gizlilik kartı
+                          if (visibleConvs.isNotEmpty && !_showLockedChats) _privacyFooterCard(appCtrl),
                         ],
                       );
                   },
@@ -8415,6 +8425,40 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       ),
     );
   }
+
+  /// Figma 01: sohbet listesinin sonundaki gizlilik kartı
+  Widget _privacyFooterCard(JuzzioAppController app) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 18, 16, 8),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+          decoration: BoxDecoration(
+            color: JuzzioGlassTokens.spaceCard,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
+          ),
+          child: Row(children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: JuzzioGlassTokens.glow.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(Icons.shield_outlined, color: JuzzioGlassTokens.glowText, size: 19),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(app.trEn('Sohbetlerin, sana özel.', 'Your chats, just for you.', 'Deine Chats, nur für dich.'),
+                    style: TextStyle(color: JuzzioGlassTokens.textPrimary, fontWeight: FontWeight.w800, fontSize: 13.5)),
+                const SizedBox(height: 2),
+                Text(app.trEn('Bağlantılarını koru, kendin ol.', 'Protect your connections, be yourself.', 'Schütze deine Verbindungen, sei du selbst.'),
+                    style: TextStyle(color: JuzzioGlassTokens.textSecondary, fontSize: 12)),
+              ]),
+            ),
+          ]),
+        ),
+      );
 
   /// Figma 01: "Günaydın, Engin" — günün saatine göre selam + kullanıcının ilk adı
   String _greetingEyebrow(JuzzioAppController app) {
