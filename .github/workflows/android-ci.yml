@@ -215,6 +215,13 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
 
+      # v1.3.0: Maven Central "429 Too Many Requests" derlemeyi düşürüyordu. Eklentilerin kendi
+      # buildscript depoları dahil tüm çözümleme önce Google'ın Maven Central aynasına gider.
+      - name: Maven Central aynası (Gradle init betiği)
+        run: |
+          mkdir -p "$HOME/.gradle/init.d"
+          cp android/ci/maven-mirror.init.gradle "$HOME/.gradle/init.d/"
+
       - name: Firebase yapılandırması (google-services.json)
         env:
           GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
@@ -261,7 +268,13 @@ jobs:
           # karşılaştırması ve version.json aynı numarayı kullanır.
           BUILD_NO="$(python3 scripts/release_meta.py build-number "$GITHUB_RUN_NUMBER")"
           DEFINES+=(--dart-define=APP_BUILD="$BUILD_NO")
-          flutter build apk --release --target-platform android-arm,android-arm64 --android-skip-build-dependency-validation --build-number="$BUILD_NO" "${DEFINES[@]}"
+          # Geçici ağ hatasında (429/zaman aşımı) 60 sn bekleyip bir kez daha dene
+          build_apk() { flutter build apk --release --target-platform android-arm,android-arm64 --android-skip-build-dependency-validation --build-number="$BUILD_NO" "${DEFINES[@]}"; }
+          if ! build_apk; then
+            echo "::warning::APK derlemesi başarısız; 60 sn sonra yeniden deneniyor (geçici ağ hatası olabilir)."
+            sleep 60
+            build_apk
+          fi
           mkdir -p release-output
           echo "$BUILD_NO" > release-output/build_number.txt
           APP_VER=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f1)

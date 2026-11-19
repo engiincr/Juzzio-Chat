@@ -1,0 +1,21 @@
+// CI: Maven Central "429 Too Many Requests" (GitHub paylaşımlı makinelerin indirme sınırı)
+// derlemeyi düşürüyordu. Tüm projelerde ve eklenti (buildscript) çözümlemesinde önce Google'ın
+// resmî Maven Central aynası denenir; ulaşılamazsa projenin kendi depoları (mavenCentral) kullanılır.
+def juzzioMirror = 'https://maven-central.storage-download.googleapis.com/maven2/'
+
+settingsEvaluated { settings ->
+    settings.pluginManagement.repositories {
+        maven { url juzzioMirror; name 'MavenCentralGoogleMirror' }
+    }
+}
+
+allprojects {
+    buildscript {
+        repositories {
+            maven { url juzzioMirror; name 'MavenCentralGoogleMirror' }
+        }
+    }
+    repositories {
+        maven { url juzzioMirror; name 'MavenCentralGoogleMirror' }
+    }
+}
