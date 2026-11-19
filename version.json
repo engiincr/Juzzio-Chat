@@ -1,12 +1,12 @@
 {
-  "version": "1.3.0",
+  "version": "1.3.1",
   "buildNumber": 1073,
   "releaseDate": "2026-11-19",
-  "releaseTitle": "Aramada Çevirili Mesaj, Hoparlör Düzeltmesi ve Yeni Temalar",
+  "releaseTitle": "Akıcı Görüntülü Arama, Arama İçi Çeviri ve Donmayan Ekran",
   "mandatory": false,
   "minSupportedVersion": "0.1.0",
   "apkUrl": "https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk",
-  "versionedApkUrl": "https://github.com/engiincr/Juzzio-Chat/releases/download/v1.3.0/juzzio-v1.3.0-release.apk",
+  "versionedApkUrl": "https://github.com/engiincr/Juzzio-Chat/releases/download/v1.3.1/juzzio-v1.3.1-release.apk",
   "apkSha256": "aa16161ccf9e724c151d31185a084786d7680cfa5a665a8800e5b3ba7574110e",
   "apkSize": "120.73 MB",
   "verifiedBuild": true,
@@ -18,106 +18,70 @@
     "email": "engiincr@pm.me"
   },
   "changelog": {
-    "tr": "v1.3.0: Hoparlörde konuşurken karşı taraf konuşunca senin sesin kesiliyor ve çeviri çalışmıyordu; görüntülü aramada görüntü donabiliyordu; yönetici paneline çevrimdışı telefonlardan sahte sistem hataları düşüyordu; gündüz modunda bazı başlıklar görünmüyordu; çift tıkla gönderilen tepki mesajın altında zıplıyordu. Ayrıca aramalarda çevirili mesajlaşma ve yeni temalar geldi, yönetici paneli güvenliği sıkılaştırıldı.",
-    "en": "v1.3.0: On speakerphone your voice cut out when the other person spoke and translation stopped working; video could freeze during calls; offline phones sent false system errors to the admin panel; some headers were invisible in light mode; the double-tap reaction bounced below the message. Calls now also have translated in-call messaging, there are new themes, and admin panel security was tightened.",
-    "de": "v1.3.0: Im Lautsprechermodus wurde deine Stimme unterbrochen, sobald die andere Person sprach, und die Übersetzung funktionierte nicht; das Video konnte in Anrufen einfrieren; Offline-Telefone meldeten falsche Systemfehler an das Admin-Panel; einige Überschriften waren im hellen Modus unsichtbar; die Doppeltipp-Reaktion hüpfte unter der Nachricht. Außerdem gibt es übersetzte Nachrichten im Anruf, neue Designs und strengere Sicherheit für das Admin-Panel."
+    "tr": "v1.3.1: Görüntülü aramalar takılıyor ve kalite düşüyordu; arama içi mesajlar bazı kişilerde çevrilmiyordu; büyük fotoğraf/video gönderirken, PIN girerken ve yedeklerken ekran donuyordu.",
+    "en": "v1.3.1: Video calls stuttered and dropped in quality; in-call messages were not translated for some people; the screen froze while sending large photos/videos, entering the PIN and backing up.",
+    "de": "v1.3.1: Videoanrufe ruckelten und verloren an Qualität; Nachrichten im Anruf wurden bei manchen nicht übersetzt; beim Senden großer Fotos/Videos, bei der PIN-Eingabe und beim Sichern fror der Bildschirm ein."
   },
   "build": 1073,
   "versionCode": 1073,
   "url": "https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk",
-  "changelog_tr": "v1.3.0: Hoparlörde konuşurken karşı taraf konuşunca senin sesin kesiliyor ve çeviri çalışmıyordu; görüntülü aramada görüntü donabiliyordu; yönetici paneline çevrimdışı telefonlardan sahte sistem hataları düşüyordu; gündüz modunda bazı başlıklar görünmüyordu; çift tıkla gönderilen tepki mesajın altında zıplıyordu. Ayrıca aramalarda çevirili mesajlaşma ve yeni temalar geldi, yönetici paneli güvenliği sıkılaştırıldı.",
-  "changelog_en": "v1.3.0: On speakerphone your voice cut out when the other person spoke and translation stopped working; video could freeze during calls; offline phones sent false system errors to the admin panel; some headers were invisible in light mode; the double-tap reaction bounced below the message. Calls now also have translated in-call messaging, there are new themes, and admin panel security was tightened.",
-  "changelog_de": "v1.3.0: Im Lautsprechermodus wurde deine Stimme unterbrochen, sobald die andere Person sprach, und die Übersetzung funktionierte nicht; das Video konnte in Anrufen einfrieren; Offline-Telefone meldeten falsche Systemfehler an das Admin-Panel; einige Überschriften waren im hellen Modus unsichtbar; die Doppeltipp-Reaktion hüpfte unter der Nachricht. Außerdem gibt es übersetzte Nachrichten im Anruf, neue Designs und strengere Sicherheit für das Admin-Panel.",
+  "changelog_tr": "v1.3.1: Görüntülü aramalar takılıyor ve kalite düşüyordu; arama içi mesajlar bazı kişilerde çevrilmiyordu; büyük fotoğraf/video gönderirken, PIN girerken ve yedeklerken ekran donuyordu.",
+  "changelog_en": "v1.3.1: Video calls stuttered and dropped in quality; in-call messages were not translated for some people; the screen froze while sending large photos/videos, entering the PIN and backing up.",
+  "changelog_de": "v1.3.1: Videoanrufe ruckelten und verloren an Qualität; Nachrichten im Anruf wurden bei manchen nicht übersetzt; beim Senden großer Fotos/Videos, bei der PIN-Eingabe und beim Sichern fror der Bildschirm ein.",
   "details": {
     "tr": {
-      "reason": "Hoparlörde konuşurken karşı taraf konuşunca senin sesin kesiliyor ve çeviri çalışmıyordu; görüntülü aramada görüntü donabiliyordu; yönetici paneline çevrimdışı telefonlardan sahte sistem hataları düşüyordu; gündüz modunda bazı başlıklar görünmüyordu; çift tıkla gönderilen tepki mesajın altında zıplıyordu. Ayrıca aramalarda çevirili mesajlaşma ve yeni temalar geldi, yönetici paneli güvenliği sıkılaştırıldı.",
+      "reason": "Görüntülü aramalar takılıyor ve kalite düşüyordu; arama içi mesajlar bazı kişilerde çevrilmiyordu; büyük fotoğraf/video gönderirken, PIN girerken ve yedeklerken ekran donuyordu.",
       "features": [
-        "💬 Sesli ve görüntülü aramada mesaj: alt çubuktaki 💬 ile yaz; mesaj karşı tarafa kendi dilinde çevrilerek ulaşır, aynı dili konuşanlarda çeviri yapılmaz",
-        "🔐 Kilitli sohbetlerde PIN yenileme ve PIN'i 0000'a sıfırlama (sağ üstteki anahtar menüsü)",
-        "🎨 Yeni temalar: Orman Nane ve Grafit Limon",
-        "🔔 Bildirimlerde büyük okunmamış sayacı ve tek dokunuşla \"Tümünü okundu yap\"",
-        "📞 Aramalar sayfasında hızlı \"Sesli arama\" ve \"Görüntülü\" kartları",
-        "⛅ Juzzio yazısının yanındaki simge hava bulutluysa bulutlu görünür",
-        "👋 Sohbetler başlığında günün saatine göre selam"
+        "👥 Sohbetlerde \"Arkadaşlar\" filtresi ve başlıkta sohbet sayısı",
+        "🛡️ Sohbet listesinin sonunda gizlilik kartı",
+        "✨ Keşfet'te \"Kişileri bul\" ve \"# Teknoloji\" önerileri"
       ],
       "fixes": [
-        "Hoparlörde karşı taraf konuşunca sesinin kesilmesi ve çevirinin çalışmaması giderildi (altyazı artık aramanın yankısı temizlenmiş mikrofon sesini kullanır)",
-        "Görüntülü arama en yüksek kalitede: 720p / 30 fps, internet yavaşlasa da görüntü 540p'nin altına inmez; canlı videonun üstündeki ağır bulanıklık efektleri kaldırıldı, görüntü artık kasmıyor",
-        "Çevrimdışıyken ya da uygulama arka plandayken sistem sağlığı artık sahte hata kaydı açmaz",
-        "Gündüz modunda görünmeyen beyaz başlık, geri oku ve filtreler düzeltildi",
-        "Bildirimler başlığının \"Bil...\" diye kesilmesi giderildi",
-        "Çift tık tepkisinin mesajın altında zıplaması giderildi",
-        "Aramadaki uzun \"aynı dili konuşuyorsunuz\" bilgisi kaldırıldı; yer kaplamıyor",
-        "Sayfa arkasındaki bulut/ay/güneş süsleri sadeleşti, yalnız üst kısımda görünür",
-        "Arama içi mesajlar artık her zaman çevrilir (dil, metinden otomatik algılanır); aynı dili konuşanlarda çeviri gösterilmez",
-        "Büyük fotoğraf/video gönderirken, PIN girerken ve yedeklerken ekran donmuyor (şifreleme arka planda yapılır)",
-        "Sohbetlerde \"Arkadaşlar\" filtresi, sohbet sayısı ve liste sonunda gizlilik kartı; Keşfet'te \"Kişileri bul\" ve \"# Teknoloji\" önerileri"
+        "Görüntülü arama en yüksek kalitede: 720p / 30 fps, internet yavaşlasa da görüntü 540p'nin altına inmez",
+        "Canlı videonun üstündeki ağır bulanıklık efektleri kaldırıldı; görüntü artık kasmıyor",
+        "Arama içi mesajlar her zaman çevrilir (dil, metinden otomatik algılanır); aynı dili konuşanlarda çeviri gösterilmez",
+        "Büyük fotoğraf/video gönderirken, PIN girerken ve yedeklerken ekran donmuyor (şifreleme arka planda yapılır)"
       ],
       "security": [
-        "Yönetici paneli: oturum süresi 4 saat (hatırla: 7 gün), 24 saatte en fazla 15 hatalı şifre denemesi, aynı anda en fazla 3 oturum; hatalı denemeler denetim kaydına yazılır",
-        "Yedek dosyası başlığındaki şifreleme parametreleri artık sınırlandırılıyor (hazırlanmış bir yedek dosyası uygulamayı kilitleyemez)"
+        "Yedek dosyası başlığındaki şifreleme parametreleri sınırlandırıldı (hazırlanmış bir yedek dosyası uygulamayı kilitleyemez)"
       ]
     },
     "en": {
-      "reason": "On speakerphone your voice cut out when the other person spoke and translation stopped working; video could freeze during calls; offline phones sent false system errors to the admin panel; some headers were invisible in light mode; the double-tap reaction bounced below the message. Calls now also have translated in-call messaging, there are new themes, and admin panel security was tightened.",
+      "reason": "Video calls stuttered and dropped in quality; in-call messages were not translated for some people; the screen froze while sending large photos/videos, entering the PIN and backing up.",
       "features": [
-        "💬 Messages during voice and video calls: tap 💬 in the bottom bar; messages reach the other person translated into their language, with no translation between people who speak the same language",
-        "🔐 Change your locked-chats PIN or reset it to 0000 (key menu at the top right)",
-        "🎨 New themes: Forest Mint and Graphite Lime",
-        "🔔 Large unread counter in Notifications with one-tap \"Mark all as read\"",
-        "📞 Quick \"Voice call\" and \"Video\" cards on the Calls page",
-        "⛅ The icon next to Juzzio shows clouds when the weather is cloudy",
-        "👋 Time-of-day greeting on the Chats header"
+        "👥 \"Friends\" filter in Chats and the chat count in the header",
+        "🛡️ Privacy card at the end of the chat list",
+        "✨ \"Find people\" and \"# Technology\" suggestions in Explore"
       ],
       "fixes": [
-        "Fixed your voice cutting out and translation failing on speakerphone when the other person spoke (captions now use the call's echo-cancelled microphone audio)",
-        "Video calls at the highest quality: 720p / 30 fps, never below 540p even on slow internet; heavy blur effects over live video were removed so video no longer stutters",
-        "System health no longer files false errors while offline or in the background",
-        "Fixed white headers, back arrows and filters that were invisible in light mode",
-        "Fixed the Notifications title being cut off as \"Not...\"",
-        "Fixed the double-tap reaction bouncing below the message",
-        "Removed the long \"you speak the same language\" notice in calls to save space",
-        "Background cloud/moon/sun decorations are simpler and only appear at the top",
-        "In-call messages are now always translated (language detected from the text); no translation between people who speak the same language",
-        "The screen no longer freezes while sending large photos/videos, entering your PIN or backing up (encryption runs in the background)",
-        "\"Friends\" filter, chat count and a privacy card in Chats; \"Find people\" and \"# Technology\" suggestions in Explore"
+        "Video calls at the highest quality: 720p / 30 fps, never below 540p even on slow internet",
+        "Heavy blur effects over live video were removed; video no longer stutters",
+        "In-call messages are always translated (language detected from the text); no translation between people who speak the same language",
+        "The screen no longer freezes while sending large photos/videos, entering the PIN or backing up (encryption runs in the background)"
       ],
       "security": [
-        "Admin panel: sessions last 4 hours (remember: 7 days), at most 15 wrong passwords per 24 hours, at most 3 sessions at once; failed attempts are written to the audit log",
         "Encryption parameters in backup file headers are now bounded (a crafted backup file can no longer lock up the app)"
       ]
     },
     "de": {
-      "reason": "Im Lautsprechermodus wurde deine Stimme unterbrochen, sobald die andere Person sprach, und die Übersetzung funktionierte nicht; das Video konnte in Anrufen einfrieren; Offline-Telefone meldeten falsche Systemfehler an das Admin-Panel; einige Überschriften waren im hellen Modus unsichtbar; die Doppeltipp-Reaktion hüpfte unter der Nachricht. Außerdem gibt es übersetzte Nachrichten im Anruf, neue Designs und strengere Sicherheit für das Admin-Panel.",
+      "reason": "Videoanrufe ruckelten und verloren an Qualität; Nachrichten im Anruf wurden bei manchen nicht übersetzt; beim Senden großer Fotos/Videos, bei der PIN-Eingabe und beim Sichern fror der Bildschirm ein.",
       "features": [
-        "💬 Nachrichten während Sprach- und Videoanrufen: tippe auf 💬 in der unteren Leiste; Nachrichten kommen übersetzt in der Sprache der anderen Person an, ohne Übersetzung bei gleicher Sprache",
-        "🔐 PIN für gesperrte Chats ändern oder auf 0000 zurücksetzen (Schlüsselmenü oben rechts)",
-        "🎨 Neue Designs: Waldminze und Graphit Limette",
-        "🔔 Großer Zähler für ungelesene Benachrichtigungen mit \"Alle als gelesen markieren\" per Tipp",
-        "📞 Schnellkarten \"Sprachanruf\" und \"Video\" auf der Anrufe-Seite",
-        "⛅ Das Symbol neben Juzzio zeigt Wolken, wenn es bewölkt ist",
-        "👋 Begrüßung je nach Tageszeit im Chats-Kopf"
+        "👥 Filter \"Freunde\" in Chats und Chat-Anzahl in der Kopfzeile",
+        "🛡️ Datenschutzkarte am Ende der Chatliste",
+        "✨ Vorschläge \"Leute finden\" und \"# Technik\" in Entdecken"
       ],
       "fixes": [
-        "Behoben: Im Lautsprechermodus wurde deine Stimme unterbrochen und die Übersetzung fiel aus, wenn die andere Person sprach (Untertitel nutzen jetzt das echofreie Mikrofonsignal des Anrufs)",
-        "Videoanrufe in höchster Qualität: 720p / 30 fps, auch bei langsamem Internet nie unter 540p; schwere Unschärfe-Effekte über dem Live-Video wurden entfernt, das Video ruckelt nicht mehr",
-        "Die Systemprüfung meldet offline oder im Hintergrund keine falschen Fehler mehr",
-        "Weiße Überschriften, Zurück-Pfeile und Filter, die im hellen Modus unsichtbar waren, behoben",
-        "Abgeschnittener Titel der Benachrichtigungen behoben",
-        "Hüpfende Doppeltipp-Reaktion unter der Nachricht behoben",
-        "Langer Hinweis \"ihr sprecht dieselbe Sprache\" im Anruf entfernt",
-        "Wolken-, Mond- und Sonnendekor im Hintergrund ist schlichter und nur oben sichtbar",
-        "Nachrichten im Anruf werden jetzt immer übersetzt (Sprache wird aus dem Text erkannt); keine Übersetzung bei gleicher Sprache",
-        "Der Bildschirm friert beim Senden großer Fotos/Videos, bei der PIN-Eingabe und beim Sichern nicht mehr ein (Verschlüsselung im Hintergrund)",
-        "Filter \"Freunde\", Chat-Anzahl und Datenschutzkarte in Chats; Vorschläge \"Leute finden\" und \"# Technik\" in Entdecken"
+        "Videoanrufe in höchster Qualität: 720p / 30 fps, auch bei langsamem Internet nie unter 540p",
+        "Schwere Unschärfe-Effekte über dem Live-Video entfernt; das Video ruckelt nicht mehr",
+        "Nachrichten im Anruf werden immer übersetzt (Sprache aus dem Text erkannt); keine Übersetzung bei gleicher Sprache",
+        "Der Bildschirm friert beim Senden großer Fotos/Videos, bei der PIN-Eingabe und beim Sichern nicht mehr ein (Verschlüsselung im Hintergrund)"
       ],
       "security": [
-        "Admin-Panel: Sitzungen dauern 4 Stunden (merken: 7 Tage), höchstens 15 falsche Passwörter in 24 Stunden, höchstens 3 gleichzeitige Sitzungen; Fehlversuche werden im Prüfprotokoll gespeichert",
         "Verschlüsselungsparameter im Kopf von Sicherungsdateien sind jetzt begrenzt (eine präparierte Sicherung kann die App nicht mehr blockieren)"
       ]
     }
   },
-  "releaseTitleEn": "Translated In-Call Messages, Speakerphone Fix & New Themes",
+  "releaseTitleEn": "Smooth Video Calls, In-Call Translation & No More Freezes",
   "signatureAlg": "ML-DSA-65 (FIPS 204)",
   "mldsa65Sig": "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"
 }

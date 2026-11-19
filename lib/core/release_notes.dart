@@ -157,6 +157,64 @@ class JuzzioReleaseNote {
 /// Uygulamaya gömülü sürüm geçmişi (yayınlanmış sürümlerin gerçek içeriği)
 final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
   JuzzioReleaseNote(
+    versionName: '1.3.1',
+    versionCode: 131,
+    publishedAt: DateTime(2026, 11, 19),
+    sections: const {
+      'tr': JuzzioReleaseSection(
+        reason: "Görüntülü aramalar takılıyor ve kalite düşüyordu; arama içi mesajlar bazı kişilerde çevrilmiyordu; büyük fotoğraf/video gönderirken, PIN girerken ve yedeklerken ekran donuyordu.",
+        features: [
+          "👥 Sohbetlerde \"Arkadaşlar\" filtresi ve başlıkta sohbet sayısı",
+          "🛡️ Sohbet listesinin sonunda gizlilik kartı",
+          "✨ Keşfet'te \"Kişileri bul\" ve \"# Teknoloji\" önerileri",
+        ],
+        fixes: [
+          "Görüntülü arama en yüksek kalitede: 720p / 30 fps, internet yavaşlasa da görüntü 540p'nin altına inmez",
+          "Canlı videonun üstündeki ağır bulanıklık efektleri kaldırıldı; görüntü artık kasmıyor",
+          "Arama içi mesajlar her zaman çevrilir (dil, metinden otomatik algılanır); aynı dili konuşanlarda çeviri gösterilmez",
+          "Büyük fotoğraf/video gönderirken, PIN girerken ve yedeklerken ekran donmuyor (şifreleme arka planda yapılır)",
+        ],
+        security: [
+          "Yedek dosyası başlığındaki şifreleme parametreleri sınırlandırıldı (hazırlanmış bir yedek dosyası uygulamayı kilitleyemez)",
+        ],
+      ),
+      'en': JuzzioReleaseSection(
+        reason: "Video calls stuttered and dropped in quality; in-call messages were not translated for some people; the screen froze while sending large photos/videos, entering the PIN and backing up.",
+        features: [
+          "👥 \"Friends\" filter in Chats and the chat count in the header",
+          "🛡️ Privacy card at the end of the chat list",
+          "✨ \"Find people\" and \"# Technology\" suggestions in Explore",
+        ],
+        fixes: [
+          "Video calls at the highest quality: 720p / 30 fps, never below 540p even on slow internet",
+          "Heavy blur effects over live video were removed; video no longer stutters",
+          "In-call messages are always translated (language detected from the text); no translation between people who speak the same language",
+          "The screen no longer freezes while sending large photos/videos, entering the PIN or backing up (encryption runs in the background)",
+        ],
+        security: [
+          "Encryption parameters in backup file headers are now bounded (a crafted backup file can no longer lock up the app)",
+        ],
+      ),
+      'de': JuzzioReleaseSection(
+        reason: "Videoanrufe ruckelten und verloren an Qualität; Nachrichten im Anruf wurden bei manchen nicht übersetzt; beim Senden großer Fotos/Videos, bei der PIN-Eingabe und beim Sichern fror der Bildschirm ein.",
+        features: [
+          "👥 Filter \"Freunde\" in Chats und Chat-Anzahl in der Kopfzeile",
+          "🛡️ Datenschutzkarte am Ende der Chatliste",
+          "✨ Vorschläge \"Leute finden\" und \"# Technik\" in Entdecken",
+        ],
+        fixes: [
+          "Videoanrufe in höchster Qualität: 720p / 30 fps, auch bei langsamem Internet nie unter 540p",
+          "Schwere Unschärfe-Effekte über dem Live-Video entfernt; das Video ruckelt nicht mehr",
+          "Nachrichten im Anruf werden immer übersetzt (Sprache aus dem Text erkannt); keine Übersetzung bei gleicher Sprache",
+          "Der Bildschirm friert beim Senden großer Fotos/Videos, bei der PIN-Eingabe und beim Sichern nicht mehr ein (Verschlüsselung im Hintergrund)",
+        ],
+        security: [
+          "Verschlüsselungsparameter im Kopf von Sicherungsdateien sind jetzt begrenzt (eine präparierte Sicherung kann die App nicht mehr blockieren)",
+        ],
+      ),
+    },
+  ),
+  JuzzioReleaseNote(
     versionName: '1.3.0',
     versionCode: 130,
     publishedAt: DateTime(2026, 11, 19),
