@@ -1,63 +1,44 @@
-# Juzzio v1.2.9 — Glass Menu, GIFs, Message Requests & Sturdier Calls
+# Juzzio v1.3.0 — Translated In-Call Messages, Speakerphone Fix & New Themes
 
 ## 🎯 Why did this update come?
 
-On some phones names starting with an emoji crashed the app; some actions showed an unreadable "P0001" error; message reactions spilled outside the bubble; the birthday celebration closed with the back button; a yellow line appeared while sending; strangers could send unlimited messages. A copyright audit was also done, file security was hardened and calls are sturdier on weak internet.
+On speakerphone your voice cut out when the other person spoke and translation stopped working; video could freeze during calls; offline phones sent false system errors to the admin panel; some headers were invisible in light mode; the double-tap reaction bounced below the message. Calls now also have translated in-call messaging, there are new themes, and admin panel security was tightened.
 
 ## ✨ What's new?
 
-- ✨ New glass context menu: 7 quick reactions + every emoji; Reply, Copy, Translate, Copy link, Forward, Forward without name, Save to cloud, Report, Select and Select from author
-- ☑️ Multi-select: select several messages, copy, forward or delete them (back closes the selection)
-- 🎞️ 42 funny, wordless animated GIFs (sleepy, laughing, dancing, shy…) — drawn by Juzzio itself; searchable in your language. New "GIF" tab in the emoji panel
-- ✉️ Message requests: someone who is not your friend can send at most 3 messages until you reply ("2 messages left"); you get a Request box and a Spam box; accepting notifies them "accepted your pending message". Private accounts require a friend request first
-- ⚠️ A clear risk warning before downloading a file from someone you don't know
-- 🔎 Search by username and view a profile without adding the person
-- 🎵 Share music in chats: cover, play/stop, ⋮ menu (Set as profile music, Listen to the full song on Apple Music, Report). Music stops automatically on a call, when the app goes to the background or when other audio plays
-- 📞 In calls both sides see who lost connection ("… waiting"), a soft tone plays while reconnecting; video quality adapts to the network 720p → 480p → 360p; if the main server is unreachable a backup server is used
-- 🔐 Locked chats open with the new green verification screen (step indicator, code boxes, "Verified")
-- 👉 Swipe right in the chat list → pin; 5-second "Undo" after deleting
-- 🌙 The real moon phase of today next to Juzzio under "Your space"; a more realistic weather theme (shaded clouds, cratered moon, glowing sun)
-- 🎨 The default theme is now Midnight Blue
-- 🎬 Smooth page transitions between the welcome, sign-in and sign-up pages
-- 📎 The attach menu has a new Liquid Glass look; paperclip and a white mic in the composer
-- 🎥 A one-time "What's new?" video for people updating from 1.2.8
-- 🩺 System Health: translation, captions (Deepgram), the call server and the backup server are checked automatically and repaired when possible
+- 💬 Messages during voice and video calls: tap 💬 in the bottom bar; messages reach the other person translated into their language, with no translation between people who speak the same language
+- 🔐 Change your locked-chats PIN or reset it to 0000 (key menu at the top right)
+- 🎨 New themes: Forest Mint and Graphite Lime
+- 🔔 Large unread counter in Notifications with one-tap "Mark all as read"
+- 📞 Quick "Voice call" and "Video" cards on the Calls page
+- ⛅ The icon next to Juzzio shows clouds when the weather is cloudy
+- 👋 Time-of-day greeting on the Chats header
 
 ## 🛠️ What was fixed?
 
-- Fixed the "string is not well-formed UTF-16" crash for names starting with an emoji
-- Clear error messages in every language instead of codes like "P0001"
-- Message reactions now sit INSIDE the bubble next to the time; the reaction animation plays at the bubble corner (the feature is kept)
-- The birthday celebration no longer stops when you press back; it only stops when you leave the chat
-- The yellow line while sending is gone; text messages now arrive with the same springy animation as emojis
-- An incoming call pauses the open story and its music; profile music stops immediately
-- The weather theme no longer draws over stories, videos or the chat window
-- Juzzio Community images are sent at full size; even if an image fails to load its space stays visible, with no jumping
-- You no longer appear "online" while the app is in the background
-- Replying from a notification no longer removes the sender's photo
-- Fixed the admin header and "Welcome" overflow; long names are shortened neatly everywhere
-- Stories are permanently deleted together with their media files after 24 hours
+- Fixed your voice cutting out and translation failing on speakerphone when the other person spoke (captions now use the call's echo-cancelled microphone audio)
+- On weak networks video calls lower the resolution instead of freezing
+- System health no longer files false errors while offline or in the background
+- Fixed white headers, back arrows and filters that were invisible in light mode
+- Fixed the Notifications title being cut off as "Not..."
+- Fixed the double-tap reaction bouncing below the message
+- Removed the long "you speak the same language" notice in calls to save space
+- Background cloud/moon/sun decorations are simpler and only appear at the top
 
 ## 🔒 Security & privacy
 
-- File security: executable/script files like .php, .jsp, .exe, .apk, .html, .svg, .js, hidden double extensions and files whose content doesn't match their extension are blocked on the device both when sending and opening; the server also accepts only allowed types
-- Old overly broad storage rules were removed (one user could delete or overwrite another user's files)
-- Phishing link warning: shortened, IP-address, look-alike or executable-download links are flagged before opening
-- Script patterns in comments, bios and captions are stripped on the server (XSS)
-- Admin security: single founder admin lock, tamper-evident (hash-chained) audit log and an automatic brake on mass destructive actions
-- Copyright audit: all music and videos are Juzzio's own; third-party attributions and open-source licenses are on the Legal page
-- Error reports are notified only to the founding administrator
+- Admin panel: sessions last 4 hours (remember: 7 days), at most 15 wrong passwords per 24 hours, at most 3 sessions at once; failed attempts are written to the audit log
 
 ## ⬇️ Download
 
 - Latest: [Juzzio-latest.apk](https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk)
-- This version: `juzzio-v1.2.9-release.apk` (120.67 MB)
+- This version: `juzzio-v1.3.0-release.apk` (120.73 MB)
 
 ## ✅ Verify the APK
 
 ```bash
 sha256sum Juzzio-latest.apk
-# a8a01b9c2a162b9130e1f80035241b9bfac3711bb2d5fc67d321ef9af3ca4f88  Juzzio-latest.apk
+# aa16161ccf9e724c151d31185a084786d7680cfa5a665a8800e5b3ba7574110e  Juzzio-latest.apk
 ```
 
-Built: 2026-11-15 15:53 UTC — GitHub Actions
+Built: 2026-11-19 19:01 UTC — GitHub Actions
