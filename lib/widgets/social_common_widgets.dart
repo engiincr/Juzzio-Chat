@@ -1388,7 +1388,7 @@ class _JuzzioPostCardWidgetState extends State<JuzzioPostCardWidget> {
                 ),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
-                  value: vis,
+                  initialValue: vis,
                   dropdownColor: JuzzioSocialTokens.cardBg(isDark),
                   items: [
                     DropdownMenuItem(value: 'public', child: Text(app.loc('Herkese Açık', 'Public', 'Öffentlich'))),

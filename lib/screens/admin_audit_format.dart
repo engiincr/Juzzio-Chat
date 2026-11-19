@@ -188,6 +188,10 @@ JuzzioAuditLine juzzioFormatAudit(Map<String, dynamic> a, String lang) {
       icon = Icons.delete_sweep_outlined;
       tone = 2;
       sentence = t('$who bir sürüm kaydını sildi', '$who deleted a release', '$who hat eine Version gelöscht');
+    case 'admin_unlock_failed':
+      icon = Icons.gpp_bad_outlined;
+      tone = 2;
+      sentence = t('$who yönetici paneli şifresini hatalı girdi', '$who entered a wrong admin panel password', '$who hat ein falsches Admin-Passwort eingegeben');
     case 'set_setting':
       icon = Icons.tune_rounded;
       sentence = t('$who $target ayarını değiştirdi', '$who changed the $target setting', '$who hat die Einstellung $target geändert');

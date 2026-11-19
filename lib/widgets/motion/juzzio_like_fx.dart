@@ -94,7 +94,7 @@ class _JuzzioDoubleTapHeartState extends State<JuzzioDoubleTapHeart> with Single
 }
 
 class _HeartPainter extends CustomPainter {
-  _HeartPainter({required this.fill, required this.color, this.glow, this.draw = 1, this.strokeColor});
+  _HeartPainter({required this.fill, required this.color, this.glow, this.draw = 1}) : strokeColor = null;
   final double fill;
   final double draw;
   final Color color;
@@ -199,7 +199,7 @@ class _JuzzioReactionBurstState extends State<JuzzioReactionBurst> with SingleTi
                   )
                 else
                   Transform.scale(
-                    scale: 0.35 + 0.75 * const JuzzioSpringCurve(damping: 5, frequency: 2.6).transform((t / 0.5).clamp(0.0, 1.0)),
+                    scale: 0.35 + 0.65 * const JuzzioSpringCurve(damping: 11, frequency: 2.2).transform((t / 0.5).clamp(0.0, 1.0)),
                     child: Text(widget.emoji, style: widget.emojiStyle ?? TextStyle(fontSize: s * 0.8)),
                   ),
               ],

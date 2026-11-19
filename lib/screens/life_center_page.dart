@@ -479,8 +479,11 @@ class _JuzzioTaskEditorState extends State<_JuzzioTaskEditor> {
                       ),
                   ]),
                   const SizedBox(height: 8),
+                  // initialValue yalnız ilk kurulumda okunur; anahtar sayesinde "Tarihi kaldır" sonrası
+                  // seçim de "Yok"a döner (Flutter 3.35+ `value` kullanımdan kalktı)
                   DropdownButtonFormField<String>(
-                    value: due == null ? 'none' : _remind,
+                    key: ValueKey('remind_${due == null ? 'none' : _remind}'),
+                    initialValue: due == null ? 'none' : _remind,
                     decoration: InputDecoration(labelText: _app.trEn('Hatırlatma', 'Reminder', 'Erinnerung')),
                     dropdownColor: p.cardBg,
                     items: [

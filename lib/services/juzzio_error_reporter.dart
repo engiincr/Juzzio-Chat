@@ -92,6 +92,13 @@ class JuzzioErrorReporter {
       final stackText = stack.toString();
       // Ağ kesintileri ve iptal edilen istekler hata merkezini doldurmasın
       if (error is SocketException || error is TimeoutException || error is HttpException) return;
+      // Supabase/GoTrue çevrimdışı hataları (AuthRetryableFetchException: Failed host lookup) da ağ gürültüsüdür
+      final low = error.toString().toLowerCase();
+      if (low.contains('failed host lookup') || low.contains('socketexception') ||
+          low.contains('network is unreachable') || low.contains('connection refused') ||
+          low.contains('connection reset') || low.contains('connection closed')) {
+        return;
+      }
       final fp = juzzioErrorFingerprint(type, stackText);
       final last = _lastSent[fp];
       final now = DateTime.now();

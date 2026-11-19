@@ -20,7 +20,9 @@ import 'package:juzzio/services/juzzio_features_service.dart' show JuzzioDmReque
 import 'package:juzzio/services/juzzio_file_guard.dart';
 import 'package:juzzio/services/juzzio_health_monitor.dart';
 import 'package:juzzio/services/juzzio_legal_package.dart';
+import 'package:juzzio/widgets/juzzio_weather_ambience.dart';
 import 'package:juzzio/services/juzzio_speech_gate.dart';
+import 'package:juzzio/services/juzzio_weather_service.dart' show JuzzioWeatherKind;
 import 'package:juzzio/services/supabase_service.dart' show JuzzioIceServer;
 import 'package:juzzio/widgets/juzzio_chat_music.dart';
 import 'package:juzzio/widgets/juzzio_gif_stickers.dart';
@@ -494,6 +496,41 @@ void main() {
     });
     test('kapıya karşı tarafın konuşma durumu verilir', () {
       expect(_src('lib/services/deepgram_livekit_service.dart').contains('remoteActive: _anyRemoteSpeaking()'), isTrue);
+    });
+  });
+
+  group('Gökyüzü simgesi kişinin yerel gündüz/gecesine uyar', () {
+    test('gündüz ay yok; gece ay var', () {
+      expect(juzzioIsNightNow(DateTime(2026, 11, 19, 13)), isFalse);
+      expect(juzzioIsNightNow(DateTime(2026, 11, 19, 23)), isTrue);
+      expect(juzzioIsNightNow(DateTime(2026, 6, 19, 20), isDay: true), isFalse);
+      expect(juzzioIsNightNow(DateTime(2026, 12, 19, 17), isDay: false), isTrue);
+    });
+    test('gerçek gündüz bilgisi saat dilimini ezer; akşam gün ışığında ay çizilmez', () {
+      expect(juzzioSkyBand(14, isDay: false), 0);
+      expect(juzzioSkyBand(22, isDay: true), 2);
+      expect(juzzioWeatherDoodles(18, JuzzioWeatherKind.clear, isDay: true).contains(JuzzioWeatherDoodle.moon), isFalse);
+      expect(juzzioWeatherDoodles(18, JuzzioWeatherKind.clear, isDay: false).contains(JuzzioWeatherDoodle.moon), isTrue);
+    });
+    test('başlıkta sabit ay yerine gökyüzü simgesi', () {
+      final c = _src('lib/screens/chat_screen.dart');
+      expect(c.contains('JuzzioSkyIcon(size: 30)'), isTrue);
+      expect(c.contains('JuzzioMoonPhaseIcon(size: 30)'), isFalse);
+    });
+  });
+
+  group('Görüntülü aramada giden görüntü donmaz', () {
+    test('güzelleştirme süre bütçeli, havuzlu ve ölçekli', () {
+      final k = _src('android/app/src/main/kotlin/com/juzzio/app/JuzzioBeautyProcessor.kt');
+      expect(k.contains('BUDGET_NS'), isTrue);
+      expect(k.contains('JavaI420Buffer.wrap('), isTrue);
+      expect(k.contains('JavaI420Buffer.allocate('), isFalse);
+      expect(k.contains('cropAndScale('), isTrue);
+      expect(k.contains('overloaded = true'), isTrue);
+    });
+    test('kamera yeniden başlayınca güzelleştirme yeni ize bağlanır', () {
+      final s = _src('lib/services/deepgram_livekit_service.dart');
+      expect('await _applyBeautyFilter();'.allMatches(s).length >= 3, isTrue);
     });
   });
 

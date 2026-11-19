@@ -18355,3 +18355,63 @@ RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS
 $$;
 REVOKE ALL ON FUNCTION public.watch_party_is_active(UUID) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.watch_party_is_active(UUID) TO authenticated;
+
+-- =============================================================================
+-- v1.3.0 — Yönetici paneli güvenlik sıkılaştırması
+--  • Oturum süresi: hatırla 30 gün → 7 gün, normal 12 saat → 4 saat
+--  • Kısa pencere sınırına ek olarak 24 saatte en fazla 15 hatalı deneme
+--  • Yönetici aynı anda en fazla 3 aktif oturum tutar (en eskileri silinir)
+--  • Hatalı denemeler denetim kaydına yazılır
+-- =============================================================================
+CREATE OR REPLACE FUNCTION public.admin_unlock(p_password TEXT, p_device_id TEXT, p_remember BOOLEAN DEFAULT false)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+DECLARE
+    v_uid UUID := auth.uid();
+    v_hash TEXT;
+    v_token TEXT;
+    v_fails INTEGER;
+    v_day_fails INTEGER;
+    v_max INTEGER := LEAST(GREATEST(public.juzzio_setting_int('admin_bruteforce_max_fails', 5), 3), 20);
+    v_window INTEGER := LEAST(GREATEST(public.juzzio_setting_int('admin_bruteforce_window_min', 15), 5), 1440);
+    v_ttl INTERVAL := CASE WHEN p_remember THEN INTERVAL '7 days' ELSE INTERVAL '4 hours' END;
+    v_dev TEXT := LEFT(COALESCE(p_device_id, ''), 128);
+BEGIN
+    IF v_uid IS NULL OR NOT public.is_juzzio_admin(v_uid) THEN RAISE EXCEPTION 'not_allowed'; END IF;
+    IF length(COALESCE(p_password, '')) > 256 THEN RAISE EXCEPTION 'not_allowed'; END IF;
+    SELECT COUNT(*) FILTER (WHERE created_at > NOW() - make_interval(mins => v_window)),
+           COUNT(*)
+      INTO v_fails, v_day_fails
+      FROM public.admin_login_attempts
+     WHERE user_id = v_uid AND NOT success AND created_at > NOW() - INTERVAL '24 hours';
+    IF v_fails >= v_max OR v_day_fails >= 15 THEN RAISE EXCEPTION 'too_many_attempts'; END IF;
+
+    SELECT password_hash INTO v_hash FROM public.admin_secret WHERE id = 1;
+    IF v_hash IS NULL THEN RAISE EXCEPTION 'admin_password_not_set'; END IF;
+    IF crypt(COALESCE(p_password, ''), v_hash) <> v_hash THEN
+        INSERT INTO public.admin_login_attempts (user_id, device_id, success) VALUES (v_uid, v_dev, false);
+        INSERT INTO public.admin_audit_log (admin_id, action, target) VALUES (v_uid, 'admin_unlock_failed', v_dev);
+        RETURN jsonb_build_object('ok', false, 'remaining', GREATEST(0, v_max - 1 - v_fails));
+    END IF;
+
+    INSERT INTO public.admin_login_attempts (user_id, device_id, success) VALUES (v_uid, v_dev, true);
+    v_token := encode(gen_random_bytes(32), 'hex');
+    INSERT INTO public.admin_sessions (token_hash, user_id, device_id, expires_at)
+    VALUES (encode(digest(v_token, 'sha256'), 'hex'), v_uid, v_dev, NOW() + v_ttl);
+    DELETE FROM public.admin_sessions WHERE expires_at < NOW();
+    DELETE FROM public.admin_sessions s
+     WHERE s.user_id = v_uid
+       AND s.token_hash NOT IN (SELECT token_hash FROM public.admin_sessions
+                                 WHERE user_id = v_uid ORDER BY expires_at DESC LIMIT 3);
+    RETURN jsonb_build_object('ok', true, 'token', v_token, 'expires_at', NOW() + v_ttl);
+END;
+$$;
+REVOKE ALL ON FUNCTION public.admin_unlock(TEXT, TEXT, BOOLEAN) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_unlock(TEXT, TEXT, BOOLEAN) TO authenticated;
+REVOKE ALL ON FUNCTION public.admin_check_token(TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_check_token(TEXT) TO authenticated;
+-- Mevcut uzun ömürlü oturumları yeni sınıra çek
+UPDATE public.admin_sessions SET expires_at = LEAST(expires_at, NOW() + INTERVAL '7 days');

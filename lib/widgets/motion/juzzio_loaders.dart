@@ -102,7 +102,7 @@ class _JuzzioOrbitLoaderState extends State<JuzzioOrbitLoader> with SingleTicker
                 child: percent
                     ? Center(
                         child: TweenAnimationBuilder<double>(
-                          tween: Tween(end: (v ?? 0.0).clamp(0.0, 1.0)),
+                          tween: Tween(end: v.clamp(0.0, 1.0)),
                           duration: const Duration(milliseconds: 300),
                           builder: (context, x, _) => Text(
                             '${(x * 100).round()}%',

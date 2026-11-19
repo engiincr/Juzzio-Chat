@@ -2425,7 +2425,6 @@ class _CallScreenState extends State<CallScreen> {
   }
 
   Widget _buildLanguageStatusPill({required bool isThreeOrMoreCall}) {
-    final s = JuzzioStrings(_app.uiLang);
     final isForeignActive = _isTranslatorVisible || _controller.hasForeignParticipant;
 
     // v1.2.8: altyazı motorunun durumu (Deepgram / cihaz yedeği / neden çalışmadığı)
@@ -2460,11 +2459,11 @@ class _CallScreenState extends State<CallScreen> {
               color: Colors.white,
               size: 13.5,
             ),
-            const SizedBox(width: 6),
-            Flexible(
+            // Uzun "iki Türk kullanıcı konuşuyor…" açıklaması kaldırıldı (gereksiz yer kaplıyordu).
+            if (isForeignActive || engineText.isNotEmpty) const SizedBox(width: 6),
+            if (isForeignActive || engineText.isNotEmpty) Flexible(
               child: Text(
-                (isForeignActive ? s.t('foreign_joined_info') : s.t('same_lang_tr_info')) +
-                    (engineText.isEmpty ? '' : ' · $engineText'),
+                engineText.isNotEmpty ? engineText : _app.loc('Çeviri', 'Translate', 'Übersetzung'),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
@@ -3088,6 +3087,18 @@ class _CallScreenState extends State<CallScreen> {
               );
             },
           ),
+        // Arama içi mesaj (çevirili)
+        GestureDetector(
+          onTap: _openInCallChat,
+          child: ListenableBuilder(
+            listenable: _controller,
+            builder: (_, __) => Badge(
+              isLabelVisible: _controller.inCallUnread > 0,
+              label: Text('${_controller.inCallUnread}'),
+              child: _glassIconCircle(Icons.chat_bubble_rounded),
+            ),
+          ),
+        ),
         // v1.2.0: dokun → seçili tepki (varsayılan ❤️) · basılı tut → tepki seç; seçim kalıcıdır
         GestureDetector(
           onLongPress: _pickCallReaction,
@@ -3131,6 +3142,160 @@ class _CallScreenState extends State<CallScreen> {
         if (mounted) setState(() {});
       },
     );
+  }
+
+  Widget _glassIconCircle(IconData icon) => ClipOval(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: JuzzioGlassTokens.blurNavigation, sigmaY: JuzzioGlassTokens.blurNavigation),
+          child: Container(
+            width: 46,
+            height: 46,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0x40FFFFFF), Color(0x10FFFFFF)],
+              ),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
+            ),
+            child: Icon(icon, color: Colors.white, size: 21),
+          ),
+        ),
+      );
+
+  /// Arama içi sohbet paneli: mesajlar karşı tarafa kendi dilinde (çevrilmiş) ulaşır.
+  Future<void> _openInCallChat() async {
+    _controller.inCallChatOpen = true;
+    _controller.markInCallChatRead();
+    final input = TextEditingController();
+    final scroll = ScrollController();
+    void toEnd() => WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (scroll.hasClients) scroll.jumpTo(scroll.position.maxScrollExtent);
+        });
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xF0121418),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+        child: SizedBox(
+          height: MediaQuery.of(ctx).size.height * 0.55,
+          child: Column(children: [
+            const SizedBox(height: 10),
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(4))),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 12, 18, 6),
+              child: Row(children: [
+                const Icon(Icons.chat_bubble_rounded, color: Colors.white70, size: 18),
+                const SizedBox(width: 8),
+                Text(_app.loc('Arama içi mesajlar', 'In-call messages', 'Nachrichten im Anruf'),
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
+              ]),
+            ),
+            Expanded(
+              child: ListenableBuilder(
+                listenable: _controller,
+                builder: (_, __) {
+                  final msgs = _controller.inCallMessages;
+                  toEnd();
+                  if (msgs.isEmpty) {
+                    return Center(
+                      child: Text(
+                        _app.loc('Mesajlar karşı tarafa kendi dilinde ulaşır.', 'Messages reach others in their own language.',
+                            'Nachrichten kommen in der eigenen Sprache an.'),
+                        style: const TextStyle(color: Colors.white54),
+                      ),
+                    );
+                  }
+                  return ListView.builder(
+                    controller: scroll,
+                    padding: const EdgeInsets.fromLTRB(14, 6, 14, 6),
+                    itemCount: msgs.length,
+                    itemBuilder: (_, i) {
+                      final m = msgs[i];
+                      return Align(
+                        alignment: m.mine ? Alignment.centerRight : Alignment.centerLeft,
+                        child: Container(
+                          constraints: BoxConstraints(maxWidth: MediaQuery.of(ctx).size.width * 0.75),
+                          margin: const EdgeInsets.symmetric(vertical: 4),
+                          padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                          decoration: BoxDecoration(
+                            color: m.mine ? _callAccent.withValues(alpha: 0.85) : Colors.white.withValues(alpha: 0.10),
+                            borderRadius: BorderRadius.only(
+                              topLeft: const Radius.circular(16),
+                              topRight: const Radius.circular(16),
+                              bottomLeft: Radius.circular(m.mine ? 16 : 4),
+                              bottomRight: Radius.circular(m.mine ? 4 : 16),
+                            ),
+                          ),
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            if (!m.mine)
+                              Text(m.senderName, style: const TextStyle(color: Colors.white60, fontSize: 11, fontWeight: FontWeight.w700)),
+                            Text(m.translated ?? m.text, style: const TextStyle(color: Colors.white, fontSize: 14.5)),
+                            if (m.translated != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 3),
+                                child: Text('${m.lang.toUpperCase()} · ${m.text}',
+                                    style: const TextStyle(color: Colors.white54, fontSize: 11.5, fontStyle: FontStyle.italic)),
+                              ),
+                          ]),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+            SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 6, 8, 10),
+                child: Row(children: [
+                  Expanded(
+                    child: TextField(
+                      controller: input,
+                      maxLength: 500,
+                      minLines: 1,
+                      maxLines: 4,
+                      textInputAction: TextInputAction.send,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        counterText: '',
+                        hintText: _app.loc('Mesaj yaz…', 'Type a message…', 'Nachricht…'),
+                        hintStyle: const TextStyle(color: Colors.white38),
+                        filled: true,
+                        fillColor: Colors.white.withValues(alpha: 0.08),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(22), borderSide: BorderSide.none),
+                      ),
+                      onSubmitted: (v) {
+                        _controller.sendInCallMessage(v);
+                        input.clear();
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  IconButton.filled(
+                    style: IconButton.styleFrom(backgroundColor: _callAccent),
+                    icon: const Icon(Icons.send_rounded, color: Colors.white),
+                    onPressed: () {
+                      _controller.sendInCallMessage(input.text);
+                      input.clear();
+                    },
+                  ),
+                ]),
+              ),
+            ),
+          ]),
+        ),
+      ),
+    );
+    _controller.inCallChatOpen = false;
+    input.dispose();
+    scroll.dispose();
   }
 
   Widget _reactionCircleBtn() {

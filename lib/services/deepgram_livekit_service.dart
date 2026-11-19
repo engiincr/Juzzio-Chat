@@ -101,6 +101,22 @@ class LiveSubtitlePacket {
   }
 }
 
+/// Arama içi tek mesaj
+class JuzzioInCallMessage {
+  JuzzioInCallMessage({
+    required this.id,
+    required this.senderId,
+    required this.senderName,
+    required this.text,
+    required this.lang,
+    this.mine = false,
+  }) : at = DateTime.now();
+  final String id, senderId, senderName, text, lang;
+  final bool mine;
+  final DateTime at;
+  String? translated;
+}
+
 class DeepgramLiveKitController extends ChangeNotifier {
   Room? _room;
   EventsListener<RoomEvent>? _roomListener;
@@ -227,6 +243,66 @@ class DeepgramLiveKitController extends ChangeNotifier {
         topic: 'juzzio_fx',
       );
     } catch (_) {}
+  }
+
+  /// Arama içi mesajlar (sesli + görüntülü). Gönderen dilini ekler; alıcı kendi dili farklıysa
+  /// çevirir, aynı dili konuşuyorsa metin olduğu gibi gösterilir (çeviri yapılmaz).
+  final List<JuzzioInCallMessage> inCallMessages = [];
+  int inCallUnread = 0;
+  bool inCallChatOpen = false;
+
+  Future<void> sendInCallMessage(String raw) async {
+    final text = raw.trim();
+    if (text.isEmpty) return;
+    final clipped = text.length > 500 ? text.substring(0, 500) : text;
+    final id = '${DateTime.now().microsecondsSinceEpoch}_${_myIdentity.hashCode}';
+    inCallMessages.add(JuzzioInCallMessage(
+        id: id, senderId: _myIdentity, senderName: _myName, text: clipped, lang: _myLang, mine: true));
+    if (inCallMessages.length > 200) inCallMessages.removeAt(0);
+    notifyListeners();
+    try {
+      await _room?.localParticipant?.publishData(
+        utf8.encode(jsonEncode({'type': 'juzzio_chat', 'id': id, 'text': clipped, 'lang': _myLang, 'name': _myName})),
+        reliable: true,
+        topic: 'juzzio_chat',
+      );
+    } catch (_) {}
+  }
+
+  Future<void> _onInCallMessage(Map<String, dynamic> map, Participant? sender) async {
+    final text = (map['text']?.toString() ?? '').trim();
+    if (text.isEmpty || text.length > 500) return;
+    final lang = (map['lang']?.toString() ?? '').toLowerCase();
+    final rawName = map['name']?.toString().trim() ?? '';
+    final name = rawName.isNotEmpty ? (rawName.length > 40 ? rawName.substring(0, 40) : rawName) : (sender?.name ?? '');
+    final msg = JuzzioInCallMessage(
+        id: map['id']?.toString() ?? '${DateTime.now().microsecondsSinceEpoch}',
+        senderId: sender?.identity ?? '',
+        senderName: name,
+        text: text,
+        lang: lang);
+    inCallMessages.add(msg);
+    if (inCallMessages.length > 200) inCallMessages.removeAt(0);
+    if (!inCallChatOpen) inCallUnread++;
+    notifyListeners();
+    final target = JuzzioAppController.instance.subtitleLang.toLowerCase();
+    if (lang.isNotEmpty && lang != target && lang != _myLang) {
+      try {
+        final t = await SupabaseService.instance
+            .translateText(text: text, sourceLang: lang, targetLang: target)
+            .timeout(const Duration(seconds: 10));
+        if (t.trim().isNotEmpty && t.trim() != text) {
+          msg.translated = t.trim();
+          notifyListeners();
+        }
+      } catch (_) {}
+    }
+  }
+
+  void markInCallChatRead() {
+    if (inCallUnread == 0) return;
+    inCallUnread = 0;
+    notifyListeners();
   }
 
   /// Başka bir katılımcının pil seviyesi kritik eşiğe indi (%10 / %5).
@@ -567,6 +643,8 @@ class DeepgramLiveKitController extends ChangeNotifier {
           name: 'juzzio_video_track',
           simulcast: !saver,
           videoEncoding: saver ? const VideoEncoding(maxBitrate: 350 * 1000, maxFramerate: 15) : null,
+          // v1.3.0 donma düzeltmesi: bant daralınca kare atlamak (donma) yerine çözünürlük düşer
+          degradationPreference: DegradationPreference.maintainFramerate,
         ),
       ),
     );
@@ -1035,6 +1113,11 @@ class DeepgramLiveKitController extends ChangeNotifier {
             return;
           }
 
+          if (packetType == 'juzzio_chat') {
+            await _onInCallMessage(map, event.participant);
+            return;
+          }
+
           if (packetType == 'juzzio_reaction') {
             final emoji = map['emoji']?.toString() ?? '';
             if (kCallReactions.contains(emoji)) onCallReaction?.call(event.participant?.identity ?? '', emoji);
@@ -1252,6 +1335,50 @@ class DeepgramLiveKitController extends ChangeNotifier {
     }
   }
 
+  /// LiveKit yerel mikrofon izinden 16 kHz / mono / PCM16 kareler. Mikrofonu ikinci kez AÇMAZ.
+  /// İz yoksa ya da 2,5 sn içinde hiç kare gelmezse null (çağıran eski kayıtçıya döner).
+  Future<Stream<Uint8List>?> _localMicPcmStream() async {
+    LocalAudioTrack? track;
+    for (var i = 0; i < 12 && track == null; i++) {
+      final pubs = _room?.localParticipant?.audioTrackPublications ?? const [];
+      for (final p in pubs) {
+        final t = p.track;
+        if (t is LocalAudioTrack && p.source == TrackSource.microphone) track = t;
+      }
+      if (track == null) await Future<void>.delayed(const Duration(milliseconds: 250));
+    }
+    if (track == null) return null;
+    final first = Completer<bool>();
+    CancelListenFunc? cancelRenderer;
+    late final StreamController<Uint8List> ctrl;
+    ctrl = StreamController<Uint8List>(onCancel: () async {
+      final c = cancelRenderer;
+      cancelRenderer = null;
+      if (c != null) await c();
+    });
+    try {
+      cancelRenderer = track.addAudioRenderer(
+        options: const AudioRendererOptions(sampleRate: 16000, channels: 1, format: AudioFormat.Int16),
+        onFrame: (frame) {
+          if (!first.isCompleted) first.complete(true);
+          if (!ctrl.isClosed && frame.data.isNotEmpty) ctrl.add(frame.data);
+        },
+      );
+    } catch (e) {
+      debugPrint('Mic track renderer unavailable: $e');
+      return null;
+    }
+    final ok = await first.future.timeout(const Duration(milliseconds: 2500), onTimeout: () => false);
+    if (!ok) {
+      final c = cancelRenderer;
+      cancelRenderer = null;
+      if (c != null) await c();
+      await ctrl.close();
+      return null;
+    }
+    return ctrl.stream;
+  }
+
   Future<void> _startDeepgramSubtitlePipeline() async {
     try {
       _setEngine('connecting');
@@ -1300,10 +1427,17 @@ class DeepgramLiveKitController extends ChangeNotifier {
         } catch (_) {}
       });
 
-      final hasPerm = await _sharedAudioTap.hasPermission();
+      // v1.3.0 HOPARLÖR DÜZELTMESİ: altyazı sesi artık LiveKit'in yayınladığı (yankısı donanımca
+      // temizlenmiş) mikrofon izinden alınır. Önceden ikinci bir kayıtçı (record) mikrofonu AYRICA
+      // açıyordu: hoparlörde Android iki "sesli iletişim" kaydından birine sessizlik veriyor, ikinci
+      // kayıtçının yankı engelleyicisi LiveKit ses yönlendirmesini bozuyordu → karşı taraf (@ari)
+      // konuşunca benim sesim kesiliyor, karşı sesi duyan kapı da kendi cümlelerimi reddediyordu
+      // (kulaklıkta yankı olmadığı için sorun görünmüyordu). İz alınamazsa eski yola dönülür.
+      final trackStream = await _localMicPcmStream();
+      final hasPerm = trackStream != null || await _sharedAudioTap.hasPermission();
       if (!hasPerm) return;
 
-      final pcmStream = await _sharedAudioTap.startStream(
+      final pcmStream = trackStream ?? await _sharedAudioTap.startStream(
         // v1.1.0: yankı engelleme + gürültü bastırma AÇIK, otomatik kazanç KAPALI.
         // (Önceden kazanç sessizliği yükseltiyor, hoparlördeki karşı ses de mikrofona
         // geri giriyordu → kullanıcının söylemediği "Tamam aşkım" vb. satırlar.)
@@ -1594,6 +1728,8 @@ class DeepgramLiveKitController extends ChangeNotifier {
         await lp.setCameraEnabled(false);
         await lp.setCameraEnabled(true,
             cameraCaptureOptions: low ? const CameraCaptureOptions(params: kLowPowerVideo) : const CameraCaptureOptions());
+        // v1.2.9: kamera yeniden başlayınca yeni ize güzelleştirme yeniden bağlanır (yük koruması sıfırlanır)
+        await _applyBeautyFilter();
       } catch (_) {}
     }
     notifyListeners();
@@ -1607,6 +1743,7 @@ class DeepgramLiveKitController extends ChangeNotifier {
       try {
         await lp.setCameraEnabled(false);
         await lp.setCameraEnabled(true, cameraCaptureOptions: const CameraCaptureOptions(params: VideoParametersPresets.h360_169));
+        await _applyBeautyFilter();
       } catch (_) {}
     }
     notifyListeners();

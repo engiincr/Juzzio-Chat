@@ -125,6 +125,24 @@ class _JuzzioLockedChatsPageState extends State<JuzzioLockedChatsPage> {
             elevation: 0,
             title: Text(_app.trEn('Kilitli sohbetler', 'Locked chats', 'Gesperrte Chats'),
                 style: TextStyle(color: p.textPrimary, fontWeight: FontWeight.w900)),
+            actions: [
+              if (unlocked)
+                PopupMenuButton<String>(
+                  icon: Icon(Icons.password_rounded, color: p.textPrimary),
+                  tooltip: _app.trEn('PIN ayarları', 'PIN settings', 'PIN-Einstellungen'),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  color: p.sheetBg,
+                  onSelected: (v) async {
+                    await juzzioChangeChatPin(context, toDefault: v == 'default');
+                    final has = await _lock.hasPin();
+                    if (mounted) setState(() => _hasPin = has || _lock.isUnlocked);
+                  },
+                  itemBuilder: (_) => [
+                    PopupMenuItem(value: 'change', child: Text(_app.trEn('PIN\'i yenile', 'Change PIN', 'PIN ändern'), style: TextStyle(color: p.textPrimary))),
+                    PopupMenuItem(value: 'default', child: Text(_app.trEn('PIN\'i 0000\'a sıfırla', 'Reset PIN to 0000', 'PIN auf 0000'), style: TextStyle(color: p.textPrimary))),
+                  ],
+                ),
+            ],
           ),
           floatingActionButton: unlocked
               ? FloatingActionButton.extended(

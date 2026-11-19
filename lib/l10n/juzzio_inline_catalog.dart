@@ -2276,6 +2276,7 @@ const List<String> kJuzzioInlineEnglishCatalog = [
   'Waning Gibbous',
   'Last Quarter',
   'Waning Crescent',
+  'Daytime',
   'Weak',
   'Close poll',
   'No more votes can be cast.',

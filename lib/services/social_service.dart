@@ -309,7 +309,7 @@ class JuzzioSocialService {
       return cached.map((m) => JuzzioPost.fromMap(m, isLikedByMe: _likedPostIdsCache.contains(m['id']?.toString()), isSavedByMe: true)).toList();
     }
 
-    final postIds = (savedRows as List)
+    final postIds = (savedRows)
         .map((e) => (e['post_id'] ?? '').toString())
         .where((s) => s.isNotEmpty)
         .toList();
@@ -851,7 +851,7 @@ class JuzzioSocialService {
       q(_client.from('follows').select('id').eq('following_id', targetUserId).eq('status', 'following')),
       q(_client.from('follows').select('id').eq('follower_id', targetUserId).eq('status', 'following')),
       if (mine)
-        q(_client.from('follows').select('status').eq('follower_id', uid ?? '').eq('following_id', targetUserId).maybeSingle()),
+        q(_client.from('follows').select('status').eq('follower_id', uid).eq('following_id', targetUserId).maybeSingle()),
     ]);
     if (r[0] is List) postsCount = (r[0] as List).length;
     if (r[1] is List) followersCount = (r[1] as List).length;
@@ -1133,7 +1133,7 @@ class JuzzioSocialService {
     );
 
     final list = rows
-        .map((e) => JuzzioNotificationItem.fromMap(e as Map<String, dynamic>))
+        .map((e) => JuzzioNotificationItem.fromMap(e))
         .where((n) => n.actorId == null || !_blockedUserIdsCache.contains(n.actorId!))
         .toList();
 

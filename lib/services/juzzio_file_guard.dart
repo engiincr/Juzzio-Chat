@@ -8,7 +8,7 @@
 //   • Sunucu/web betikleri: .php .phtml .phar .jsp .jspx .asp .aspx .cgi .pl .py .rb .sh .ps1 …
 //   • Tarayıcıda çalışan/XSS taşıyabilen: .html .htm .xhtml .svg .js .mjs .hta .xml(+betik)
 //   • Çalıştırılabilir/kurulum: .exe .dll .msi .scr .com .bat .cmd .vbs .jar .apk .aab .xapk .dex …
-//   • Gizli çift uzantı (fatura.pdf.php), Unicode sağdan-sola hilesi (fatura‮fdp.exe)
+//   • Gizli çift uzantı (fatura.pdf.php), Unicode sağdan-sola hilesi (fatura<U+202E>fdp.exe)
 //   • Uzantısı ile içeriği uyuşmayan dosya (ör. .jpg adlı ama içi PHP/EXE)
 //   • İçinde <?php, <%@, <script, <iframe, javascript: barındıran "metin" dosyaları
 //   • İçinde APK / EXE / betik barındıran ZIP arşivleri
@@ -89,7 +89,7 @@ String juzzioFileExt(String name) {
 }
 
 /// Görünmez/yön değiştiren Unicode karakterleri (RTL hilesi) — saf
-final RegExp _bidiTricks = RegExp('[​-‏‪-‮⁦-⁩﻿]');
+final RegExp _bidiTricks = RegExp('[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]');
 
 /// Dosya adını güvenli hâle getirir: yol ayırıcı, kontrol karakteri, RTL hilesi, sondaki
 /// nokta/boşluk temizlenir; en çok 120 karakter (uzantı korunur). Saf; test edilir.

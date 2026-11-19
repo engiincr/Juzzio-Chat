@@ -67,6 +67,56 @@ Future<bool> juzzioRequireChatPin(BuildContext context, {bool allowCreate = true
   return true;
 }
 
+/// Kilitli sohbetler içinden PIN yenileme: önce mevcut PIN, sonra yeni PIN (iki kez).
+/// [toDefault] true ise yeni PIN istenmez, PIN varsayılan 0000'a döner.
+Future<bool> juzzioChangeChatPin(BuildContext context, {bool toDefault = false}) async {
+  final lock = JuzzioChatLock.instance;
+  final app = JuzzioAppController.instance;
+  final has = await lock.hasPin();
+  final len = await lock.pinLength();
+  if (!context.mounted) return false;
+  final cur = await showJuzzioPinPad(
+    context,
+    title: app.trEn('Mevcut PIN', 'Current PIN', 'Aktuelle PIN'),
+    subtitle: has ? null : app.trEn('Varsayılan PIN 0000', 'Default PIN is 0000', 'Standard-PIN 0000'),
+    autoLength: len,
+    verify: lock.unlock,
+  );
+  if (cur == null || !context.mounted) return false;
+  if (toDefault) {
+    await lock.resetPinToDefault();
+  } else {
+    final first = await showJuzzioPinPad(
+      context,
+      title: app.trEn('Yeni PIN', 'New PIN', 'Neue PIN'),
+      step: 1,
+      subtitle: app.trEn('4–8 rakam. Bitince ✓\'ye dokun.', '4–8 digits. Tap ✓ when done.', '4–8 Ziffern. Dann ✓.'),
+      verify: (pin) async => JuzzioChatLockMath.validPin(pin),
+      errorText: app.trEn('PIN 4–8 rakam olmalı', 'PIN must be 4–8 digits', 'PIN 4–8 Ziffern'),
+    );
+    if (first == null || !context.mounted) return false;
+    final again = await showJuzzioPinPad(
+      context,
+      title: app.trEn('PIN\'i tekrar gir', 'Repeat the PIN', 'PIN wiederholen'),
+      step: 2,
+      autoLength: first.length,
+      verify: (pin) async => pin == first,
+      errorText: app.trEn('PIN\'ler eşleşmiyor', 'PINs do not match', 'PINs stimmen nicht überein'),
+    );
+    if (again == null) return false;
+    await lock.setPin(first);
+    await lock.unlock(first);
+  }
+  if (context.mounted) {
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(
+      content: Text(toDefault
+          ? app.trEn('PIN 0000 olarak sıfırlandı.', 'PIN reset to 0000.', 'PIN auf 0000 zurückgesetzt.')
+          : app.trEn('PIN güncellendi.', 'PIN updated.', 'PIN aktualisiert.')),
+    ));
+  }
+  return true;
+}
+
 /// v1.2.8 — dokunmatik PIN tuş takımı. Doğrulanan PIN'i döndürür (vazgeçilirse null).
 /// [autoLength] verilirse o hanede kendiliğinden dener; aksi hâlde ✓ ile onaylanır.
 /// v1.2.9: "Tam doğrulama akışı" tasarımı — grafit zemin, limon yeşili/mercan ışık lekeleri,

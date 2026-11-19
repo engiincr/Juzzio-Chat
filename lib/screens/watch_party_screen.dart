@@ -241,7 +241,6 @@ class _JuzzioWatchPartyScreenState extends State<JuzzioWatchPartyScreen> {
   String? _webFrame; // asıl videonun çerçevesi
   double _webFrameScore = 0;
   int _webPosMs = 0;
-  bool _webPlaying = false;
   double _webDur = 0;
   Map<String, dynamic>? _pendingCmd;
   DateTime _lastLocalEvent = DateTime.fromMillisecondsSinceEpoch(0);
@@ -563,7 +562,6 @@ class _JuzzioWatchPartyScreenState extends State<JuzzioWatchPartyScreen> {
       _webFrameScore = score;
       _webDur = dur;
       _webPosMs = (((m['pos'] as num?)?.toDouble() ?? 0) * 1000).round();
-      _webPlaying = m['playing'] == true;
       final s = _s;
       if (isNew && s != null) {
         _queueWebCommand(s);

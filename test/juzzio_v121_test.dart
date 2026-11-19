@@ -91,7 +91,7 @@ void main() {
 
   group('Girdi doğrulama', () {
     test('kontrol ve yön değiştiren karakterler temizlenir, uzunluk sınırlanır', () {
-      expect(juzzioCleanText('a\u0000b‮c​d'), 'abcd');
+      expect(juzzioCleanText('a\u0000b\u202Ec\u200Bd'), 'abcd');
       expect(juzzioCleanText('satır1\nsatır2'), 'satır1\nsatır2');
       expect(juzzioCleanText('x' * 5000).length, 4000);
       expect(juzzioCleanDisplayName('Ali\nVeli'), 'Ali Veli');

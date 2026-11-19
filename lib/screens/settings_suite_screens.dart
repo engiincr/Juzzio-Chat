@@ -138,11 +138,11 @@ class _JuzzioSettingsMainPageState extends State<JuzzioSettingsMainPage> {
                             margin: const EdgeInsets.only(right: 12),
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white24),
+                              border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.arrow_back_ios_new_rounded,
-                              color: Colors.white,
+                              color: JuzzioGlassTokens.heading,
                               size: 17,
                             ),
                           ),
@@ -150,9 +150,9 @@ class _JuzzioSettingsMainPageState extends State<JuzzioSettingsMainPage> {
                       ],
                       Text(
                         appCtrl.trEn('Ayarlar', 'Settings', 'Einstellungen'),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontFamily: JuzzioConfig.fontRegularBold,
-                          color: Colors.white,
+                          color: JuzzioGlassTokens.heading,
                           fontSize: 24,
                           fontWeight: FontWeight.w800,
                           letterSpacing: -0.3,
@@ -162,7 +162,7 @@ class _JuzzioSettingsMainPageState extends State<JuzzioSettingsMainPage> {
                       IconButton(
                         tooltip: appCtrl.trEn('QR Bağlantı Kodu', 'QR Sync Code', 'QR-Synchronisationscode'),
                         onPressed: () => _showQrSyncDialog(context, p, uname),
-                        icon: const Icon(Icons.qr_code_2_rounded, color: Colors.white70, size: 24),
+                        icon: Icon(Icons.qr_code_2_rounded, color: JuzzioGlassTokens.textSecondary, size: 24),
                       ),
                     ],
                   ),
@@ -697,6 +697,50 @@ class _JuzzioNotificationsFeedPageState
         ),
       );
 
+  /// Figma 04 — büyük sayaçlı vurgu kartı: "05 okunmamış bildirim · Tümünü okundu yap ✓"
+  Widget _unreadHero(JuzzioAppController app, int count) {
+    final fill = JuzzioGlassTokens.accentFill;
+    final on = JuzzioGlassTokens.onAccent;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: Material(
+        color: fill,
+        borderRadius: BorderRadius.circular(22),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: _markingAll ? null : _markAllRead,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 14, 12, 14),
+            child: Row(children: [
+              Text(count > 99 ? '99+' : count.toString().padLeft(2, '0'),
+                  style: TextStyle(color: on, fontSize: 40, height: 1, fontWeight: FontWeight.w900, letterSpacing: -1.5)),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(app.trEn('okunmamış bildirim', 'unread notifications', 'ungelesene Benachrichtigungen'),
+                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: on, fontWeight: FontWeight.w800, fontSize: 15)),
+                  const SizedBox(height: 2),
+                  Text(app.trEn('Tümünü okundu yap', 'Mark all as read', 'Alle als gelesen markieren'),
+                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: on.withValues(alpha: 0.72), fontSize: 12.5, fontWeight: FontWeight.w600)),
+                ]),
+              ),
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(color: on, borderRadius: BorderRadius.circular(14)),
+                child: _markingAll
+                    ? Padding(padding: const EdgeInsets.all(12), child: CircularProgressIndicator(strokeWidth: 2, color: fill))
+                    : Icon(Icons.done_all_rounded, color: fill, size: 22),
+              ),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _markAllRead() async {
     if (_markingAll || _items.every((n) => n.isRead)) return;
     setState(() => _markingAll = true);
@@ -865,20 +909,9 @@ class _JuzzioNotificationsFeedPageState
                     ? '$unreadCount ${appCtrl.trEn("okunmamış bildirim", "unread notifications", "ungelesene Benachrichtigungen")}'
                     : appCtrl.trEn('Tüm bildirimler okundu', 'All caught up', 'Alles erledigt'),
                 onBack: widget.embedded ? null : () => Navigator.of(context).pop(),
+                // Figma 04: "Tümünü okundu yap" başlık satırından çıkarıldı (başlığı "Bil..." diye kesiyordu);
+                // aşağıda sayaçlı vurgu kartı olarak duruyor.
                 actions: [
-                  if (unreadCount > 0)
-                    TextButton.icon(
-                      onPressed: _markingAll ? null : _markAllRead,
-                      icon: const Icon(Icons.done_all_rounded, color: Colors.white, size: 18),
-                      label: Text(
-                        appCtrl.trEn('Tümünü Okundu Yap', 'Mark All Read', 'Alle als gelesen markieren'),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
                   IconButton(
                     onPressed: () => Navigator.of(context).push(
                       MaterialPageRoute(
@@ -890,6 +923,7 @@ class _JuzzioNotificationsFeedPageState
                   ),
                 ],
               ),
+              if (unreadCount > 0) _unreadHero(appCtrl, unreadCount),
               const SizedBox(height: 10),
               JuzzioFilterPillBar(
                 items: [
@@ -1443,18 +1477,18 @@ class _JuzzioEditProfilePageState extends State<JuzzioEditProfilePage> {
                           Navigator.of(context).pop();
                         }
                       },
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.arrow_back_ios_new_rounded,
-                        color: Colors.white,
+                        color: JuzzioGlassTokens.heading,
                         size: 20,
                       ),
                     ),
                     Expanded(
                       child: Text(
                         appCtrl.trEn('Profili Düzenle', 'Edit Profile', 'Profil bearbeiten'),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontFamily: JuzzioConfig.fontRegularBold,
-                          color: Colors.white,
+                          color: JuzzioGlassTokens.heading,
                           fontSize: 20,
                           fontWeight: FontWeight.w800,
                         ),
@@ -1463,16 +1497,16 @@ class _JuzzioEditProfilePageState extends State<JuzzioEditProfilePage> {
                     TextButton(
                       onPressed: (_isSaving || _checkingUsername) ? null : _saveProfile,
                       child: _isSaving
-                          ? const SizedBox(
+                          ? SizedBox(
                               width: 18,
                               height: 18,
-                              child: JuzzioOrbitLoader(color: Colors.white, strokeWidth: 2),
+                              child: JuzzioOrbitLoader(color: JuzzioGlassTokens.heading, strokeWidth: 2),
                             )
                           : Text(
                               appCtrl.trEn('Kaydet', 'Save', 'Speichern'),
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontFamily: JuzzioConfig.fontRegularBold,
-                                color: Colors.white,
+                                color: JuzzioGlassTokens.heading,
                                 fontSize: 16,
                                 fontWeight: FontWeight.w800,
                               ),

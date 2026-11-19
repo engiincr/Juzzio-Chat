@@ -282,7 +282,7 @@ class _JuzzioReleaseNotesPageState extends State<JuzzioReleaseNotesPage> {
         backgroundColor: Colors.transparent,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
-          foregroundColor: Colors.white,
+          foregroundColor: JuzzioGlassTokens.heading,
           elevation: 0,
           title: Text(
             _app.trEn('Güncelleme notları', 'Release notes', 'Versionshinweise'),

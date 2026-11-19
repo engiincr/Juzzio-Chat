@@ -192,6 +192,17 @@ class JuzzioChatLock extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// PIN'i varsayılana (0000) döndürür; kilitli sohbetler kilitli kalır.
+  /// Yalnız mevcut PIN doğrulandıktan sonra arayüzden çağrılır.
+  Future<void> resetPinToDefault() async {
+    await _write(_kHash, null);
+    await _write(_kLen, null);
+    await _write(_kFails, '0');
+    _failures = 0;
+    _blockedUntil = null;
+    notifyListeners();
+  }
+
   /// PIN'i ve tüm kilitleri kaldırır (yalnız PIN doğrulandıktan sonra arayüzden çağrılır).
   Future<void> reset() async {
     _locked.clear();

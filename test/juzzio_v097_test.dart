@@ -103,6 +103,6 @@ void main() {
   test('16 cam teması; yenileri listede', () {
     final ids = kJuzzioAuroraPalettes.map((p) => p.id).toSet();
     expect(ids, containsAll(['aurora_borealis', 'frosted_pearl', 'midnight_sapphire', 'nordic_frost']));
-    expect(ids.length, 16);
+    expect(ids.length, 18);
   });
 }

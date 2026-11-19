@@ -17,6 +17,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data' show BytesBuilder;
 import 'dart:ui' as ui;
 
 import 'package:cryptography/dart.dart' show DartSha256;

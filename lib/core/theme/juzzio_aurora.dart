@@ -124,6 +124,10 @@ const Map<String, JuzzioGlassCharacter> kJuzzioGlassCharacters = {
       blur: 1.2, sheen: 1.0, rim: Color(0xFF22D3EE), glow: 0.35),
   'high_contrast': JuzzioGlassCharacter(tr: 'Erişilebilirlik odaklı, belirgin yüzeyler', en: 'Accessible, distinct surfaces', de: 'Barrierefreie, klare Flächen',
       blur: 0.6, opacity: 1.8, sheen: 0.5),
+  'forest_mint': JuzzioGlassCharacter(tr: 'Koyu orman, nane yeşili vurgu', en: 'Deep forest, mint accent', de: 'Tiefer Wald, Minzakzent',
+      blur: 1.1, opacity: 1.0, sheen: 0.9, depth: 1.1, rim: Color(0xFF4ADE80)),
+  'graphite_lime': JuzzioGlassCharacter(tr: 'Grafit yüzey, limon vurgu', en: 'Graphite surfaces, lime accent', de: 'Graphit, Limettenakzent',
+      blur: 0.9, opacity: 1.2, sheen: 0.7, depth: 1.2, rim: Color(0xFFD7F36B)),
   // v0.9.7: 2026 Liquid Glass yönelimleri — renkli kenar ışığı (koyu), tek ışık yönü, yumuşak gradyan zemin
   'aurora_borealis': JuzzioGlassCharacter(tr: 'Kuzey ışıkları, derin cam', en: 'Northern lights, deep glass', de: 'Nordlicht, tiefes Glas',
       blur: 1.25, opacity: 1.0, sheen: 1.2, depth: 1.15, rim: Color(0xFF5EEAD4), glow: 0.12),
@@ -187,6 +191,8 @@ const Map<String, Color> kJuzzioSpaceGlow = {
   'midnight_sapphire': Color(0xFFA2BBFF),
   'nordic_frost': Color(0xFFC2EAFF),
   'high_contrast': Color(0xFFFFE14D),
+  'forest_mint': Color(0xFF4ADE80),
+  'graphite_lime': Color(0xFFD7F36B),
 };
 
 extension JuzzioAuroraPaletteSpace on JuzzioAuroraPalette {
@@ -197,6 +203,23 @@ extension JuzzioAuroraPaletteSpace on JuzzioAuroraPalette {
         glowLight: Color(0xFF2F7A1F),
         depth: [Color(0xFF16362B), Color(0xFF102A21), Color(0xFF071714)],
         depthLight: [Color(0xFFEAF6E4), Color(0xFFF2F8EE), Color(0xFFE3F0DC)],
+      );
+    }
+    // v1.3.0 — Figma AI prototipleri
+    if (id == 'forest_mint') {
+      return const JuzzioSpaceSpec(
+        glow: Color(0xFF4ADE80),
+        glowLight: Color(0xFF15803D),
+        depth: [Color(0xFF0C2219), Color(0xFF081A13), Color(0xFF04100B)],
+        depthLight: [Color(0xFFE6F4EA), Color(0xFFF1F8F3), Color(0xFFE2EFE6)],
+      );
+    }
+    if (id == 'graphite_lime') {
+      return const JuzzioSpaceSpec(
+        glow: Color(0xFFD7F36B),
+        glowLight: Color(0xFF4D6B00),
+        depth: [Color(0xFF15171B), Color(0xFF0E1013), Color(0xFF08090B)],
+        depthLight: [Color(0xFFF7F8F2), Color(0xFFF2F3EE), Color(0xFFECEEE6)],
       );
     }
     if (id == 'high_contrast') {
@@ -534,6 +557,45 @@ const List<JuzzioAuroraPalette> kJuzzioAuroraPalettes = [
       JuzzioAuroraOrb(Alignment(-0.9, -0.85), 0.95, Color(0x59BAE6FD)),
       JuzzioAuroraOrb(Alignment(1.0, 0.0), 0.80, Color(0x40E2E8F0)),
       JuzzioAuroraOrb(Alignment(-0.4, 1.0), 0.85, Color(0x407DD3FC)),
+    ],
+  ),
+  // v1.3.0 — Figma AI prototipleri: koyu orman yeşili zemin + nane vurgu
+  JuzzioAuroraPalette(
+    id: 'forest_mint',
+    nameTr: 'Orman Nane',
+    nameEn: 'Forest Mint',
+    nameDe: 'Waldminze',
+    base: Color(0xFF06140F),
+    baseLight: Color(0xFFEEF7F1),
+    swatchA: Color(0xFF4ADE80),
+    swatchB: Color(0xFF0F3B2C),
+    orbs: [
+      JuzzioAuroraOrb(Alignment(-1.0, -0.9), 0.80, Color(0x2E4ADE80)),
+      JuzzioAuroraOrb(Alignment(1.0, 0.2), 0.75, Color(0x3314532D)),
+      JuzzioAuroraOrb(Alignment(-0.5, 1.05), 0.85, Color(0x400A2A1E)),
+    ],
+    orbsLight: [
+      JuzzioAuroraOrb(Alignment(-1.0, -0.9), 0.80, Color(0x334ADE80)),
+      JuzzioAuroraOrb(Alignment(1.0, 0.2), 0.70, Color(0x2286EFAC)),
+    ],
+  ),
+  // v1.3.0 — Figma AI prototipi: grafit zemin + limon vurgu + lavanta ikinci renk
+  JuzzioAuroraPalette(
+    id: 'graphite_lime',
+    nameTr: 'Grafit Limon',
+    nameEn: 'Graphite Lime',
+    nameDe: 'Graphit Limette',
+    base: Color(0xFF0A0B0D),
+    baseLight: Color(0xFFF3F4EF),
+    swatchA: Color(0xFFD7F36B),
+    swatchB: Color(0xFF8B7CF6),
+    orbs: [
+      JuzzioAuroraOrb(Alignment(-1.0, -0.95), 0.70, Color(0x1FD7F36B)),
+      JuzzioAuroraOrb(Alignment(1.0, 0.6), 0.70, Color(0x1F8B7CF6)),
+    ],
+    orbsLight: [
+      JuzzioAuroraOrb(Alignment(-1.0, -0.95), 0.70, Color(0x33D7F36B)),
+      JuzzioAuroraOrb(Alignment(1.0, 0.6), 0.70, Color(0x268B7CF6)),
     ],
   ),
   JuzzioAuroraPalette(

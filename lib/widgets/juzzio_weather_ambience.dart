@@ -105,13 +105,34 @@ enum JuzzioWeatherDoodle { moon, star, sun, sunset, cloud, drop, snowflake, bolt
 
 /// Saat dilimi (yerel saat) ve havaya göre çizilecek minik simgeler (saf; test edilir).
 /// Sıra önemlidir: her simge listedeki konumuna göre sabit bir yere yerleşir.
-List<JuzzioWeatherDoodle> juzzioWeatherDoodles(int hour, JuzzioWeatherKind kind) {
+/// v1.2.9: gökyüzü dilimi (saf; test edilir) — 0 gece, 1 gündüz, 2 akşam.
+/// [isDay] cihazın konumundaki GERÇEK gündüz/gece bilgisidir (hava servisi, güneşin doğuşu/batışı);
+/// biliniyorsa saatten önce gelir. Böylece ay yalnız o kişinin yerel gecesinde görünür.
+int juzzioSkyBand(int hour, {bool? isDay}) {
   final h = hour % 24;
+  final byHour = (h >= 21 || h < 6) ? 0 : (h >= 17 ? 2 : 1);
+  if (isDay == false) return 0;
+  if (isDay == true && byHour == 0) return 2;
+  return byHour;
+}
+
+/// v1.2.9: şu an gece mi? (saf) — hava bilgisi taze değilse yerel saate göre 19:00–06:00.
+bool juzzioIsNightNow(DateTime local, {bool? isDay}) {
+  if (isDay != null) return !isDay;
+  final h = local.hour;
+  return h >= 19 || h < 6;
+}
+
+List<JuzzioWeatherDoodle> juzzioWeatherDoodles(int hour, JuzzioWeatherKind kind, {bool? isDay}) {
+  final band = juzzioSkyBand(hour, isDay: isDay);
   final List<JuzzioWeatherDoodle> base;
-  if (h >= 21 || h < 6) {
+  if (band == 0) {
     base = const [JuzzioWeatherDoodle.moon, JuzzioWeatherDoodle.star, JuzzioWeatherDoodle.star, JuzzioWeatherDoodle.cloud];
-  } else if (h >= 17) {
-    base = const [JuzzioWeatherDoodle.sunset, JuzzioWeatherDoodle.cloud, JuzzioWeatherDoodle.moon, JuzzioWeatherDoodle.star];
+  } else if (band == 2) {
+    // gün ışığı sürüyorsa akşam diliminde ay/yıldız çizilmez
+    base = isDay == true
+        ? const [JuzzioWeatherDoodle.sunset, JuzzioWeatherDoodle.cloud, JuzzioWeatherDoodle.cloud, JuzzioWeatherDoodle.sun]
+        : const [JuzzioWeatherDoodle.sunset, JuzzioWeatherDoodle.cloud, JuzzioWeatherDoodle.moon, JuzzioWeatherDoodle.star];
   } else {
     base = const [JuzzioWeatherDoodle.sun, JuzzioWeatherDoodle.cloud, JuzzioWeatherDoodle.cloud, JuzzioWeatherDoodle.sun];
   }
@@ -144,7 +165,7 @@ class _Scene {
   final JuzzioWeatherKind kind;
   final bool isDay;
   final int hour;
-  int get band => (hour >= 21 || hour < 6) ? 0 : (hour >= 17 ? 2 : 1);
+  int get band => juzzioSkyBand(hour, isDay: isDay);
   bool same(_Scene o) => o.kind == kind && o.isDay == isDay && o.band == band;
 }
 
@@ -468,17 +489,19 @@ class _WeatherPainter extends CustomPainter {
   // çok yavaş süzülür ve hafifçe sallanır. Boyut 11–19 px, saydamlık düşük.
   // ---------------------------------------------------------------------------
   void _doodles(Canvas canvas, Size size, double v, double a) {
-    final kinds = juzzioWeatherDoodles(hour, kind);
-    const count = 12;
+    final kinds = juzzioWeatherDoodles(hour, kind, isDay: isDay);
+    // Yenilendi: içerik arkasında kalabalık görünmemesi için az sayıda, yalnız üst "gökyüzü"
+    // bandında, eşit aralıklı ve daha soluk simgeler (kart/metin okunurluğunu bozmaz).
+    const count = 5;
     for (var i = 0; i < count; i++) {
       final s = _seeds[40 + i];
       final k = kinds[i % kinds.length];
-      final drift = still ? 0.0 : v * (0.06 + 0.02 * (i % 3)); // 24 sn'de ekranın ~%6-10'u
-      final x = ((s.dx + drift) % 1.0) * size.width;
-      final y = (0.08 + 0.84 * ((s.dy + i * 0.083) % 1.0)) * size.height +
-          (still ? 0.0 : math.sin((v * 2 + i * 0.37) * 2 * math.pi) * 6);
-      final r = 5.5 + (i % 4) * 1.4;
-      final alpha = (dark ? 0.30 : 0.36) * a;
+      final drift = still ? 0.0 : v * (0.03 + 0.01 * (i % 3));
+      final x = ((i + 0.5) / count + (s.dx - 0.5) * 0.12 + drift) % 1.0 * size.width;
+      final y = (0.035 + 0.13 * s.dy) * size.height +
+          (still ? 0.0 : math.sin((v * 2 + i * 0.37) * 2 * math.pi) * 4);
+      final r = 7.0 + (i % 3) * 1.6;
+      final alpha = (dark ? 0.20 : 0.24) * a;
       canvas.save();
       canvas.translate(x, y);
       canvas.rotate(still ? 0 : math.sin((v + i * 0.21) * 2 * math.pi) * 0.12);

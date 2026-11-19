@@ -553,7 +553,7 @@ class _JuzzioGlobalFeedViewState extends State<JuzzioGlobalFeedView> {
     return SafeArea(
       bottom: false,
       child: JuzzioSpaceHeader(
-        eyebrow: _app.trEn('Dünyadan, senin dilinde', 'The world, in your language', 'Die Welt, in deiner Sprache'),
+        eyebrow: _app.trEn('Dünyayı keşfet', 'Explore the world', 'Entdecke die Welt'),
         title: JuzzioSpaceBrand(text: _app.trEn('Küresel', 'Global', 'Global'), size: 32),
         actions: [
           JuzzioSpaceIconButton(

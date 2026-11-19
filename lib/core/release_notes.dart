@@ -201,6 +201,8 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
           "Profildeki Görevlerim ve Hatırlatıcılar kısayolu varsayılan olarak gizli; Ayarlar › Erişilebilirlik'ten açılır",
           "Birebir (şifreli) sohbette sesli mesajın altında artık dökümün çevirisi de görünür",
           "Aramada karşı taraf uzun konuştuğunda kendi konuşmanın altyazısı ve çevirisinin birkaç kelimeden sonra durması giderildi",
+          "Görüntülü aramada kendi görüntünün karşı tarafta donması giderildi: görüntü güzelleştirme artık telefonu yormuyor, yük artarsa kendiliğinden hafifliyor",
+          "\"Juzzio.\" yanındaki simge artık senin yerel saatine göre değişir: gece gerçek Ay evresi, gündüz Güneş",
         ],
         security: [
           "Dosya güvenliği: .php, .jsp, .exe, .apk, .html, .svg, .js gibi çalıştırılabilir/betik dosyaları, gizli çift uzantılar ve içeriği uzantısıyla uyuşmayan dosyalar hem gönderirken hem açarken cihazda engellenir; sunucu da yalnız izinli türleri kabul eder",
@@ -252,6 +254,8 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
           "The My tasks & reminders shortcut on Profile is hidden by default; turn it on in Settings › Accessibility",
           "In one-to-one (encrypted) chats the translation of the transcript now appears under voice messages",
           "Fixed your own live captions and translation stopping after a few words in calls when the other person talks a lot",
+          "Fixed your own video freezing for the other person in video calls: beauty mode no longer overloads the phone and lightens itself automatically under load",
+          "The icon next to \"Juzzio.\" now follows your local time: the real moon phase at night, the sun during the day",
         ],
         security: [
           "File security: executable/script files like .php, .jsp, .exe, .apk, .html, .svg, .js, hidden double extensions and files whose content doesn't match their extension are blocked on the device both when sending and opening; the server also accepts only allowed types",
@@ -303,6 +307,8 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
           "Die Verknüpfung „Aufgaben & Erinnerungen“ im Profil ist standardmäßig ausgeblendet; aktivierbar unter Einstellungen › Barrierefreiheit",
           "In Einzelchats (verschlüsselt) erscheint unter Sprachnachrichten jetzt auch die Übersetzung des Transkripts",
           "Behoben: Eigene Live-Untertitel und Übersetzung brachen im Anruf nach wenigen Wörtern ab, wenn die andere Person viel sprach",
+          "Behoben: Dein eigenes Bild fror im Videoanruf beim Gegenüber ein — der Schönheitsfilter überlastet das Telefon nicht mehr und wird bei Last automatisch leichter",
+          "Das Symbol neben „Juzzio.“ folgt jetzt deiner Ortszeit: nachts die echte Mondphase, tagsüber die Sonne",
         ],
         security: [
           "File security: executable/script files like .php, .jsp, .exe, .apk, .html, .svg, .js, hidden double extensions and files whose content doesn't match their extension are blocked on the device both when sending and opening; the server also accepts only allowed types",

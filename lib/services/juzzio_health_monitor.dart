@@ -109,6 +109,12 @@ class JuzzioHealthMonitor extends ChangeNotifier {
 
   void _set(String id, JuzzioHealthState st, {String detail = '', int ms = 0}) {
     final it = items[id]!;
+    // Kalıcı düzeltme: cihaz çevrimdışıysa ya da ölçüm uygulama arka planda askıdayken yapıldıysa
+    // (ör. 3668195 ms ≈ 1 saat) bu bir sunucu arızası değildir → hata kaydı açma, "bilinmiyor" say.
+    if ((st == JuzzioHealthState.down || st == JuzzioHealthState.degraded) && (!_online || ms > 60000)) {
+      st = JuzzioHealthState.unknown;
+      detail = !_online ? 'offline' : 'suspended';
+    }
     // v1.2.9: çalışmayan/kısıtlı parça yönetici paneline nokta atışı hata kaydı olarak gider
     // (cihaz yerelden bağımsız: aynı sorun her kullanıcıdan tek kayıtta toplanır, kurucuya bildirim)
     if ((st == JuzzioHealthState.down || st == JuzzioHealthState.degraded) && it.state != st &&
@@ -132,6 +138,13 @@ class JuzzioHealthMonitor extends ChangeNotifier {
     }
     notifyListeners();
     try {
+      _online = await _hasInternet();
+      if (!_online) {
+        for (final id in items.keys.toList()) {
+          _set(id, JuzzioHealthState.unknown, detail: 'offline');
+        }
+        return;
+      }
       await Future.wait([_server(), _bridge(), _tcp('livekit', _liveKitHost(), 443), _tcp('backup_turn', JuzzioConfig.backupTurnHost, JuzzioConfig.backupTurnPort), _deviceSpeech()]);
       await _translate();
       // Arama yolu onarımı: ana sunucuya ulaşılamıyor, yedek açıksa → aramalar yedekle başlar
@@ -148,6 +161,19 @@ class JuzzioHealthMonitor extends ChangeNotifier {
       lastRun = DateTime.now();
       notifyListeners();
     }
+  }
+
+  bool _online = true;
+
+  /// İki bağımsız alan adı çözülemiyorsa cihaz çevrimdışıdır.
+  Future<bool> _hasInternet() async {
+    for (final h in const ['one.one.one.one', 'dns.google']) {
+      try {
+        final r = await InternetAddress.lookup(h).timeout(const Duration(seconds: 4));
+        if (r.isNotEmpty) return true;
+      } catch (_) {}
+    }
+    return false;
   }
 
   String _liveKitHost() {

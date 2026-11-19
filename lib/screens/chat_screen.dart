@@ -3649,15 +3649,15 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         JuzzioSpaceHeader(
-          eyebrow: appCtrl.trEn('Senin alanın', 'Your space', 'Dein Bereich'),
-          // v1.2.9: Juzzio yazısının yanında bugünkü gerçek Ay evresi (dokun: evre adı)
+          eyebrow: _greetingEyebrow(appCtrl),
+          // v1.2.9: Juzzio yazısının yanında gece gerçek Ay evresi, gündüz Güneş (kişinin yerel saatine göre)
           title: const Row(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Flexible(child: JuzzioSpaceBrand()),
               SizedBox(width: 8),
-              JuzzioMoonPhaseIcon(size: 30),
+              JuzzioSkyIcon(size: 30),
             ],
           ),
           actions: [
@@ -7147,24 +7147,29 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       delay: Duration.zero,
       child: _selecting ? _selectionWrap(msg, bubbleRow) : bubbleRow,
     );
-    if (_burstMessageId != msg.id) return entered;
+    // v1.3.0 düzeltme: çift tık tepkisinde balon ZIPLIYORDU. Önceden yalnız patlama sırasında
+    // balon bir Stack'e sarılıyor, bitince çıkarılıyordu; ağaç yapısı değişince balon yeniden
+    // kuruluyor ve giriş "pop" animasyonunu baştan oynatıyordu. Artık yapı her zaman aynı;
+    // yalnız patlama katmanı eklenip kaldırılır, balonun kendisi yerinde kalır.
+    final bursting = _burstMessageId == msg.id;
     return Stack(
       // v1.2.9: patlama ekranın ortasında değil, tepki rozetinin olduğu balon köşesinde oynar
       alignment: isMe ? Alignment.bottomRight : Alignment.bottomLeft,
       clipBehavior: Clip.none,
       children: [
-        entered,
+        KeyedSubtree(key: ValueKey('bubble_${msg.clientMsgId ?? msg.id}'), child: entered),
         // v1.1.0 (#02 Burst ring + #06 Draw-on): kalp çizilerek dolar, halka ve parçacık patlaması
+        if (bursting)
         Positioned(
-          right: isMe ? 34 : null,
-          left: isMe ? null : 60,
-          bottom: -6,
+          right: isMe ? 18 : null,
+          left: isMe ? null : 44,
+          bottom: -22,
           child: IgnorePointer(
           child: JuzzioReactionBurst(
             key: ValueKey('burst_${msg.id}_$_burstEmoji'),
             emoji: _burstEmoji,
-            size: 54,
-            emojiStyle: juzzioEmojiStyle(44),
+            size: 34,
+            emojiStyle: juzzioEmojiStyle(28),
           ),
           ),
         ),
@@ -8048,7 +8053,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           JuzzioSpaceHeader(
-            eyebrow: appCtrl.trEn('Sesli ve görüntülü', 'Voice & video', 'Sprache & Video'),
+            eyebrow: appCtrl.trEn('Bağlantıda kal', 'Stay connected', 'Bleib verbunden'),
             title: JuzzioSpaceBrand(text: appCtrl.trEn('Aramalar', 'Calls', 'Anrufe'), size: 32),
             actions: [
               JuzzioSpaceComposeButton(
@@ -8065,6 +8070,31 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
               shortcutLabel: null,
               onChanged: (v) => setState(() => _callsSearchQuery = v),
             ),
+          ),
+          // Figma 03: hızlı "Sesli arama" / "Görüntülü" kartları
+          Padding(
+            padding: const EdgeInsets.fromLTRB(JuzzioSpaceMetrics.gutter, 0, JuzzioSpaceMetrics.gutter, 16),
+            child: Row(children: [
+              Expanded(
+                child: _quickCallCard(
+                  icon: Icons.call_rounded,
+                  label: appCtrl.trEn('Sesli arama', 'Voice call', 'Sprachanruf'),
+                  fill: JuzzioGlassTokens.glow.withValues(alpha: 0.16),
+                  fg: JuzzioGlassTokens.glowText,
+                  onTap: () => _showSelectFriendToCallSheet(p, s),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _quickCallCard(
+                  icon: Icons.videocam_rounded,
+                  label: appCtrl.trEn('Görüntülü', 'Video', 'Video'),
+                  fill: JuzzioGlassTokens.spaceButton,
+                  fg: JuzzioGlassTokens.textPrimary,
+                  onTap: () => _showSelectFriendToCallSheet(p, s),
+                ),
+              ),
+            ]),
           ),
           const JuzzioSpaceDivider(),
           Expanded(
@@ -8386,6 +8416,53 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     );
   }
 
+  /// Figma 01: "Günaydın, Engin" — günün saatine göre selam + kullanıcının ilk adı
+  String _greetingEyebrow(JuzzioAppController app) {
+    final h = DateTime.now().hour;
+    final hello = h >= 5 && h < 12
+        ? app.trEn('Günaydın', 'Good morning', 'Guten Morgen')
+        : h >= 12 && h < 18
+            ? app.trEn('İyi günler', 'Good afternoon', 'Guten Tag')
+            : app.trEn('İyi akşamlar', 'Good evening', 'Guten Abend');
+    final full = (_myProfile?.displayName ?? widget.myDisplayName).trim();
+    final first = full.split(RegExp(r'\s+')).firstWhere((w) => w.isNotEmpty, orElse: () => '');
+    return first.isEmpty ? hello : '$hello, $first';
+  }
+
+  Widget _quickCallCard({
+    required IconData icon,
+    required String label,
+    required Color fill,
+    required Color fg,
+    required VoidCallback onTap,
+  }) =>
+      Material(
+        color: fill,
+        borderRadius: BorderRadius.circular(18),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Container(
+            height: 52,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
+            ),
+            child: Row(children: [
+              Icon(icon, color: fg, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: fg, fontWeight: FontWeight.w800, fontSize: 14)),
+              ),
+            ]),
+          ),
+        ),
+      );
+
   void _showSelectFriendToCallSheet(JuzzioPalette p, JuzzioStrings s) {
     final friends = _acceptedFriendProfiles;
     showJuzzioSheet(
@@ -8586,9 +8663,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
               children: [
                 Text(
                   appCtrl.trEn('Arkadaşlar', 'Friends', 'Freunde'),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: JuzzioConfig.fontRegularBold,
-                    color: Colors.white,
+                    color: JuzzioGlassTokens.heading,
                     fontSize: 24,
                     fontWeight: FontWeight.w800,
                   ),
@@ -8596,7 +8673,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                 IconButton(
                   tooltip: s.t('send_friend_req'),
                   onPressed: _showFriendSearchAndRequestsSheet,
-                  icon: const Icon(Icons.person_add_alt_1_outlined, color: Colors.white, size: 24),
+                  icon: Icon(Icons.person_add_alt_1_outlined, color: JuzzioGlassTokens.textPrimary, size: 24),
                 ),
               ],
             ),
@@ -8616,7 +8693,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
                     decoration: BoxDecoration(
-                      color: selected ? Colors.white : Colors.white.withValues(alpha: 0.12),
+                      color: selected ? JuzzioGlassTokens.accentFill : JuzzioGlassTokens.spaceButton,
+                      border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
                       borderRadius: BorderRadius.circular(999),
                     ),
                     alignment: Alignment.center,
@@ -8624,7 +8702,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                       filterLabels[idx],
                       style: TextStyle(
                         fontFamily: JuzzioConfig.fontRegularBold,
-                        color: selected ? JuzzioColors.deepForest : Colors.white70,
+                        color: selected ? JuzzioGlassTokens.onAccent : JuzzioGlassTokens.textSecondary,
                         fontSize: 13.5,
                         fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
                       ),
@@ -9701,18 +9779,18 @@ class _JuzzioNewMessagePageState extends State<JuzzioNewMessagePage> {
                 children: [
                   IconButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.arrow_back_ios_new_rounded,
-                      color: Colors.white,
+                      color: JuzzioGlassTokens.heading,
                       size: 20,
                     ),
                   ),
-                  const SizedBox(width: 4),
+                  SizedBox(width: 4),
                   Text(
                     appCtrl.trEn('Yeni Mesaj', 'New Message', 'Neue Nachricht'),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: JuzzioConfig.fontRegularBold,
-                      color: Colors.white,
+                      color: JuzzioGlassTokens.heading,
                       fontSize: 21,
                       fontWeight: FontWeight.w800,
                     ),

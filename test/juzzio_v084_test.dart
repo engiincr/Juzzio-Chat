@@ -19,7 +19,7 @@ void main() {
   });
 
   test('16 temanın her biri kendi cam karakterine sahip (v0.9.7: +4)', () {
-    expect(kJuzzioAuroraPalettes.length, 16);
+    expect(kJuzzioAuroraPalettes.length, 18);
     for (final p in kJuzzioAuroraPalettes) {
       expect(kJuzzioGlassCharacters.containsKey(p.id), isTrue, reason: p.id);
       final c = p.character;
