@@ -16,6 +16,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/app_theme_and_locale.dart';
 import 'core/config.dart';
+import 'widgets/juzzio_desktop_frame.dart';
 import 'widgets/juzzio_clock_guard.dart';
 import 'widgets/juzzio_eye_comfort.dart';
 import 'widgets/juzzio_theme_reveal.dart';
@@ -271,6 +272,8 @@ class JuzzioApp extends StatelessWidget {
         ));
         return MaterialApp(
           title: 'Juzzio',
+          // v1.3.2 masaüstü: fare/dokunmatik yüzeyle sürükleyerek kaydırma
+          scrollBehavior: const JuzzioScrollBehavior(),
           // v1.2.8: hava katmanı yalnız ana ekranda (tam ekran sayfaların üstüne binmez)
           navigatorObservers: [JuzzioAmbienceRouteObserver.instance, JuzzioMusicRouteObserver.instance],
           debugShowCheckedModeBanner: false,
@@ -317,17 +320,20 @@ class JuzzioApp extends StatelessWidget {
               // v0.9.6: Göz Konforu (amber mavi ışık filtresi) en üst katmanda, dokunmayı engellemez
               // v0.9.7: koyu/aydınlık geçişinde dairesel reveal
               // v1.1.0: Dynamic Island tarzı canlı durum kapsülü (arama, ses kaydı, yükleme) tüm sayfaların üstünde
-              child: JuzzioEyeComfortOverlay(
-                child: JuzzioThemeReveal(
-                  child: JuzzioClockGuard(
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        child ?? const SizedBox.shrink(),
-                        // v1.2.1: hava durumuna göre tema ambiyansı (dokunmayı engellemez)
-                        const Positioned.fill(child: JuzzioWeatherAmbience()),
-                        const JuzzioLiveIsland(),
-                      ],
+              // v1.3.2: Windows'ta geniş pencerede içerik ortada okunaklı bir panelde
+              child: JuzzioDesktopFrame(
+                child: JuzzioEyeComfortOverlay(
+                  child: JuzzioThemeReveal(
+                    child: JuzzioClockGuard(
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          child ?? const SizedBox.shrink(),
+                          // v1.2.1: hava durumuna göre tema ambiyansı (dokunmayı engellemez)
+                          const Positioned.fill(child: JuzzioWeatherAmbience()),
+                          const JuzzioLiveIsland(),
+                        ],
+                      ),
                     ),
                   ),
                 ),

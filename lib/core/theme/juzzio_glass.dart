@@ -31,7 +31,12 @@ import '../../widgets/juzzio_motion.dart';
 /// Uygulama genelinde emoji yazı tipi (Noto Color Emoji, OFL 1.1 — pubspec'te
 /// `JuzzioEmoji` ailesi). Tüm metinlerde yedek yazı tipi olarak kullanılır;
 /// böylece emojiler her cihazda aynı görünür.
-const List<String> kJuzzioEmojiFallback = <String>['JuzzioEmoji'];
+/// v1.3.2 Windows düzeltmesi: metin yazı tipi 'sans-serif' (Android sistem adı) Windows'ta yok;
+/// yedek listesi doğrudan emoji yazı tipine düşünce rakamlar ve BOŞLUKLAR da emoji yazı tipinden
+/// (tuş başlığı glifleri) çiziliyordu → kelimeler arası dev boşluk, soluk/aralıklı rakamlar.
+/// Önce Windows'un sistem yazı tipi Segoe UI denenir (Android'de yoktur, atlanır); emojiler yine
+/// renkli emoji yazı tipinden gelir.
+const List<String> kJuzzioEmojiFallback = <String>['Segoe UI', 'JuzzioEmoji'];
 
 /// Ağırlıklı olarak emoji gösteren metinler (tepkiler, seçici, çıkartmalar) için stil.
 TextStyle juzzioEmojiStyle(double size) => TextStyle(

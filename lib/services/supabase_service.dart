@@ -1022,6 +1022,22 @@ class JuzzioServiceException implements Exception {
 // SERVİS
 // -----------------------------------------------------------------------------
 
+/// Edge Function hatasından sunucunun döndürdüğü hata kodunu çıkarır (saf; test edilir).
+/// Ayrıntı nesne ya da JSON metni olabilir; okunamazsa HTTP durumuna göre karar verilir.
+String juzzioFunctionErrorCode(int status, Object? details) {
+  Object? d = details;
+  if (d is String) {
+    try {
+      d = jsonDecode(d);
+    } catch (_) {}
+  }
+  if (d is Map && d['error'] != null && '${d['error']}'.trim().isNotEmpty) return '${d['error']}'.trim();
+  if (status == 429) return 'rate_limited';
+  if (status >= 500) return 'server_error';
+  if (status == 401 || status == 400) return 'invalid_credentials';
+  return 'server_error';
+}
+
 class SupabaseService {
   SupabaseService._();
   static final SupabaseService instance = SupabaseService._();
@@ -1145,6 +1161,8 @@ class SupabaseService {
       'not_authenticated': 'err_session',
       'JWT': 'err_session',
       'invalid_credentials': 'err_login_failed',
+      'server_error': 'err_server',
+      'service_not_configured': 'err_server',
       'Invalid login credentials': 'err_login_failed',
       'email_not_confirmed': 'err_email_not_confirmed',
       'Email not confirmed': 'err_email_not_confirmed',
@@ -1348,8 +1366,9 @@ class SupabaseService {
         final session = await client.auth.setSession(refresh);
         user = session.user ?? client.auth.currentUser;
       } on FunctionException catch (e) {
-        final details = e.details is Map ? Map<String, dynamic>.from(e.details as Map) : <String, dynamic>{};
-        throw AuthException(friendlyError((details['error'] ?? 'invalid_credentials').toString()));
+        // v1.3.2 düzeltme: ayrıntı JSON nesnesi değil METİN olarak gelince (Windows'ta böyle) sunucu
+        // hatası, istek sınırı vb. de "kullanıcı adı veya şifre hatalı" diye gösteriliyordu.
+        throw AuthException(friendlyError(juzzioFunctionErrorCode(e.status, e.details)));
       } on AuthException {
         rethrow;
       } catch (e) {

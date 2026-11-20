@@ -15,11 +15,11 @@ class JuzzioConfig {
   JuzzioConfig._();
 
   // Uygulama Sürüm ve OTA Güncelleme Sabitleri
-  static const String appVersion = '1.3.1';
+  static const String appVersion = '1.3.2';
   /// CI her derlemede artan sürüm kodunu APP_BUILD olarak verir
   /// (`scripts/release_meta.py build-number`). Yerel derlemede pubspec.yaml'daki
   /// +N değeri kullanılır; `release_meta.py check` ikisinin aynı olmasını zorunlu kılar.
-  static const int appVersionCode = int.fromEnvironment('APP_BUILD', defaultValue: 131);
+  static const int appVersionCode = int.fromEnvironment('APP_BUILD', defaultValue: 132);
   /// v0.8.0: yayın imzası doğrulama anahtarı (ML-DSA-65, FIPS 204). Boşsa imza
   /// kontrolü yapılmaz; CI'da GitHub değişkeni ML_DSA_PUBLIC_KEY ile verilir.
   static const String mlDsaPublicKey = String.fromEnvironment('ML_DSA_PUBLIC_KEY');
@@ -39,7 +39,7 @@ class JuzzioConfig {
       'https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk';
 
   static const String _defaultSupabaseUrl = 'https://hzoerzgbyklrutvifbrg.supabase.co';
-  static const String _defaultSupabaseAnonKey = 'sb_publishable_7vQpeX8-Vpl4j28NOwZ2Ng_5hpBuKwQ';
+  static const String _defaultSupabaseAnonKey = 'sb_publishable_SMEM1OKV6QR7SCryeNtSZQ_yTxWkhXv';
   static const String _defaultLiveKitUrl = 'wss://juzzio-hbmkorss.livekit.cloud';
 
   static String _env(String value, String fallback) {

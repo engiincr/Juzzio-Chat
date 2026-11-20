@@ -157,6 +157,64 @@ class JuzzioReleaseNote {
 /// Uygulamaya gömülü sürüm geçmişi (yayınlanmış sürümlerin gerçek içeriği)
 final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
   JuzzioReleaseNote(
+    versionName: '1.3.2',
+    versionCode: 132,
+    publishedAt: DateTime(2026, 11, 20),
+    sections: const {
+      'tr': JuzzioReleaseSection(
+        reason: "Juzzio artık Windows'ta da var. Bilgisayarda giriş yapılamıyordu (doğru şifre \"hatalı\" görünüyordu); rakamlar ve boşluklar emoji yazı tipiyle bozuk görünüyordu; sunucu hataları da \"şifre hatalı\" diye gösteriliyordu.",
+        features: [
+          "🖥️ Windows sürümü: sesli/görüntülü arama, mesajlaşma, çeviri, hikâyeler ve tüm sayfalar bilgisayarda",
+          "🪟 Geniş pencerede içerik ortada okunaklı bir panelde; dar pencerede tam ekran",
+          "🔔 Windows bildirimleri: gelen mesaj ve aramalar (şifreli içerik bildirime yazılmaz)",
+          "🖱️ Fare ve dokunmatik yüzeyle sürükleyerek kaydırma",
+        ],
+        fixes: [
+          "Bilgisayarda doğru şifrenin \"hatalı\" görünmesi giderildi (geçersiz sunucu anahtarı yenilendi)",
+          "Sunucu hatası ve istek sınırı artık \"şifre hatalı\" yerine kendi mesajıyla gösteriliyor",
+          "Windows'ta rakamlar ve boşlukların emoji yazı tipiyle çizilmesi düzeltildi",
+        ],
+        security: [
+          "Google Drive yedeği bilgisayar sürümünde kapalı; yedekleme yalnız telefondan yapılır",
+        ],
+      ),
+      'en': JuzzioReleaseSection(
+        reason: "Juzzio is now available on Windows. Sign-in failed on desktop (a correct password showed as \"wrong\"); digits and spaces were drawn with the emoji font; server errors were also shown as \"wrong password\".",
+        features: [
+          "🖥️ Windows version: voice/video calls, messaging, translation, stories and every page on your PC",
+          "🪟 Wide windows show the app in a centred, readable panel; narrow windows fill the screen",
+          "🔔 Windows notifications for incoming messages and calls (encrypted content is never shown)",
+          "🖱️ Drag to scroll with the mouse and trackpad",
+        ],
+        fixes: [
+          "Fixed a correct password showing as \"wrong\" on desktop (invalid server key replaced)",
+          "Server errors and rate limits now show their own message instead of \"wrong password\"",
+          "Fixed digits and spaces being drawn with the emoji font on Windows",
+        ],
+        security: [
+          "Google Drive backup is disabled on desktop; backups are made from the phone only",
+        ],
+      ),
+      'de': JuzzioReleaseSection(
+        reason: "Juzzio gibt es jetzt auch für Windows. Die Anmeldung am PC schlug fehl (ein richtiges Passwort galt als \"falsch\"); Ziffern und Leerzeichen wurden mit der Emoji-Schrift gezeichnet; Serverfehler wurden ebenfalls als \"falsches Passwort\" angezeigt.",
+        features: [
+          "🖥️ Windows-Version: Sprach-/Videoanrufe, Chats, Übersetzung, Storys und alle Seiten am PC",
+          "🪟 Breite Fenster zeigen die App in einem zentrierten, gut lesbaren Bereich; schmale Fenster füllen den Bildschirm",
+          "🔔 Windows-Benachrichtigungen für Nachrichten und Anrufe (verschlüsselte Inhalte werden nie angezeigt)",
+          "🖱️ Ziehen zum Scrollen mit Maus und Touchpad",
+        ],
+        fixes: [
+          "Behoben: richtiges Passwort galt am PC als \"falsch\" (ungültiger Serverschlüssel ersetzt)",
+          "Serverfehler und Anfragelimits zeigen jetzt ihre eigene Meldung statt \"falsches Passwort\"",
+          "Ziffern und Leerzeichen werden unter Windows nicht mehr mit der Emoji-Schrift gezeichnet",
+        ],
+        security: [
+          "Google-Drive-Sicherung ist am PC deaktiviert; Sicherungen nur über das Handy",
+        ],
+      ),
+    },
+  ),
+  JuzzioReleaseNote(
     versionName: '1.3.1',
     versionCode: 131,
     publishedAt: DateTime(2026, 11, 19),

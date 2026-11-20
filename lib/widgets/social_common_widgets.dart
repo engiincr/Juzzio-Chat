@@ -1616,7 +1616,7 @@ class _JuzzioPostCardWidgetState extends State<JuzzioPostCardWidget> {
                       fontSize: size * app.messageFontScale,
                       height: 1.38,
                       fontWeight: FontWeight.w600,
-                      fontFamilyFallback: const ['JuzzioEmoji'],
+                      fontFamilyFallback: kJuzzioEmojiFallback,
                     ),
                   ),
                 ),
@@ -2012,7 +2012,7 @@ class _JuzzioPostCardWidgetState extends State<JuzzioPostCardWidget> {
                             color: JuzzioSocialTokens.textPrimary(isDark),
                             fontSize: 13.8 * app.messageFontScale,
                             height: 1.4,
-                            fontFamilyFallback: const ['JuzzioEmoji'],
+                            fontFamilyFallback: kJuzzioEmojiFallback,
                           ),
                           children: [
                             TextSpan(

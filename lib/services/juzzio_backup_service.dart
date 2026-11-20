@@ -17,6 +17,7 @@
 // =============================================================================
 
 import 'dart:convert';
+import 'dart:io';
 import 'dart:isolate';
 import 'dart:math';
 
@@ -64,6 +65,8 @@ class JuzzioBackupService {
   /// v0.9.3: Google oturum hataları anlamlı koda çevrilir; Drive izni (drive.appdata) verilmemişse
   /// izin yeniden İSTENİR (kullanıcı onay ekranında kutuyu boş bırakırsa Drive 403 döndürüyordu).
   Future<Map<String, String>> _auth({bool chooseAccount = true}) async {
+    // v1.3.2: Google ile giriş (Drive yedeği) yalnız Android'de var; Windows sürümünde anlaşılır hata
+    if (!Platform.isAndroid && !Platform.isIOS) throw const JuzzioBackupException('unsupported_platform');
     GoogleSignInAccount? acc;
     try {
       if (chooseAccount) {
@@ -342,6 +345,10 @@ class JuzzioBackupService {
       case 'not_found':
         return app.trEn('Hesabınız için yedekleme bulunamadı.', 'No backup was found for your account.',
             'Für dein Konto wurde kein Backup gefunden.');
+      case 'unsupported_platform':
+        return app.trEn('Google Drive yedeği bilgisayar sürümünde yok; yedeklemeyi telefondaki Juzzio\x27dan yap.',
+            'Google Drive backup is not available on the desktop version; back up from Juzzio on your phone.',
+            'Google-Drive-Backup gibt es in der Desktop-Version nicht; sichere über Juzzio auf dem Handy.');
       case 'corrupt':
         return app.trEn('Yedek dosyası okunamadı.', 'The backup file could not be read.', 'Backup-Datei unlesbar.');
       // v0.9.3: "erişim reddedildi" türü hatalar ayrıştırıldı

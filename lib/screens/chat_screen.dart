@@ -42,6 +42,7 @@ import '../models/social_models.dart';
 import '../services/fcm_push_service.dart';
 import '../services/social_service.dart';
 import '../services/supabase_service.dart';
+import '../widgets/juzzio_desktop_frame.dart' show juzzioIsDesktop;
 import '../widgets/juzzio_attach_menu.dart';
 import '../widgets/juzzio_space_kit.dart';
 import '../widgets/juzzio_rich_text.dart';
@@ -894,6 +895,23 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     // v0.9.0 (ek paket N-G): Sohbetler ana ekranındaki uygulama içi "hızlı yanıt" bandı
     // kaldırıldı. Sistem bildirimi FCM'den gelir (_handleForegroundPush); okunmamış sayaçları
     // sohbet listesi akışından güncellenir. Mesaj metni artık bant için çevrilmez/çözülmez.
+    // v1.3.2: Windows'ta FCM yok → gelen mesaj Windows bildirimi olarak gösterilir. Şifreli içerik
+    // yazılmaz; sessize alınmış sohbet bildirim vermez, kilitli sohbette gönderen de gizlenir.
+    if (juzzioIsDesktop && msg.senderId != SupabaseService.instance.currentUserId) {
+      final conv = _conversationById(msg.roomId);
+      if ((conv?.isMuted ?? false) || _mutedConversationIds.contains(msg.roomId)) return;
+      final app = JuzzioAppController.instance;
+      final locked = JuzzioChatLock.instance.isLocked(msg.roomId);
+      final who = locked
+          ? app.trEn('Kilitli sohbet', 'Locked chat', 'Gesperrter Chat')
+          : (conv == null ? 'Juzzio' : (conv.isGroup ? conv.title : (conv.partnerDisplayName ?? conv.partnerUsername ?? conv.title)));
+      unawaited(app.triggerSystemNotification(
+        title: who,
+        body: app.trEn('Yeni mesaj', 'New message', 'Neue Nachricht'),
+        notificationId: 'msg_${msg.roomId}',
+        targetId: msg.roomId,
+      ));
+    }
   }
 
   void _handleForegroundPush(JuzzioPushEventPayload payload) {

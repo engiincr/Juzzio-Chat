@@ -17,6 +17,7 @@ const Map<String, Map<String, String>> kJuzzioV030Strings = {
   // ---- Hatalar (sunucu kodlarından)
   'err_generic': {'tr': 'Bir şeyler ters gitti. Lütfen tekrar deneyin.', 'en': 'Something went wrong. Please try again.', 'de': 'Etwas ist schiefgelaufen. Bitte versuche es erneut.'},
   'err_offline': {'tr': 'İnternet bağlantısı yok.', 'en': 'No internet connection.', 'de': 'Keine Internetverbindung.'},
+  'err_server': {'tr': 'Giriş sunucusu şu an yanıt vermiyor. Biraz sonra tekrar dene; şifren yanlış değil.', 'en': 'The sign-in server is not responding right now. Try again shortly; your password is not wrong.', 'de': 'Der Anmeldeserver antwortet gerade nicht. Versuche es gleich erneut; dein Passwort ist nicht falsch.'},
   'err_session': {'tr': 'Oturumunuzun süresi doldu. Lütfen tekrar giriş yapın.', 'en': 'Your session expired. Please sign in again.', 'de': 'Deine Sitzung ist abgelaufen. Bitte melde dich erneut an.'},
   'err_not_allowed': {'tr': 'Bu işlem için yetkiniz yok.', 'en': 'You are not allowed to do this.', 'de': 'Dazu bist du nicht berechtigt.'},
   'err_blocked': {'tr': 'Bu kullanıcıyla etkileşim kurulamaz.', 'en': 'You cannot interact with this user.', 'de': 'Du kannst mit diesem Nutzer nicht interagieren.'},

@@ -24,6 +24,8 @@ import 'theme/juzzio_custom_theme.dart';
 import 'theme/juzzio_colors.dart';
 import '../l10n/juzzio_inline_catalog.dart';
 import '../l10n/juzzio_strings_v030.dart';
+import '../services/juzzio_desktop_notify.dart';
+import '../widgets/juzzio_desktop_frame.dart' show juzzioIsDesktop;
 import '../widgets/juzzio_motion.dart';
 
 class JuzzioLanguageOption {
@@ -2932,6 +2934,15 @@ class JuzzioAppController extends ChangeNotifier {
     String? lockScreenBody,
   }) async {
     if (!_notificationsEnabled && !isUpdate && !isCall) return;
+    // v1.3.2: Windows'ta Android yerel kanalı yok → Windows'un kendi bildirimi (toast)
+    if (juzzioIsDesktop) {
+      await JuzzioDesktopNotify.instance.show(
+        key: notificationId ?? targetId ?? (isCall ? 'call' : title),
+        title: title,
+        body: lockScreenBody ?? body,
+      );
+      return;
+    }
     try {
       await _notifChannel.invokeMethod('showSystemNotification', {
         'title': title,
