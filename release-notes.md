@@ -1,36 +1,32 @@
-# Juzzio v1.3.2 — Juzzio for Windows: Desktop Version & Sign-in Fix
+# Juzzio v2.0.0 — Juzzio 2.0: New Design & Windows Audio Fix
 
 ## 🎯 Why did this update come?
 
-Juzzio is now available on Windows. Sign-in failed on desktop (a correct password showed as "wrong"); digits and spaces were drawn with the emoji font; server errors were also shown as "wrong password".
+Juzzio 2.0 brings a completely redesigned interface with the Obsidian Lime theme and fixes microphone/speaker issues on Windows calls.
 
 ## ✨ What's new?
 
-- 🖥️ Windows version: voice/video calls, messaging, translation, stories and every page on your PC
-- 🪟 Wide windows show the app in a centred, readable panel; narrow windows fill the screen
-- 🔔 Windows notifications for incoming messages and calls (encrypted content is never shown)
-- 🖱️ Drag to scroll with the mouse and trackpad
+- 🎨 Juzzio 2.0 Obsidian Lime design system: lime-black theme as default
+- 🖥️ Microphone now works in Windows calls; other party's audio comes through headphones
+- 🍎 Improved macOS and iOS call compatibility
+- 🔊 Speakerphone API now only used on mobile devices
 
 ## 🛠️ What was fixed?
 
-- Fixed a correct password showing as "wrong" on desktop (invalid server key replaced)
-- Server errors and rate limits now show their own message instead of "wrong password"
-- Fixed digits and spaces being drawn with the emoji font on Windows
-
-## 🔒 Security & privacy
-
-- Google Drive backup is disabled on desktop; backups are made from the phone only
+- Fixed microphone not working in voice/video calls on Windows
+- Fixed other party's audio not reaching headphones/speakers on Windows
+- Removed non-Windows audio capture options (voiceIsolation, highPassFilter, typingNoiseDetection)
 
 ## ⬇️ Download
 
 - Latest: [Juzzio-latest.apk](https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk)
-- This version: `juzzio-v1.3.2-release.apk` (120.85 MB)
+- This version: `juzzio-v2.0.0-release.apk` (120.84 MB)
 
 ## ✅ Verify the APK
 
 ```bash
 sha256sum Juzzio-latest.apk
-# 47328d29a794d113dde4ffd1622e695de432f59533db564620668d7d916a0733  Juzzio-latest.apk
+# f876efb5fd962a2d94fd897295b5217315f9f9701fbc47c12c02c074a00561bf  Juzzio-latest.apk
 ```
 
-Built: 2026-11-20 16:37 UTC — GitHub Actions
+Built: 2026-11-20 19:40 UTC — GitHub Actions
