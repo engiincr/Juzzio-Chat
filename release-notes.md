@@ -1,36 +1,36 @@
-# Juzzio v1.3.1 — Smooth Video Calls, In-Call Translation & No More Freezes
+# Juzzio v1.3.2 — Juzzio for Windows: Desktop Version & Sign-in Fix
 
 ## 🎯 Why did this update come?
 
-Video calls stuttered and dropped in quality; in-call messages were not translated for some people; the screen froze while sending large photos/videos, entering the PIN and backing up.
+Juzzio is now available on Windows. Sign-in failed on desktop (a correct password showed as "wrong"); digits and spaces were drawn with the emoji font; server errors were also shown as "wrong password".
 
 ## ✨ What's new?
 
-- 👥 "Friends" filter in Chats and the chat count in the header
-- 🛡️ Privacy card at the end of the chat list
-- ✨ "Find people" and "# Technology" suggestions in Explore
+- 🖥️ Windows version: voice/video calls, messaging, translation, stories and every page on your PC
+- 🪟 Wide windows show the app in a centred, readable panel; narrow windows fill the screen
+- 🔔 Windows notifications for incoming messages and calls (encrypted content is never shown)
+- 🖱️ Drag to scroll with the mouse and trackpad
 
 ## 🛠️ What was fixed?
 
-- Video calls at the highest quality: 720p / 30 fps, never below 540p even on slow internet
-- Heavy blur effects over live video were removed; video no longer stutters
-- In-call messages are always translated (language detected from the text); no translation between people who speak the same language
-- The screen no longer freezes while sending large photos/videos, entering the PIN or backing up (encryption runs in the background)
+- Fixed a correct password showing as "wrong" on desktop (invalid server key replaced)
+- Server errors and rate limits now show their own message instead of "wrong password"
+- Fixed digits and spaces being drawn with the emoji font on Windows
 
 ## 🔒 Security & privacy
 
-- Encryption parameters in backup file headers are now bounded (a crafted backup file can no longer lock up the app)
+- Google Drive backup is disabled on desktop; backups are made from the phone only
 
 ## ⬇️ Download
 
 - Latest: [Juzzio-latest.apk](https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk)
-- This version: `juzzio-v1.3.1-release.apk` (120.81 MB)
+- This version: `juzzio-v1.3.2-release.apk` (120.85 MB)
 
 ## ✅ Verify the APK
 
 ```bash
 sha256sum Juzzio-latest.apk
-# 26c9685539ce5f2903c3bf0e72b164ba0aa9fda4cbc2c41e3e7b9e6d24aed20d  Juzzio-latest.apk
+# 47328d29a794d113dde4ffd1622e695de432f59533db564620668d7d916a0733  Juzzio-latest.apk
 ```
 
-Built: 2026-11-19 19:32 UTC — GitHub Actions
+Built: 2026-11-20 16:37 UTC — GitHub Actions
