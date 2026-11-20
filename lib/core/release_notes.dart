@@ -157,6 +157,59 @@ class JuzzioReleaseNote {
 /// Uygulamaya gömülü sürüm geçmişi (yayınlanmış sürümlerin gerçek içeriği)
 final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
   JuzzioReleaseNote(
+    versionName: '2.0.0',
+    versionCode: 200,
+    publishedAt: DateTime(2026, 11, 20),
+    mandatory: false,
+    sections: const {
+      'tr': JuzzioReleaseSection(
+        reason: "Juzzio 2.0 ile tamamen yenilenen arayüz geliyor: Obsidian Lime temasıyla çarpıcı karanlık görünüm. Windows aramalarında mikrofon çalışmıyordu ve karşı tarafın sesi kulaklığa gelmiyordu — ikisi de giderildi.",
+        features: [
+          "🎨 Juzzio 2.0 Obsidian Lime tasarım sistemi: limon-siyah tema varsayılan",
+          "🖥️ Windows aramalarında mikrofon artık çalışıyor; karşı tarafın sesi kulaklığa geliyor",
+          "🍎 macOS ve iOS arama uyumluluğu iyileştirildi",
+          "🔊 Speakerphone API yalnızca mobil cihazlarda kullanılıyor artık",
+        ],
+        fixes: [
+          "Windows'ta sesli/görüntülü aramada mikrofon çalışmıyor sorunu giderildi",
+          "Windows'ta karşı tarafın sesi kulaklığa/hoparlöre gelmiyor sorunu giderildi",
+          "Windows'a özgü olmayan ses yakalama seçenekleri kaldırıldı (voiceIsolation, highPassFilter, typingNoiseDetection)",
+        ],
+        security: [],
+      ),
+      'en': JuzzioReleaseSection(
+        reason: "Juzzio 2.0 brings a completely redesigned interface with the Obsidian Lime theme. Microphone wasn't working in Windows calls and the other party's audio wasn't reaching headphones — both fixed.",
+        features: [
+          "🎨 Juzzio 2.0 Obsidian Lime design system: lime-black theme as default",
+          "🖥️ Microphone now works in Windows calls; other party's audio comes through headphones",
+          "🍎 Improved macOS and iOS call compatibility",
+          "🔊 Speakerphone API now only used on mobile devices",
+        ],
+        fixes: [
+          "Fixed microphone not working in voice/video calls on Windows",
+          "Fixed other party's audio not reaching headphones/speakers on Windows",
+          "Removed non-Windows audio capture options (voiceIsolation, highPassFilter, typingNoiseDetection)",
+        ],
+        security: [],
+      ),
+      'de': JuzzioReleaseSection(
+        reason: "Juzzio 2.0 bringt eine komplett überarbeitete Oberfläche mit dem Obsidian Lime-Thema. Das Mikrofon funktionierte bei Windows-Anrufen nicht und der Ton der Gegenseite kam nicht aus den Kopfhörern — beides behoben.",
+        features: [
+          "🎨 Juzzio 2.0 Obsidian Lime-Designsystem: Limette-Schwarz-Thema als Standard",
+          "🖥️ Mikrofon funktioniert jetzt bei Windows-Anrufen; Gegenseite hörbar über Kopfhörer",
+          "🍎 Verbesserte macOS- und iOS-Anrufkompatibilität",
+          "🔊 Lautsprecher-API wird nur noch auf mobilen Geräten verwendet",
+        ],
+        fixes: [
+          "Mikrofon bei Sprach-/Videoanrufen unter Windows behoben",
+          "Ton der Gegenseite unter Windows über Kopfhörer/Lautsprecher behoben",
+          "Nicht-Windows-Audioerfassungsoptionen entfernt (voiceIsolation, highPassFilter, typingNoiseDetection)",
+        ],
+        security: [],
+      ),
+    },
+  ),
+  JuzzioReleaseNote(
     versionName: '1.3.2',
     versionCode: 132,
     publishedAt: DateTime(2026, 11, 20),

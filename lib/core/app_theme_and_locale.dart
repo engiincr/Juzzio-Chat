@@ -461,7 +461,8 @@ class JuzzioAppController extends ChangeNotifier {
   String _themeSelectionMode = 'dark'; // 'system' | 'light' | 'dark'
   int _selectedChatThemeIndex = 0;
   // v0.6 Glassmorphism: seçili aurora cam teması (boşsa yöneticinin varsayılanı / ilk palet)
-  String _glassPaletteId = '';
+  // v2.0.0: Obsidian Lime (graphite_lime) varsayılan tema
+  String _glassPaletteId = 'graphite_lime';
   bool _reducedEffects = false;
   // v1.2.1: hava durumuna göre tema ambiyansı (varsayılan AÇIK)
   bool _weatherThemeEnabled = true;

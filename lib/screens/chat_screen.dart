@@ -3619,6 +3619,73 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     );
   }
 
+  // v2.0.0 Figma: Canlı Çeviri / Sinema Parti / Civciv Oyunu / Topluluklar kısayolları
+  Widget _buildFeatureShortcutsRow(JuzzioAppController app) {
+    final glow = JuzzioGlassTokens.glow;
+    final bg = JuzzioGlassTokens.space.depth[1];
+    final border = JuzzioGlassTokens.spaceCardBorder;
+    final items = [
+      (Icons.translate_rounded, app.trEn('Canlı Çeviri', 'Live Translate', 'Live-Übersetzung'), () {
+        setState(() => _selectedBottomTab = 1);
+      }),
+      (Icons.movie_filter_rounded, app.trEn('Sinema Parti', 'Cinema Party', 'Kino-Party'), () {
+        setState(() => _selectedBottomTab = 1);
+      }),
+      (Icons.egg_alt_rounded, app.trEn('Civciv Oyunu', 'Chick Game', 'Küken-Spiel'), () {
+        final friends = _acceptedFriendProfiles;
+        if (friends.isNotEmpty) _openChickGame(friends.first);
+      }),
+      (Icons.groups_rounded, app.trEn('Topluluklar', 'Communities', 'Gruppen'), () {
+        setState(() => _selectedBottomTab = 3);
+      }),
+    ];
+    return SizedBox(
+      height: 76,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: items.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemBuilder: (_, i) {
+          final (icon, label, onTap) = items[i];
+          return GestureDetector(
+            onTap: onTap,
+            child: Container(
+              width: 76,
+              decoration: BoxDecoration(
+                color: bg.withValues(alpha: 0.6),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: border, width: 1.1),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: glow.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(icon, color: glow, size: 20),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    label,
+                    style: TextStyle(color: JuzzioGlassTokens.textSecondary, fontSize: 10, fontWeight: FontWeight.w600, height: 1.1),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   Widget _buildChatsHomeTab(JuzzioPalette p, JuzzioStrings s, JuzzioAppController appCtrl) {
     final stories24h = _visibleFriendStories24h;
     final myDisplay = _myProfile?.displayName ?? widget.myDisplayName;
@@ -3795,7 +3862,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                               ],
                             ),
                           ),
-                          const SizedBox(height: 22),
+                          const SizedBox(height: 18),
+                          // v2.0.0 Figma: özellik kısayolları satırı
+                          _buildFeatureShortcutsRow(appCtrl),
+                          const SizedBox(height: 18),
                           JuzzioSpaceSectionHeader(
                             // Figma 01: "Mesajlar · 03 sohbet"
                             eyebrow: chatCount > 0

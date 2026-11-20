@@ -1,7 +1,7 @@
 name: juzzio
 description: "JUZZIO - Zero-Latency Bidirectional Translation, LiveKit Group Conference Audio/Video Call & Voice Note Messenger"
 publish_to: 'none'
-version: 1.3.2+132
+version: 2.0.0+200
 
 environment:
   sdk: '>=3.4.0 <4.0.0'

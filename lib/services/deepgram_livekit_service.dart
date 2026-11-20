@@ -642,14 +642,19 @@ class DeepgramLiveKitController extends ChangeNotifier {
         defaultCameraCaptureOptions: saver
             ? const CameraCaptureOptions(params: VideoParametersPresets.h360_169)
             : const CameraCaptureOptions(params: VideoParametersPresets.h720_169),
-        defaultAudioCaptureOptions: AudioCaptureOptions(
-          autoGainControl: true,
-          echoCancellation: true,
-          noiseSuppression: denoise,
-          voiceIsolation: denoise,
-          highPassFilter: denoise,
-          typingNoiseDetection: denoise,
-        ),
+        defaultAudioCaptureOptions: Platform.isWindows || Platform.isLinux || Platform.isMacOS
+            ? AudioCaptureOptions(
+                echoCancellation: true,
+                noiseSuppression: denoise,
+              )
+            : AudioCaptureOptions(
+                autoGainControl: true,
+                echoCancellation: true,
+                noiseSuppression: denoise,
+                voiceIsolation: denoise,
+                highPassFilter: denoise,
+                typingNoiseDetection: denoise,
+              ),
         defaultAudioPublishOptions: AudioPublishOptions(
           name: 'juzzio_voice_track',
           dtx: saver,
@@ -709,14 +714,19 @@ class DeepgramLiveKitController extends ChangeNotifier {
     Future<void> publishMic() async {
       await _room!.localParticipant?.setMicrophoneEnabled(
         true,
-        audioCaptureOptions: AudioCaptureOptions(
-          autoGainControl: true,
-          echoCancellation: true,
-          noiseSuppression: denoise,
-          voiceIsolation: denoise,
-          highPassFilter: denoise,
-          typingNoiseDetection: denoise,
-        ),
+        audioCaptureOptions: Platform.isWindows || Platform.isLinux || Platform.isMacOS
+            ? AudioCaptureOptions(
+                echoCancellation: true,
+                noiseSuppression: denoise,
+              )
+            : AudioCaptureOptions(
+                autoGainControl: true,
+                echoCancellation: true,
+                noiseSuppression: denoise,
+                voiceIsolation: denoise,
+                highPassFilter: denoise,
+                typingNoiseDetection: denoise,
+              ),
       );
     }
 
@@ -730,7 +740,12 @@ class DeepgramLiveKitController extends ChangeNotifier {
       }
     }
 
-    await Hardware.instance.setSpeakerphoneOn(true);
+    // setSpeakerphoneOn is Android/iOS only; skip on desktop platforms
+    if (!Platform.isWindows && !Platform.isLinux && !Platform.isMacOS) {
+      try {
+        await Hardware.instance.setSpeakerphoneOn(true);
+      } catch (_) {}
+    }
     isConnected = true;
     _syncParticipantLanguages();
     notifyListeners();
@@ -1829,7 +1844,11 @@ class DeepgramLiveKitController extends ChangeNotifier {
 
   Future<void> toggleSpeakerphone() async {
     isSpeakerphoneOn = !isSpeakerphoneOn;
-    await Hardware.instance.setSpeakerphoneOn(isSpeakerphoneOn);
+    if (!Platform.isWindows && !Platform.isLinux && !Platform.isMacOS) {
+      try {
+        await Hardware.instance.setSpeakerphoneOn(isSpeakerphoneOn);
+      } catch (_) {}
+    }
     notifyListeners();
   }
 

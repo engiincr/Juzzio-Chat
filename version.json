@@ -1,16 +1,16 @@
 {
-  "version": "1.3.2",
-  "buildNumber": 1076,
+  "version": "2.0.0",
+  "buildNumber": 200,
   "releaseDate": "2026-11-20",
-  "releaseTitle": "Juzzio Windows'ta: Bilgisayar Sürümü ve Giriş Düzeltmesi",
+  "releaseTitle": "Juzzio 2.0: Yeni Tasarım ve Windows Ses Düzeltmesi",
   "mandatory": false,
   "minSupportedVersion": "0.1.0",
   "apkUrl": "https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk",
-  "versionedApkUrl": "https://github.com/engiincr/Juzzio-Chat/releases/download/v1.3.2/juzzio-v1.3.2-release.apk",
-  "apkSha256": "47328d29a794d113dde4ffd1622e695de432f59533db564620668d7d916a0733",
-  "apkSize": "120.85 MB",
-  "verifiedBuild": true,
-  "verifiedAt": "2026-11-20 16:37 UTC",
+  "versionedApkUrl": "https://github.com/engiincr/Juzzio-Chat/releases/download/v2.0.0/juzzio-v2.0.0-release.apk",
+  "apkSha256": "",
+  "apkSize": "",
+  "verifiedBuild": false,
+  "verifiedAt": "",
   "developer": {
     "name": "Engin ÇIRPAN",
     "instagram": "https://ig.me/tugkancr",
@@ -18,70 +18,64 @@
     "email": "engiincr@pm.me"
   },
   "changelog": {
-    "tr": "v1.3.2: Juzzio artık Windows'ta da var. Bilgisayarda giriş yapılamıyordu (doğru şifre \"hatalı\" görünüyordu); rakamlar ve boşluklar emoji yazı tipiyle bozuk görünüyordu; sunucu hataları da \"şifre hatalı\" diye gösteriliyordu.",
-    "en": "v1.3.2: Juzzio is now available on Windows. Sign-in failed on desktop (a correct password showed as \"wrong\"); digits and spaces were drawn with the emoji font; server errors were also shown as \"wrong password\".",
-    "de": "v1.3.2: Juzzio gibt es jetzt auch für Windows. Die Anmeldung am PC schlug fehl (ein richtiges Passwort galt als \"falsch\"); Ziffern und Leerzeichen wurden mit der Emoji-Schrift gezeichnet; Serverfehler wurden ebenfalls als \"falsches Passwort\" angezeigt."
+    "tr": "v2.0.0: Juzzio 2.0 — tamamen yenilenen tasarım (Obsidian Lime teması), Windows'ta mikrofon ve hoparlör sorunu giderildi, macOS ve iOS uyumluluğu iyileştirildi.",
+    "en": "v2.0.0: Juzzio 2.0 — completely redesigned UI (Obsidian Lime theme), fixed microphone and speaker on Windows calls, improved macOS and iOS compatibility.",
+    "de": "v2.0.0: Juzzio 2.0 — komplett überarbeitetes Design (Obsidian Lime-Thema), Mikrofon und Lautsprecher bei Windows-Anrufen behoben, macOS- und iOS-Kompatibilität verbessert."
   },
-  "build": 1076,
-  "versionCode": 1076,
+  "build": 200,
+  "versionCode": 200,
   "url": "https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk",
-  "changelog_tr": "v1.3.2: Juzzio artık Windows'ta da var. Bilgisayarda giriş yapılamıyordu (doğru şifre \"hatalı\" görünüyordu); rakamlar ve boşluklar emoji yazı tipiyle bozuk görünüyordu; sunucu hataları da \"şifre hatalı\" diye gösteriliyordu.",
-  "changelog_en": "v1.3.2: Juzzio is now available on Windows. Sign-in failed on desktop (a correct password showed as \"wrong\"); digits and spaces were drawn with the emoji font; server errors were also shown as \"wrong password\".",
-  "changelog_de": "v1.3.2: Juzzio gibt es jetzt auch für Windows. Die Anmeldung am PC schlug fehl (ein richtiges Passwort galt als \"falsch\"); Ziffern und Leerzeichen wurden mit der Emoji-Schrift gezeichnet; Serverfehler wurden ebenfalls als \"falsches Passwort\" angezeigt.",
+  "changelog_tr": "v2.0.0: Juzzio 2.0 — tamamen yenilenen tasarım (Obsidian Lime teması), Windows'ta mikrofon ve hoparlör sorunu giderildi, macOS ve iOS uyumluluğu iyileştirildi.",
+  "changelog_en": "v2.0.0: Juzzio 2.0 — completely redesigned UI (Obsidian Lime theme), fixed microphone and speaker on Windows calls, improved macOS and iOS compatibility.",
+  "changelog_de": "v2.0.0: Juzzio 2.0 — komplett überarbeitetes Design (Obsidian Lime-Thema), Mikrofon und Lautsprecher bei Windows-Anrufen behoben, macOS- und iOS-Kompatibilität verbessert.",
   "details": {
     "tr": {
-      "reason": "Juzzio artık Windows'ta da var. Bilgisayarda giriş yapılamıyordu (doğru şifre \"hatalı\" görünüyordu); rakamlar ve boşluklar emoji yazı tipiyle bozuk görünüyordu; sunucu hataları da \"şifre hatalı\" diye gösteriliyordu.",
+      "reason": "Juzzio 2.0 ile tamamen yenilenen arayüz, Obsidian Lime temasıyla çarpıcı karanlık görünüm ve Windows aramalarda mikrofon/hoparlör sorunu giderildi.",
       "features": [
-        "🖥️ Windows sürümü: sesli/görüntülü arama, mesajlaşma, çeviri, hikâyeler ve tüm sayfalar bilgisayarda",
-        "🪟 Geniş pencerede içerik ortada okunaklı bir panelde; dar pencerede tam ekran",
-        "🔔 Windows bildirimleri: gelen mesaj ve aramalar (şifreli içerik bildirime yazılmaz)",
-        "🖱️ Fare ve dokunmatik yüzeyle sürükleyerek kaydırma"
+        "🎨 Juzzio 2.0 Obsidian Lime tasarım sistemi: limon-siyah tema varsayılan",
+        "🖥️ Windows aramalarında mikrofon artık çalışıyor; karşı tarafın sesi kulaklığa geliyor",
+        "🍎 macOS ve iOS arama uyumluluğu iyileştirildi",
+        "🔊 Speakerphone API yalnızca mobil cihazlarda kullanılıyor artık"
       ],
       "fixes": [
-        "Bilgisayarda doğru şifrenin \"hatalı\" görünmesi giderildi (geçersiz sunucu anahtarı yenilendi)",
-        "Sunucu hatası ve istek sınırı artık \"şifre hatalı\" yerine kendi mesajıyla gösteriliyor",
-        "Windows'ta rakamlar ve boşlukların emoji yazı tipiyle çizilmesi düzeltildi"
+        "Windows'ta sesli/görüntülü aramada mikrofon çalışmıyor sorunu giderildi",
+        "Windows'ta karşı tarafın sesi kulaklığa/hoparlöre gelmiyor sorunu giderildi",
+        "Windows'a özgü olmayan ses yakalama seçenekleri kaldırıldı (voiceIsolation, highPassFilter, typingNoiseDetection)"
       ],
-      "security": [
-        "Google Drive yedeği bilgisayar sürümünde kapalı; yedekleme yalnız telefondan yapılır"
-      ]
+      "security": []
     },
     "en": {
-      "reason": "Juzzio is now available on Windows. Sign-in failed on desktop (a correct password showed as \"wrong\"); digits and spaces were drawn with the emoji font; server errors were also shown as \"wrong password\".",
+      "reason": "Juzzio 2.0 brings a completely redesigned interface with the Obsidian Lime theme and fixes microphone/speaker issues on Windows calls.",
       "features": [
-        "🖥️ Windows version: voice/video calls, messaging, translation, stories and every page on your PC",
-        "🪟 Wide windows show the app in a centred, readable panel; narrow windows fill the screen",
-        "🔔 Windows notifications for incoming messages and calls (encrypted content is never shown)",
-        "🖱️ Drag to scroll with the mouse and trackpad"
+        "🎨 Juzzio 2.0 Obsidian Lime design system: lime-black theme as default",
+        "🖥️ Microphone now works in Windows calls; other party's audio comes through headphones",
+        "🍎 Improved macOS and iOS call compatibility",
+        "🔊 Speakerphone API now only used on mobile devices"
       ],
       "fixes": [
-        "Fixed a correct password showing as \"wrong\" on desktop (invalid server key replaced)",
-        "Server errors and rate limits now show their own message instead of \"wrong password\"",
-        "Fixed digits and spaces being drawn with the emoji font on Windows"
+        "Fixed microphone not working in voice/video calls on Windows",
+        "Fixed other party's audio not reaching headphones/speakers on Windows",
+        "Removed non-Windows audio capture options (voiceIsolation, highPassFilter, typingNoiseDetection)"
       ],
-      "security": [
-        "Google Drive backup is disabled on desktop; backups are made from the phone only"
-      ]
+      "security": []
     },
     "de": {
-      "reason": "Juzzio gibt es jetzt auch für Windows. Die Anmeldung am PC schlug fehl (ein richtiges Passwort galt als \"falsch\"); Ziffern und Leerzeichen wurden mit der Emoji-Schrift gezeichnet; Serverfehler wurden ebenfalls als \"falsches Passwort\" angezeigt.",
+      "reason": "Juzzio 2.0 bringt eine komplett überarbeitete Oberfläche mit dem Obsidian Lime-Thema und behebt Mikrofon-/Lautsprecherprobleme bei Windows-Anrufen.",
       "features": [
-        "🖥️ Windows-Version: Sprach-/Videoanrufe, Chats, Übersetzung, Storys und alle Seiten am PC",
-        "🪟 Breite Fenster zeigen die App in einem zentrierten, gut lesbaren Bereich; schmale Fenster füllen den Bildschirm",
-        "🔔 Windows-Benachrichtigungen für Nachrichten und Anrufe (verschlüsselte Inhalte werden nie angezeigt)",
-        "🖱️ Ziehen zum Scrollen mit Maus und Touchpad"
+        "🎨 Juzzio 2.0 Obsidian Lime-Designsystem: Limette-Schwarz-Thema als Standard",
+        "🖥️ Mikrofon funktioniert jetzt bei Windows-Anrufen; Gegenseite hörbar über Kopfhörer",
+        "🍎 Verbesserte macOS- und iOS-Anrufkompatibilität",
+        "🔊 Lautsprecher-API wird nur noch auf mobilen Geräten verwendet"
       ],
       "fixes": [
-        "Behoben: richtiges Passwort galt am PC als \"falsch\" (ungültiger Serverschlüssel ersetzt)",
-        "Serverfehler und Anfragelimits zeigen jetzt ihre eigene Meldung statt \"falsches Passwort\"",
-        "Ziffern und Leerzeichen werden unter Windows nicht mehr mit der Emoji-Schrift gezeichnet"
+        "Mikrofon bei Sprach-/Videoanrufen unter Windows behoben",
+        "Ton der Gegenseite unter Windows über Kopfhörer/Lautsprecher behoben",
+        "Nicht-Windows-Audioerfassungsoptionen entfernt (voiceIsolation, highPassFilter, typingNoiseDetection)"
       ],
-      "security": [
-        "Google-Drive-Sicherung ist am PC deaktiviert; Sicherungen nur über das Handy"
-      ]
+      "security": []
     }
   },
-  "releaseTitleEn": "Juzzio for Windows: Desktop Version & Sign-in Fix",
+  "releaseTitleEn": "Juzzio 2.0: New Design & Windows Audio Fix",
   "signatureAlg": "ML-DSA-65 (FIPS 204)",
-  "mldsa65Sig": "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"
+  "mldsa65Sig": ""
 }
