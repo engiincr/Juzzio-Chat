@@ -37,6 +37,12 @@ class JuzzioConfig {
       'https://api.github.com/repos/engiincr/Juzzio-Chat/releases/latest';
   static const String otaDirectApkUrl =
       'https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk';
+  /// v2.0.0: iOS App Store sayfası (yayına alındığında gerçek ID ile güncellenir)
+  static const String iosAppStoreUrl =
+      'https://apps.apple.com/app/juzzio/id0000000000';
+  /// v2.0.0: Windows kurulum paketi — GitHub Release'daki .exe / .msix adresi
+  static const String windowsInstallerUrl =
+      'https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-windows-setup.exe';
 
   static const String _defaultSupabaseUrl = 'https://hzoerzgbyklrutvifbrg.supabase.co';
   static const String _defaultSupabaseAnonKey = 'sb_publishable_SMEM1OKV6QR7SCryeNtSZQ_yTxWkhXv';

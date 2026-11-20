@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>Juzzio</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>juzzio</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(FLUTTER_BUILD_NAME)</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleVersion</key>
+	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+
+	<!-- ================================================================
+	     JUZZIO v2.0.0 — iOS İzin Açıklamaları
+	     Apple App Store'a gönderilmeden önce bu metinler uygulama diline
+	     göre Localizable.strings dosyasında da sağlanmalıdır.
+	     ================================================================ -->
+
+	<!-- Mikrofon — sesli mesaj, arama, canlı çeviri -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Juzzio, sesli mesaj göndermek, sesli/görüntülü aramalar yapmak ve Canlı Çeviri özelliğini kullanmak için mikrofonunuza erişmek ister.</string>
+
+	<!-- Kamera — görüntülü arama, profil fotoğrafı, hikâye -->
+	<key>NSCameraUsageDescription</key>
+	<string>Juzzio, görüntülü aramalar, profil fotoğrafı ve hikâye paylaşımı için kameraya erişmek ister.</string>
+
+	<!-- Fotoğraf kütüphanesi — medya paylaşımı, profil fotoğrafı yükleme -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Juzzio, sohbetlerde fotoğraf/video paylaşmak ve profil resmi ayarlamak için fotoğraf kütüphanenize erişmek ister.</string>
+
+	<!-- Fotoğraf kaydetme -->
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Juzzio, paylaşılan medyayı fotoğraf kütüphanenize kaydetmek için izin ister.</string>
+
+	<!-- Konum — konum paylaşımı (isteğe bağlı özellik) -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Juzzio, sohbetlerde konum paylaşımı için konumunuza erişmek ister.</string>
+
+	<!-- Bluetooth — kablosuz hoparlör/kulaklık için audio session -->
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Juzzio, Bluetooth kulaklık ve hoparlörleri aramalar sırasında kullanmak için Bluetooth erişimi ister.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>Juzzio, Bluetooth ses cihazlarına bağlanmak için bu izni kullanır.</string>
+
+	<!-- Kişiler — arkadaş önerileri (isteğe bağlı) -->
+	<key>NSContactsUsageDescription</key>
+	<string>Juzzio, Juzzio kullanan kişileri önermek için kişilere erişmek ister. Bu bilgiler yalnızca cihazınızda işlenir.</string>
+
+	<!-- Face ID / Touch ID — kilitli sohbet PIN yedeği -->
+	<key>NSFaceIDUsageDescription</key>
+	<string>Juzzio, kilitli sohbetleri Face ID ile açmak için biyometrik kimlik doğrulama kullanır.</string>
+
+	<!-- ================================================================
+	     VoIP Push (PushKit) — arka plan aramaları için hazırlık
+	     Not: Gerçek VoIP push kullanımı CallKit entegrasyonu gerektirir.
+	     Şu an yalnızca yapılandırma hazırlığı.
+	     ================================================================ -->
+
+	<!-- Background modes — VoIP, ses oynatma, ağ dinleme -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+		<string>fetch</string>
+		<string>remote-notification</string>
+		<string>voip</string>
+	</array>
+
+	<!-- FCM / Remote Notifications için -->
+	<key>FirebaseAppDelegateProxyEnabled</key>
+	<false/>
+
+	<!-- Uygulama Desteklenen Yönlendirmeler -->
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>UIWindowSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UISceneClassName</key>
+					<string>UIWindowScene</string>
+					<key>UISceneConfigurationName</key>
+					<string>flutter</string>
+					<key>UISceneDelegateClassName</key>
+					<string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
+					<key>UISceneStoryboardFile</key>
+					<string>Main</string>
+				</dict>
+			</array>
+		</dict>
+	</dict>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+	<key>UIMainStoryboardFile</key>
+	<string>Main</string>
+	<!-- iPhone: yalnızca dikey (sohbet uygulaması standart) -->
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+	<!-- iPad: tüm yönlendirmeler -->
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+
+	<!-- iOS 14+ yerel uygulama gizliliği bildirimi: ağ bağlantısı takibi yok -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<false/>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<!-- Supabase (realtime WebSocket) -->
+			<key>supabase.co</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<false/>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+			</dict>
+			<!-- LiveKit WebRTC -->
+			<key>livekit.cloud</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<false/>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+			</dict>
+		</dict>
+	</dict>
+
+	<!-- Minimum iOS sürümü Flutter 3 ile uyumlu: iOS 12.0+ -->
+	<key>MinimumOSVersion</key>
+	<string>12.0</string>
+</dict>
+</plist>

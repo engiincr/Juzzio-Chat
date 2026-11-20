@@ -58,9 +58,14 @@ Future<void> main() async {
     yield const LicenseEntryWithLineBreaks(['Open-Meteo'], 'Weather data by Open-Meteo.com — Creative Commons Attribution 4.0 International (CC BY 4.0). https://open-meteo.com/');
   });
 
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-  ]);
+  // v2.0.0: Masaüstü ve iPad tüm yönlendirmelere izin verir; telefon dikey kalır
+  if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
+    await SystemChrome.setPreferredOrientations([]);
+  } else {
+    await SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+    ]);
+  }
 
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(

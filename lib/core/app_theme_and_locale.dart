@@ -10,9 +10,11 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher_string.dart';
 import 'package:cryptography/cryptography.dart' show Sha256;
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
@@ -2758,6 +2760,25 @@ class JuzzioAppController extends ChangeNotifier {
   }
 
   Future<String> startOtaDownloadAndInstall() async {
+    // v2.0.0: Platform-aware update routing
+    // iOS → App Store; Windows → download page; Android → embedded APK
+    if (!kIsWeb && Platform.isIOS) {
+      await launchUrlString(JuzzioConfig.iosAppStoreUrl, mode: LaunchMode.externalApplication);
+      return trEn(
+        'App Store güncelleme sayfası açılıyor…',
+        'Opening App Store update page…',
+        'App Store Aktualisierungsseite wird geöffnet…',
+      );
+    }
+    if (!kIsWeb && Platform.isWindows) {
+      await launchUrlString(JuzzioConfig.windowsInstallerUrl, mode: LaunchMode.externalApplication);
+      return trEn(
+        'Windows güncelleyici indiriliyor…',
+        'Downloading Windows installer…',
+        'Windows-Installer wird heruntergeladen…',
+      );
+    }
+
     String connType = 'wifi';
     try {
       final res = await _notifChannel.invokeMethod<String>('getNetworkConnectionType');

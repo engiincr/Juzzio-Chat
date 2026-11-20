@@ -43,6 +43,9 @@ import '../services/fcm_push_service.dart';
 import '../services/social_service.dart';
 import '../services/supabase_service.dart';
 import '../widgets/juzzio_desktop_frame.dart' show juzzioIsDesktop;
+import '../widgets/juzzio_desktop_shell.dart'
+    show JuzzioDesktopShell, JuzzioDesktopNavRail, JuzzioDesktopRightPlaceholder,
+         JuzzioDesktopAction, showJuzzioCommandCenter, kJuzzioDesktopThreePanelMin;
 import '../widgets/juzzio_attach_menu.dart';
 import '../widgets/juzzio_space_kit.dart';
 import '../widgets/juzzio_rich_text.dart';
@@ -2826,6 +2829,12 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     // v1.2.9: hava katmanı sohbet, keşfet ve profilde de görünür (kullanıcı isteği); hikâye ve tam ekran
     // video sayfalarında gizli kalır (JuzzioAmbienceHide / rota izleyici)
     JuzzioAmbienceRouteObserver.instance.hold(_ambienceKey, false);
+
+    // v2.0.0: Geniş masaüstü penceresinde 3-panel düzeni (NavigationRail + merkez + sağ panel)
+    if (juzzioIsDesktop && MediaQuery.sizeOf(context).width >= kJuzzioDesktopThreePanelMin) {
+      return _buildDesktopThreePanelLayout(context, appCtrl, p, s);
+    }
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
@@ -9753,6 +9762,123 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       ),
     );
   }
+
+  // ---------------------------------------------------------------------------
+  // v2.0.0: Masaüstü 3-Panel Düzeni (Windows / macOS ≥ 900 px)
+  // ---------------------------------------------------------------------------
+
+  Widget _buildDesktopThreePanelLayout(
+    BuildContext context,
+    JuzzioAppController appCtrl,
+    JuzzioPalette p,
+    JuzzioStrings s,
+  ) {
+    const tabIndex = [0, 3, 1, 6, 4];
+    final sel = tabIndex.indexOf(_selectedBottomTab == 2 ? 0 : _selectedBottomTab);
+    final unread = _conversations.fold<int>(0, (sum, c) => sum + (c.isMuted ? 0 : c.unreadCount));
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _handleSystemBack();
+      },
+      child: Scaffold(
+        backgroundColor: p.headerDarkForest,
+        body: SafeArea(
+          bottom: false,
+          child: JuzzioDesktopShell(
+            onShortcut: _handleDesktopShortcut,
+            navRail: JuzzioDesktopNavRail(
+              selectedIndex: sel < 0 ? 0 : sel,
+              onDestinationSelected: (i) => setState(() {
+                _selectedBottomTab = tabIndex[i];
+                if (_selectedBottomTab == 0 && _selectedFilterIndex == 3) _selectedFilterIndex = 0;
+              }),
+              onNewChat: _startNewMessageDesktop,
+              unreadBadge: unread,
+            ),
+            child: Column(
+              children: [
+                if (appCtrl.otaUpdateAvailable) _buildOtaUpdateTopBanner(p, appCtrl),
+                if (!_isInsideConversation &&
+                    JuzzioFeaturesService.instance.lastAppConfig.announcementBanner.trim().isNotEmpty)
+                  _buildAnnouncementBanner(
+                      JuzzioFeaturesService.instance.lastAppConfig.announcementBanner.trim()),
+                if (_incomingCallBannerVisible) _buildIncomingCallBanner(p, s),
+                if (_headsUpFriendRequest != null) _buildIncomingFriendRequestBanner(p, s),
+                Expanded(
+                  child: AnimatedSwitcher(
+                    duration: Duration(milliseconds: appCtrl.reduceMotion ? 0 : 220),
+                    child: _selectedBottomTab == 6
+                        ? JuzzioNotificationsFeedPage(
+                            key: const ValueKey('juzzio_notifications_tab_desktop'),
+                            currentUser: _effectiveCurrentUserProfile,
+                            embedded: true,
+                            onOpenItem: _openNotificationItemFromTab,
+                          )
+                        : _selectedBottomTab == 0
+                            ? (_selectedFilterIndex == 3
+                                ? _buildFriendsAndGroupsTab(p, s, appCtrl)
+                                : _buildChatsHomeTab(p, s, appCtrl))
+                            : _selectedBottomTab == 1
+                                ? _buildCallsTab(p, s)
+                                : _selectedBottomTab == 2
+                                    ? _buildFriendsAndGroupsTab(p, s, appCtrl)
+                                    : _selectedBottomTab == 3
+                                        ? _buildExploreTab(p, s, appCtrl)
+                                        : _buildProfileSettingsTab(p, s, appCtrl),
+                  ),
+                ),
+              ],
+            ),
+            rightPanel: _isInsideConversation
+                ? _buildActiveConversationView(p, s, appCtrl)
+                : JuzzioDesktopRightPlaceholder(onNewChat: _startNewMessageDesktop),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _handleDesktopShortcut(JuzzioDesktopAction action) {
+    switch (action) {
+      case JuzzioDesktopAction.quickSearch:
+        final names = _conversations
+            .map((c) => c.isGroup ? c.title : (c.partnerDisplayName ?? c.title))
+            .toList();
+        showJuzzioCommandCenter(
+          context: context,
+          recentConversationNames: names,
+          onSelectConversation: (name) {
+            final conv = _conversations.firstWhere(
+              (c) => (c.isGroup ? c.title : (c.partnerDisplayName ?? c.title)) == name,
+              orElse: () => _conversations.first,
+            );
+            _openConversation(conv);
+          },
+          onNewChat: _startNewMessageDesktop,
+        );
+      case JuzzioDesktopAction.newChat:
+        _startNewMessageDesktop();
+      case JuzzioDesktopAction.findInChat:
+        // Aktif konuşmada mesaj arama — ilerideki sürümde uygulanacak
+        break;
+      case JuzzioDesktopAction.goBack:
+        if (_isInsideConversation) {
+          _leaveConversation();
+        } else {
+          _handleSystemBack();
+        }
+    }
+  }
+
+  void _startNewMessageDesktop() {
+    setState(() => _selectedBottomTab = 0);
+    _openNewMessageScreen();
+  }
+
+  // ---------------------------------------------------------------------------
 
   Widget _buildFloatingGlassBottomDock(JuzzioPalette p, JuzzioStrings s) {
     final app = JuzzioAppController.instance;

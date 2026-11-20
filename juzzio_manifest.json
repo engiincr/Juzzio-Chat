@@ -1,7 +1,7 @@
 {
 ".github/workflows/android-ci.yml": "7f8f1e3c28021fe589cf21c5d7556f59a74bcde5dae183e37afc70a1a2c9aa0e",
-"lib/core/app_theme_and_locale.dart": "37d772efae117cb94d51164778229644f82ed832fe8956a7d87743dd29b67b6b",
-"lib/core/config.dart": "fc46af4d0338e72f91a865af44ef46cde96e66095b0c53eec0241905c6f9ee9e",
+"lib/core/app_theme_and_locale.dart": "d23f347b0793f2d7e09213a6093498128875a53f870f7bc2ca95e730a33c6c8f",
+"lib/core/config.dart": "16a87f96835f20c8269c10ff59f2e5ff20a98160baaf71df179942cdd11c2a8c",
 "lib/core/content_filter.dart": "18e1307898a74dcc864f470dc2381a093a78e8a0821df71bd95e22ae6cf547a4",
 "lib/core/juzzio_audio_guard.dart": "eb37640f62ee97d2f150c6bc117c4b7ba5f7c4c701fd0b495a0912c458064c28",
 "lib/core/juzzio_back_navigation.dart": "a0134a376c514e6eadf2ea2baca3cb92a761fad223c8db0a992c928b2a0f865d",
@@ -25,9 +25,9 @@
 "lib/core/theme/juzzio_custom_theme.dart": "10cbd80c80a39433b1d211fcf238e6aad1d689882ab90f6ce3bb18c810b2bb88",
 "lib/core/theme/juzzio_glass.dart": "60ba22b6f72efca9088fd6ddca5819b87904aa6f73ffb1c5c01ce34f1bcd72fb",
 "lib/core/widgets/glass_components.dart": "37a67b137da9eee384777f26805105dedde765791d0f3773c1a5afeaf9a50176",
-"lib/l10n/juzzio_inline_catalog.dart": "8a92e5139f794c543a56f86f6a1384eb4a6a0fba67c6c867674834406c624d67",
+"lib/l10n/juzzio_inline_catalog.dart": "598375cc6a0bb82c87aba2d70a64993d866fe598568fe90a16add1e1c3c0ae4e",
 "lib/l10n/juzzio_strings_v030.dart": "41e29e825eb3f5559986230b25994a1de9c45aaa8c60e8ce347e5a5bec1da2df",
-"lib/main.dart": "ce46c1aa6bf851c52de866e8ffcea70bcac55c320dbcadd2302dc5426a1de51a",
+"lib/main.dart": "70183301737b6f1ec5ea9f0f15c9b3a5e971fe18ed07cec738420440180b5ca1",
 "lib/models/social_models.dart": "7350490946d39935cb6de935d4d8fd2d1bea3a58936304e892f02dfd8e813e58",
 "lib/screens/admin_audit_format.dart": "90aabfdeaaa05cb52ab99abc204c80928d6e85c224420925bddf613465c5d1b9",
 "lib/screens/admin_community_tab.dart": "1a1de3688e7340a6f054c41c6d9900a6a37451e6687ac9295da8d16dddf60762",
@@ -49,7 +49,7 @@
 "lib/screens/call_detail_page.dart": "bd9d42cd0ccfdbdab1aa52a34e4924be22d4a9ebafe28fd02900a4c87b0e348a",
 "lib/screens/call_screen.dart": "6ba5bd30fbcb348fd160ad63372d8a28f1da3257f01367db7a94283de26cd73e",
 "lib/screens/channel_create_screen.dart": "d26c69bf55bfbb423a91186be310eb4f0807e4c68ae172d3ba0f003e057ba58d",
-"lib/screens/chat_screen.dart": "5319efa043b77791bb1793e38956017cc514331e1da42aec0accfb2361225be0",
+"lib/screens/chat_screen.dart": "7434847d391f183892af6129843f8dea1741f10d5376d57a483b0f7e9c369734",
 "lib/screens/chick_game_screen.dart": "94358dc532effedd9191fa5fa2b5a091c1f81b389feebe0bbf8a1222e3f54eaf",
 "lib/screens/chick_wardrobe_screen.dart": "9f7d710f3d04859909691b53b7a1bb482d1bceda26255fe44571da20f7e26a64",
 "lib/screens/close_friends_page.dart": "8a4e74d1aad4de06a1519b9281f084072f196fdb7019c234e93bb4b6835cdc55",
@@ -133,6 +133,7 @@
 "lib/widgets/juzzio_consent.dart": "90bfc1ec2e02e605a5ca715630a4724ea4e94c424eaabe1835362c1ba2935465",
 "lib/widgets/juzzio_copy_feedback.dart": "9ddcbb9900535848e9c9180a94699f5e7dd9379f9f7709b7ffd7cb1b02eacd31",
 "lib/widgets/juzzio_desktop_frame.dart": "d448259e55a127b113f9b70846bc3804275b6ab5c7698dcec87bbe7456dca612",
+"lib/widgets/juzzio_desktop_shell.dart": "ce91fad6b6e8f5ca0dc4e7ee5bd4b7c5754e73cbadc72a6230dd2111d67dcd69",
 "lib/widgets/juzzio_emoji_picker.dart": "719a9f5f781de53e7627554aabab6bc8a3e9a40d7a002714ca42392a3fd86a78",
 "lib/widgets/juzzio_encrypted_image.dart": "fa2fab4061dd93ec44e64881df63356700f5f3644a1f6eb8a637a9e669a342f9",
 "lib/widgets/juzzio_event_widgets.dart": "256889c5bb3f66834510830750c1e25ba935529eacacbe864f26272fa37b22a5",
@@ -226,5 +227,6 @@
 "test/juzzio_v129_test.dart": "f85a07aff8e2d7e1196130dff34e84c58dfe3e9714c11b88d843cecbaa30c37a",
 "test/juzzio_v130_test.dart": "b4aceae9d5bf256a584ad53654af640d9fc837e0e8a2974af2baba777cdfb8f7",
 "test/juzzio_v132_test.dart": "171a0871d5203eb1b66992138bf8ac863051e0e096aad0a2ea57a2d73e7ed0a5",
-"test/ota_manifest_test.dart": "0c1555d530636165b5cc868d332e93a403c5c77fd6bacb354390861a614db6ec"
+"test/ota_manifest_test.dart": "0c1555d530636165b5cc868d332e93a403c5c77fd6bacb354390861a614db6ec",
+"test/widget_test.dart": "ee3076ab093ead42af3ce037d80b843f3bca95766947cb3e819e7a4766e93cfa"
 }
