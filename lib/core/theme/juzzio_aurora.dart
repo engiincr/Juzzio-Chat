@@ -243,6 +243,26 @@ extension JuzzioAuroraPaletteCharacter on JuzzioAuroraPalette {
 
 /// Cam temaları. İlk öğe varsayılandır.
 const List<JuzzioAuroraPalette> kJuzzioAuroraPalettes = [
+  // v2.0.0 Figma 2.0 varsayılan: Grafit Limon (Obsidian Lime) — siyah-grafit zemin, neon limon vurgu.
+  // Yeni kullanıcılar bu temayla başlar; tercih kayıtlı kullanıcılar kendi seçimleriyle devam eder.
+  JuzzioAuroraPalette(
+    id: 'graphite_lime',
+    nameTr: 'Grafit Limon',
+    nameEn: 'Graphite Lime',
+    nameDe: 'Graphit Limette',
+    base: Color(0xFF0A0B0D),
+    baseLight: Color(0xFFF3F4EF),
+    swatchA: Color(0xFFD7F36B),
+    swatchB: Color(0xFF8B7CF6),
+    orbs: [
+      JuzzioAuroraOrb(Alignment(-1.0, -0.95), 0.70, Color(0x1FD7F36B)),
+      JuzzioAuroraOrb(Alignment(1.0, 0.6), 0.70, Color(0x1F8B7CF6)),
+    ],
+    orbsLight: [
+      JuzzioAuroraOrb(Alignment(-1.0, -0.95), 0.70, Color(0x33D7F36B)),
+      JuzzioAuroraOrb(Alignment(1.0, 0.6), 0.70, Color(0x268B7CF6)),
+    ],
+  ),
   // v0.8.1 Premium Dark Liquid Glass (tasarım şartnamesi §2/§9): #050A12 zemin,
   // sol üstte cyan, sağda electric blue, altta derin turkuaz, hafif aurora moru.
   JuzzioAuroraPalette(
@@ -577,25 +597,6 @@ const List<JuzzioAuroraPalette> kJuzzioAuroraPalettes = [
     orbsLight: [
       JuzzioAuroraOrb(Alignment(-1.0, -0.9), 0.80, Color(0x334ADE80)),
       JuzzioAuroraOrb(Alignment(1.0, 0.2), 0.70, Color(0x2286EFAC)),
-    ],
-  ),
-  // v1.3.0 — Figma AI prototipi: grafit zemin + limon vurgu + lavanta ikinci renk
-  JuzzioAuroraPalette(
-    id: 'graphite_lime',
-    nameTr: 'Grafit Limon',
-    nameEn: 'Graphite Lime',
-    nameDe: 'Graphit Limette',
-    base: Color(0xFF0A0B0D),
-    baseLight: Color(0xFFF3F4EF),
-    swatchA: Color(0xFFD7F36B),
-    swatchB: Color(0xFF8B7CF6),
-    orbs: [
-      JuzzioAuroraOrb(Alignment(-1.0, -0.95), 0.70, Color(0x1FD7F36B)),
-      JuzzioAuroraOrb(Alignment(1.0, 0.6), 0.70, Color(0x1F8B7CF6)),
-    ],
-    orbsLight: [
-      JuzzioAuroraOrb(Alignment(-1.0, -0.95), 0.70, Color(0x33D7F36B)),
-      JuzzioAuroraOrb(Alignment(1.0, 0.6), 0.70, Color(0x268B7CF6)),
     ],
   ),
   JuzzioAuroraPalette(

@@ -29,7 +29,7 @@ void main() {
         expect(v, inInclusiveRange(0.4, 2.0), reason: p.id);
       }
     }
-    expect(kJuzzioAuroraPalettes.first.id, 'juzzio_liquid');
+    expect(kJuzzioAuroraPalettes.first.id, 'graphite_lime'); // v2.0.0: Figma 2.0 varsayılan
     expect(juzzioAuroraPaletteById('cyber_neon').character.glow, greaterThan(0));
   });
 

@@ -224,24 +224,7 @@ class JuzzioDesktopNavRail extends StatelessWidget {
           // Logo
           Padding(
             padding: const EdgeInsets.only(top: 20, bottom: 8),
-            child: Container(
-              width: 40, height: 40,
-              decoration: BoxDecoration(
-                color: glow,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Center(
-                child: Text(
-                  'J',
-                  style: TextStyle(
-                    color: Color(0xFF080A0F),
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                    height: 1,
-                  ),
-                ),
-              ),
-            ),
+            child: JuzzioLogoMark(size: 40, glowColor: glow),
           ),
           // Yeni sohbet butonu
           Padding(
@@ -572,6 +555,44 @@ class _JuzzioCommandCenterDialogState extends State<_JuzzioCommandCenterDialog> 
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// JuzzioLogoMark — Juzzio 2.0 marka işareti (NavigationRail ve splash için)
+// ---------------------------------------------------------------------------
+
+class JuzzioLogoMark extends StatelessWidget {
+  const JuzzioLogoMark({super.key, this.size = 40, this.glowColor});
+  final double size;
+  final Color? glowColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final lime = glowColor ?? JuzzioGlassTokens.glow;
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: lime,
+        borderRadius: BorderRadius.circular(size * 0.26),
+        boxShadow: [
+          BoxShadow(color: lime.withValues(alpha: 0.35), blurRadius: size * 0.6, spreadRadius: -2),
+        ],
+      ),
+      child: Center(
+        child: Text(
+          'J',
+          style: TextStyle(
+            color: const Color(0xFF080A0F),
+            fontSize: size * 0.56,
+            fontWeight: FontWeight.w900,
+            height: 1,
+            letterSpacing: -0.5,
+          ),
         ),
       ),
     );
