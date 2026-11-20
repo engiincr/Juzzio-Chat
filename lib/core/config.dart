@@ -42,7 +42,7 @@ class JuzzioConfig {
       'https://apps.apple.com/app/juzzio/id0000000000';
   /// v2.0.0: Windows kurulum paketi — GitHub Release'daki .exe / .msix adresi
   static const String windowsInstallerUrl =
-      'https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-windows-setup.exe';
+      'https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-windows.zip';
 
   static const String _defaultSupabaseUrl = 'https://hzoerzgbyklrutvifbrg.supabase.co';
   static const String _defaultSupabaseAnonKey = 'sb_publishable_SMEM1OKV6QR7SCryeNtSZQ_yTxWkhXv';

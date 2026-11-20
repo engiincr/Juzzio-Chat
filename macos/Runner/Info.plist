@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIconFile</key>
+	<string></string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(FLUTTER_BUILD_NAME)</string>
+	<key>CFBundleVersion</key>
+	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>$(PRODUCT_COPYRIGHT)</string>
+	<key>NSMainNibFile</key>
+	<string>MainMenu</string>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Juzzio sesli mesaj göndermek, sesli/görüntülü arama yapmak ve konuşmayı metne çevirmek için mikrofona erişmek istiyor.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Juzzio görüntülü arama yapmak, profil fotoğrafı çekmek ve hikâye paylaşmak için kameraya erişmek istiyor.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Juzzio sohbette fotoğraf/video paylaşmak için fotoğraf kütüphanesine erişmek istiyor.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>Juzzio rehberinizdeki kişileri kolayca davet etmek için kişilere erişmek istiyor.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Juzzio sohbette konumunuzu paylaşmak için konuma erişmek istiyor.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Juzzio yakındaki cihazlarla bağlantı kurmak için Bluetooth'a erişmek istiyor.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>supabase.co</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<false/>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+			</dict>
+			<key>livekit.cloud</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<false/>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+			</dict>
+		</dict>
+	</dict>
+</dict>
+</plist>

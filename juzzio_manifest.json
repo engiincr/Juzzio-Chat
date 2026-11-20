@@ -1,7 +1,7 @@
 {
-".github/workflows/android-ci.yml": "7f8f1e3c28021fe589cf21c5d7556f59a74bcde5dae183e37afc70a1a2c9aa0e",
+".github/workflows/android-ci.yml": "ddb1a9ce4b550e25e4cbd243fbfbd869cfe710b3ff0c4436de872ad266393c02",
 "lib/core/app_theme_and_locale.dart": "d23f347b0793f2d7e09213a6093498128875a53f870f7bc2ca95e730a33c6c8f",
-"lib/core/config.dart": "16a87f96835f20c8269c10ff59f2e5ff20a98160baaf71df179942cdd11c2a8c",
+"lib/core/config.dart": "828c9299d2805761bab42085a1c61f42aec0487519b9603b193c3c1cd9ebac6e",
 "lib/core/content_filter.dart": "18e1307898a74dcc864f470dc2381a093a78e8a0821df71bd95e22ae6cf547a4",
 "lib/core/juzzio_audio_guard.dart": "eb37640f62ee97d2f150c6bc117c4b7ba5f7c4c701fd0b495a0912c458064c28",
 "lib/core/juzzio_back_navigation.dart": "a0134a376c514e6eadf2ea2baca3cb92a761fad223c8db0a992c928b2a0f865d",
@@ -25,7 +25,7 @@
 "lib/core/theme/juzzio_custom_theme.dart": "10cbd80c80a39433b1d211fcf238e6aad1d689882ab90f6ce3bb18c810b2bb88",
 "lib/core/theme/juzzio_glass.dart": "60ba22b6f72efca9088fd6ddca5819b87904aa6f73ffb1c5c01ce34f1bcd72fb",
 "lib/core/widgets/glass_components.dart": "37a67b137da9eee384777f26805105dedde765791d0f3773c1a5afeaf9a50176",
-"lib/l10n/juzzio_inline_catalog.dart": "598375cc6a0bb82c87aba2d70a64993d866fe598568fe90a16add1e1c3c0ae4e",
+"lib/l10n/juzzio_inline_catalog.dart": "b83008a09243913a4ea499d0cf069f56b4aa366c819be0aefbea58a1bed6aab7",
 "lib/l10n/juzzio_strings_v030.dart": "41e29e825eb3f5559986230b25994a1de9c45aaa8c60e8ce347e5a5bec1da2df",
 "lib/main.dart": "70183301737b6f1ec5ea9f0f15c9b3a5e971fe18ed07cec738420440180b5ca1",
 "lib/models/social_models.dart": "7350490946d39935cb6de935d4d8fd2d1bea3a58936304e892f02dfd8e813e58",

@@ -294,6 +294,163 @@ jobs:
           compression-level: 0
 
   # ---------------------------------------------------------------------------
+  # 5b) Windows EXE derlemesi
+  # ---------------------------------------------------------------------------
+  build-windows:
+    name: "🪟 Windows EXE"
+    runs-on: windows-latest
+    timeout-minutes: 50
+    if: github.event_name != 'pull_request'
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Bağımlılıklar
+        run: flutter pub get
+
+      - name: Windows release derle
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          LIVEKIT_URL: ${{ secrets.LIVEKIT_URL }}
+          ML_DSA_PUBLIC_KEY: ${{ vars.ML_DSA_PUBLIC_KEY }}
+        shell: pwsh
+        run: |
+          $defines = [System.Collections.ArrayList]::new()
+          if ($env:SUPABASE_URL)        { [void]$defines.Add("--dart-define=SUPABASE_URL=$($env:SUPABASE_URL)") }
+          if ($env:SUPABASE_ANON_KEY)   { [void]$defines.Add("--dart-define=SUPABASE_ANON_KEY=$($env:SUPABASE_ANON_KEY)") }
+          if ($env:LIVEKIT_URL)         { [void]$defines.Add("--dart-define=LIVEKIT_URL=$($env:LIVEKIT_URL)") }
+          if ($env:ML_DSA_PUBLIC_KEY)   { [void]$defines.Add("--dart-define=ML_DSA_PUBLIC_KEY=$($env:ML_DSA_PUBLIC_KEY)") }
+          flutter build windows --release @defines
+
+      - name: Windows paketle (zip)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release-output | Out-Null
+          $src = "build\windows\x64\runner\Release"
+          Compress-Archive -Path "$src\*" -DestinationPath "release-output\Juzzio-windows.zip" -CompressionLevel Optimal
+          Write-Host "Juzzio-windows.zip oluşturuldu"
+
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: juzzio-windows
+          path: release-output/Juzzio-windows.zip
+          retention-days: 14
+
+  # ---------------------------------------------------------------------------
+  # 5c) iOS IPA + macOS DMG derlemesi
+  # ---------------------------------------------------------------------------
+  build-apple:
+    name: "🍎 iOS IPA + macOS DMG"
+    runs-on: macos-15
+    timeout-minutes: 90
+    if: github.event_name != 'pull_request'
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Bağımlılıklar
+        run: flutter pub get
+
+      - name: iOS CocoaPods
+        run: cd ios && pod install --repo-update
+
+      - name: iOS imzalama sertifikası kur (varsa)
+        id: ios-signing
+        env:
+          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_PROVISIONING_PROFILE_BASE64: ${{ secrets.APPLE_PROVISIONING_PROFILE_BASE64 }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          if [ -z "${APPLE_CERTIFICATE_BASE64:-}" ]; then
+            echo "::warning::APPLE_CERTIFICATE_BASE64 yok; iOS IPA imzasız derlenecek (geliştirici/sideload için)"
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+          CERT_PATH="$RUNNER_TEMP/certificate.p12"
+          PP_PATH="$RUNNER_TEMP/profile.mobileprovision"
+          printf '%s' "$APPLE_CERTIFICATE_BASE64" | tr -d '[:space:]' | base64 --decode > "$CERT_PATH"
+          printf '%s' "$APPLE_PROVISIONING_PROFILE_BASE64" | tr -d '[:space:]' | base64 --decode > "$PP_PATH"
+          security create-keychain -p "${KEYCHAIN_PASSWORD:-temp123}" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "${KEYCHAIN_PASSWORD:-temp123}" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "${APPLE_CERTIFICATE_PASSWORD:-}" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          cp "$PP_PATH" ~/Library/MobileDevice/Provisioning\ Profiles/
+          echo "signed=true" >> "$GITHUB_OUTPUT"
+
+      - name: iOS derle
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          LIVEKIT_URL: ${{ secrets.LIVEKIT_URL }}
+          ML_DSA_PUBLIC_KEY: ${{ vars.ML_DSA_PUBLIC_KEY }}
+        run: |
+          DEFINES=()
+          [ -n "${SUPABASE_URL:-}" ]        && DEFINES+=(--dart-define=SUPABASE_URL="$SUPABASE_URL")
+          [ -n "${SUPABASE_ANON_KEY:-}" ]   && DEFINES+=(--dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY")
+          [ -n "${LIVEKIT_URL:-}" ]         && DEFINES+=(--dart-define=LIVEKIT_URL="$LIVEKIT_URL")
+          [ -n "${ML_DSA_PUBLIC_KEY:-}" ]   && DEFINES+=(--dart-define=ML_DSA_PUBLIC_KEY="$ML_DSA_PUBLIC_KEY")
+          if [ "${{ steps.ios-signing.outputs.signed }}" = "true" ]; then
+            flutter build ios --release "${DEFINES[@]}"
+          else
+            flutter build ios --release --no-codesign "${DEFINES[@]}"
+          fi
+
+      - name: iOS IPA paketle
+        run: |
+          mkdir -p release-output/Payload
+          cp -R "build/ios/iphoneos/Runner.app" "release-output/Payload/Juzzio.app"
+          cd release-output
+          zip -r Juzzio-ios.ipa Payload/
+          rm -rf Payload
+          echo "Juzzio-ios.ipa oluşturuldu ($(du -sh Juzzio-ios.ipa | cut -f1))"
+
+      - name: macOS CocoaPods
+        run: cd macos && pod install --repo-update
+
+      - name: macOS derle
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          LIVEKIT_URL: ${{ secrets.LIVEKIT_URL }}
+          ML_DSA_PUBLIC_KEY: ${{ vars.ML_DSA_PUBLIC_KEY }}
+        run: |
+          DEFINES=()
+          [ -n "${SUPABASE_URL:-}" ]        && DEFINES+=(--dart-define=SUPABASE_URL="$SUPABASE_URL")
+          [ -n "${SUPABASE_ANON_KEY:-}" ]   && DEFINES+=(--dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY")
+          [ -n "${LIVEKIT_URL:-}" ]         && DEFINES+=(--dart-define=LIVEKIT_URL="$LIVEKIT_URL")
+          [ -n "${ML_DSA_PUBLIC_KEY:-}" ]   && DEFINES+=(--dart-define=ML_DSA_PUBLIC_KEY="$ML_DSA_PUBLIC_KEY")
+          flutter build macos --release "${DEFINES[@]}"
+
+      - name: macOS DMG oluştur
+        run: |
+          APP_PATH="build/macos/Build/Products/Release/Juzzio Chat.app"
+          mkdir -p release-output
+          hdiutil create -volname "Juzzio" -srcfolder "$APP_PATH" -ov -format UDZO \
+            "release-output/Juzzio-macos.dmg"
+          echo "Juzzio-macos.dmg oluşturuldu ($(du -sh release-output/Juzzio-macos.dmg | cut -f1))"
+
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: juzzio-apple
+          path: release-output/
+          retention-days: 14
+
+  # ---------------------------------------------------------------------------
   # 6) Supabase üretim dağıtımı — YALNIZCA tüm kapılar geçtikten sonra
   # ---------------------------------------------------------------------------
   supabase-sync:
@@ -398,9 +555,9 @@ jobs:
   # ---------------------------------------------------------------------------
   release:
     name: "🚀 GitHub Release ve OTA"
-    needs: [secret-scan, quality, sql-tests, edge-check, build-android, supabase-sync]
+    needs: [secret-scan, quality, sql-tests, edge-check, build-android, build-windows, build-apple, supabase-sync]
     # APK, yeni RPC'leri kullanır: veritabanı dağıtımı başarısızsa APK yayınlanmaz.
-    # (supabase-sync bilinçli olarak kapatıldıysa "skipped" kabul edilir.)
+    # Windows/Apple derlemeleri opsiyoneldir: hata/atlandı olursa yayın APK ile devam eder.
     if: >-
       always() &&
       github.event_name != 'pull_request' &&
@@ -410,7 +567,7 @@ jobs:
       needs.build-android.result == 'success' &&
       (needs.supabase-sync.result == 'success' || needs.supabase-sync.result == 'skipped')
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     permissions:
       contents: write
     steps:
@@ -419,7 +576,23 @@ jobs:
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: juzzio-apk
-          path: release-output
+          path: release-output/android
+
+      - name: Windows artefaktı indir (varsa)
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        if: needs.build-windows.result == 'success'
+        with:
+          name: juzzio-windows
+          path: release-output/windows
+        continue-on-error: true
+
+      - name: Apple artefaktları indir (varsa)
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        if: needs.build-apple.result == 'success'
+        with:
+          name: juzzio-apple
+          path: release-output/apple
+        continue-on-error: true
 
       - name: GitHub Release yayınla ve version.json güncelle
         env:
@@ -428,10 +601,10 @@ jobs:
         run: |
           set -euo pipefail
           APP_VER=$(grep -m1 '^version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f1 | tr -d '\r')
-          SHA=$(awk '{print $1}' release-output/Juzzio-latest.apk.sha256)
-          SIZE=$(awk "BEGIN {printf \"%.2f MB\", $(stat -c%s release-output/Juzzio-latest.apk)/1048576}")
+          SHA=$(awk '{print $1}' release-output/android/Juzzio-latest.apk.sha256)
+          SIZE=$(awk "BEGIN {printf \"%.2f MB\", $(stat -c%s release-output/android/Juzzio-latest.apk)/1048576}")
           DATE=$(date -u +"%Y-%m-%d %H:%M UTC")
-          export JUZZIO_BUILD_NUMBER=$(cat release-output/build_number.txt 2>/dev/null || echo "")
+          export JUZZIO_BUILD_NUMBER=$(cat release-output/android/build_number.txt 2>/dev/null || echo "")
           python3 scripts/release_meta.py update "$SHA" "$SIZE" "$DATE"
           # Kuantum sonrası yayın imzası (ML-DSA-65, FIPS 204) — ML_DSA_SEED varsa
           if [ -n "${ML_DSA_SEED:-}" ]; then
@@ -440,9 +613,23 @@ jobs:
           TITLE=$(python3 scripts/release_meta.py title)
 
           TAG="v${APP_VER}"
-          # v1.2.4: imzalı version.json da sürüme eklenir — uygulama doğrulama bilgisini GitHub'ın
-          # önbelleğe aldığı ham dosyayı beklemeden bu sabit adresten okuyabilir
-          ASSETS=(release-output/Juzzio-latest.apk release-output/Juzzio-latest.apk.sha256 "release-output/juzzio-v${APP_VER}-release.apk" "release-output/juzzio-v${APP_VER}-release.apk.sha256" version.json)
+          # Temel APK varlıkları
+          ASSETS=(
+            release-output/android/Juzzio-latest.apk
+            release-output/android/Juzzio-latest.apk.sha256
+            "release-output/android/juzzio-v${APP_VER}-release.apk"
+            "release-output/android/juzzio-v${APP_VER}-release.apk.sha256"
+            version.json
+          )
+          # Windows zip (varsa)
+          [ -f "release-output/windows/Juzzio-windows.zip" ] && \
+            ASSETS+=("release-output/windows/Juzzio-windows.zip")
+          # iOS IPA (varsa)
+          [ -f "release-output/apple/Juzzio-ios.ipa" ] && \
+            ASSETS+=("release-output/apple/Juzzio-ios.ipa")
+          # macOS DMG (varsa)
+          [ -f "release-output/apple/Juzzio-macos.dmg" ] && \
+            ASSETS+=("release-output/apple/Juzzio-macos.dmg")
           # Eski sürümler, etiketler ve dallar KORUNUR (geri dönüş için gereklidir).
           # Aynı sürüm tekrar derlenirse yalnızca BU sürümün dosyaları ve notları güncellenir.
           if gh release view "$TAG" >/dev/null 2>&1; then
