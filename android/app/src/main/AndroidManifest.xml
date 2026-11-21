@@ -44,6 +44,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
+    <!-- v2.1: aramada ekran paylaşımı -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
     <uses-feature android:name="android.hardware.camera" android:required="false" />
@@ -113,13 +115,20 @@
                 <action android:name="FLUTTER_NOTIFICATION_CLICK" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
+            <!-- v2.1: sosyal giriş (OAuth) dönüş adresi: com.juzzio.app://login-callback -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="com.juzzio.app" android:host="login-callback" />
+            </intent-filter>
         </activity>
 
         <!-- v0.9.3: süren arama ön plan servisi (arka planda mikrofon/kamera korunur) -->
         <service
             android:name=".JuzzioCallService"
             android:exported="false"
-            android:foregroundServiceType="microphone|camera" />
+            android:foregroundServiceType="microphone|camera|mediaProjection" />
 
         <!-- Gerçek Firebase Cloud Messaging (FCM) Servisi -->
         <service

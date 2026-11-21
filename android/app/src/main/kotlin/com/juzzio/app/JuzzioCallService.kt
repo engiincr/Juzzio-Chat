@@ -30,12 +30,14 @@ class JuzzioCallService : Service() {
         const val NOTIF_ID = 47_001
         const val EXTRA_TITLE = "title"
         const val EXTRA_VIDEO = "video"
+        const val EXTRA_SCREEN = "screen"
         const val ACTION_HANGUP = "com.juzzio.app.CALL_HANGUP"
 
-        fun start(ctx: Context, title: String, video: Boolean) {
+        fun start(ctx: Context, title: String, video: Boolean, screen: Boolean = false) {
             val i = Intent(ctx, JuzzioCallService::class.java)
                 .putExtra(EXTRA_TITLE, title)
                 .putExtra(EXTRA_VIDEO, video)
+                .putExtra(EXTRA_SCREEN, screen)
             try {
                 ContextCompat.startForegroundService(ctx, i)
             } catch (_: Exception) {}
@@ -62,6 +64,9 @@ class JuzzioCallService : Service() {
         }
         val title = intent?.getStringExtra(EXTRA_TITLE) ?: "Juzzio"
         val video = intent?.getBooleanExtra(EXTRA_VIDEO, false) ?: false
+        // v2.1: ekran paylaşımı — kullanıcı yansıtma iznini verdikten SONRA servis bu türle
+        // yeniden başlatılır (Android 14 bu sırayı zorunlu kılar)
+        val screen = intent?.getBooleanExtra(EXTRA_SCREEN, false) ?: false
         ensureChannel()
         val notification = buildNotification(title, video)
         var type = 0
@@ -71,6 +76,7 @@ class JuzzioCallService : Service() {
             if (video && ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
                 type = type or ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA
             }
+            if (screen) type = type or ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
         }
         try {
             ServiceCompat.startForeground(this, NOTIF_ID, notification, type)

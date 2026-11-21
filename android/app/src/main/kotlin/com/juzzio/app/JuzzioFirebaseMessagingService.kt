@@ -105,6 +105,9 @@ class JuzzioFirebaseMessagingService : FirebaseMessagingService() {
                 else -> (System.currentTimeMillis() % 100000).toInt()
             }
             val avatar = if (chatEvent) JuzzioNotifAvatar.load(data["actor_avatar"]) else null
+            // v2.1 (Faz 7.4): zamanlanmış sessiz saatlerde (aramalar hariç) ses/titreşim yok
+            val quiet = eventType != "incoming_call" && eventType != "missed_call" &&
+                JuzzioQuietHours.isActive(applicationContext)
 
             MainActivity.displaySystemNotification(
                 context = applicationContext,
@@ -113,14 +116,14 @@ class JuzzioFirebaseMessagingService : FirebaseMessagingService() {
                 body = body,
                 isUpdate = eventType == "system",
                 isCall = eventType == "missed_call" || eventType == "incoming_call",
-                channelOverride = channelId,
+                channelOverride = if (quiet) JuzzioQuietHours.channel(applicationContext) else channelId,
                 eventType = eventType,
                 notificationId = notificationId,
                 targetId = targetId,
                 targetSecondaryId = targetSecondaryId,
                 actorId = actorId,
                 lockScreenBody = lockScreenBody,
-                vibrate = data["vibrate"] != "0",
+                vibrate = !quiet && data["vibrate"] != "0",
                 actorName = data["actor_name"] ?: "",
                 avatar = avatar,
                 convTitle = data["conv_title"] ?: "",

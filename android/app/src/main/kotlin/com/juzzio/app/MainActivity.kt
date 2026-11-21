@@ -806,6 +806,16 @@ class MainActivity : FlutterActivity() {
                     }
                     result.success(true)
                 }
+                // v2.1 (Faz 7.4): zamanlanmış sessiz saatler
+                "setQuietHours" -> {
+                    JuzzioQuietHours.save(
+                        this,
+                        call.argument<Boolean>("enabled") ?: false,
+                        call.argument<Int>("start") ?: (23 * 60),
+                        call.argument<Int>("end") ?: (7 * 60)
+                    )
+                    result.success(true)
+                }
                 // v0.9.0 N-D: bildirim önizleme kipi ('full' | 'sender' | 'hidden')
                 "setNotificationPreviewMode" -> {
                     val mode = call.argument<String>("mode") ?: "full"
@@ -819,6 +829,14 @@ class MainActivity : FlutterActivity() {
                     result.success(true)
                 }
                 // v0.9.3: arama başladı/bitti → ön plan servisi + PiP
+                // v2.1: ekran paylaşımı başlarken/biterken ön plan servisinin türü güncellenir
+                "setScreenShareForeground" -> {
+                    val on = call.argument<Boolean>("on") ?: false
+                    if (callActive) {
+                        JuzzioCallService.start(this, call.argument<String>("title") ?: "Juzzio", callVideo, on)
+                    }
+                    result.success(callActive)
+                }
                 "setCallActive" -> {
                     val active = call.argument<Boolean>("active") ?: false
                     callVideo = call.argument<Boolean>("video") ?: false

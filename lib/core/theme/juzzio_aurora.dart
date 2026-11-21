@@ -127,7 +127,7 @@ const Map<String, JuzzioGlassCharacter> kJuzzioGlassCharacters = {
   'forest_mint': JuzzioGlassCharacter(tr: 'Koyu orman, nane yeşili vurgu', en: 'Deep forest, mint accent', de: 'Tiefer Wald, Minzakzent',
       blur: 1.1, opacity: 1.0, sheen: 0.9, depth: 1.1, rim: Color(0xFF4ADE80)),
   'graphite_lime': JuzzioGlassCharacter(tr: 'Grafit yüzey, limon vurgu', en: 'Graphite surfaces, lime accent', de: 'Graphit, Limettenakzent',
-      blur: 0.9, opacity: 1.2, sheen: 0.7, depth: 1.2, rim: Color(0xFFD7F36B)),
+      blur: 0.9, opacity: 1.2, sheen: 0.7, depth: 1.2, rim: Color(0xFFC6F135)),
   // v0.9.7: 2026 Liquid Glass yönelimleri — renkli kenar ışığı (koyu), tek ışık yönü, yumuşak gradyan zemin
   'aurora_borealis': JuzzioGlassCharacter(tr: 'Kuzey ışıkları, derin cam', en: 'Northern lights, deep glass', de: 'Nordlicht, tiefes Glas',
       blur: 1.25, opacity: 1.0, sheen: 1.2, depth: 1.15, rim: Color(0xFF5EEAD4), glow: 0.12),
@@ -192,7 +192,7 @@ const Map<String, Color> kJuzzioSpaceGlow = {
   'nordic_frost': Color(0xFFC2EAFF),
   'high_contrast': Color(0xFFFFE14D),
   'forest_mint': Color(0xFF4ADE80),
-  'graphite_lime': Color(0xFFD7F36B),
+  'graphite_lime': Color(0xFFC6F135),
 };
 
 extension JuzzioAuroraPaletteSpace on JuzzioAuroraPalette {
@@ -216,9 +216,9 @@ extension JuzzioAuroraPaletteSpace on JuzzioAuroraPalette {
     }
     if (id == 'graphite_lime') {
       return const JuzzioSpaceSpec(
-        glow: Color(0xFFD7F36B),
+        glow: Color(0xFFC6F135),
         glowLight: Color(0xFF4D6B00),
-        depth: [Color(0xFF15171B), Color(0xFF0E1013), Color(0xFF08090B)],
+        depth: [Color(0xFF16181C), Color(0xFF101114), Color(0xFF0A0B0D)],
         depthLight: [Color(0xFFF7F8F2), Color(0xFFF2F3EE), Color(0xFFECEEE6)],
       );
     }
@@ -252,14 +252,14 @@ const List<JuzzioAuroraPalette> kJuzzioAuroraPalettes = [
     nameDe: 'Graphit Limette',
     base: Color(0xFF0A0B0D),
     baseLight: Color(0xFFF3F4EF),
-    swatchA: Color(0xFFD7F36B),
+    swatchA: Color(0xFFC6F135),
     swatchB: Color(0xFF8B7CF6),
     orbs: [
-      JuzzioAuroraOrb(Alignment(-1.0, -0.95), 0.70, Color(0x1FD7F36B)),
+      JuzzioAuroraOrb(Alignment(-1.0, -0.95), 0.70, Color(0x1FC6F135)),
       JuzzioAuroraOrb(Alignment(1.0, 0.6), 0.70, Color(0x1F8B7CF6)),
     ],
     orbsLight: [
-      JuzzioAuroraOrb(Alignment(-1.0, -0.95), 0.70, Color(0x33D7F36B)),
+      JuzzioAuroraOrb(Alignment(-1.0, -0.95), 0.70, Color(0x33C6F135)),
       JuzzioAuroraOrb(Alignment(1.0, 0.6), 0.70, Color(0x268B7CF6)),
     ],
   ),

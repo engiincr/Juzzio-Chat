@@ -30,7 +30,7 @@ import {
   sha256Hex,
   UUID_RE,
 } from "../_shared/auth.ts";
-import { translateChunked, translationProviderStatus } from "../_shared/translate.ts";
+import { parseQuality, translateChunked, translationProviderStatus, type TranslateQuality } from "../_shared/translate.ts";
 
 /** Çeviri; başarısızsa null döner (orijinali çeviri gibi göstermemek için).
  *  v0.9.3: uzun metin parçalara bölünür; sağlayıcı hata metni çeviri sayılmaz. */
@@ -134,12 +134,12 @@ async function translateContent(req: Request, body: Record<string, unknown>) {
   return jsonResponse({ kind, targetLang, translations: out });
 }
 
-async function translateFast(text: string, sourceLang: string, targetLang: string): Promise<string> {
+async function translateFast(text: string, sourceLang: string, targetLang: string, quality: TranslateQuality = "fast"): Promise<string> {
   const clean = text.trim();
   if (!clean) return "";
   if (sourceLang !== "auto" && sourceLang === targetLang) return clean;
   // v0.9.3: parçalı çeviri; çevrilemezse orijinal (hata metni ASLA döndürülmez)
-  const r = await translateChunked(clean, sourceLang, targetLang);
+  const r = await translateChunked(clean, sourceLang, targetLang, undefined, undefined, quality);
   return r?.text ?? clean;
 }
 
@@ -251,7 +251,8 @@ async function handleVoiceNote(
     console.error("voice_note_stt", m.startsWith("missing_secret:") ? "missing_secret" : m);
     return jsonResponse({ mode: "voice_note", sourceLang, targetLang, originalText: "", translatedText: "", confidence: 0, sttError: code });
   }
-  const translatedText = transcript ? await translateFast(transcript, sourceLang, targetLang) : "";
+  // v2.1 (Faz 7.5): kullanıcının çeviri kipi (Gerçek Zamanlı / Hızlı / Yüksek Doğruluk)
+  const translatedText = transcript ? await translateFast(transcript, sourceLang, targetLang, parseQuality(body.quality)) : "";
   return jsonResponse({ mode: "voice_note", sourceLang, targetLang, originalText: transcript, translatedText, confidence });
 }
 
@@ -439,7 +440,7 @@ Deno.serve(async (req: Request) => {
     if (!(await rateLimit(user.id, "text_translate", 120, 60))) return jsonResponse({ error: "rate_limited" }, 429);
     if (!(await aiQuotaTake(user.id, "text_translate"))) return jsonResponse({ error: "ai_quota_exceeded" }, 429);
     const text = String(body.text ?? "").slice(0, 5000);
-    const translatedText = await translateFast(text, sourceLang, targetLang);
+    const translatedText = await translateFast(text, sourceLang, targetLang, parseQuality(body.quality));
     return jsonResponse({ mode: "text", sourceLang, targetLang, originalText: text, translatedText });
   } catch (error) {
     const message = error instanceof Error ? error.message : "translation_bridge_error";

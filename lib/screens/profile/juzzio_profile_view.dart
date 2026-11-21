@@ -30,6 +30,7 @@ import '../../widgets/profile_extras.dart';
 import '../../widgets/social_common_widgets.dart';
 import '../social/social_screens.dart';
 import 'juzzio_profile_card_page.dart';
+import 'juzzio_profile_qr_page.dart';
 import '../qa_box_screen.dart';
 import '../../widgets/juzzio_cloth_refresh.dart';
 import '../../widgets/juzzio_ui_kit.dart';
@@ -344,6 +345,29 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
     );
   }
 
+  void _openQrPage() {
+    final prof = _profile;
+    if (prof == null) return;
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => JuzzioProfileQrPage(
+        profile: prof,
+        onOpenUsername: (u) async {
+          final found = await SupabaseService.instance.searchUsersByUsername(u);
+          final hit = found.where((x) => x.username.toLowerCase() == u).toList();
+          if (hit.isEmpty || !mounted) return;
+          await Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => JuzzioUserProfilePage(
+              userId: hit.first.id,
+              currentUser: widget.currentUser,
+              onStartDirectChat: widget.onStartChat,
+              onStartCall: widget.onStartCall,
+            ),
+          ));
+        },
+      ),
+    ));
+  }
+
   void _openProfileCard() {
     final prof = _profile;
     if (prof == null) return;
@@ -624,6 +648,12 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
             tooltip: _l('Bildirimler', 'Notifications', 'Benachrichtigungen'),
             onTap: widget.onOpenNotifications,
           ),
+        // v2.1: Profil Karekodum
+        JuzzioSpaceIconButton(
+          icon: Icons.qr_code_2_rounded,
+          tooltip: _l('Profil karekodum', 'My profile QR', 'Mein Profil-QR'),
+          onTap: _openQrPage,
+        ),
         if (widget.onOpenSettings != null)
           JuzzioSpaceIconButton(
             icon: Icons.settings_outlined,

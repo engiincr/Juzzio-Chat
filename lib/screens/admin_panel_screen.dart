@@ -20,6 +20,7 @@ import '../core/theme/juzzio_glass.dart';
 import '../services/supabase_service.dart';
 import '../services/juzzio_features_service.dart';
 import 'admin_extra_tabs.dart';
+import 'admin_modules_v21.dart';
 import 'admin_story_tab.dart';
 import 'admin_community_tab.dart';
 import 'admin_god_tab.dart';
@@ -1094,6 +1095,23 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> with Si
           ],
         ),
         actions: [
+          // v2.1 (Faz 10.3): numaralı modül ızgarası
+          JuzzioSpaceIconButton(
+            icon: Icons.grid_view_rounded,
+            size: 42,
+            tooltip: _al('Modüller', 'Modules', 'Module'),
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => JuzzioAdminModulesPage(
+                token: widget.token,
+                visibleTabs: _visibleTabs,
+                onOpenTab: (id) {
+                  final i = _visibleTabs.indexOf(id);
+                  if (i >= 0) _tabs.animateTo(i);
+                },
+              ),
+            )),
+          ),
+          const SizedBox(width: 8),
           JuzzioSpaceIconButton(icon: Icons.refresh_rounded, size: 42, tooltip: app.t('common_refresh'), onTap: _reloadAll),
           const SizedBox(width: 8),
           JuzzioSpaceIconButton(

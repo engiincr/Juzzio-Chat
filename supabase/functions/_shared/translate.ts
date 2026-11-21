@@ -173,10 +173,31 @@ async function googleCloudChunk(f: FetchLike, key: string, chunk: string, sl: st
   }
 }
 
-async function deeplChunk(f: FetchLike, key: string, chunk: string, sl: string, tl: string): Promise<{ text: string; detected: string } | null> {
+/**
+ * v2.1 (Faz 7.5): çeviri kipi — kullanıcının Ayarlar → Çeviri ve Dil seçimi.
+ *  realtime → en düşük gecikme (canlı altyazı, sesli not)
+ *  fast     → varsayılan
+ *  accurate → "Yüksek Doğruluk": DeepL önce, kalite modeli
+ */
+export type TranslateQuality = "realtime" | "fast" | "accurate";
+
+/** İstemciden gelen değeri güvenli kipe çevirir (saf) */
+export function parseQuality(v: unknown): TranslateQuality {
+  const s = String(v ?? "").toLowerCase();
+  return s === "realtime" || s === "accurate" ? s : "fast";
+}
+
+/** DeepL model_type karşılığı (saf). "prefer_…" desteklenmeyen dil çiftinde otomatik geri düşer. */
+export function deeplModelType(q: TranslateQuality): string | null {
+  return q === "accurate" ? "prefer_quality_optimized" : q === "realtime" ? "latency_optimized" : null;
+}
+
+async function deeplChunk(f: FetchLike, key: string, chunk: string, sl: string, tl: string, quality: TranslateQuality = "fast"): Promise<{ text: string; detected: string } | null> {
   try {
     const host = key.endsWith(":fx") ? "api-free.deepl.com" : "api.deepl.com";
     const body: Record<string, unknown> = { text: [chunk], target_lang: deeplLang(tl, true) };
+    const model = deeplModelType(quality);
+    if (model) body.model_type = model;
     if (sl !== "auto") body.source_lang = deeplLang(sl, false);
     const res = await f(`https://${host}/v2/translate`, {
       method: "POST",
@@ -204,6 +225,7 @@ export async function translateChunked(
   targetLang: string,
   f: FetchLike = fetch as unknown as FetchLike,
   keys: OfficialKeys = officialKeysFromEnv(),
+  quality: TranslateQuality = "fast",
 ): Promise<{ text: string; detected: string } | null> {
   const parts = splitForTranslation(text);
   if (parts.length === 0) return null;
@@ -215,8 +237,12 @@ export async function translateChunked(
   for (const p of parts) {
     if (official) {
       // v1.2.9: resmî API(ler); biri olmazsa diğeri — resmî olmayan uç noktaya düşülmez
-      const o = (keys.google ? await googleCloudChunk(f, keys.google, p, sourceLang, targetLang) : null) ??
-        (keys.deepl ? await deeplChunk(f, keys.deepl, p, sourceLang, targetLang) : null);
+      // v2.1: "Yüksek Doğruluk" kipinde DeepL (kalite modeli) önce denenir
+      const o = quality === "accurate"
+        ? ((keys.deepl ? await deeplChunk(f, keys.deepl, p, sourceLang, targetLang, quality) : null) ??
+          (keys.google ? await googleCloudChunk(f, keys.google, p, sourceLang, targetLang) : null))
+        : ((keys.google ? await googleCloudChunk(f, keys.google, p, sourceLang, targetLang) : null) ??
+          (keys.deepl ? await deeplChunk(f, keys.deepl, p, sourceLang, targetLang, quality) : null));
       if (o) {
         out.push(o.text);
         if (!any) detected = o.detected;

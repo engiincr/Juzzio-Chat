@@ -6,6 +6,8 @@
 //    Juzzio sunucusuna konum gönderilmez, saklanmaz.
 //  • Open-Meteo: anahtarsız, ücretsiz; yalnız "current=weather_code,is_day,temperature_2m".
 //  • 45 dakikada bir yenilenir; başarısızlıkta son durum korunur (çevrimdışı sorun değil).
+//  v2.1 (Gökyüzü 2.1): aynı istekle konumun gün doğumu/batımı, saat dilimi farkı (ülke saati),
+//    bulutluluk, yağış miktarı ve rüzgâr da alınır — ambiyans gerçek güneş/ay konumuna göre çizilir.
 // =============================================================================
 
 import 'dart:async';
@@ -38,15 +40,54 @@ double juzzioRoundCoord(double v) => (v * 10).roundToDouble() / 10;
 Uri juzzioWeatherUri(double lat, double lng) => Uri.https('api.open-meteo.com', '/v1/forecast', {
       'latitude': juzzioRoundCoord(lat).toStringAsFixed(1),
       'longitude': juzzioRoundCoord(lng).toStringAsFixed(1),
-      'current': 'weather_code,is_day,temperature_2m',
+      'current': 'weather_code,is_day,temperature_2m,cloud_cover,precipitation,wind_speed_10m',
+      'daily': 'sunrise,sunset',
+      'timezone': 'auto',
+      'forecast_days': '2',
     });
 
+/// Open-Meteo'nun konum saatindeki ("2026-11-21T07:12") zamanı UTC'ye çevirir (saf; test edilir)
+DateTime? juzzioParseLocalIso(Object? raw, int utcOffsetSeconds) {
+  if (raw is! String || raw.isEmpty) return null;
+  final naive = DateTime.tryParse(raw.endsWith('Z') ? raw.substring(0, raw.length - 1) : raw);
+  if (naive == null) return null;
+  final asUtc = DateTime.utc(naive.year, naive.month, naive.day, naive.hour, naive.minute, naive.second);
+  return asUtc.subtract(Duration(seconds: utcOffsetSeconds));
+}
+
+/// Konumun (ülkenin) şu anki duvar saati (saf; test edilir)
+DateTime juzzioLocationNow(DateTime nowUtc, int utcOffsetSeconds) =>
+    nowUtc.toUtc().add(Duration(seconds: utcOffsetSeconds));
+
 class JuzzioWeatherState {
-  const JuzzioWeatherState({required this.kind, required this.isDay, this.temperature, required this.fetchedAt});
+  const JuzzioWeatherState({
+    required this.kind,
+    required this.isDay,
+    this.temperature,
+    required this.fetchedAt,
+    this.sunrises = const <DateTime>[],
+    this.sunsets = const <DateTime>[],
+    this.utcOffsetSeconds,
+    this.cloudCover,
+    this.precipitation,
+    this.windSpeed,
+  });
   final JuzzioWeatherKind kind;
   final bool isDay;
   final double? temperature;
   final DateTime fetchedAt;
+
+  /// v2.1: konumun gün doğumu / batımı (UTC; bugün ve yarın)
+  final List<DateTime> sunrises;
+  final List<DateTime> sunsets;
+
+  /// v2.1: konumun UTC farkı (saniye) — "ülke saati"
+  final int? utcOffsetSeconds;
+
+  /// v2.1: bulutluluk %, yağış mm, rüzgâr km/sa
+  final double? cloudCover;
+  final double? precipitation;
+  final double? windSpeed;
 }
 
 class JuzzioWeatherService extends ChangeNotifier {
@@ -100,11 +141,24 @@ class JuzzioWeatherService extends ChangeNotifier {
       if (cur is! Map) return;
       final code = (cur['weather_code'] as num?)?.toInt();
       if (code == null) return;
+      final offset = (body['utc_offset_seconds'] as num?)?.toInt() ?? DateTime.now().timeZoneOffset.inSeconds;
+      final daily = body['daily'];
+      List<DateTime> times(String key) {
+        final list = daily is Map ? daily[key] : null;
+        if (list is! List) return const <DateTime>[];
+        return [for (final e in list) juzzioParseLocalIso(e, offset)].whereType<DateTime>().toList(growable: false);
+      }
       _state = JuzzioWeatherState(
         kind: juzzioWeatherKindFromWmo(code),
         isDay: (cur['is_day'] as num?)?.toInt() != 0,
         temperature: (cur['temperature_2m'] as num?)?.toDouble(),
         fetchedAt: DateTime.now(),
+        sunrises: times('sunrise'),
+        sunsets: times('sunset'),
+        utcOffsetSeconds: offset,
+        cloudCover: (cur['cloud_cover'] as num?)?.toDouble(),
+        precipitation: (cur['precipitation'] as num?)?.toDouble(),
+        windSpeed: (cur['wind_speed_10m'] as num?)?.toDouble(),
       );
       notifyListeners();
     } catch (_) {

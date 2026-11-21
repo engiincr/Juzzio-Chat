@@ -2864,3 +2864,112 @@ DELETE FROM legal_requests WHERE username = 'usere129';
 DELETE FROM rooms WHERE id IN (:'rq', :'rq2');
 DELETE FROM auth.users WHERE id IN ('dddddddd-0000-0000-0000-000000000129', 'eeeeeeee-0000-0000-0000-000000000129', 'ffffffff-0000-0000-0000-000000000129');
 SELECT 'TÜM v1.2.9 TESTLERİ GEÇTİ';
+
+-- 10.43: istemci rollerinde TRUNCATE/REFERENCES/TRIGGER yok; anon hiçbir tabloya yazamaz
+SELECT pg_temp.check('hiçbir public tabloda anon/authenticated TRUNCATE yetkisi yok', NOT EXISTS (
+    SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+     WHERE n.nspname = 'public' AND c.relkind = 'r'
+       AND (has_table_privilege('anon', c.oid, 'TRUNCATE') OR has_table_privilege('authenticated', c.oid, 'TRUNCATE')
+            OR has_table_privilege('anon', c.oid, 'REFERENCES') OR has_table_privilege('authenticated', c.oid, 'TRIGGER'))));
+SELECT pg_temp.check('anon hiçbir public tabloya yazamaz', NOT EXISTS (
+    SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+     WHERE n.nspname = 'public' AND c.relkind = 'r'
+       AND (has_table_privilege('anon', c.oid, 'INSERT') OR has_table_privilege('anon', c.oid, 'UPDATE') OR has_table_privilege('anon', c.oid, 'DELETE'))));
+SELECT pg_temp.check('girişli kullanıcı yazma yetkisini korur (RLS ile)', has_table_privilege('authenticated', 'public.messages', 'INSERT'));
+SELECT pg_temp.check('sürüm ve yasal metinler girişsiz okunabilir', has_table_privilege('anon', 'public.app_releases', 'SELECT') AND has_table_privilege('anon', 'public.legal_documents', 'SELECT'));
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'B');
+DO $$
+BEGIN
+    BEGIN
+        PERFORM public.admin_security_privileges('sahte');
+        RAISE EXCEPTION 'FAIL: yetki denetimi yetkisiz çalıştı';
+    EXCEPTION WHEN raise_exception THEN
+        IF SQLERRM LIKE 'FAIL%' THEN RAISE; END IF;
+    END;
+END $$;
+RESET ROLE;
+SELECT pg_temp.check('yetki denetimi TRUNCATE sorunu raporlamıyor', NOT EXISTS (
+    SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+     WHERE n.nspname = 'public' AND c.relkind = 'r' AND has_table_privilege('authenticated', c.oid, 'TRUNCATE')));
+SELECT 'TÜM v1.3.0 GÜVENLİK TESTLERİ GEÇTİ';
+
+-- 10.44: ortak arkadaş sayısı (A–B ve C–B arkadaş → A ile C'nin 1 ortak arkadaşı var)
+\set A 'aaaaaaaa-0000-0000-0000-000000000001'
+\set B 'bbbbbbbb-0000-0000-0000-000000000002'
+\set C 'cccccccc-0000-0000-0000-000000000003'
+DELETE FROM friendships WHERE requester_id IN (:'A', :'B', :'C') AND receiver_id IN (:'A', :'B', :'C');
+INSERT INTO friendships (requester_id, receiver_id, status) VALUES (:'A', :'B', 'accepted'), (:'C', :'B', 'accepted');
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+SELECT pg_temp.check('ortak arkadaş sayısı doğru', (SELECT mutual FROM mutual_friend_counts(ARRAY[:'C'::uuid])) = 1);
+SELECT pg_temp.check('kişi kendisi için sayı almaz', NOT EXISTS (SELECT 1 FROM mutual_friend_counts(ARRAY[:'A'::uuid])));
+RESET ROLE;
+DELETE FROM friendships WHERE requester_id IN (:'A', :'C') AND receiver_id = :'B';
+
+-- 10.45 Keşfet
+UPDATE profiles SET discoverable = false, discoverable_set_at = NOW() WHERE id IN (:'A', :'B', :'C');
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'C');
+SELECT discover_set_enabled(true);
+SELECT pg_temp.as_user(:'A');
+SELECT discover_set_enabled(true);
+SELECT pg_temp.check('keşfette görünmeyen kişi kartta çıkmaz', NOT EXISTS (
+    SELECT 1 FROM jsonb_array_elements(discover_candidates(50)) e WHERE e->>'id' = :'B'));
+SELECT pg_temp.check('keşfete açık kişi kartta çıkar', EXISTS (
+    SELECT 1 FROM jsonb_array_elements(discover_candidates(50)) e WHERE e->>'id' = :'C'));
+SELECT pg_temp.check('kart e-posta içermez', NOT (discover_candidates(50)::text LIKE '%@%.%'));
+SELECT pg_temp.check('tek taraflı beğeni eşleşme değildir', (discover_act(:'C', 'like')->>'matched')::boolean = false);
+SELECT pg_temp.check('beğenilen kişi tekrar önerilmez', NOT EXISTS (
+    SELECT 1 FROM jsonb_array_elements(discover_candidates(50)) e WHERE e->>'id' = :'C'));
+SELECT pg_temp.as_user(:'C');
+SELECT pg_temp.check('beni beğenenler listesi', EXISTS (SELECT 1 FROM jsonb_array_elements(discover_list('likes')) e WHERE e->>'id' = :'A'));
+SELECT pg_temp.check('karşılıklı beğeni eşleşmedir', (discover_act(:'A', 'super')->>'matched')::boolean = true);
+SELECT pg_temp.check('eşleşmeler listesi', EXISTS (SELECT 1 FROM jsonb_array_elements(discover_list('matches')) e WHERE e->>'id' = :'A'));
+SELECT discover_act(:'A', 'undo');
+SELECT pg_temp.check('geri alınca eşleşme kalkar', NOT EXISTS (SELECT 1 FROM jsonb_array_elements(discover_list('matches')) e WHERE e->>'id' = :'A'));
+RESET ROLE;
+SELECT pg_temp.check('eylem tablosu istemciye kapalı', NOT has_table_privilege('authenticated', 'public.discover_actions', 'SELECT'));
+DELETE FROM discover_actions WHERE user_id IN (:'A', :'C');
+UPDATE profiles SET discoverable = false WHERE id IN (:'A', :'C');
+
+-- 10.46 Verilerimi indir
+SELECT pg_temp.as_user(:'A');
+SELECT pg_temp.check('dışa aktarma yalnız kendi kimliğimle', (juzzio_export_my_data()->>'user_id') = :'A');
+SELECT pg_temp.check('dışa aktarma profil içerir', (juzzio_export_my_data()->'profile'->>'id') = :'A');
+SELECT pg_temp.check('dışa aktarma mesaj metni içermez', NOT (juzzio_export_my_data() ? 'messages'));
+DO $$ DECLARE v_hit BOOLEAN := false; BEGIN
+  BEGIN PERFORM public.juzzio_export_my_data(); EXCEPTION WHEN OTHERS THEN v_hit := (SQLERRM = 'rate_limited'); END;
+  PERFORM pg_temp.check('günde 3 dışa aktarma sınırı', v_hit);
+END $$;
+RESET ROLE;
+SELECT pg_temp.check('anon dışa aktaramaz', NOT has_function_privilege('anon', 'public.juzzio_export_my_data()', 'EXECUTE'));
+
+-- 10.47 Yönetici modülleri (gerçek sayılar)
+RESET ROLE;
+SET search_path = public, extensions;
+CREATE TEMP TABLE _u47 AS SELECT username FROM profiles WHERE id = :'A';
+UPDATE profiles SET username = 'tugkancr' WHERE id = :'A';
+DELETE FROM admin_sessions WHERE user_id = :'A';
+INSERT INTO admin_sessions (token_hash, user_id, expires_at) VALUES (encode(digest('tok247', 'sha256'), 'hex'), :'A', NOW() + INTERVAL '1 hour');
+GRANT SELECT ON _u47 TO authenticated;
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+DO $$
+DECLARE m TEXT; r JSONB;
+BEGIN
+  FOREACH m IN ARRAY ARRAY['calls','messaging','translation','notifications','discover','watch_chick','security','infra','live','media','errors','quota','verification','flags','feedback','lifecycle'] LOOP
+    r := public.admin_module_stats('tok247', m);
+    PERFORM pg_temp.check('yönetici modülü ' || m, r->>'module' = m);
+  END LOOP;
+END $$;
+SELECT pg_temp.check('ayar modülü değer döndürmez', NOT (admin_module_stats('tok247', 'flags')::text LIKE '%"value"%'));
+SELECT pg_temp.as_user(:'B');
+DO $$ DECLARE v_hit BOOLEAN := false; BEGIN
+  BEGIN PERFORM public.admin_module_stats('tok247', 'calls'); EXCEPTION WHEN OTHERS THEN v_hit := (SQLERRM = 'super_admin_required'); END;
+  PERFORM pg_temp.check('yönetici olmayan modül okuyamaz', v_hit);
+END $$;
+RESET ROLE;
+DELETE FROM admin_sessions WHERE user_id = :'A';
+UPDATE profiles SET username = (SELECT username FROM _u47) WHERE id = :'A';
+SELECT 'TÜM v2.1 TESTLERİ GEÇTİ';

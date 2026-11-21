@@ -62,9 +62,16 @@ import '../widgets/juzzio_cloth_refresh.dart';
 import '../widgets/juzzio_ui_kit.dart';
 import '../widgets/juzzio_motion.dart';
 import '../core/juzzio_text_safety.dart';
+import 'social/juzzio_discover_view.dart';
+import 'settings/juzzio_settings_v21.dart';
+import '../services/juzzio_mfa_service.dart';
+import '../services/juzzio_data_export.dart';
+import '../widgets/juzzio_brand.dart';
+import '../widgets/juzzio_neon_kit.dart';
 
 /// Üç dilli (tr/en/de) arayüz metni; diğer diller dil paketinden gelir.
 String _l3(String tr, String en, String de) => JuzzioAppController.instance.trEn(tr, en, de);
+String _hhmm(DateTime t) => '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
 
 class JuzzioSettingsMainPage extends StatefulWidget {
   final JuzzioUserProfile? myProfile;
@@ -105,6 +112,23 @@ class _JuzzioSettingsMainPageState extends State<JuzzioSettingsMainPage> {
     }
   }
 
+  Future<void> _logout(BuildContext context) async {
+    // v2.1 (Faz 9.3): Neon onay penceresi
+    final ok = await showJuzzioLogoutDialog(context);
+    if (!ok || !context.mounted) return;
+    await JuzzioFcmPushService.instance.deactivateCurrentDeviceToken();
+    await SupabaseService.instance.signOut();
+    if (!context.mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const JuzzioRootFlow()),
+      (route) => false,
+    );
+  }
+
+  void _push(Widget page) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
+
+  // v2.1 (Faz 7.1) — tasarımdaki Ayarlar ana sayfası: J Juzzio başlığı,
+  // limon halkalı profil kartı, ikonlu satır grupları ve kırmızı Çıkış Yap.
   @override
   Widget build(BuildContext context) {
     final appCtrl = JuzzioAppController.instance;
@@ -112,444 +136,207 @@ class _JuzzioSettingsMainPageState extends State<JuzzioSettingsMainPage> {
       listenable: appCtrl,
       builder: (context, _) {
         final p = JuzzioPalette(appCtrl.isDark);
-        final s = JuzzioStrings(appCtrl.uiLang);
         final uname = (_profile?.username ?? widget.fallbackDisplayName).replaceAll('@', '');
         final dname = _profile?.displayName ?? widget.fallbackDisplayName;
         final currentLangName = appCtrl.getLanguageOption(appCtrl.uiLang).nativeName;
+        final avatar = _profile?.avatarUrl;
+        final hasAvatar = avatar != null && avatar.isNotEmpty;
+        final themeLabel = switch (appCtrl.themeMode) {
+          ThemeMode.light => appCtrl.trEn('Açık', 'Light', 'Hell'),
+          ThemeMode.dark => appCtrl.trEn('Koyu', 'Dark', 'Dunkel'),
+          _ => appCtrl.trEn('Sistem', 'System', 'System'),
+        };
 
         return Scaffold(
-          backgroundColor: p.headerDarkForest,
+          backgroundColor: JuzzioGlassTokens.space.depth.last,
           body: SafeArea(
             bottom: false,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 36),
               children: [
-                // Üst Koyu Orman/Obsidyen Başlık ("Ayarlar" - Görsel ile Birebir!)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 18),
+                JuzzioScreenHeader(
+                  title: appCtrl.trEn('Ayarlar', 'Settings', 'Einstellungen'),
+                  showBack: widget.showBackButton,
+                  trailing: JuzzioHeaderCircleButton(
+                    icon: Icons.qr_code_2_rounded,
+                    tooltip: appCtrl.trEn('QR Bağlantı Kodu', 'QR Sync Code', 'QR-Synchronisationscode'),
+                    onTap: () => _showQrSyncDialog(context, p, uname),
+                  ),
+                ),
+
+                // Profil kartı
+                JuzzioNeonCard(
+                  highlighted: true,
+                  onTap: _openEditProfile,
+                  padding: const EdgeInsets.all(16),
                   child: Row(
                     children: [
-                      if (widget.showBackButton && Navigator.of(context).canPop()) ...[
-                        GestureDetector(
-                          onTap: () => Navigator.of(context).pop(),
-                          child: Container(
-                            width: 38,
-                            height: 38,
-                            margin: const EdgeInsets.only(right: 12),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
-                            ),
-                            child: Icon(
-                              Icons.arrow_back_ios_new_rounded,
-                              color: JuzzioGlassTokens.heading,
-                              size: 17,
-                            ),
-                          ),
-                        ),
-                      ],
-                      Text(
-                        appCtrl.trEn('Ayarlar', 'Settings', 'Einstellungen'),
-                        style: TextStyle(
-                          fontFamily: JuzzioConfig.fontRegularBold,
-                          color: JuzzioGlassTokens.heading,
-                          fontSize: 24,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.3,
+                      Container(
+                        padding: const EdgeInsets.all(2.5),
+                        decoration: const BoxDecoration(shape: BoxShape.circle, color: JuzzioBrandColors.lime),
+                        child: CircleAvatar(
+                          radius: 30,
+                          backgroundColor: p.accentDeep,
+                          backgroundImage: hasAvatar ? JuzzioCachedImageProvider(avatar!) : null,
+                          child: hasAvatar
+                              ? null
+                              : Text(juzzioInitial(dname),
+                                  style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800)),
                         ),
                       ),
-                      const Spacer(),
-                      IconButton(
-                        tooltip: appCtrl.trEn('QR Bağlantı Kodu', 'QR Sync Code', 'QR-Synchronisationscode'),
-                        onPressed: () => _showQrSyncDialog(context, p, uname),
-                        icon: Icon(Icons.qr_code_2_rounded, color: JuzzioGlassTokens.textSecondary, size: 24),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(children: [
+                              Flexible(
+                                child: Text(dname,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(color: JuzzioGlassTokens.heading, fontSize: 18, fontWeight: FontWeight.w800)),
+                              ),
+                              if (_profile?.isVerified == true) ...[
+                                const SizedBox(width: 5),
+                                const JuzzioVerifiedTick(size: 17),
+                              ],
+                            ]),
+                            const SizedBox(height: 2),
+                            Text('@$uname',
+                                style: TextStyle(color: JuzzioGlassTokens.textSecondary, fontSize: 13.5, fontWeight: FontWeight.w600)),
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: JuzzioBrandColors.lime.withValues(alpha: 0.14),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: JuzzioBrandColors.lime.withValues(alpha: 0.5)),
+                              ),
+                              child: Text(appCtrl.trEn('Profili Düzenle', 'Edit Profile', 'Profil bearbeiten'),
+                                  style: const TextStyle(color: JuzzioBrandColors.lime, fontSize: 12, fontWeight: FontWeight.w700)),
+                            ),
+                          ],
+                        ),
                       ),
+                      Icon(Icons.chevron_right_rounded, color: JuzzioGlassTokens.textSecondary),
                     ],
                   ),
                 ),
 
-                // Yuvarlatılmış Beyaz / Gece Kart Gövdesi
-                Expanded(
-                  child: Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: p.cardBg,
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
-                    ),
-                    child: ListView(
-                      padding: const EdgeInsets.fromLTRB(20, 22, 20, 36),
-                      children: [
-                        // 1. Üst Kullanıcı Kartı (Görseldeki "Kullanıcı / @kullanici / Hesap bilgilerini düzenle >")
-                        InkWell(
-                          borderRadius: BorderRadius.circular(24),
-                          onTap: _openEditProfile,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-                            child: Row(
-                              children: [
-                                CircleAvatar(
-                                  radius: 32,
-                                  backgroundColor: p.accentDeep,
-                                  backgroundImage: _profile?.avatarUrl != null &&
-                                          _profile!.avatarUrl!.isNotEmpty
-                                      ? JuzzioCachedImageProvider(_profile!.avatarUrl!)
-                                      : null,
-                                  child: _profile?.avatarUrl == null ||
-                                          _profile!.avatarUrl!.isEmpty
-                                      ? Text(
-                                          juzzioInitial(dname),
-                                          style: const TextStyle(
-                                            fontFamily: JuzzioConfig.fontRegularBold,
-                                            color: Colors.white,
-                                            fontSize: 22,
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                        )
-                                      : null,
-                                ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Flexible(
-                                            child: Text(
-                                              dname,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(
-                                                fontFamily: JuzzioConfig.fontRegularBold,
-                                                color: p.textPrimary,
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.w800,
-                                              ),
-                                            ),
-                                          ),
-                                          if (_profile?.isVerified == true) ...[
-                                            const SizedBox(width: 5),
-                                            const JuzzioVerifiedTick(size: 17),
-                                          ],
-                                        ],
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        '@$uname',
-                                        style: TextStyle(
-                                          fontFamily: JuzzioConfig.fontRegularBold,
-                                          color: p.textSecondary,
-                                          fontSize: 13.5,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 3),
-                                      Text(
-                                        appCtrl.trEn(
-                                          'Hesap bilgilerini düzenle',
-                                          'Edit account information', 'Kontoinformationen bearbeiten',
-                                        ),
-                                        style: TextStyle(
-                                          fontFamily: JuzzioConfig.fontRegularBold,
-                                          color: p.textMuted,
-                                          fontSize: 12.5,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Icon(Icons.chevron_right_rounded, color: p.textMuted, size: 24),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Divider(height: 1, color: p.glassBorder),
-                        const SizedBox(height: 10),
-
-                        // v1.2.0: ayarlar başlıklar altında gruplandı (her seçenek kendi başlığında)
-                        _groupHeader(p, appCtrl.trEn('Hesap ve güvenlik', 'Account & security', 'Konto & Sicherheit')),
-                        // KATEGORİ 1: HESAP
-                        _cleanCategoryTile(
-                          p: p,
-                          icon: Icons.person_outline_rounded,
-                          title: appCtrl.trEn('Hesap', 'Account', 'Konto'),
-                          subtitle: appCtrl.trEn(
-                            'Hesap ayarları, güvenlik',
-                            'Account settings, security', 'Kontoeinstellungen, Sicherheit',
-                          ),
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => JuzzioAccountSettingsPage(
-                                initialUsername: uname,
-                                initialEmail: _profile?.email ??
-                                    SupabaseService.instance.client.auth.currentUser?.email ??
-                                    '',
-                                myProfile: _profile,
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        // KATEGORİ 2: GİZLİLİK (İzinler, Kamera Güzelleştirme ve Katı Hesap Koruması dahil)
-                        _cleanCategoryTile(
-                          p: p,
-                          icon: Icons.lock_outline_rounded,
-                          title: appCtrl.trEn('Gizlilik', 'Privacy', 'Datenschutz'),
-                          subtitle: appCtrl.trEn(
-                            'Gizlilik ayarları',
-                            'Privacy settings', 'Datenschutzeinstellungen',
-                          ),
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const JuzzioPrivacySettingsPage()),
-                          ),
-                        ),
-
-                        _groupHeader(p, appCtrl.trEn('Sohbetler ve bildirimler', 'Chats & notifications', 'Chats & Mitteilungen')),
-                        _cleanCategoryTile(
-                          p: p,
-                          icon: Icons.chat_bubble_outline_rounded,
-                          title: appCtrl.trEn('Sohbetler', 'Chats', 'Chats'),
-                          subtitle: appCtrl.trEn('Gönderme, çift dokunuş, arşiv, yedek ve geçmiş', 'Sending, double-tap, archive, backup & history', 'Senden, Archiv, Backup'),
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const JuzzioChatsSettingsPage()),
-                          ),
-                        ),
-                        // KATEGORİ 3: BİLDİRİMLER (Bildirim Merkezi, Sessiz Mod ve Pil/Performans Optimizasyonu dahil)
-                        _cleanCategoryTile(
-                          p: p,
-                          icon: Icons.notifications_none_rounded,
-                          title: appCtrl.trEn('Bildirimler', 'Notifications', 'Benachrichtigungen'),
-                          subtitle: appCtrl.trEn(
-                            'Bildirim tercihleri',
-                            'Notification preferences', 'Benachrichtigungseinstellungen',
-                          ),
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const JuzzioNotificationsSettingsPage()),
-                          ),
-                        ),
-
-                        _groupHeader(p, appCtrl.trEn('Görünüm ve dil', 'Appearance & language', 'Darstellung & Sprache')),
-                        // KATEGORİ 4: GÖRÜNÜM (Gece/Gündüz + zamanlı, uygulama/sohbet temaları, yazı tipi, performans)
-                        _cleanCategoryTile(
-                          p: p,
-                          icon: Icons.palette_outlined,
-                          title: appCtrl.trEn('Görünüm', 'Appearance', 'Darstellung'),
-                          subtitle: appCtrl.trEn(
-                            'Gece/gündüz, temalar, sohbet teması, yazı boyutu',
-                            'Light/dark, themes, chat theme, font size', 'Hell/Dunkel, Designs, Schriftgröße',
-                          ),
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const JuzzioAppearanceSettingsPage()),
-                          ),
-                        ),
-
-                        // KATEGORİ 5: DİL (Uygulama Dili & Canlı Altyazı Çeviri Dili - 142+ Dil)
-                        _cleanCategoryTile(
-                          p: p,
-                          icon: Icons.language_rounded,
-                          title: appCtrl.trEn('Dil', 'Language', 'Sprache'),
-                          subtitle: currentLangName,
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const JuzzioLanguageSettingsPage()),
-                          ),
-                        ),
-
-                        _groupHeader(p, appCtrl.trEn('Depolama ve pil', 'Storage & battery', 'Speicher & Akku')),
-                        _cleanCategoryTile(
-                          p: p,
-                          icon: Icons.storage_rounded,
-                          title: appCtrl.loc('Depolama ve veriler', 'Storage and data', 'Speicher und Daten'),
-                          subtitle: appCtrl.trEn('Ağ kullanımı ve medya önbelleği', 'Network usage & media cache', 'Netzwerk & Mediencache'),
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const JuzzioStorageSettingsPage()),
-                          ),
-                        ),
-                        _cleanCategoryTile(
-                          p: p,
-                          icon: Icons.battery_charging_full_rounded,
-                          title: appCtrl.trEn('Pil ve arka plan', 'Battery & background', 'Akku & Hintergrund'),
-                          subtitle: appCtrl.trEn('Pil optimizasyonu, kesintisiz bildirim, veri tasarrufu', 'Battery optimization, reliable notifications, data saver', 'Akkuoptimierung, Datensparen'),
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const JuzzioBatteryOptimizationPage()),
-                          ),
-                        ),
-                        _groupHeader(p, appCtrl.trEn('Destek', 'Support', 'Support')),
-                        // KATEGORİ 6: YARDIM & DESTEK (OTA güncelleme, geri bildirim, yasal, davet)
-                        _cleanCategoryTile(
-                          p: p,
-                          icon: Icons.help_outline_rounded,
-                          title: appCtrl.trEn('Yardım & Destek', 'Help & Support', 'Hilfe & Support'),
-                          subtitle: appCtrl.trEn(
-                            'Sorular, geri bildirim',
-                            'Questions, feedback & OTA updates', 'Fragen, Feedback & OTA-Updates',
-                          ),
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => JuzzioHelpAndSupportPage(username: uname),
-                            ),
-                          ),
-                        ),
-
-                        // v0.8.0: KATEGORİ 7 — HAKKINDA (yapımcı, sürüm, yasal)
-                        _cleanCategoryTile(
-                          p: p,
-                          icon: Icons.info_outline_rounded,
-                          title: appCtrl.trEn('Hakkında', 'About', 'Über'),
-                          subtitle: appCtrl.trEn('Yapımcı, sürüm, lisans', 'Creator, version, license', 'Entwickler, Version, Lizenz'),
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const JuzzioDeveloperPage()),
-                          ),
-                        ),
-
-                        // YÖNETİCİ PANELİ: süper yönetici (@tugkancr) ve v0.9.0 itibarıyla personel
-                        // rolleri (RBAC). Görünürlük yalnızca kolaylıktır; yetki sunucuda denetlenir.
-                        FutureBuilder<Map<String, dynamic>>(
-                          future: JuzzioFeaturesService.instance.myPermissionsCached(),
-                          builder: (context, snap) {
-                            final staff = JuzzioFeaturesService.permissionSet(snap.data ?? const <String, dynamic>{}).isNotEmpty;
-                            if (uname.toLowerCase() != 'tugkancr' && !staff) return const SizedBox.shrink();
-                            return _cleanCategoryTile(
-                              p: p,
-                              icon: Icons.admin_panel_settings_outlined,
-                              title: appCtrl.t('admin_title'),
-                              subtitle: appCtrl.t('admin_subtitle'),
-                              onTap: () => openJuzzioAdminPanel(context),
-                            );
-                          },
-                        ),
-
-                        const SizedBox(height: 12),
-                        Divider(height: 1, color: p.glassBorder),
-                        const SizedBox(height: 14),
-
-                        // ÇIKIŞ YAP (Görseldeki Kırmızı Çıkış Yap Satırı)
-                        InkWell(
-                          borderRadius: BorderRadius.circular(18),
-                          onTap: () async {
-                            // v1.1.0: hesaptan çıkış alttan açılan eylem sayfasıyla onaylanır
-                            final pick = await showJuzzioActionSheet(
-                              context,
-                              title: s.t('logout'),
-                              message: JuzzioAppController.instance.trEn(
-                                  'Bu cihazda oturumun kapanır; mesajların hesabında kalır.',
-                                  'You will be signed out on this device; your messages stay in your account.',
-                                  'Du wirst auf diesem Gerät abgemeldet; deine Nachrichten bleiben im Konto.'),
-                              actions: [JuzzioSheetAction(s.t('logout'), icon: Icons.logout_rounded, destructive: true)],
-                            );
-                            if (pick != 0 || !context.mounted) return;
-                            await JuzzioFcmPushService.instance.deactivateCurrentDeviceToken();
-                            await SupabaseService.instance.signOut();
-                            if (!context.mounted) return;
-                            Navigator.of(context).pushAndRemoveUntil(
-                              MaterialPageRoute(builder: (_) => const JuzzioRootFlow()),
-                              (route) => false,
-                            );
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 42,
-                                  height: 42,
-                                  decoration: BoxDecoration(
-                                    color: p.dangerRed.withValues(alpha: 0.10),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Icon(
-                                    Icons.logout_rounded,
-                                    color: p.dangerRed,
-                                    size: 22,
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                Text(
-                                  s.t('logout'),
-                                  style: TextStyle(
-                                    fontFamily: JuzzioConfig.fontRegularBold,
-                                    color: p.dangerRed,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                JuzzioNeonSectionLabel(appCtrl.trEn('Hesap', 'Account', 'Konto')),
+                JuzzioNeonGroup(children: [
+                  JuzzioNeonRow(
+                    icon: Icons.person_outline_rounded,
+                    title: appCtrl.trEn('Hesap ve Profil', 'Account & Profile', 'Konto & Profil'),
+                    subtitle: appCtrl.trEn('Kullanıcı adı, e-posta, şifre, verilerin', 'Username, email, password, your data', 'Benutzername, E-Mail, Passwort, Daten'),
+                    onTap: () => _push(JuzzioAccountProfileHubPage(
+                      username: uname,
+                      email: _profile?.email ?? SupabaseService.instance.client.auth.currentUser?.email ?? '',
+                      profile: _profile,
+                      onEditProfile: _openEditProfile,
+                    )),
                   ),
-                ),
+                  JuzzioNeonRow(
+                    icon: Icons.lock_outline_rounded,
+                    title: appCtrl.trEn('Gizlilik ve Güvenlik', 'Privacy & Security', 'Datenschutz & Sicherheit'),
+                    subtitle: appCtrl.trEn('İki adımlı doğrulama, cihazlar, engellenenler', 'Two-step verification, devices, blocked', '2FA, Geräte, Blockiert'),
+                    onTap: () => _push(const JuzzioPrivacySecurityHubPage()),
+                  ),
+                ]),
+
+                JuzzioNeonSectionLabel(appCtrl.trEn('Uygulama', 'App', 'App')),
+                JuzzioNeonGroup(children: [
+                  JuzzioNeonRow(
+                    icon: Icons.notifications_none_rounded,
+                    title: appCtrl.trEn('Bildirimler', 'Notifications', 'Benachrichtigungen'),
+                    value: appCtrl.notificationsEnabled ? appCtrl.trEn('Açık', 'On', 'An') : appCtrl.trEn('Kapalı', 'Off', 'Aus'),
+                    onTap: () => _push(const JuzzioNotificationsSettingsPage()),
+                  ),
+                  JuzzioNeonRow(
+                    icon: Icons.translate_rounded,
+                    title: appCtrl.trEn('Çeviri ve Dil', 'Translation & Language', 'Übersetzung & Sprache'),
+                    value: currentLangName,
+                    onTap: () => _push(const JuzzioLanguageSettingsPage()),
+                  ),
+                  JuzzioNeonRow(
+                    icon: Icons.call_outlined,
+                    title: appCtrl.trEn('Arama Ayarları', 'Call Settings', 'Anrufeinstellungen'),
+                    subtitle: appCtrl.trEn('Kalite, düşük veri, gürültü engelleme', 'Quality, low data, noise suppression', 'Qualität, Datensparen, Rauschunterdrückung'),
+                    onTap: () => _push(const JuzzioCallSettingsPage()),
+                  ),
+                  JuzzioNeonRow(
+                    icon: Icons.chat_bubble_outline_rounded,
+                    title: appCtrl.trEn('Sohbet Ayarları', 'Chat Settings', 'Chat-Einstellungen'),
+                    subtitle: appCtrl.trEn('Enter ile gönder, arşiv, yedek', 'Enter to send, archive, backup', 'Enter zum Senden, Archiv, Backup'),
+                    onTap: () => _push(const JuzzioChatsSettingsPage()),
+                  ),
+                  JuzzioNeonRow(
+                    icon: Icons.perm_media_outlined,
+                    title: appCtrl.trEn('Medya ve Depolama', 'Media & Storage', 'Medien & Speicher'),
+                    onTap: () => _push(const JuzzioStorageSettingsPage()),
+                  ),
+                  JuzzioNeonRow(
+                    icon: Icons.palette_outlined,
+                    title: appCtrl.trEn('Görünüm', 'Appearance', 'Darstellung'),
+                    value: themeLabel,
+                    onTap: () => _push(const JuzzioAppearanceSettingsPage()),
+                  ),
+                  JuzzioNeonRow(
+                    icon: Icons.accessibility_new_rounded,
+                    title: appCtrl.trEn('Erişilebilirlik', 'Accessibility', 'Barrierefreiheit'),
+                    onTap: () => _push(const JuzzioAccessibilitySettingsPage()),
+                  ),
+                  JuzzioNeonRow(
+                    icon: Icons.battery_charging_full_rounded,
+                    title: appCtrl.trEn('Pil ve arka plan', 'Battery & background', 'Akku & Hintergrund'),
+                    onTap: () => _push(const JuzzioBatteryOptimizationPage()),
+                  ),
+                ]),
+
+                JuzzioNeonSectionLabel(appCtrl.trEn('Destek', 'Support', 'Support')),
+                JuzzioNeonGroup(children: [
+                  JuzzioNeonRow(
+                    icon: Icons.help_outline_rounded,
+                    title: appCtrl.trEn('Yardım ve Destek', 'Help & Support', 'Hilfe & Support'),
+                    onTap: () => _push(JuzzioHelpAndSupportPage(username: uname)),
+                  ),
+                  JuzzioNeonRow(
+                    icon: Icons.info_outline_rounded,
+                    title: appCtrl.trEn('Hakkında', 'About', 'Über'),
+                    value: 'v${JuzzioConfig.appVersion}',
+                    onTap: () => _push(const JuzzioDeveloperPage()),
+                  ),
+                  // YÖNETİCİ PANELİ: süper yönetici (@tugkancr) ve personel rolleri (RBAC).
+                  // Görünürlük yalnızca kolaylıktır; yetki sunucuda denetlenir.
+                  FutureBuilder<Map<String, dynamic>>(
+                    future: JuzzioFeaturesService.instance.myPermissionsCached(),
+                    builder: (context, snap) {
+                      final staff = JuzzioFeaturesService.permissionSet(snap.data ?? const <String, dynamic>{}).isNotEmpty;
+                      if (uname.toLowerCase() != 'tugkancr' && !staff) return const SizedBox.shrink();
+                      return JuzzioNeonRow(
+                        icon: Icons.admin_panel_settings_outlined,
+                        title: appCtrl.t('admin_title'),
+                        subtitle: appCtrl.t('admin_subtitle'),
+                        onTap: () => openJuzzioAdminPanel(context),
+                      );
+                    },
+                  ),
+                ]),
+                const SizedBox(height: 16),
+                JuzzioNeonGroup(children: [
+                  JuzzioNeonRow(
+                    icon: Icons.logout_rounded,
+                    title: appCtrl.trEn('Çıkış Yap', 'Sign out', 'Abmelden'),
+                    danger: true,
+                    showChevron: false,
+                    onTap: () => _logout(context),
+                  ),
+                ]),
               ],
             ),
           ),
         );
       },
-    );
-  }
-
-  Widget _groupHeader(JuzzioPalette p, String text) => Padding(
-        padding: const EdgeInsets.fromLTRB(10, 14, 10, 4),
-        child: Text(
-          text.toUpperCase(),
-          style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textSecondary, fontSize: 11.5, fontWeight: FontWeight.w800, letterSpacing: 0.8),
-        ),
-      );
-
-  Widget _cleanCategoryTile({
-    required JuzzioPalette p,
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(18),
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 11),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: p.pillBg,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: p.textPrimary, size: 22),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontFamily: JuzzioConfig.fontRegularBold,
-                      color: p.textPrimary,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 15.5,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontFamily: JuzzioConfig.fontRegularBold,
-                      color: p.textSecondary,
-                      fontSize: 12.5,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(Icons.chevron_right_rounded, color: p.textMuted, size: 22),
-          ],
-        ),
-      ),
     );
   }
 
@@ -608,6 +395,193 @@ class _JuzzioSettingsMainPageState extends State<JuzzioSettingsMainPage> {
     );
   }
 }
+
+// =============================================================================
+// v2.1 (Faz 7.2) — Hesap ve Profil merkezi
+// =============================================================================
+class JuzzioAccountProfileHubPage extends StatelessWidget {
+  const JuzzioAccountProfileHubPage({
+    super.key,
+    required this.username,
+    required this.email,
+    this.profile,
+    required this.onEditProfile,
+  });
+  final String username;
+  final String email;
+  final JuzzioUserProfile? profile;
+  final Future<void> Function() onEditProfile;
+
+  @override
+  Widget build(BuildContext context) {
+    final app = JuzzioAppController.instance;
+    void push(Widget w) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => w));
+    return Scaffold(
+      backgroundColor: JuzzioGlassTokens.space.depth.last,
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
+          children: [
+            JuzzioScreenHeader(
+              title: app.trEn('Hesap ve Profil', 'Account & Profile', 'Konto & Profil'),
+              subtitle: '@$username',
+            ),
+            JuzzioNeonSectionLabel(app.trEn('Profil', 'Profile', 'Profil')),
+            JuzzioNeonGroup(children: [
+              JuzzioNeonRow(
+                icon: Icons.edit_outlined,
+                title: app.trEn('Profili Düzenle', 'Edit Profile', 'Profil bearbeiten'),
+                subtitle: app.trEn('Fotoğraf, ad, biyografi, Keşfet görünürlüğü', 'Photo, name, bio, Explore visibility', 'Foto, Name, Bio, Entdecken'),
+                onTap: onEditProfile,
+              ),
+              JuzzioNeonRow(
+                icon: Icons.alternate_email_rounded,
+                title: app.trEn('Kullanıcı adı', 'Username', 'Benutzername'),
+                value: '@$username',
+                onTap: () => push(JuzzioUsernameSettingsPage(currentUsername: username)),
+              ),
+            ]),
+            JuzzioNeonSectionLabel(app.trEn('Giriş bilgileri', 'Sign-in details', 'Anmeldedaten')),
+            JuzzioNeonGroup(children: [
+              JuzzioNeonRow(
+                icon: Icons.mail_outline_rounded,
+                title: app.trEn('E-posta ve hesap', 'Email & account', 'E-Mail & Konto'),
+                subtitle: app.trEn('E-posta yalnız sana görünür', 'Your email is only visible to you', 'Deine E-Mail sieht nur du'),
+                onTap: () => push(JuzzioAccountSettingsPage(initialUsername: username, initialEmail: email, myProfile: profile)),
+              ),
+              JuzzioNeonRow(
+                icon: Icons.password_rounded,
+                title: app.trEn('Şifre değiştir', 'Change password', 'Passwort ändern'),
+                onTap: () => push(const JuzzioChangePasswordPage()),
+              ),
+              JuzzioNeonRow(
+                icon: Icons.shield_moon_outlined,
+                title: app.trEn('İki adımlı doğrulama', 'Two-step verification', 'Zwei-Schritt-Verifizierung'),
+                onTap: () => push(const JuzzioTwoFactorPage()),
+              ),
+            ]),
+            JuzzioNeonSectionLabel(app.trEn('Verilerin', 'Your data', 'Deine Daten')),
+            JuzzioNeonGroup(children: [
+              JuzzioNeonRow(
+                icon: Icons.download_rounded,
+                title: app.trEn('Verilerimi indir', 'Download my data', 'Meine Daten herunterladen'),
+                subtitle: app.trEn('KVKK m.11 / GDPR m.15 — profil, arkadaşlar, gönderiler (JSON)', 'KVKK Art. 11 / GDPR Art. 15 — profile, friends, posts (JSON)', 'DSGVO Art. 15 — Profil, Freunde, Beiträge (JSON)'),
+                onTap: () => juzzioExportMyData(context),
+              ),
+              JuzzioNeonRow(
+                icon: Icons.fact_check_outlined,
+                title: app.trEn('Onaylarım ve izinler', 'Consents & permissions', 'Einwilligungen'),
+                subtitle: app.trEn('Yaş sınırı, onay geçmişi, isteğe bağlı izinler', 'Age limit, consent history, optional permissions',
+                    'Altersgrenze, Verlauf, optionale Berechtigungen'),
+                onTap: () => push(const JuzzioConsentCenterPage()),
+              ),
+              JuzzioNeonRow(
+                icon: Icons.delete_forever_outlined,
+                title: app.trEn('Hesabı sil', 'Delete account', 'Konto löschen'),
+                danger: true,
+                onTap: () => push(const JuzzioDeleteAccountPage()),
+              ),
+            ]),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// v2.1 (Faz 7.3) — Gizlilik ve Güvenlik merkezi
+// =============================================================================
+class JuzzioPrivacySecurityHubPage extends StatefulWidget {
+  const JuzzioPrivacySecurityHubPage({super.key});
+
+  @override
+  State<JuzzioPrivacySecurityHubPage> createState() => _JuzzioPrivacySecurityHubPageState();
+}
+
+class _JuzzioPrivacySecurityHubPageState extends State<JuzzioPrivacySecurityHubPage> {
+  bool? _mfa;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final on = await JuzzioMfaService.instance.isEnabled();
+    if (mounted) setState(() => _mfa = on);
+  }
+
+  Future<void> _push(Widget w) async {
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => w));
+    _load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final app = JuzzioAppController.instance;
+    return ListenableBuilder(
+      listenable: app,
+      builder: (context, _) => Scaffold(
+        backgroundColor: JuzzioGlassTokens.space.depth.last,
+        body: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
+            children: [
+              JuzzioScreenHeader(
+                title: app.trEn('Gizlilik ve Güvenlik', 'Privacy & Security', 'Datenschutz & Sicherheit'),
+                subtitle: app.trEn('Mesajların uçtan uca şifreli; içeriğini biz dahil kimse okuyamaz.',
+                    'Your messages are end-to-end encrypted; nobody, not even us, can read them.',
+                    'Nachrichten sind Ende-zu-Ende-verschlüsselt; niemand, auch wir nicht, kann sie lesen.'),
+              ),
+              JuzzioNeonSectionLabel(app.trEn('Güvenlik', 'Security', 'Sicherheit')),
+              JuzzioNeonGroup(children: [
+                JuzzioNeonRow(
+                  icon: Icons.shield_moon_outlined,
+                  title: app.trEn('İki adımlı doğrulama', 'Two-step verification', 'Zwei-Schritt-Verifizierung'),
+                  value: _mfa == null ? '' : (_mfa! ? app.trEn('Açık', 'On', 'An') : app.trEn('Kapalı', 'Off', 'Aus')),
+                  onTap: () => _push(const JuzzioTwoFactorPage()),
+                ),
+                JuzzioNeonRow(
+                  icon: Icons.notifications_active_outlined,
+                  title: app.trEn('Oturum açma bildirimleri', 'Sign-in alerts', 'Anmeldehinweise'),
+                  onTap: () => _push(const JuzzioSecurityNotificationsPage()),
+                ),
+                JuzzioNeonRow(
+                  icon: Icons.devices_other_rounded,
+                  title: app.trEn('Cihazlar ve oturumlar', 'Devices & sessions', 'Geräte & Sitzungen'),
+                  onTap: () => JuzzioSecurityCenterPage.open(context),
+                ),
+                JuzzioNeonRow(
+                  icon: Icons.password_rounded,
+                  title: app.trEn('Şifre değiştir', 'Change password', 'Passwort ändern'),
+                  onTap: () => _push(const JuzzioChangePasswordPage()),
+                ),
+              ]),
+              JuzzioNeonSectionLabel(app.trEn('Gizlilik', 'Privacy', 'Datenschutz')),
+              JuzzioNeonGroup(children: [
+                JuzzioNeonRow(
+                  icon: Icons.lock_outline_rounded,
+                  title: app.trEn('Gizlilik ayarları', 'Privacy settings', 'Datenschutzeinstellungen'),
+                  subtitle: app.trEn('Son görülme, profil fotoğrafı, gruplar, okundu bilgisi', 'Last seen, profile photo, groups, read receipts',
+                      'Zuletzt online, Profilbild, Gruppen, Lesebestätigung'),
+                  onTap: () => _push(const JuzzioPrivacySettingsPage()),
+                ),
+                JuzzioNeonRow(
+                  icon: Icons.block_rounded,
+                  title: app.trEn('Engellenenler', 'Blocked', 'Blockiert'),
+                  onTap: () => _push(const JuzzioContactsAndBlockedPage()),
+                ),
+              ]),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 
 // =============================================================================
 // EKRAN 8: BİLDİRİMLER SAYFASI (Görseldeki "Bildirimler" Ekranı ile Birebir!)
@@ -929,6 +903,9 @@ class _JuzzioNotificationsFeedPageState
                 items: [
                   MapEntry('all', appCtrl.trEn('Tümü', 'All', 'Alle')),
                   MapEntry('unread', appCtrl.trEn('Okunmamış', 'Unread', 'Ungelesen')),
+                  MapEntry('request', appCtrl.trEn('İstekler', 'Requests', 'Anfragen')),
+                  MapEntry('mention', appCtrl.trEn('Bahsetmeler', 'Mentions', 'Erwähnungen')),
+                  MapEntry('system', appCtrl.trEn('Sistem', 'System', 'System')),
                   MapEntry('follow', appCtrl.trEn('Takip & İstek', 'Follows', 'Follows')),
                   MapEntry('like', appCtrl.trEn('Beğeni', 'Likes', 'Likes')),
                   MapEntry('comment', appCtrl.trEn('Yorum', 'Comments', 'Kommentare')),
@@ -1846,6 +1823,8 @@ class _JuzzioEditProfilePageState extends State<JuzzioEditProfilePage> {
                           ),
                           onChanged: (val) => setState(() => appCtrl.setPrivateAccount(val)),
                         ),
+                        // v2.1: Keşfet görünürlüğü (herkese açık hesaplarda varsayılan açık)
+                        const JuzzioDiscoverVisibilityTile(),
                         const SizedBox(height: 20),
 
                         SizedBox(
@@ -4381,6 +4360,7 @@ class JuzzioChatsSettingsPage extends StatelessWidget {
           body: ListView(
             padding: const EdgeInsets.fromLTRB(18, 16, 18, 36),
             children: [
+              const JuzzioChatQuickCard(), // v2.1 (Faz 8.2)
               // v1.2.0: tüm tema / sohbet teması / yazı boyutu ayarları Görünüm sayfasına taşındı
               Container(
                 decoration: BoxDecoration(
@@ -5115,6 +5095,7 @@ class JuzzioAppearanceSettingsPage extends StatelessWidget {
           body: ListView(
             padding: const EdgeInsets.fromLTRB(18, 16, 18, 36),
             children: [
+              const JuzzioAppearanceQuickCard(), // v2.1 (Faz 8.4)
               // ---- 1) GECE / GÜNDÜZ (tek kontrol) ----
               _section(p, _l3('Gece / Gündüz', 'Light / Dark', 'Hell / Dunkel'), Icons.contrast_rounded, const [
                 Padding(padding: EdgeInsets.all(12), child: JuzzioThemeModeSelector()),
@@ -5130,9 +5111,9 @@ class JuzzioAppearanceSettingsPage extends StatelessWidget {
                   secondary: Icon(Icons.thunderstorm_rounded, color: p.amberGlow),
                   title: Text(_l3('Hava durumuna göre tema', 'Theme follows the weather', 'Design folgt dem Wetter'), style: title),
                   subtitle: Text(
-                    _l3('Bulunduğun yerin havasına göre güneş, bulut, yağmur, kar ve sis efektleri. Konum ~10 km yuvarlanıp yalnız Open-Meteo\'ya gider, saklanmaz. Hava verisi: Open-Meteo.com (CC BY 4.0).',
-                        'Sun, clouds, rain, snow and fog effects from your local weather. Location is rounded to ~10 km, sent only to Open-Meteo and never stored. Weather data by Open-Meteo.com (CC BY 4.0).',
-                        'Sonne, Wolken, Regen, Schnee je nach Wetter.'),
+                    _l3('Gökyüzü 2.1: bulunduğun yerin havasına ve yerel saatine göre gök rengi, gün doğumundan batımına yayda ilerleyen güneş, gerçek evresiyle ay, göz kırpan yıldızlar, bulut, yağmur, şimşek, kar ve sis. Konum ~10 km yuvarlanıp yalnız Open-Meteo\'ya gider, saklanmaz. Hava verisi: Open-Meteo.com (CC BY 4.0).',
+                        'Sky 2.1: sky colour by your local weather and time, a sun that arcs from sunrise to sunset, the moon in its real phase, twinkling stars, clouds, rain, lightning, snow and fog. Location is rounded to ~10 km, sent only to Open-Meteo and never stored. Weather data by Open-Meteo.com (CC BY 4.0).',
+                        'Himmel 2.1: Himmelsfarbe nach Wetter und Ortszeit, Sonne im Tagesbogen, Mond in echter Phase, Sterne, Wolken, Regen, Blitze, Schnee und Nebel.'),
                     style: sub,
                   ),
                 ),
@@ -5143,7 +5124,9 @@ class JuzzioAppearanceSettingsPage extends StatelessWidget {
                     if (!appCtrl.weatherThemeEnabled) return const SizedBox.shrink();
                     final label = w == null
                         ? _l3('Hava durumu alınamadı (konum izni veya bağlantı yok)', 'Weather unavailable (no location permission or connection)', 'Wetter nicht verfügbar')
-                        : '${juzzioWeatherLabel(w.kind)}${w.temperature == null ? '' : ' · ${w.temperature!.round()}°C'}';
+                        : '${juzzioWeatherLabel(w.kind)}${w.temperature == null ? '' : ' · ${w.temperature!.round()}°C'}'
+                            '${w.utcOffsetSeconds == null ? '' : ' · ${_l3('yerel saat', 'local time', 'Ortszeit')} ${_hhmm(juzzioLocationNow(DateTime.now().toUtc(), w.utcOffsetSeconds!))}'}'
+                            '${w.sunrises.isEmpty || w.sunsets.isEmpty || w.utcOffsetSeconds == null ? '' : ' · ☀ ${_hhmm(juzzioLocationNow(w.sunrises.first, w.utcOffsetSeconds!))}–${_hhmm(juzzioLocationNow(w.sunsets.first, w.utcOffsetSeconds!))}'}';
                     return Padding(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                       child: Text(label, style: sub),
@@ -5448,6 +5431,7 @@ class _JuzzioStorageSettingsPageState extends State<JuzzioStorageSettingsPage> {
           : ListView(
               padding: const EdgeInsets.all(20),
               children: [
+                JuzzioStorageRingCard(refreshKey: _cacheBytes), // v2.1 (Faz 8.3)
                 Container(
                   padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
@@ -5542,6 +5526,7 @@ class JuzzioNotificationsSettingsPage extends StatelessWidget {
           body: ListView(
             padding: const EdgeInsets.all(20),
             children: [
+              const JuzzioQuietHoursCard(), // v2.1 (Faz 7.4)
               // v1.2.1: ticari elektronik ileti (kampanya/duyuru e-postaları) onayı — istendiği an geri alınır
               const JuzzioMarketingConsentTile(),
               const SizedBox(height: 14),
@@ -5868,6 +5853,7 @@ class JuzzioLanguageSettingsPage extends StatelessWidget {
           body: ListView(
             padding: const EdgeInsets.all(20),
             children: [
+              const JuzzioTranslationModeCard(), // v2.1 (Faz 7.5)
               Container(
                 decoration: BoxDecoration(
                   color: p.cardBg,
@@ -5962,6 +5948,7 @@ class JuzzioHelpAndSupportPage extends StatelessWidget {
           body: ListView(
             padding: const EdgeInsets.all(20),
             children: [
+              const JuzzioFaqCard(), // v2.1 (Faz 9.1)
               Container(
                 decoration: BoxDecoration(
                   color: p.cardBg,
@@ -6081,6 +6068,7 @@ class JuzzioAccessibilitySettingsPage extends StatelessWidget {
           body: ListView(
             padding: const EdgeInsets.all(20),
             children: [
+              const JuzzioA11yExtrasCard(), // v2.1 (Faz 8.5)
               Container(
                 decoration: BoxDecoration(
                   color: p.cardBg,
@@ -6361,6 +6349,10 @@ class JuzzioDeveloperPage extends StatelessWidget {
               Divider(height: 1, color: JuzzioGlassTokens.border),
               link(Icons.gavel_rounded, app.trEn('Gizlilik, KVKK ve yasal', 'Privacy, KVKK & legal', 'Datenschutz & Recht'),
                   () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const JuzzioLegalPage()))),
+              Divider(height: 1, color: JuzzioGlassTokens.border),
+              // v2.1 (Faz 9.2): açık kaynak lisansları
+              link(Icons.workspace_premium_outlined, app.trEn('Açık kaynak lisansları', 'Open-source licences', 'Open-Source-Lizenzen'),
+                  () => showLicensePage(context: context, applicationName: 'Juzzio', applicationVersion: 'v${JuzzioConfig.appVersion}')),
               Divider(height: 1, color: JuzzioGlassTokens.border),
               link(Icons.bug_report_rounded, app.trEn('Hata bildir / Geri bildirim', 'Report a bug / Feedback', 'Feedback'),
                   () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const JuzzioFeedbackPage()))),

@@ -105,6 +105,9 @@ Bu metin, Juzzio mobil uygulamasının hangi kişisel verileri hangi amaçla iş
 - **Kayıt:** Beyanın metin sürümü, zamanı ve uygulama sürümü hesabınıza kaydedilir (bir hakkın tesisi, kullanılması veya korunması, KVKK m.5/2-e). IP adresi bu kayda yazılmaz. Metinler değişirse bir sonraki açılışta yeniden gösterilir.
 - **Yurt dışına aktarım (KVKK m.9):** Supabase, LiveKit, Google Firebase, Deepgram, çeviri hizmetleri ve Open-Meteo'nun sunucuları Türkiye dışındadır. Hizmetin sürekli işleyişi için yapılan bu aktarım, 7499 sayılı Kanun ile değişik KVKK m.9 uyarınca **uygun güvencelere (Kurul tarafından ilan edilen standart sözleşme)** dayanır; bu yüzden ayrıca "yurt dışı aktarım açık rızası" istenmez. Uçtan uca şifreli içerikler bu sağlayıcılarda yalnız okunamaz şifreli veri olarak bulunur.
 - **Ticari elektronik ileti (isteğe bağlı):** Yalnız ayrıca onay verirseniz gönderilir (6563 sayılı Kanun ve Ticari İletişim ve Ticari Elektronik İletiler Hakkında Yönetmelik). Onayı Ayarlar → Bildirimler'den veya her e-postadaki bağlantıdan dilediğiniz an, ücretsiz geri alabilirsiniz; geri alma en geç 3 iş günü içinde işleme alınır. Mevzuat gerektirdiğinde onay ve ret kayıtları İleti Yönetim Sistemi'ne (İYS) iletilir.
+- **İki adımlı doğrulama (isteğe bağlı):** Açarsanız kimlik doğrulayıcı faktörünüz hesabınız için Supabase Auth'ta saklanır; gizli anahtar yalnız kurulumda cihazınızda gösterilir ve hiçbir yere kaydedilmez. Girişte 6 haneli kod istenir.
+- **Verilerimi indir (KVKK m.11):** Ayarlar → Hesap ve Profil → Verilerimi indir yalnız kendi verinizi JSON dosyası olarak verir (profil, arkadaşlar, takipler, gönderiler, yorumlar, aramalar, onaylar, girişler). Mesaj içerikleri uçtan uca şifreli olduğundan dosyada yer almaz. Günde en çok 3 kez.
+- **Sessiz saatler ve çeviri kipi** yalnız cihazınızda saklanır; seçtiğiniz çeviri kipi, sağlayıcı modelini seçmek için çeviri isteğiyle birlikte gönderilir.
 - **Hava durumuna göre tema (varsayılan açık):** Konum izni verdiyseniz yaklaşık konumunuz (yaklaşık 10 km'ye yuvarlanmış enlem/boylam) yalnız hava durumunu öğrenmek için Open-Meteo'ya gönderilir; konum bizim sunucumuza gönderilmez ve saklanmaz. İzin vermezseniz özellik konum kullanmadan kapalı kalır. Görünüm → Hava durumu teması ile kapatabilirsiniz.
 - **Kötüye kullanım önleme:** Mesaj, arkadaşlık isteği, yorum, şikâyet ve giriş denemeleri hız sınırına tabidir; bu sınırlar yalnız istek sayısını sayar, içeriği okumaz.
 
@@ -114,6 +117,13 @@ Bu metin, Juzzio mobil uygulamasının hangi kişisel verileri hangi amaçla iş
 - **Çevrimdışı değişiklikler:** İnternet yokken yaptığın profil ve ayar değişiklikleri cihazda bekletilir, bağlantı gelince sunucuya yazılır.
 - **Galeriye kaydetme (varsayılan açık):** Sohbette sana gönderilen fotoğraf, video ve belgeler cihazının galerisine (Resimler/Filmler/İndirilenler › Juzzio) kaydedilir. Bu dosyalar artık cihazının ortak depolamasındadır ve galeriye erişimi olan diğer uygulamalar görebilir. Tek görüntülemelik medya **asla** kaydedilmez. Ayarlar → Sohbetler → "Medyayı galeriye kaydet" ile kapatabilirsin.
 - **Sohbet bildirimleri:** Bildirimde gönderenin adı, herkese açık profil fotoğrafı ve grup adı gösterilir. Bildirim önizlemesini "gizli" yaptıysan bunlar gönderilmez. "Okundu olarak işaretle" yalnız o sohbeti okundu yapar.
+
+## 4k. Keşfet (yeni insanlarla tanışma), arkadaşlık istekleri ve "Beni hatırla" (v2.1)
+- **Keşfet görünürlüğü.** Herkese açık hesaplar varsayılan olarak başkalarının Keşfet kartlarında görünür; "Keşfet'te görün" seçeneğini (Profil Düzenle ya da Keşfet) dilediğin an kapatarak gizlenebilirsin. Gizli hesaplar asla gösterilmez. Kartta yalnız zaten herkese gösterdiğin bilgiler yer alır: görünen ad, kullanıcı adı, "Herkes" seçiliyse profil/kapak fotoğrafı ve biyografi, tercih edilen dil, onay rozeti ve izin verdiysen çevrimiçi durumu.
+- Keşfet'te **konum ve yaş kullanılmaz.** Engellediğin/seni engelleyen kişiler, gizli ve yasaklı hesaplar ile mevcut arkadaşların asla gösterilmez.
+- Beğenilerin, süper beğenilerin ve geçtiklerin, eşleşmelerin ("ikiniz de beğendiniz") bulunabilmesi için sunucularımızda saklanır; karşı taraf yalnız kendi "Beğeniler" listesinde onu beğendiğini görür. "Geç" kayıtları 7 gün sonra etkisini yitirir. Hesabın silinince bu veriler de silinir.
+- Arkadaşlık İstekleri sayfasındaki **ortak arkadaşlar** yalnız sayı olarak gösterilir, isimler gösterilmez.
+- **Beni hatırla** yalnız kullanıcı adını veya e-postanı cihazında saklar (şifren asla saklanmaz).
 
 ## 5. Verilerin aktarıldığı hizmet sağlayıcılar
 

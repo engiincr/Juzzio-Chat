@@ -1,16 +1,16 @@
 {
-  "version": "2.0.0",
-  "buildNumber": 1080,
-  "releaseDate": "2026-11-20",
-  "releaseTitle": "Juzzio 2.0: Yeni Tasarım ve Windows Ses Düzeltmesi",
+  "version": "2.1.0",
+  "buildNumber": 210,
+  "releaseDate": "2026-11-21",
+  "releaseTitle": "Juzzio 2.1: Yeni Logo, Keşfet ve Arkadaşlık İstekleri",
   "mandatory": false,
   "minSupportedVersion": "0.1.0",
   "apkUrl": "https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk",
-  "versionedApkUrl": "https://github.com/engiincr/Juzzio-Chat/releases/download/v2.0.0/juzzio-v2.0.0-release.apk",
-  "apkSha256": "f876efb5fd962a2d94fd897295b5217315f9f9701fbc47c12c02c074a00561bf",
-  "apkSize": "120.84 MB",
-  "verifiedBuild": true,
-  "verifiedAt": "2026-11-20 19:40 UTC",
+  "versionedApkUrl": "https://github.com/engiincr/Juzzio-Chat/releases/download/v2.1.0/juzzio-v2.1.0-release.apk",
+  "apkSha256": "",
+  "apkSize": "",
+  "verifiedBuild": false,
+  "verifiedAt": "",
   "developer": {
     "name": "Engin ÇIRPAN",
     "instagram": "https://ig.me/tugkancr",
@@ -18,64 +18,91 @@
     "email": "engiincr@pm.me"
   },
   "changelog": {
-    "tr": "v2.0.0: Juzzio 2.0 — tamamen yenilenen tasarım (Obsidian Lime teması), Windows'ta mikrofon ve hoparlör sorunu giderildi, macOS ve iOS uyumluluğu iyileştirildi.",
-    "en": "v2.0.0: Juzzio 2.0 — completely redesigned UI (Obsidian Lime theme), fixed microphone and speaker on Windows calls, improved macOS and iOS compatibility.",
-    "de": "v2.0.0: Juzzio 2.0 — komplett überarbeitetes Design (Obsidian Lime-Thema), Mikrofon und Lautsprecher bei Windows-Anrufen behoben, macOS- und iOS-Kompatibilität verbessert."
+    "tr": "v2.1.0: Juzzio 2.1: yeni yeşil şerit J logosu ve tasarım dosyalarıyla birebir Neon Lime görünüm. Yeni Kayıt/Giriş ekranı, Arkadaşlık İstekleri sayfası, kişi keşfetme (kart, eşleşme, beğeni), Profil Karekodum ve veritabanı güvenlik sıkılaştırması.",
+    "en": "v2.1.0: Juzzio 2.1: the new green ribbon J logo and a Neon Lime look that matches the design files. New sign-in/sign-up, Friend Requests page, people discovery (cards, matches, likes), My Profile QR and database hardening.",
+    "de": "v2.1.0: Juzzio 2.1: neues grünes Band-J-Logo und ein Neon-Lime-Design nach den Entwürfen. Neue Anmeldung/Registrierung, Freundschaftsanfragen, Leute entdecken (Karten, Matches, Likes), Mein Profil-QR und Datenbank-Härtung."
   },
-  "build": 1080,
-  "versionCode": 1080,
+  "build": 210,
+  "versionCode": 210,
   "url": "https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk",
-  "changelog_tr": "v2.0.0: Juzzio 2.0 — tamamen yenilenen tasarım (Obsidian Lime teması), Windows'ta mikrofon ve hoparlör sorunu giderildi, macOS ve iOS uyumluluğu iyileştirildi.",
-  "changelog_en": "v2.0.0: Juzzio 2.0 — completely redesigned UI (Obsidian Lime theme), fixed microphone and speaker on Windows calls, improved macOS and iOS compatibility.",
-  "changelog_de": "v2.0.0: Juzzio 2.0 — komplett überarbeitetes Design (Obsidian Lime-Thema), Mikrofon und Lautsprecher bei Windows-Anrufen behoben, macOS- und iOS-Kompatibilität verbessert.",
+  "changelog_tr": "v2.1.0: Juzzio 2.1: yeni yeşil şerit J logosu ve tasarım dosyalarıyla birebir Neon Lime görünüm. Yeni Kayıt/Giriş ekranı, Arkadaşlık İstekleri sayfası, kişi keşfetme (kart, eşleşme, beğeni), Profil Karekodum ve veritabanı güvenlik sıkılaştırması.",
+  "changelog_en": "v2.1.0: Juzzio 2.1: the new green ribbon J logo and a Neon Lime look that matches the design files. New sign-in/sign-up, Friend Requests page, people discovery (cards, matches, likes), My Profile QR and database hardening.",
+  "changelog_de": "v2.1.0: Juzzio 2.1: neues grünes Band-J-Logo und ein Neon-Lime-Design nach den Entwürfen. Neue Anmeldung/Registrierung, Freundschaftsanfragen, Leute entdecken (Karten, Matches, Likes), Mein Profil-QR und Datenbank-Härtung.",
   "details": {
     "tr": {
-      "reason": "Juzzio 2.0 ile tamamen yenilenen arayüz, Obsidian Lime temasıyla çarpıcı karanlık görünüm ve Windows aramalarda mikrofon/hoparlör sorunu giderildi.",
+      "reason": "Juzzio 2.1: yeni yeşil şerit J logosu ve tasarım dosyalarıyla birebir Neon Lime görünüm. Yeni Kayıt/Giriş ekranı, Arkadaşlık İstekleri sayfası, kişi keşfetme (kart, eşleşme, beğeni), Profil Karekodum ve veritabanı güvenlik sıkılaştırması.",
       "features": [
-        "🎨 Juzzio 2.0 Obsidian Lime tasarım sistemi: limon-siyah tema varsayılan",
-        "🖥️ Windows aramalarında mikrofon artık çalışıyor; karşı tarafın sesi kulaklığa geliyor",
-        "🍎 macOS ve iOS arama uyumluluğu iyileştirildi",
-        "🔊 Speakerphone API yalnızca mobil cihazlarda kullanılıyor artık"
+        "🟢 Yeni marka: yeşil şerit J logosu (uygulama ikonu dahil) ve Neon Lime renkleri",
+        "🔐 Yeni Kayıt Ol / Giriş Yap ekranı: Beni hatırla, Şifremi unuttum",
+        "👥 Arkadaşlık İstekleri sayfası: Gelen/Gönderilen, ortak arkadaş sayısı, Tümünü Kabul Et, Geri Çek",
+        "💜 Keşfet: yeni insanlarla tanış — kartlar, beğen, süper beğeni, eşleşmeler, seni beğenenler (gerçek kullanıcılar; Profil Düzenle'den gizlenebilir)",
+        "🔳 Profil Karekodum: bağlantı kopyala, paylaş, galeriye indir, karekod/kullanıcı adıyla profil aç",
+        "🔔 Bildirimlerde İstekler, Bahsetmeler ve Sistem filtreleri",
+        "🌐 Görüntülü aramada \"Canlı Çeviri · Aktif\" rozeti",
+        "🖥️ Aramada ekran paylaşımı (Android ve masaüstü): üst çubuktaki düğmeyle başlat/durdur",
+        "📷 Karekodu kamerayla tara (Android/iOS), fener düğmesi ve bağlantı yapıştırma yedeği",
+        "🌤️ Gökyüzü 2.1: hava ambiyansı baştan tasarlandı — konumunun yerel saatine göre gök rengi, gün boyu yayda ilerleyen güneş, gerçek evreli ay, göz kırpan yıldızlar, bulutlar, rüzgârlı yağmur, şimşek, kar ve sis",
+        "⚙️ Yeni Ayarlar: Hesap ve Profil, Gizlilik ve Güvenlik, iki adımlı doğrulama (kimlik doğrulayıcı uygulama), zamanlanmış sessiz saatler, çeviri kipi (Gerçek Zamanlı / Hızlı / Yüksek Doğruluk), depolama halka grafiği, balon köşeleri, kalın yazı, renk düzeltme, SSS, Verilerimi indir, Onaylarım; Arama Ayarları ve Çıkış onay penceresi"
       ],
       "fixes": [
-        "Windows'ta sesli/görüntülü aramada mikrofon çalışmıyor sorunu giderildi",
-        "Windows'ta karşı tarafın sesi kulaklığa/hoparlöre gelmiyor sorunu giderildi",
-        "Windows'a özgü olmayan ses yakalama seçenekleri kaldırıldı (voiceIsolation, highPassFilter, typingNoiseDetection)"
+        "Alt menüde seçili sekme limon çizgiyle gösterilir",
+        "Giriş ekranı başlığı ve açıklamaları ortalandı"
       ],
-      "security": []
+      "security": [
+        "Tüm tablolarda istemci rollerinden TRUNCATE/REFERENCES/TRIGGER yetkisi kaldırıldı; girişsiz (anon) yazma tamamen kapatıldı",
+        "Keşfet'te konum ve yaş kullanılmaz; gizli hesaplar hiç gösterilmez, herkes Keşfet'ten gizlenebilir"
+      ]
     },
     "en": {
-      "reason": "Juzzio 2.0 brings a completely redesigned interface with the Obsidian Lime theme and fixes microphone/speaker issues on Windows calls.",
+      "reason": "Juzzio 2.1: the new green ribbon J logo and a Neon Lime look that matches the design files. New sign-in/sign-up, Friend Requests page, people discovery (cards, matches, likes), My Profile QR and database hardening.",
       "features": [
-        "🎨 Juzzio 2.0 Obsidian Lime design system: lime-black theme as default",
-        "🖥️ Microphone now works in Windows calls; other party's audio comes through headphones",
-        "🍎 Improved macOS and iOS call compatibility",
-        "🔊 Speakerphone API now only used on mobile devices"
+        "🟢 New brand: green ribbon J logo (incl. app icon) and Neon Lime colours",
+        "🔐 New Sign up / Sign in screen: Remember me, Forgot password",
+        "👥 Friend Requests page: received/sent, mutual friends, Accept all, Withdraw",
+        "💜 Explore: meet new people — cards, like, super like, matches, who liked you (real users; hide anytime in Edit Profile)",
+        "🔳 My Profile QR: copy link, share, save to gallery, open a profile from a code or username",
+        "🔔 Requests, Mentions and System filters in notifications",
+        "🌐 \"Live Translation · Active\" badge in video calls",
+        "🖥️ Screen sharing in calls (Android and desktop): start/stop from the top bar",
+        "📷 Scan QR codes with the camera (Android/iOS), torch button and paste fallback",
+        "🌤️ Sky 2.1: weather ambience redesigned — sky colour by your local time, a sun that arcs through the day, the moon in its real phase, twinkling stars, clouds, windy rain, lightning, snow and fog",
+        "⚙️ New Settings: Account & Profile, Privacy & Security, two-step verification (authenticator app), scheduled quiet hours, translation mode (Real-time / Fast / High accuracy), storage ring chart, bubble corners, bold text, colour correction, FAQ, Download my data, Consents; Call Settings and sign-out dialog"
       ],
       "fixes": [
-        "Fixed microphone not working in voice/video calls on Windows",
-        "Fixed other party's audio not reaching headphones/speakers on Windows",
-        "Removed non-Windows audio capture options (voiceIsolation, highPassFilter, typingNoiseDetection)"
+        "The selected bottom tab shows a lime underline",
+        "Sign-in title and texts are centred"
       ],
-      "security": []
+      "security": [
+        "TRUNCATE/REFERENCES/TRIGGER removed from client roles on every table; signed-out (anon) writes fully blocked",
+        "Explore never uses location or age; private accounts are never shown and anyone can hide from Explore"
+      ]
     },
     "de": {
-      "reason": "Juzzio 2.0 bringt eine komplett überarbeitete Oberfläche mit dem Obsidian Lime-Thema und behebt Mikrofon-/Lautsprecherprobleme bei Windows-Anrufen.",
+      "reason": "Juzzio 2.1: neues grünes Band-J-Logo und ein Neon-Lime-Design nach den Entwürfen. Neue Anmeldung/Registrierung, Freundschaftsanfragen, Leute entdecken (Karten, Matches, Likes), Mein Profil-QR und Datenbank-Härtung.",
       "features": [
-        "🎨 Juzzio 2.0 Obsidian Lime-Designsystem: Limette-Schwarz-Thema als Standard",
-        "🖥️ Mikrofon funktioniert jetzt bei Windows-Anrufen; Gegenseite hörbar über Kopfhörer",
-        "🍎 Verbesserte macOS- und iOS-Anrufkompatibilität",
-        "🔊 Lautsprecher-API wird nur noch auf mobilen Geräten verwendet"
+        "🟢 Neue Marke: grünes Band-J-Logo (inkl. App-Symbol) und Neon-Lime-Farben",
+        "🔐 Neuer Anmelde-/Registrierungsbildschirm: Angemeldet bleiben, Passwort vergessen",
+        "👥 Freundschaftsanfragen: erhalten/gesendet, gemeinsame Freunde, Alle annehmen, Zurückziehen",
+        "💜 Entdecken: neue Leute kennenlernen — Karten, Like, Super-Like, Matches, wer dich mag (freiwillige Sichtbarkeit)",
+        "🔳 Mein Profil-QR: Link kopieren, teilen, in der Galerie speichern, Profil per Code oder Benutzername öffnen",
+        "🔔 Filter Anfragen, Erwähnungen und System in den Benachrichtigungen",
+        "🌐 Abzeichen „Live-Übersetzung · Aktiv“ im Videoanruf",
+        "🖥️ Bildschirmfreigabe im Anruf (Android und Desktop): Start/Stopp über die obere Leiste",
+        "📷 QR-Codes mit der Kamera scannen (Android/iOS), Taschenlampe und Einfügen als Alternative",
+        "🌤️ Himmel 2.1: Wetter-Ambiente neu gestaltet — Himmelsfarbe nach Ortszeit, Sonne im Tagesbogen, Mond in echter Phase, funkelnde Sterne, Wolken, Regen mit Wind, Blitze, Schnee und Nebel",
+        "⚙️ Neue Einstellungen: Konto & Profil, Datenschutz & Sicherheit, Zwei-Schritt-Verifizierung (Authenticator-App), Ruhezeiten, Übersetzungsmodus (Echtzeit / Schnell / Hohe Genauigkeit), Speicher-Ringdiagramm, Blasenecken, Fettschrift, Farbkorrektur, FAQ, Meine Daten herunterladen, Einwilligungen; Anrufeinstellungen und Abmelde-Dialog"
       ],
       "fixes": [
-        "Mikrofon bei Sprach-/Videoanrufen unter Windows behoben",
-        "Ton der Gegenseite unter Windows über Kopfhörer/Lautsprecher behoben",
-        "Nicht-Windows-Audioerfassungsoptionen entfernt (voiceIsolation, highPassFilter, typingNoiseDetection)"
+        "Der ausgewählte Tab unten zeigt eine Lime-Linie",
+        "Titel und Texte der Anmeldung sind zentriert"
       ],
-      "security": []
+      "security": [
+        "TRUNCATE/REFERENCES/TRIGGER bei allen Tabellen für Client-Rollen entfernt; Schreiben ohne Anmeldung vollständig gesperrt",
+        "Entdecken nutzt nie Standort oder Alter; private Konten erscheinen nie, jeder kann sich ausblenden"
+      ]
     }
   },
-  "releaseTitleEn": "Juzzio 2.0: New Design & Windows Audio Fix",
+  "releaseTitleEn": "Juzzio 2.1: New Logo, Explore and Friend Requests",
   "signatureAlg": "ML-DSA-65 (FIPS 204)",
-  "mldsa65Sig": "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"
+  "mldsa65Sig": ""
 }

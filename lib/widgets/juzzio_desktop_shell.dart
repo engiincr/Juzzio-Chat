@@ -21,6 +21,7 @@ import 'package:flutter/services.dart';
 
 import '../core/theme/juzzio_glass.dart';
 import '../core/app_theme_and_locale.dart';
+import 'juzzio_brand.dart';
 
 // ---------------------------------------------------------------------------
 // Yardımcılar
@@ -570,31 +571,7 @@ class JuzzioLogoMark extends StatelessWidget {
   final double size;
   final Color? glowColor;
 
+  // v2.1: yeni marka — kodla çizilen yeşil şerit "J" (uygulama ikonuyla aynı)
   @override
-  Widget build(BuildContext context) {
-    final lime = glowColor ?? JuzzioGlassTokens.glow;
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: lime,
-        borderRadius: BorderRadius.circular(size * 0.26),
-        boxShadow: [
-          BoxShadow(color: lime.withValues(alpha: 0.35), blurRadius: size * 0.6, spreadRadius: -2),
-        ],
-      ),
-      child: Center(
-        child: Text(
-          'J',
-          style: TextStyle(
-            color: const Color(0xFF080A0F),
-            fontSize: size * 0.56,
-            fontWeight: FontWeight.w900,
-            height: 1,
-            letterSpacing: -0.5,
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => JuzzioLogoTile(size: size);
 }

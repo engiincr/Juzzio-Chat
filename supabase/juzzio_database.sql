@@ -18362,6 +18362,8 @@ GRANT EXECUTE ON FUNCTION public.watch_party_is_active(UUID) TO authenticated;
 --  • Kısa pencere sınırına ek olarak 24 saatte en fazla 15 hatalı deneme
 --  • Yönetici aynı anda en fazla 3 aktif oturum tutar (en eskileri silinir)
 --  • Hatalı denemeler denetim kaydına yazılır
+-- ======================================================================
+
 -- =============================================================================
 CREATE OR REPLACE FUNCTION public.admin_unlock(p_password TEXT, p_device_id TEXT, p_remember BOOLEAN DEFAULT false)
 RETURNS JSONB
@@ -18415,3 +18417,427 @@ REVOKE ALL ON FUNCTION public.admin_check_token(TEXT) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.admin_check_token(TEXT) TO authenticated;
 -- Mevcut uzun ömürlü oturumları yeni sınıra çek
 UPDATE public.admin_sessions SET expires_at = LEAST(expires_at, NOW() + INTERVAL '7 days');
+-- 10.43 (v1.3.0) — Tablo yetkilerinin sıkılaştırılması (derinlemesine savunma)
+--  • TRUNCATE RLS'yi tamamen atlar: anon/authenticated rollerinden TÜM tablolarda geri alınır
+--    (PostgREST TRUNCATE kullanmaz; uygulamada hiçbir özellik etkilenmez).
+--  • REFERENCES / TRIGGER yetkileri istemci rollerinde gereksiz: geri alınır.
+--  • anon (giriş yapmamış) rolünün yazma yetkileri (INSERT/UPDATE/DELETE) geri alınır; anon için
+--    zaten hiçbir yazma politikası yoktu — bu satır, ileride yanlışlıkla açık politika yazılsa bile
+--    girişsiz yazmayı imkânsız kılar. Okuma (SELECT) davranışı değişmez (RLS sürer).
+--  • Gelecekte oluşturulacak tablolar için varsayılan yetkiler de aynı şekilde kısılır.
+-- =============================================================================
+REVOKE TRUNCATE, REFERENCES, TRIGGER ON ALL TABLES IN SCHEMA public FROM PUBLIC, anon, authenticated;
+REVOKE INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public FROM anon;
+DO $$
+BEGIN
+    BEGIN
+        ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+            REVOKE TRUNCATE, REFERENCES, TRIGGER ON TABLES FROM PUBLIC, anon, authenticated;
+        ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+            REVOKE INSERT, UPDATE, DELETE ON TABLES FROM anon;
+    EXCEPTION WHEN OTHERS THEN
+        RAISE NOTICE 'Varsayılan yetkiler değiştirilemedi (yetki): %', SQLERRM;
+    END;
+END $$;
+
+-- Güvenlik Merkezi: tablo yetki denetimi (yalnız kurucu). RLS kapalı tablo, istemci rolünde
+-- TRUNCATE/REFERENCES/TRIGGER, anon yazma yetkisi ve politikasız RLS tablolarını listeler.
+CREATE OR REPLACE FUNCTION public.admin_security_privileges(p_token TEXT)
+RETURNS JSONB LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
+DECLARE v JSONB;
+BEGIN
+    IF NOT public.admin_check_token(p_token) THEN RAISE EXCEPTION 'super_admin_required'; END IF;
+    SELECT COALESCE(jsonb_agg(x ORDER BY x->>'severity', x->>'table'), '[]'::jsonb) INTO v FROM (
+        SELECT jsonb_build_object('table', c.relname, 'severity', '1_high', 'issue', 'rls_disabled') AS x
+          FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+         WHERE n.nspname = 'public' AND c.relkind = 'r' AND NOT c.relrowsecurity
+        UNION ALL
+        SELECT jsonb_build_object('table', c.relname, 'severity', '1_high', 'issue', 'client_truncate')
+          FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+         WHERE n.nspname = 'public' AND c.relkind = 'r'
+           AND (has_table_privilege('anon', c.oid, 'TRUNCATE') OR has_table_privilege('authenticated', c.oid, 'TRUNCATE'))
+        UNION ALL
+        SELECT jsonb_build_object('table', c.relname, 'severity', '2_medium', 'issue', 'anon_write')
+          FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+         WHERE n.nspname = 'public' AND c.relkind = 'r'
+           AND (has_table_privilege('anon', c.oid, 'INSERT') OR has_table_privilege('anon', c.oid, 'UPDATE')
+                OR has_table_privilege('anon', c.oid, 'DELETE'))
+        UNION ALL
+        SELECT jsonb_build_object('table', c.relname, 'severity', '3_low', 'issue', 'rls_without_policy')
+          FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+         WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relrowsecurity
+           AND NOT EXISTS (SELECT 1 FROM pg_policies p WHERE p.schemaname = 'public' AND p.tablename = c.relname)
+    ) q;
+    RETURN jsonb_build_object('checked_at', NOW(), 'issues', v,
+        'tables', (SELECT COUNT(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+                    WHERE n.nspname = 'public' AND c.relkind = 'r'));
+END $$;
+REVOKE ALL ON FUNCTION public.admin_security_privileges(TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_security_privileges(TEXT) TO authenticated;
+
+-- =============================================================================
+-- 10.44 (v2.1) — Arkadaşlık İstekleri sayfası: ortak arkadaş sayıları
+--  Yalnız SAYI döner (kimlikler değil); en fazla 100 kişi sorulabilir; engelli kişiler sayılmaz.
+-- =============================================================================
+CREATE OR REPLACE FUNCTION public.mutual_friend_counts(p_users UUID[])
+RETURNS TABLE (user_id UUID, mutual INTEGER)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+    WITH me AS (SELECT auth.uid() AS id),
+    my_friends AS (
+        SELECT CASE WHEN f.requester_id = me.id THEN f.receiver_id ELSE f.requester_id END AS fid
+          FROM public.friendships f, me
+         WHERE f.status = 'accepted' AND me.id IN (f.requester_id, f.receiver_id)
+    ),
+    targets AS (SELECT DISTINCT u FROM unnest(p_users[1:100]) AS u WHERE u IS NOT NULL)
+    SELECT t.u AS user_id,
+           (SELECT COUNT(*)::int FROM public.friendships f
+             WHERE f.status = 'accepted' AND t.u IN (f.requester_id, f.receiver_id)
+               AND (CASE WHEN f.requester_id = t.u THEN f.receiver_id ELSE f.requester_id END) IN (SELECT fid FROM my_friends)
+           ) AS mutual
+      FROM targets t, me
+     WHERE me.id IS NOT NULL AND t.u <> me.id;
+$$;
+REVOKE ALL ON FUNCTION public.mutual_friend_counts(UUID[]) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.mutual_friend_counts(UUID[]) TO authenticated;
+
+-- =============================================================================
+-- 10.45 (v2.1) — Keşfet: yeni insanlarla tanış (kart yığını, eşleşmeler, beğeniler)
+--  • Herkese açık hesaplar varsayılan olarak Keşfet'te görünür; kişi Gizlilik'ten ya da Keşfet'ten kapatabilir.
+--    Gizli hesaplar, yasaklılar, engellenenler (iki yönlü), mevcut arkadaşlar ve kişinin kendisi
+--    asla gösterilmez. Konum / yaş verisi KULLANILMAZ (KVKK: veri minimizasyonu).
+--  • Beğeni karşılıklıysa "eşleşme" olur; "geç" 7 gün sonra kişiyi yeniden önerilebilir kılar.
+-- =============================================================================
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS discoverable BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE public.profiles ALTER COLUMN discoverable SET DEFAULT true;
+-- Kişinin kendi seçimi (açtı/kapattı) bu zamanla işaretlenir; işaretsiz herkese açık hesaplar
+-- Keşfet'te görünür (gizli hesaplar asla). Dosya tekrar çalıştırılsa da kişinin seçimi ezilmez.
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS discoverable_set_at TIMESTAMPTZ;
+UPDATE public.profiles SET discoverable = NOT is_private_account
+ WHERE discoverable_set_at IS NULL AND discoverable IS DISTINCT FROM (NOT is_private_account);
+
+CREATE TABLE IF NOT EXISTS public.discover_actions (
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    target_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    action TEXT NOT NULL CHECK (action IN ('like', 'super', 'pass')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (user_id, target_id),
+    CHECK (user_id <> target_id)
+);
+CREATE INDEX IF NOT EXISTS discover_actions_target_idx ON public.discover_actions (target_id, action);
+ALTER TABLE public.discover_actions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS juzzio_no_direct_access ON public.discover_actions;
+CREATE POLICY juzzio_no_direct_access ON public.discover_actions FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);
+REVOKE ALL ON public.discover_actions FROM PUBLIC, anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.discover_set_enabled(p_on BOOLEAN)
+RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+    IF auth.uid() IS NULL THEN RAISE EXCEPTION 'not_authenticated'; END IF;
+    UPDATE public.profiles SET discoverable = COALESCE(p_on, false), discoverable_set_at = NOW() WHERE id = auth.uid();
+    RETURN COALESCE(p_on, false);
+END $$;
+REVOKE ALL ON FUNCTION public.discover_set_enabled(BOOLEAN) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.discover_set_enabled(BOOLEAN) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.juzzio_discover_card(p public.profiles)
+RETURNS JSONB LANGUAGE sql STABLE SET search_path = public AS $$
+    SELECT jsonb_build_object(
+        'id', p.id, 'username', p.username, 'display_name', p.display_name,
+        'avatar_url', CASE WHEN p.privacy_avatar = 'everyone' THEN p.avatar_url END,
+        'cover_url', p.cover_url,
+        'bio', CASE WHEN p.privacy_bio = 'everyone' THEN p.bio ELSE '' END,
+        'lang', p.preferred_lang, 'is_verified', p.is_verified,
+        'online', CASE WHEN p.privacy_online = 'everyone' THEN p.is_online AND p.last_seen > NOW() - INTERVAL '5 minutes' ELSE false END);
+$$;
+REVOKE ALL ON FUNCTION public.juzzio_discover_card(public.profiles) FROM PUBLIC, anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.discover_candidates(p_limit INTEGER DEFAULT 20)
+RETURNS JSONB LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_me UUID := auth.uid();
+BEGIN
+    IF v_me IS NULL THEN RAISE EXCEPTION 'not_authenticated'; END IF;
+    RETURN COALESCE((
+        SELECT jsonb_agg(public.juzzio_discover_card(p) ORDER BY (p.is_online AND p.last_seen > NOW() - INTERVAL '5 minutes') DESC, random())
+          FROM (
+            SELECT p.* FROM public.profiles p
+             WHERE p.discoverable AND p.id <> v_me AND NOT p.is_private_account
+               AND NOT public.juzzio_is_banned(p.id)
+               AND NOT public.is_blocked_between(v_me, p.id)
+               AND NOT EXISTS (SELECT 1 FROM public.friendships f
+                                WHERE f.status IN ('accepted', 'pending')
+                                  AND ((f.requester_id = v_me AND f.receiver_id = p.id) OR (f.requester_id = p.id AND f.receiver_id = v_me)))
+               AND NOT EXISTS (SELECT 1 FROM public.discover_actions a
+                                WHERE a.user_id = v_me AND a.target_id = p.id
+                                  AND (a.action <> 'pass' OR a.created_at > NOW() - INTERVAL '7 days'))
+             LIMIT LEAST(GREATEST(COALESCE(p_limit, 20), 1), 50)
+          ) p), '[]'::jsonb);
+END $$;
+REVOKE ALL ON FUNCTION public.discover_candidates(INTEGER) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.discover_candidates(INTEGER) TO authenticated;
+
+-- Eylem: 'like' | 'super' | 'pass' | 'undo' (son eylemi geri al). Dönüş: {matched: bool}
+CREATE OR REPLACE FUNCTION public.discover_act(p_target UUID, p_action TEXT)
+RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_me UUID := auth.uid(); v_matched BOOLEAN := false;
+BEGIN
+    IF v_me IS NULL THEN RAISE EXCEPTION 'not_authenticated'; END IF;
+    IF p_target IS NULL OR p_target = v_me THEN RAISE EXCEPTION 'invalid_target'; END IF;
+    IF p_action = 'undo' THEN
+        DELETE FROM public.discover_actions WHERE user_id = v_me AND target_id = p_target;
+        RETURN jsonb_build_object('matched', false);
+    END IF;
+    IF p_action NOT IN ('like', 'super', 'pass') THEN RAISE EXCEPTION 'invalid_action'; END IF;
+    IF public.is_blocked_between(v_me, p_target) THEN RAISE EXCEPTION 'blocked'; END IF;
+    IF NOT EXISTS (SELECT 1 FROM public.profiles WHERE id = p_target AND discoverable) THEN RAISE EXCEPTION 'not_discoverable'; END IF;
+    IF NOT public.juzzio_rate_check(v_me, 'discover_act', 300, 3600) THEN RAISE EXCEPTION 'rate_limited'; END IF;
+    INSERT INTO public.discover_actions (user_id, target_id, action) VALUES (v_me, p_target, p_action)
+    ON CONFLICT (user_id, target_id) DO UPDATE SET action = EXCLUDED.action, created_at = NOW();
+    IF p_action IN ('like', 'super') THEN
+        v_matched := EXISTS (SELECT 1 FROM public.discover_actions
+                              WHERE user_id = p_target AND target_id = v_me AND action IN ('like', 'super'));
+    END IF;
+    RETURN jsonb_build_object('matched', v_matched);
+END $$;
+REVOKE ALL ON FUNCTION public.discover_act(UUID, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.discover_act(UUID, TEXT) TO authenticated;
+
+-- 'matches': karşılıklı beğeni · 'likes': beni beğenenler (henüz yanıtlamadıklarım)
+CREATE OR REPLACE FUNCTION public.discover_list(p_kind TEXT)
+RETURNS JSONB LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_me UUID := auth.uid();
+BEGIN
+    IF v_me IS NULL THEN RAISE EXCEPTION 'not_authenticated'; END IF;
+    IF p_kind = 'matches' THEN
+        RETURN COALESCE((SELECT jsonb_agg(public.juzzio_discover_card(p) || jsonb_build_object('at', GREATEST(a.created_at, b.created_at))
+                                          ORDER BY GREATEST(a.created_at, b.created_at) DESC)
+                           FROM public.discover_actions a
+                           JOIN public.discover_actions b ON b.user_id = a.target_id AND b.target_id = v_me AND b.action IN ('like', 'super')
+                           JOIN public.profiles p ON p.id = a.target_id
+                          WHERE a.user_id = v_me AND a.action IN ('like', 'super')
+                            AND NOT public.is_blocked_between(v_me, p.id) AND NOT public.juzzio_is_banned(p.id)), '[]'::jsonb);
+    ELSIF p_kind = 'likes' THEN
+        RETURN COALESCE((SELECT jsonb_agg(public.juzzio_discover_card(p) || jsonb_build_object('at', b.created_at, 'super', b.action = 'super')
+                                          ORDER BY b.created_at DESC)
+                           FROM public.discover_actions b
+                           JOIN public.profiles p ON p.id = b.user_id
+                          WHERE b.target_id = v_me AND b.action IN ('like', 'super')
+                            AND NOT EXISTS (SELECT 1 FROM public.discover_actions a WHERE a.user_id = v_me AND a.target_id = b.user_id)
+                            AND NOT public.is_blocked_between(v_me, p.id) AND NOT public.juzzio_is_banned(p.id)), '[]'::jsonb);
+    END IF;
+    RAISE EXCEPTION 'invalid_kind';
+END $$;
+REVOKE ALL ON FUNCTION public.discover_list(TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.discover_list(TEXT) TO authenticated;
+
+-- =============================================================================
+-- 10.46 (v2.1) — KVKK m.11 / GDPR m.15-20: "Verilerimi indir"
+--   Yalnız çağıranın KENDİ verisi döner (auth.uid()). Mesaj içerikleri uçtan uca
+--   şifreli olduğundan dışa aktarmaya konmaz; sohbet başına yalnız sayı/tarih verilir.
+--   Günde en çok 3 kez. Listeler 5000 kayıtla sınırlı.
+-- =============================================================================
+CREATE OR REPLACE FUNCTION public.juzzio_export_my_data()
+RETURNS JSONB LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_me UUID := auth.uid();
+BEGIN
+    IF v_me IS NULL THEN RAISE EXCEPTION 'not_authenticated'; END IF;
+    IF NOT public.juzzio_rate_check(v_me, 'export_my_data', 3, 86400) THEN RAISE EXCEPTION 'rate_limited'; END IF;
+    RETURN jsonb_build_object(
+        'format', 'juzzio-export-v1',
+        'generated_at', NOW(),
+        'user_id', v_me,
+        'account', (SELECT jsonb_build_object('email', u.email, 'created_at', u.created_at, 'last_sign_in_at', u.last_sign_in_at)
+                      FROM auth.users u WHERE u.id = v_me),
+        'profile', (SELECT to_jsonb(p) FROM public.profiles p WHERE p.id = v_me),
+        'private', (SELECT jsonb_build_object('gender', pp.gender, 'phone_number', pp.phone_number)
+                      FROM public.profile_private pp WHERE pp.user_id = v_me),
+        'friendships', COALESCE((SELECT jsonb_agg(jsonb_build_object(
+                'with', CASE WHEN f.requester_id = v_me THEN f.receiver_username ELSE f.requester_username END,
+                'direction', CASE WHEN f.requester_id = v_me THEN 'sent' ELSE 'received' END,
+                'status', f.status, 'created_at', f.created_at) ORDER BY f.created_at)
+              FROM (SELECT * FROM public.friendships WHERE requester_id = v_me OR receiver_id = v_me ORDER BY created_at DESC LIMIT 5000) f), '[]'::jsonb),
+        'follows', COALESCE((SELECT jsonb_agg(jsonb_build_object(
+                'following', fo.following_username, 'status', fo.status, 'created_at', fo.created_at) ORDER BY fo.created_at)
+              FROM (SELECT * FROM public.follows WHERE follower_id = v_me ORDER BY created_at DESC LIMIT 5000) fo), '[]'::jsonb),
+        'blocked', COALESCE((SELECT jsonb_agg(jsonb_build_object('username', b.blocked_username, 'created_at', b.created_at))
+              FROM public.blocked_users b WHERE b.blocker_id = v_me), '[]'::jsonb),
+        'posts', COALESCE((SELECT jsonb_agg(jsonb_build_object(
+                'id', po.id, 'type', po.content_type, 'caption', po.caption, 'hashtags', po.hashtags, 'media', po.media_urls,
+                'visibility', po.visibility, 'likes', po.likes_count, 'comments', po.comments_count, 'created_at', po.created_at) ORDER BY po.created_at)
+              FROM (SELECT * FROM public.posts WHERE author_id = v_me AND NOT is_deleted ORDER BY created_at DESC LIMIT 5000) po), '[]'::jsonb),
+        'comments', COALESCE((SELECT jsonb_agg(jsonb_build_object('post_id', c.post_id, 'content', c.content, 'created_at', c.created_at) ORDER BY c.created_at)
+              FROM (SELECT * FROM public.post_comments WHERE author_id = v_me ORDER BY created_at DESC LIMIT 5000) c), '[]'::jsonb),
+        'saved_posts', COALESCE((SELECT jsonb_agg(jsonb_build_object('post_id', sp.post_id, 'created_at', sp.created_at))
+              FROM (SELECT * FROM public.saved_posts WHERE user_id = v_me ORDER BY created_at DESC LIMIT 5000) sp), '[]'::jsonb),
+        'stories', COALESCE((SELECT jsonb_agg(jsonb_build_object('type', s.media_type, 'media', s.media_url, 'caption', s.caption_original, 'created_at', s.created_at))
+              FROM public.stories s WHERE s.user_id = v_me), '[]'::jsonb),
+        'calls', COALESCE((SELECT jsonb_agg(jsonb_build_object(
+                'with', CASE WHEN cl.caller_id = v_me THEN cl.receiver_name ELSE cl.caller_name END,
+                'direction', CASE WHEN cl.caller_id = v_me THEN 'outgoing' ELSE 'incoming' END,
+                'video', cl.is_video, 'status', cl.status, 'duration_sec', cl.duration_sec, 'created_at', cl.created_at) ORDER BY cl.created_at)
+              FROM (SELECT * FROM public.call_logs WHERE caller_id = v_me OR receiver_id = v_me ORDER BY created_at DESC LIMIT 5000) cl), '[]'::jsonb),
+        'chats', COALESCE((SELECT jsonb_agg(jsonb_build_object('room_id', m.room_id, 'messages_sent', m.n, 'first', m.first_at, 'last', m.last_at))
+              FROM (SELECT room_id, COUNT(*) AS n, MIN(created_at) AS first_at, MAX(created_at) AS last_at
+                      FROM public.messages WHERE sender_id = v_me GROUP BY room_id) m), '[]'::jsonb),
+        'consents', COALESCE((SELECT jsonb_agg(jsonb_build_object('document', uc.doc_key, 'version', uc.document_version,
+                'type', uc.consent_type, 'action', uc.action, 'created_at', uc.created_at) ORDER BY uc.created_at)
+              FROM public.user_consents uc WHERE uc.user_id = v_me), '[]'::jsonb),
+        'sign_ins', COALESCE((SELECT jsonb_agg(jsonb_build_object('device', le.device_model, 'app_version', le.app_version,
+                'country', le.country, 'created_at', le.created_at) ORDER BY le.created_at)
+              FROM (SELECT * FROM public.user_login_events WHERE user_id = v_me ORDER BY created_at DESC LIMIT 500) le), '[]'::jsonb),
+        'note', 'Mesaj içerikleri uçtan uca şifrelidir ve yalnız cihazlarınızda okunabilir; bu dosyada yer almaz. / Message contents are end-to-end encrypted and are not included.'
+    );
+END $$;
+REVOKE ALL ON FUNCTION public.juzzio_export_my_data() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.juzzio_export_my_data() TO authenticated;
+
+-- =============================================================================
+-- 10.47 (v2.1) — Yönetici Paneli modülleri (Faz 10–16): gerçek sayılar
+--   Tek uç: admin_module_stats(token, modül). Yalnız süper yönetici (admin_check_token).
+--   Hiçbir modül mesaj İÇERİĞİ, e-posta, IP veya gizli ayar DEĞERİ döndürmez;
+--   app_settings için yalnız anahtar adları ve güncellenme zamanı verilir.
+-- =============================================================================
+CREATE OR REPLACE FUNCTION public.admin_module_stats(p_token TEXT, p_module TEXT)
+RETURNS JSONB LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+    v JSONB;
+    v_mfa BIGINT := NULL;
+BEGIN
+    IF NOT public.admin_check_token(p_token) THEN RAISE EXCEPTION 'super_admin_required'; END IF;
+    CASE p_module
+    WHEN 'calls' THEN
+        SELECT jsonb_build_object(
+            'total_30d', COUNT(*),
+            'answered_30d', COUNT(*) FILTER (WHERE status IN ('answered', 'ended')),
+            'missed_30d', COUNT(*) FILTER (WHERE status IN ('missed', 'busy_silent')),
+            'rejected_30d', COUNT(*) FILTER (WHERE status = 'rejected'),
+            'video_30d', COUNT(*) FILTER (WHERE is_video),
+            'avg_duration_sec', COALESCE(ROUND(AVG(duration_sec) FILTER (WHERE duration_sec > 0)), 0),
+            'success_rate', CASE WHEN COUNT(*) = 0 THEN 0 ELSE ROUND(100.0 * COUNT(*) FILTER (WHERE status IN ('answered', 'ended')) / COUNT(*), 1) END,
+            'per_day', COALESCE((SELECT jsonb_agg(jsonb_build_object('day', d, 'n', n) ORDER BY d) FROM (
+                SELECT created_at::date AS d, COUNT(*) AS n FROM public.call_logs WHERE created_at > NOW() - INTERVAL '14 days' GROUP BY 1) x), '[]'::jsonb))
+          INTO v FROM public.call_logs WHERE created_at > NOW() - INTERVAL '30 days';
+    WHEN 'messaging' THEN
+        SELECT jsonb_build_object(
+            'messages_24h', (SELECT COUNT(*) FROM public.messages WHERE created_at > NOW() - INTERVAL '24 hours'),
+            'messages_7d', (SELECT COUNT(*) FROM public.messages WHERE created_at > NOW() - INTERVAL '7 days'),
+            'active_rooms_7d', (SELECT COUNT(DISTINCT room_id) FROM public.messages WHERE created_at > NOW() - INTERVAL '7 days'),
+            'group_rooms', (SELECT COUNT(*) FROM public.rooms WHERE is_group),
+            'scheduled_pending', (SELECT COUNT(*) FROM public.scheduled_messages WHERE status = 'pending'),
+            'scheduled_failed_7d', (SELECT COUNT(*) FROM public.scheduled_messages WHERE status = 'failed' AND send_at > NOW() - INTERVAL '7 days'),
+            'rate_limited_1h', (SELECT COUNT(*) FROM public.juzzio_rate_events WHERE created_at > NOW() - INTERVAL '1 hour')) INTO v;
+    WHEN 'translation' THEN
+        SELECT jsonb_build_object(
+            'by_kind_30d', COALESCE((SELECT jsonb_agg(jsonb_build_object('kind', kind, 'requests', r, 'cache_hits', c, 'failures', f) ORDER BY r DESC) FROM (
+                SELECT kind, SUM(requests) r, SUM(cache_hits) c, SUM(failures) f FROM public.translation_usage_daily
+                 WHERE day > CURRENT_DATE - 30 GROUP BY kind) x), '[]'::jsonb),
+            'per_day', COALESCE((SELECT jsonb_agg(jsonb_build_object('day', day, 'n', r) ORDER BY day) FROM (
+                SELECT day, SUM(requests) r FROM public.translation_usage_daily WHERE day > CURRENT_DATE - 14 GROUP BY day) x), '[]'::jsonb),
+            'ai_units_today', COALESCE((SELECT jsonb_object_agg(kind, u) FROM (
+                SELECT kind, SUM(units) u FROM public.ai_usage_daily WHERE day = CURRENT_DATE GROUP BY kind) x), '{}'::jsonb)) INTO v;
+    WHEN 'notifications' THEN
+        SELECT jsonb_build_object(
+            'total_7d', COUNT(*),
+            'accepted_7d', COUNT(*) FILTER (WHERE delivery_status = 'fcm_accepted'),
+            'failed_7d', COUNT(*) FILTER (WHERE delivery_status = 'failed'),
+            'no_tokens_7d', COUNT(*) FILTER (WHERE delivery_status = 'no_active_tokens'),
+            'skipped_7d', COUNT(*) FILTER (WHERE delivery_status IN ('skipped_preference', 'skipped_blocked')),
+            'top_errors', COALESCE((SELECT jsonb_agg(jsonb_build_object('code', fcm_error_code, 'n', n) ORDER BY n DESC) FROM (
+                SELECT fcm_error_code, COUNT(*) n FROM public.push_delivery_logs
+                 WHERE created_at > NOW() - INTERVAL '7 days' AND COALESCE(fcm_error_code, '') <> '' GROUP BY 1 ORDER BY 2 DESC LIMIT 5) x), '[]'::jsonb),
+            'active_tokens', (SELECT COUNT(*) FROM public.user_push_tokens))
+          INTO v FROM public.push_delivery_logs WHERE created_at > NOW() - INTERVAL '7 days';
+    WHEN 'discover' THEN
+        SELECT jsonb_build_object(
+            'visible_users', (SELECT COUNT(*) FROM public.profiles WHERE discoverable AND NOT is_private_account),
+            'hidden_users', (SELECT COUNT(*) FROM public.profiles WHERE NOT discoverable OR is_private_account),
+            'actions_7d', COALESCE((SELECT jsonb_object_agg(action, n) FROM (
+                SELECT action, COUNT(*) n FROM public.discover_actions WHERE created_at > NOW() - INTERVAL '7 days' GROUP BY action) x), '{}'::jsonb),
+            'matches', (SELECT COUNT(*) FROM public.discover_actions a JOIN public.discover_actions b
+                         ON b.user_id = a.target_id AND b.target_id = a.user_id AND b.action IN ('like', 'super')
+                        WHERE a.action IN ('like', 'super') AND a.user_id < a.target_id)) INTO v;
+    WHEN 'watch_chick' THEN
+        SELECT jsonb_build_object(
+            'watch_active', (SELECT COUNT(*) FROM public.watch_party_sessions WHERE status = 'active'),
+            'watch_30d', (SELECT COUNT(*) FROM public.watch_party_sessions WHERE created_at > NOW() - INTERVAL '30 days'),
+            'chicks_alive', (SELECT COUNT(*) FROM public.chick_pets WHERE ended_at IS NULL),
+            'chicks_total', (SELECT COUNT(*) FROM public.chick_pets),
+            'chicks_ended_30d', (SELECT COUNT(*) FROM public.chick_pets WHERE ended_at > NOW() - INTERVAL '30 days')) INTO v;
+    WHEN 'security' THEN
+        IF to_regclass('auth.mfa_factors') IS NOT NULL THEN
+            EXECUTE 'SELECT COUNT(DISTINCT user_id) FROM auth.mfa_factors WHERE status::text = ''verified''' INTO v_mfa;
+        END IF;
+        SELECT jsonb_build_object(
+            'mfa_users', v_mfa,
+            'events_7d', COALESCE((SELECT jsonb_object_agg(kind, n) FROM (
+                SELECT kind, COUNT(*) n FROM public.security_events WHERE created_at > NOW() - INTERVAL '7 days' GROUP BY kind) x), '{}'::jsonb),
+            'admin_login_failed_7d', (SELECT COUNT(*) FROM public.admin_login_attempts WHERE NOT success AND created_at > NOW() - INTERVAL '7 days'),
+            'admin_login_ok_7d', (SELECT COUNT(*) FROM public.admin_login_attempts WHERE success AND created_at > NOW() - INTERVAL '7 days'),
+            'banned_users', (SELECT COUNT(*) FROM public.banned_users),
+            'strikes_30d', (SELECT COUNT(*) FROM public.moderation_strikes WHERE NOT revoked AND created_at > NOW() - INTERVAL '30 days'),
+            'password_changes_30d', (SELECT COUNT(*) FROM public.account_lifecycle_events WHERE event = 'password_changed' AND created_at > NOW() - INTERVAL '30 days')) INTO v;
+    WHEN 'infra' THEN
+        SELECT jsonb_build_object(
+            'db_bytes', pg_database_size(current_database()),
+            'tables', COALESCE((SELECT jsonb_agg(jsonb_build_object('table', relname, 'bytes', b, 'rows', r) ORDER BY b DESC) FROM (
+                SELECT c.relname, pg_total_relation_size(c.oid) b, GREATEST(c.reltuples, 0)::bigint r
+                  FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+                 WHERE n.nspname = 'public' AND c.relkind = 'r' ORDER BY 2 DESC LIMIT 15) x), '[]'::jsonb),
+            'cleanup_pending', (SELECT COUNT(*) FROM public.juzzio_storage_cleanup_queue WHERE processed_at IS NULL),
+            'cleanup_failed', (SELECT COUNT(*) FROM public.juzzio_storage_cleanup_queue WHERE processed_at IS NULL AND attempts >= 3)) INTO v;
+    WHEN 'live' THEN
+        SELECT jsonb_build_object(
+            'online_now', (SELECT COUNT(*) FROM public.profiles WHERE is_online AND last_seen > NOW() - INTERVAL '5 minutes'),
+            'seen_1h', (SELECT COUNT(*) FROM public.profiles WHERE last_seen > NOW() - INTERVAL '1 hour'),
+            'seen_24h', (SELECT COUNT(*) FROM public.profiles WHERE last_seen > NOW() - INTERVAL '24 hours'),
+            'devices_24h', COALESCE((SELECT jsonb_object_agg(platform, n) FROM (
+                SELECT platform, COUNT(*) n FROM public.user_devices WHERE last_seen > NOW() - INTERVAL '24 hours' GROUP BY platform) x), '{}'::jsonb),
+            'calls_ringing', (SELECT COUNT(*) FROM public.call_logs WHERE status = 'ringing' AND created_at > NOW() - INTERVAL '2 minutes'),
+            'active_call_rooms', (SELECT COUNT(*) FROM public.rooms WHERE is_call_active)) INTO v;
+    WHEN 'media' THEN
+        SELECT jsonb_build_object(
+            'verdicts_30d', COALESCE((SELECT jsonb_object_agg(verdict, n) FROM (
+                SELECT verdict, COUNT(*) n FROM public.media_moderation WHERE created_at > NOW() - INTERVAL '30 days' GROUP BY verdict) x), '{}'::jsonb),
+            'review_pending', (SELECT COUNT(*) FROM public.media_moderation WHERE review_status = 'pending'),
+            'by_kind_30d', COALESCE((SELECT jsonb_object_agg(kind, n) FROM (
+                SELECT kind, COUNT(*) n FROM public.media_moderation WHERE created_at > NOW() - INTERVAL '30 days' GROUP BY kind) x), '{}'::jsonb)) INTO v;
+    WHEN 'errors' THEN
+        SELECT jsonb_build_object(
+            'open', (SELECT COUNT(*) FROM public.app_error_reports WHERE status = 'open'),
+            'fatal_open', (SELECT COUNT(*) FROM public.app_error_reports WHERE status = 'open' AND is_fatal),
+            'by_platform', COALESCE((SELECT jsonb_object_agg(platform, n) FROM (
+                SELECT platform, SUM(occurrences) n FROM public.app_error_reports WHERE last_seen > NOW() - INTERVAL '7 days' GROUP BY platform) x), '{}'::jsonb),
+            'by_version', COALESCE((SELECT jsonb_object_agg(app_version, n) FROM (
+                SELECT app_version, SUM(occurrences) n FROM public.app_error_reports WHERE last_seen > NOW() - INTERVAL '7 days' GROUP BY app_version ORDER BY 2 DESC LIMIT 6) x), '{}'::jsonb)) INTO v;
+    WHEN 'quota' THEN
+        SELECT jsonb_build_object(
+            'ai_today', COALESCE((SELECT jsonb_object_agg(kind, u) FROM (
+                SELECT kind, SUM(units) u FROM public.ai_usage_daily WHERE day = CURRENT_DATE GROUP BY kind) x), '{}'::jsonb),
+            'ai_users_today', (SELECT COUNT(DISTINCT user_id) FROM public.ai_usage_daily WHERE day = CURRENT_DATE),
+            'rate_top_1h', COALESCE((SELECT jsonb_agg(jsonb_build_object('action', action, 'n', n) ORDER BY n DESC) FROM (
+                SELECT action, COUNT(*) n FROM public.juzzio_rate_events WHERE created_at > NOW() - INTERVAL '1 hour' GROUP BY action ORDER BY 2 DESC LIMIT 8) x), '[]'::jsonb)) INTO v;
+    WHEN 'verification' THEN
+        SELECT jsonb_build_object(
+            'verified', (SELECT COUNT(*) FROM public.profiles WHERE is_verified),
+            'users', (SELECT COUNT(*) FROM public.profiles),
+            'private_accounts', (SELECT COUNT(*) FROM public.profiles WHERE is_private_account)) INTO v;
+    WHEN 'flags' THEN
+        SELECT jsonb_build_object('settings', COALESCE((SELECT jsonb_agg(jsonb_build_object('key', key, 'updated_at', updated_at) ORDER BY key)
+                                                          FROM public.app_settings), '[]'::jsonb)) INTO v;
+    WHEN 'feedback' THEN
+        SELECT jsonb_build_object(
+            'by_status', COALESCE((SELECT jsonb_object_agg(status, n) FROM (SELECT status, COUNT(*) n FROM public.app_feedback GROUP BY status) x), '{}'::jsonb),
+            'by_kind_30d', COALESCE((SELECT jsonb_object_agg(kind, n) FROM (
+                SELECT kind, COUNT(*) n FROM public.app_feedback WHERE created_at > NOW() - INTERVAL '30 days' GROUP BY kind) x), '{}'::jsonb)) INTO v;
+    WHEN 'lifecycle' THEN
+        SELECT jsonb_build_object(
+            'events_30d', COALESCE((SELECT jsonb_object_agg(event, n) FROM (
+                SELECT event, COUNT(*) n FROM public.account_lifecycle_events WHERE created_at > NOW() - INTERVAL '30 days' GROUP BY event) x), '{}'::jsonb),
+            'new_users_30d', (SELECT COUNT(*) FROM public.profiles WHERE created_at > NOW() - INTERVAL '30 days'),
+            'cleanup_done_30d', (SELECT COUNT(*) FROM public.juzzio_storage_cleanup_queue WHERE processed_at > NOW() - INTERVAL '30 days')) INTO v;
+    ELSE
+        RAISE EXCEPTION 'invalid_module';
+    END CASE;
+    RETURN jsonb_build_object('module', p_module, 'generated_at', NOW()) || COALESCE(v, '{}'::jsonb);
+END $$;
+REVOKE ALL ON FUNCTION public.admin_module_stats(TEXT, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_module_stats(TEXT, TEXT) TO authenticated;

@@ -46,7 +46,36 @@
 
 ---
 
-## 🆕 Latest updates (November 10, 2026)
+## 🆕 Latest updates (November 21, 2026)
+
+<details open>
+<summary><b>v2.1.0 — New Logo, Explore, Friend Requests & Database Hardening</b></summary>
+
+### 🎯 Why did this update come?
+Juzzio 2.1: the new green ribbon J logo and a Neon Lime look that matches the design files. New sign-in/sign-up, Friend Requests page, people discovery (cards, matches, likes), My Profile QR and database hardening.
+
+### ✨ New
+- 🟢 New brand: green ribbon J logo (incl. app icon) and Neon Lime colours
+- 🔐 New Sign up / Sign in screen: Remember me, Forgot password
+- 👥 Friend Requests page: received/sent, mutual friends, Accept all, Withdraw
+- 💜 Explore: meet new people — cards, like, super like, matches, who liked you (real users; hide anytime in Edit Profile)
+- 🔳 My Profile QR: copy link, share, save to gallery, open a profile from a code or username
+- 🔔 Requests, Mentions and System filters in notifications
+- 🌐 "Live Translation · Active" badge in video calls
+- 🖥️ Screen sharing in calls (Android and desktop): start/stop from the top bar
+- 📷 Scan QR codes with the camera (Android/iOS), torch button and paste fallback
+- 🌤️ Sky 2.1: weather ambience redesigned — sky colour by your local time, a sun that arcs through the day, the moon in its real phase, twinkling stars, clouds, windy rain, lightning, snow and fog
+- ⚙️ New Settings: Account & Profile, Privacy & Security, two-step verification (authenticator app), scheduled quiet hours, translation mode (Real-time / Fast / High accuracy), storage ring chart, bubble corners, bold text, colour correction, FAQ, Download my data, Consents; Call Settings and sign-out dialog
+
+### 🛠 Fixes
+- The selected bottom tab shows a lime underline
+- Sign-in title and texts are centred
+
+### 🔒 Security
+- TRUNCATE/REFERENCES/TRIGGER removed from client roles on every table; signed-out (anon) writes fully blocked
+- Explore never uses location or age; private accounts are never shown and anyone can hide from Explore
+
+</details>
 
 **v1.2.9** is the newest release (after v1.2.8, v1.2.7, v1.2.6, v1.2.5, v1.2.4, v1.2.3, v1.2.2, v1.2.1, v1.2.0, v1.1.1 and the November 9 releases v0.9.4 → v1.1.0). Every update below is also shown inside the app on the first launch after updating ("What's new?"), with the same sections and emojis. Full notes: [release-notes.md](release-notes.md) · [GitHub Releases](https://github.com/engiincr/Juzzio-Chat/releases).
 

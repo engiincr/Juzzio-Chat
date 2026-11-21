@@ -28,6 +28,7 @@ import '../core/config.dart';
 import '../core/theme/juzzio_glass.dart';
 import '../services/juzzio_media_url.dart';
 import 'juzzio_motion.dart';
+import 'juzzio_brand.dart';
 
 /// Ölçüler (Figma, 393 dp genişlik referansı)
 class JuzzioSpaceMetrics {
@@ -110,6 +111,20 @@ class JuzzioSpaceBrand extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // v2.1: marka adı yazılırken önüne yeşil şerit "J" logosu gelir (tasarımdaki başlık)
+    final word = _word();
+    if (text != 'Juzzio') return word;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        JuzzioLogoGlyph(size: size * 1.05),
+        SizedBox(width: size * 0.12),
+        Flexible(child: word),
+      ],
+    );
+  }
+
+  Widget _word() {
     return Text.rich(
       TextSpan(children: [
         TextSpan(text: text),
@@ -1005,7 +1020,7 @@ class JuzzioSpaceBottomNav extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             icon,
-                            const SizedBox(height: 5),
+                            const SizedBox(height: 4),
                             Text(
                               it.label,
                               maxLines: 1,
@@ -1016,6 +1031,14 @@ class JuzzioSpaceBottomNav extends StatelessWidget {
                                 fontSize: 11.5,
                                 fontWeight: active ? FontWeight.w800 : FontWeight.w600,
                               ),
+                            ),
+                            // v2.1: seçili sekmenin altında limon çizgi (tasarımdaki gösterge)
+                            AnimatedContainer(
+                              duration: Duration(milliseconds: _calm ? 0 : 240),
+                              margin: const EdgeInsets.only(top: 3),
+                              width: active ? 18 : 0,
+                              height: 3,
+                              decoration: BoxDecoration(color: glow, borderRadius: BorderRadius.circular(2)),
                             ),
                           ],
                         ),

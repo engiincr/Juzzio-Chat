@@ -1,7 +1,7 @@
 name: juzzio
 description: "JUZZIO - Zero-Latency Bidirectional Translation, LiveKit Group Conference Audio/Video Call & Voice Note Messenger"
 publish_to: 'none'
-version: 2.0.0+200
+version: 2.1.0+210
 
 environment:
   sdk: '>=3.4.0 <4.0.0'
@@ -18,6 +18,10 @@ dependencies:
 
   # Gerçek Zamanlı SFU Ses/Görüntü ve DataChannel Altyapısı (flutter_webrtc dahildir)
   livekit_client: 2.13.2
+  # v2.1: ekran paylaşımı izni (Helper.requestCapturePermission) — livekit_client'ın kendi sürümüyle aynı
+  flutter_webrtc: 1.6.3
+  # v2.1: Profil Karekodum → kamerayla karekod tarama
+  mobile_scanner: '>=6.0.0 <8.0.0'
 
   # Deepgram Nova-2 WebSocket & HTTP Çeviri Köprüsü
   web_socket_channel: ^3.0.1

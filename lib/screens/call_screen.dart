@@ -22,8 +22,10 @@
 // =============================================================================
 
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'dart:math';
 import 'dart:ui';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:battery_plus/battery_plus.dart';
@@ -33,6 +35,7 @@ import 'package:livekit_client/livekit_client.dart';
 import '../core/juzzio_duration_format.dart';
 import '../core/app_theme_and_locale.dart';
 import '../core/config.dart';
+import '../widgets/motion/juzzio_motion_core.dart' show JuzzioHud;
 import '../services/deepgram_livekit_service.dart';
 import '../services/juzzio_health_monitor.dart';
 import '../services/juzzio_call_session.dart';
@@ -1113,12 +1116,15 @@ class _CallScreenState extends State<CallScreen> {
   VideoTrack? _resolveLocalVideoTrack() {
     final local = _controller.localParticipant;
     if (local == null) return null;
+    // v2.1: ekran paylaşırken kendi önizlemem kamera olarak kalır
+    VideoTrack? any;
     for (final pub in local.videoTrackPublications) {
       if (pub.track is VideoTrack && !pub.muted) {
-        return pub.track as VideoTrack;
+        if (pub.source == TrackSource.camera) return pub.track as VideoTrack;
+        any ??= pub.track as VideoTrack;
       }
     }
-    return null;
+    return any;
   }
 
   /// Katılımcı listesini oluşturur (Gerçek LiveKit katılımcıları + Grup/Partner bilgisi)
@@ -1126,10 +1132,14 @@ class _CallScreenState extends State<CallScreen> {
     final slots = <_ParticipantSlotData>[];
     for (final p in _controller.remoteParticipants) {
       VideoTrack? vTrack;
+      // v2.1: karşı taraf ekranını paylaşıyorsa büyük alanda ekran görüntüsü gösterilir
       for (final pub in p.videoTrackPublications) {
         if (pub.subscribed && pub.track is VideoTrack && !pub.muted) {
-          vTrack = pub.track as VideoTrack;
-          break;
+          if (pub.source == TrackSource.screenShareVideo) {
+            vTrack = pub.track as VideoTrack;
+            break;
+          }
+          vTrack ??= pub.track as VideoTrack;
         }
       }
       final name = p.name.trim().isNotEmpty ? p.name.trim() : p.identity;
@@ -1903,6 +1913,7 @@ class _CallScreenState extends State<CallScreen> {
                     child: _buildConferenceGrid(gridSlots),
                   ),
                   header,
+                  if (_showSubtitles) _liveTranslationBadge(top: topInset + 118),
                   if (_showSubtitles)
                     (_isVoiceOnlyCall(gridSlots)
                         ? _buildVoiceTranscriptCard(screenSize: screenSize, bottomBase: 12)
@@ -1958,6 +1969,9 @@ class _CallScreenState extends State<CallScreen> {
                         child: _buildTopRightPipCard(pipSlot, isThreeOrMoreCall: false),
                       ),
                     ),
+
+                    // v2.1 (tasarım: Görüntülü Arama): sol üstte "Canlı Çeviri · Aktif" rozeti
+                    if (_showSubtitles) _liveTranslationBadge(top: topInset + 118),
 
                     // 4. Canlı çeviri: sesli aramada ortada büyük kart, görüntülüde yüzleri
                     //    kapatmayan alt altyazı şeridi
@@ -2696,6 +2710,19 @@ class _CallScreenState extends State<CallScreen> {
               ),
               const SizedBox(width: 6),
             ],
+            // v2.1 (tasarım: Görüntülü Arama → Ekran Paylaşımı)
+            if (_screenShareSupported) ...[
+              _topGlassCircleButton(
+                icon: _controller.isScreenSharing ? Icons.stop_screen_share_rounded : Icons.screen_share_outlined,
+                iconColor: _controller.isScreenSharing ? const Color(0xFF111113) : Colors.white,
+                active: _controller.isScreenSharing,
+                tooltip: _controller.isScreenSharing
+                    ? _app.loc('Ekran paylaşımını durdur', 'Stop sharing screen', 'Bildschirmfreigabe beenden')
+                    : _app.loc('Ekran Paylaşımı', 'Share screen', 'Bildschirm teilen'),
+                onTap: _toggleScreenShare,
+              ),
+              const SizedBox(width: 6),
+            ],
             if (_controller.isCameraEnabled)
               _topGlassCircleButton(
                 icon: Icons.cameraswitch_rounded,
@@ -2714,6 +2741,24 @@ class _CallScreenState extends State<CallScreen> {
         ),
       ],
     );
+  }
+
+  bool get _screenShareSupported => !kIsWeb && (Platform.isAndroid || Platform.isWindows || Platform.isMacOS || Platform.isLinux);
+
+  Future<void> _toggleScreenShare() async {
+    final turnOn = !_controller.isScreenSharing;
+    final ok = await _controller.setScreenShare(turnOn);
+    if (!mounted) return;
+    JuzzioHud.show(
+      context,
+      icon: turnOn ? Icons.screen_share_rounded : Icons.stop_screen_share_rounded,
+      text: !ok
+          ? _app.loc('Ekran paylaşımı başlatılamadı', 'Could not start screen sharing', 'Bildschirmfreigabe fehlgeschlagen')
+          : turnOn
+              ? _app.loc('Ekranın paylaşılıyor', 'Sharing your screen', 'Bildschirm wird geteilt')
+              : _app.loc('Ekran paylaşımı durdu', 'Screen sharing stopped', 'Bildschirmfreigabe beendet'),
+    );
+    setState(() {});
   }
 
   Widget _topGlassCircleButton({
@@ -2752,6 +2797,34 @@ class _CallScreenState extends State<CallScreen> {
   /// - Özel boyutlandırma tutamacı (en ve boy sürükleyerek ayarlanabilir)
   /// - Mini geçmiş kapalıyken bile son 3 mesajı gösterme
   /// - Ses izi algılama (@fikret39, @ari, @tugkancr) ve bölünen konuyu otomatik devam ettirme
+  Widget _liveTranslationBadge({required double top}) {
+    final app = JuzzioAppController.instance;
+    final glow = JuzzioGlassTokens.glow;
+    return Positioned(
+      top: top,
+      left: 14,
+      child: IgnorePointer(
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(10, 6, 12, 6),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.55),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: glow.withValues(alpha: 0.6)),
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(Icons.translate_rounded, size: 16, color: glow),
+            const SizedBox(width: 6),
+            Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+              Text(app.trEn('Canlı Çeviri', 'Live Translation', 'Live-Übersetzung'),
+                  style: const TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.w800)),
+              Text(app.trEn('Aktif', 'Active', 'Aktiv'), style: TextStyle(color: glow, fontSize: 10.5, fontWeight: FontWeight.w700)),
+            ]),
+          ]),
+        ),
+      ),
+    );
+  }
+
   bool get _showSubtitles =>
       _isTranslatorVisible && JuzzioFeaturesService.instance.lastAppConfig.liveTranslationEnabled;
 

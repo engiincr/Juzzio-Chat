@@ -13,6 +13,7 @@ Yeni bir görsel/ses/video eklenmeden önce bu tabloya satır eklenmelidir.
 | `assets/weather/moon.png`, `sun.png`, `cloud_a.png`, `cloud_b.png` | `tools/weather_sprites.py` (tamamen kodla üretildi; fotoğraf ya da üçüncü taraf görsel yok) | Juzzio'ya ait, özgün |
 | Hareketli "GIF" çıkartmalar (`lib/widgets/juzzio_gif_stickers.dart`) | Dosya yok: emoji yazı tipi + kodla çizilen hareket/efektler (v1.2.9) | Juzzio'ya ait; emoji glifleri SIL OFL 1.1 |
 | `docs/images/juzzio-social-preview.png` | `tools/github_banner.py` (logo + Inter yazı tipi, kodla çizildi) | Juzzio'ya ait; Inter SIL OFL 1.1 |
+| `docs/play/feature_graphic_1024x500.png`, `docs/play/icon_512.png` | `tools/play_feature_graphic.py` (logo + Inter yazı tipi, kodla çizildi) | Juzzio'ya ait; Inter SIL OFL 1.1 |
 | `assets/images/pdf_logo.png` | Yasal PDF raporunun antet logosu (şeffaf arka plan); Juzzio logosu + "Juzzio." yazısı (v1.2.9). Uygulama logosundan ayrı dosyadır | Juzzio'ya ait |
 | `assets/fonts/pdf/LiberationSans-Regular.ttf`, `-Bold.ttf` | Liberation Fonts (github.com/liberationfonts) — yalnız yasal PDF raporuna gömülür (Türkçe karakter) | SIL Open Font License 1.1 (`LiberationSans-LICENSE.txt`) |
 | `assets/sounds/juzzio_ringback.wav` | 400+450 Hz çift ton, kodla üretildi | Juzzio'ya ait |

@@ -397,6 +397,7 @@ class JuzzioFcmPushService {
       _isTokenSyncedToSupabase = true;
       _lastSyncedAt = DateTime.now();
       await syncNotificationPreviewMode();
+      await JuzzioAppController.instance.syncQuietHoursToNative();
       return true;
     } catch (_) {
       _isTokenSyncedToSupabase = false;

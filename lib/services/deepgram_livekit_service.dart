@@ -15,6 +15,7 @@ import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show EventChannel, MethodChannel;
+import 'package:flutter_webrtc/flutter_webrtc.dart' as webrtc;
 import 'package:livekit_client/livekit_client.dart';
 import 'package:record/record.dart';
 import 'package:web_socket_channel/io.dart';
@@ -1795,6 +1796,56 @@ class DeepgramLiveKitController extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ---------------------------------------------------------------------------
+  // v2.1: Ekran paylaşımı (Android · masaüstü). Android'de sıra zorunludur:
+  //   1) kullanıcıdan ekran yansıtma izni  2) ön plan servisine mediaProjection türü
+  //   3) LiveKit ekran izini yayınla. Hata olursa servis eski türüne döner, arama sürer.
+  // ---------------------------------------------------------------------------
+  bool isScreenSharing = false;
+  static const MethodChannel _screenNative = MethodChannel('juzzio/notifications');
+
+  Future<bool> setScreenShare(bool on) async {
+    final lp = _room?.localParticipant;
+    if (lp == null || on == isScreenSharing) return on == isScreenSharing;
+    final android = !kIsWeb && Platform.isAndroid;
+    if (!on) {
+      try {
+        await lp.setScreenShareEnabled(false);
+      } catch (_) {}
+      if (android) {
+        try {
+          await _screenNative.invokeMethod('setScreenShareForeground', {'on': false, 'title': 'Juzzio'});
+        } catch (_) {}
+      }
+      isScreenSharing = false;
+      notifyListeners();
+      return true;
+    }
+    if (kIsWeb || !(android || Platform.isWindows || Platform.isMacOS || Platform.isLinux)) return false;
+    try {
+      if (android) {
+        final granted = await webrtc.Helper.requestCapturePermission();
+        if (!granted) return false;
+        await _screenNative.invokeMethod('setScreenShareForeground', {'on': true, 'title': 'Juzzio'});
+        // servis türü güncellensin diye kısa bekleme (aksi hâlde Android 14 yansıtmayı reddeder)
+        await Future<void>.delayed(const Duration(milliseconds: 350));
+      }
+      await lp.setScreenShareEnabled(true);
+      isScreenSharing = true;
+      notifyListeners();
+      return true;
+    } catch (_) {
+      if (android) {
+        try {
+          await _screenNative.invokeMethod('setScreenShareForeground', {'on': false, 'title': 'Juzzio'});
+        } catch (_) {}
+      }
+      isScreenSharing = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<void> toggleCamera() async {
     isCameraEnabled = !isCameraEnabled;
     await _room?.localParticipant?.setCameraEnabled(isCameraEnabled);
@@ -1857,6 +1908,12 @@ class DeepgramLiveKitController extends ChangeNotifier {
   Future<void> disconnectCall() async {
     if (_isDisconnecting) return;
     _isDisconnecting = true;
+    if (isScreenSharing) {
+      isScreenSharing = false;
+      try {
+        await _room?.localParticipant?.setScreenShareEnabled(false);
+      } catch (_) {}
+    }
     _peerGraceTimer?.cancel();
     peerReconnectingName = null;
     await _stopDeviceSpeech();

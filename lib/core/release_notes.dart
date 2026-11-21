@@ -157,6 +157,86 @@ class JuzzioReleaseNote {
 /// Uygulamaya gömülü sürüm geçmişi (yayınlanmış sürümlerin gerçek içeriği)
 final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
   JuzzioReleaseNote(
+    versionName: '2.1.0',
+    versionCode: 210,
+    publishedAt: DateTime(2026, 11, 21),
+    mandatory: false,
+    sections: const {
+      'tr': JuzzioReleaseSection(
+        reason: "Juzzio 2.1: yeni yeşil şerit J logosu ve tasarım dosyalarıyla birebir Neon Lime görünüm. Yeni Kayıt/Giriş ekranı, Arkadaşlık İstekleri sayfası, kişi keşfetme (kart, eşleşme, beğeni), Profil Karekodum ve veritabanı güvenlik sıkılaştırması.",
+        features: [
+          "🟢 Yeni marka: yeşil şerit J logosu (uygulama ikonu dahil) ve Neon Lime renkleri",
+          "🔐 Yeni Kayıt Ol / Giriş Yap ekranı: Beni hatırla, Şifremi unuttum",
+          "👥 Arkadaşlık İstekleri sayfası: Gelen/Gönderilen, ortak arkadaş sayısı, Tümünü Kabul Et, Geri Çek",
+          "💜 Keşfet: yeni insanlarla tanış — kartlar, beğen, süper beğeni, eşleşmeler, seni beğenenler (gerçek kullanıcılar; Profil Düzenle'den gizlenebilir)",
+          "🔳 Profil Karekodum: bağlantı kopyala, paylaş, galeriye indir, karekod/kullanıcı adıyla profil aç",
+          "🔔 Bildirimlerde İstekler, Bahsetmeler ve Sistem filtreleri",
+          "🌐 Görüntülü aramada \"Canlı Çeviri · Aktif\" rozeti",
+          "🖥️ Aramada ekran paylaşımı (Android ve masaüstü): üst çubuktaki düğmeyle başlat/durdur",
+          "📷 Karekodu kamerayla tara (Android/iOS), fener düğmesi ve bağlantı yapıştırma yedeği",
+          "🌤️ Gökyüzü 2.1: hava ambiyansı baştan tasarlandı — konumunun yerel saatine göre gök rengi, gün boyu yayda ilerleyen güneş, gerçek evreli ay, göz kırpan yıldızlar, bulutlar, rüzgârlı yağmur, şimşek, kar ve sis",
+          "⚙️ Yeni Ayarlar: Hesap ve Profil, Gizlilik ve Güvenlik, iki adımlı doğrulama (kimlik doğrulayıcı uygulama), zamanlanmış sessiz saatler, çeviri kipi (Gerçek Zamanlı / Hızlı / Yüksek Doğruluk), depolama halka grafiği, balon köşeleri, kalın yazı, renk düzeltme, SSS, Verilerimi indir, Onaylarım; Arama Ayarları ve Çıkış onay penceresi",
+        ],
+        fixes: [
+          "Alt menüde seçili sekme limon çizgiyle gösterilir",
+          "Giriş ekranı başlığı ve açıklamaları ortalandı",
+        ],
+        security: [
+          "Tüm tablolarda istemci rollerinden TRUNCATE/REFERENCES/TRIGGER yetkisi kaldırıldı; girişsiz (anon) yazma tamamen kapatıldı",
+          "Keşfet'te konum ve yaş kullanılmaz; gizli hesaplar hiç gösterilmez",
+        ],
+      ),
+      'en': JuzzioReleaseSection(
+        reason: "Juzzio 2.1: the new green ribbon J logo and a Neon Lime look that matches the design files. New sign-in/sign-up, Friend Requests page, people discovery (cards, matches, likes), My Profile QR and database hardening.",
+        features: [
+          "🟢 New brand: green ribbon J logo (incl. app icon) and Neon Lime colours",
+          "🔐 New Sign up / Sign in screen: Remember me, Forgot password",
+          "👥 Friend Requests page: received/sent, mutual friends, Accept all, Withdraw",
+          "💜 Explore: meet new people — cards, like, super like, matches, who liked you (real users; hide anytime in Edit Profile)",
+          "🔳 My Profile QR: copy link, share, save to gallery, open a profile from a code or username",
+          "🔔 Requests, Mentions and System filters in notifications",
+          "🌐 \"Live Translation · Active\" badge in video calls",
+          "🖥️ Screen sharing in calls (Android and desktop): start/stop from the top bar",
+          "📷 Scan QR codes with the camera (Android/iOS), torch button and paste fallback",
+          "🌤️ Sky 2.1: weather ambience redesigned — sky colour by your local time, a sun that arcs through the day, the moon in its real phase, twinkling stars, clouds, windy rain, lightning, snow and fog",
+          "⚙️ New Settings: Account & Profile, Privacy & Security, two-step verification (authenticator app), scheduled quiet hours, translation mode (Real-time / Fast / High accuracy), storage ring chart, bubble corners, bold text, colour correction, FAQ, Download my data, Consents; Call Settings and sign-out dialog",
+        ],
+        fixes: [
+          "The selected bottom tab shows a lime underline",
+          "Sign-in title and texts are centred",
+        ],
+        security: [
+          "TRUNCATE/REFERENCES/TRIGGER removed from client roles on every table; signed-out (anon) writes fully blocked",
+          "Explore never uses location or age; private accounts are never shown and anyone can hide from Explore",
+        ],
+      ),
+      'de': JuzzioReleaseSection(
+        reason: "Juzzio 2.1: neues grünes Band-J-Logo und ein Neon-Lime-Design nach den Entwürfen. Neue Anmeldung/Registrierung, Freundschaftsanfragen, Leute entdecken (Karten, Matches, Likes), Mein Profil-QR und Datenbank-Härtung.",
+        features: [
+          "🟢 Neue Marke: grünes Band-J-Logo (inkl. App-Symbol) und Neon-Lime-Farben",
+          "🔐 Neuer Anmelde-/Registrierungsbildschirm: Angemeldet bleiben, Passwort vergessen",
+          "👥 Freundschaftsanfragen: erhalten/gesendet, gemeinsame Freunde, Alle annehmen, Zurückziehen",
+          "💜 Entdecken: neue Leute kennenlernen — Karten, Like, Super-Like, Matches, wer dich mag (echte Nutzer; jederzeit ausblendbar)",
+          "🔳 Mein Profil-QR: Link kopieren, teilen, in der Galerie speichern, Profil per Code oder Benutzername öffnen",
+          "🔔 Filter Anfragen, Erwähnungen und System in den Benachrichtigungen",
+          "🌐 Abzeichen „Live-Übersetzung · Aktiv“ im Videoanruf",
+          "🖥️ Bildschirmfreigabe im Anruf (Android und Desktop): Start/Stopp über die obere Leiste",
+          "📷 QR-Codes mit der Kamera scannen (Android/iOS), Taschenlampe und Einfügen als Alternative",
+          "🌤️ Himmel 2.1: Wetter-Ambiente neu gestaltet — Himmelsfarbe nach Ortszeit, Sonne im Tagesbogen, Mond in echter Phase, funkelnde Sterne, Wolken, Regen mit Wind, Blitze, Schnee und Nebel",
+          "⚙️ Neue Einstellungen: Konto & Profil, Datenschutz & Sicherheit, Zwei-Schritt-Verifizierung (Authenticator-App), Ruhezeiten, Übersetzungsmodus (Echtzeit / Schnell / Hohe Genauigkeit), Speicher-Ringdiagramm, Blasenecken, Fettschrift, Farbkorrektur, FAQ, Meine Daten herunterladen, Einwilligungen; Anrufeinstellungen und Abmelde-Dialog",
+        ],
+        fixes: [
+          "Der ausgewählte Tab unten zeigt eine Lime-Linie",
+          "Titel und Texte der Anmeldung sind zentriert",
+        ],
+        security: [
+          "TRUNCATE/REFERENCES/TRIGGER bei allen Tabellen für Client-Rollen entfernt; Schreiben ohne Anmeldung vollständig gesperrt",
+          "Entdecken nutzt nie Standort oder Alter; private Konten erscheinen nie, jeder kann sich ausblenden",
+        ],
+      ),
+    },
+  ),
+  JuzzioReleaseNote(
     versionName: '2.0.0',
     versionCode: 200,
     publishedAt: DateTime(2026, 11, 20),

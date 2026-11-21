@@ -545,6 +545,14 @@ class JuzzioAppController extends ChangeNotifier {
   int _beautyLevel = 50;
   // v0.9.5: düşük veri modu ve aramada gürültü engelleme
   bool _dataSaverEnabled = false;
+  // v2.1 (Faz 7.4 / 7.5 / 8.4)
+  bool _quietHoursEnabled = false;
+  int _quietStartMin = 23 * 60;
+  int _quietEndMin = 7 * 60;
+  String _translationQuality = 'fast';
+  double _bubbleRadius = 20;
+  bool _boldTextEnabled = false;
+  String _colorVisionMode = 'off';
   bool _callNoiseFilterEnabled = true;
   // v0.9.6: Göz Konforu (mavi ışık filtresi) ve otomatik hata raporları
   String _eyeComfortMode = 'off'; // off · on · schedule · sun
@@ -573,6 +581,8 @@ class JuzzioAppController extends ChangeNotifier {
   bool _reduceMotion = false;
   // v1.2.9: Profil'deki "Görevlerim ve hatırlatıcılar" kısayolu — varsayılan KAPALI (Ayarlar'dan açılır)
   bool _showLifeCenterShortcut = false;
+  // v2.1: giriş ekranında "Beni hatırla" — yalnız kullanıcı adı/e-posta saklanır (şifre ASLA)
+  String _rememberedLoginId = '';
   bool _autoplayVideos = true;
   bool _isPrivateAccount = false;
   String _postsPrivacy = 'public';
@@ -693,6 +703,77 @@ class JuzzioAppController extends ChangeNotifier {
     notifyListeners();
   }
 
+  // --- v2.1 (Faz 7.4) Zamanlanmış sessiz saatler: bildirim gelir, ses/titreşim yapmaz (aramalar hariç)
+  static const MethodChannel _quietChannel = MethodChannel('juzzio/notifications');
+  bool get quietHoursEnabled => _quietHoursEnabled;
+  int get quietStartMin => _quietStartMin;
+  int get quietEndMin => _quietEndMin;
+
+  /// Şu an sessiz saatte mi? Gece yarısını aşan aralıklar desteklenir (saf; test edilir)
+  static bool isWithinQuietHours(int nowMin, int startMin, int endMin) {
+    if (startMin == endMin) return false;
+    return startMin < endMin ? (nowMin >= startMin && nowMin < endMin) : (nowMin >= startMin || nowMin < endMin);
+  }
+
+  bool get inQuietHoursNow {
+    if (!_quietHoursEnabled) return false;
+    final n = DateTime.now();
+    return isWithinQuietHours(n.hour * 60 + n.minute, _quietStartMin, _quietEndMin);
+  }
+
+  void setQuietHours({bool? enabled, int? startMin, int? endMin}) {
+    if (enabled != null) _quietHoursEnabled = enabled;
+    if (startMin != null) _quietStartMin = startMin.clamp(0, 1439);
+    if (endMin != null) _quietEndMin = endMin.clamp(0, 1439);
+    _persistUserPreferences();
+    syncQuietHoursToNative();
+    notifyListeners();
+  }
+
+  Future<void> syncQuietHoursToNative() async {
+    try {
+      await _quietChannel.invokeMethod('setQuietHours', {
+        'enabled': _quietHoursEnabled,
+        'start': _quietStartMin,
+        'end': _quietEndMin,
+      });
+    } catch (_) {}
+  }
+
+  // --- v2.1 (Faz 7.5) Çeviri kipi: 'realtime' | 'fast' | 'accurate' (sunucuya 'quality' olarak gider)
+  String get translationQuality => _translationQuality;
+  void setTranslationQuality(String q) {
+    if (!const {'realtime', 'fast', 'accurate'}.contains(q)) return;
+    _translationQuality = q;
+    _persistUserPreferences();
+    notifyListeners();
+  }
+
+  // --- v2.1 (Faz 8.5) Kalın yazı + renk düzeltme
+  static const colorVisionModes = ['off', 'protanopia', 'deuteranopia', 'tritanopia', 'grayscale'];
+  bool get boldTextEnabled => _boldTextEnabled;
+  String get colorVisionMode => _colorVisionMode;
+  void setBoldTextEnabled(bool v) {
+    _boldTextEnabled = v;
+    _persistUserPreferences();
+    notifyListeners();
+  }
+
+  void setColorVisionMode(String m) {
+    if (!colorVisionModes.contains(m)) return;
+    _colorVisionMode = m;
+    _persistUserPreferences();
+    notifyListeners();
+  }
+
+  // --- v2.1 (Faz 8.4) Mesaj balonu köşe yuvarlaklığı (8–28)
+  double get bubbleRadius => _bubbleRadius;
+  void setBubbleRadius(double r) {
+    _bubbleRadius = r.clamp(8.0, 28.0);
+    _persistUserPreferences();
+    notifyListeners();
+  }
+
   String get eyeComfortMode => _eyeComfortMode;
   int get eyeComfortIntensity => _eyeComfortIntensity;
   int get eyeComfortStartMin => _eyeComfortStartMin;
@@ -740,6 +821,7 @@ class JuzzioAppController extends ChangeNotifier {
   bool get highContrastMode => _highContrastMode;
   bool get reduceMotion => _reduceMotion;
   bool get showLifeCenterShortcut => _showLifeCenterShortcut;
+  String get rememberedLoginId => _rememberedLoginId;
   bool get autoplayVideos => _autoplayVideos && !_reduceMotion;
   bool get isPrivateAccount => _isPrivateAccount;
   String get postsPrivacy => _postsPrivacy;
@@ -1142,6 +1224,15 @@ class JuzzioAppController extends ChangeNotifier {
       _cameraBeautyEnabled = raw['cameraBeautyEnabled'] is bool ? raw['cameraBeautyEnabled'] as bool : _cameraBeautyEnabled;
       if (raw['beautyLevel'] is num) _beautyLevel = (raw['beautyLevel'] as num).toInt().clamp(1, 100);
       if (raw['dataSaverEnabled'] is bool) _dataSaverEnabled = raw['dataSaverEnabled'] as bool;
+      if (raw['quietHoursEnabled'] is bool) _quietHoursEnabled = raw['quietHoursEnabled'] as bool;
+      if (raw['quietStartMin'] is num) _quietStartMin = (raw['quietStartMin'] as num).toInt().clamp(0, 1439);
+      if (raw['quietEndMin'] is num) _quietEndMin = (raw['quietEndMin'] as num).toInt().clamp(0, 1439);
+      final tq = raw['translationQuality'];
+      if (tq is String && const {'realtime', 'fast', 'accurate'}.contains(tq)) _translationQuality = tq;
+      if (raw['boldTextEnabled'] is bool) _boldTextEnabled = raw['boldTextEnabled'] as bool;
+      final cvm = raw['colorVisionMode'];
+      if (cvm is String && colorVisionModes.contains(cvm)) _colorVisionMode = cvm;
+      if (raw['bubbleRadius'] is num) _bubbleRadius = (raw['bubbleRadius'] as num).toDouble().clamp(8.0, 28.0);
       if (raw['callNoiseFilterEnabled'] is bool) _callNoiseFilterEnabled = raw['callNoiseFilterEnabled'] as bool;
       final ecm = raw['eyeComfortMode'];
       if (ecm is String && const ['off', 'on', 'schedule', 'sun'].contains(ecm)) _eyeComfortMode = ecm;
@@ -1167,6 +1258,7 @@ class JuzzioAppController extends ChangeNotifier {
       _highContrastMode = raw['highContrastMode'] == true;
       _reduceMotion = raw['reduceMotion'] == true;
       _showLifeCenterShortcut = raw['showLifeCenterShortcut'] == true;
+      _rememberedLoginId = raw['rememberedLoginId'] is String ? (raw['rememberedLoginId'] as String) : '';
       _autoplayVideos = raw['autoplayVideos'] is bool ? raw['autoplayVideos'] as bool : _autoplayVideos;
       _notifyDirectMessages = raw['notifyDirectMessages'] is bool ? raw['notifyDirectMessages'] as bool : _notifyDirectMessages;
       _notifyGroupMessages = raw['notifyGroupMessages'] is bool ? raw['notifyGroupMessages'] as bool : _notifyGroupMessages;
@@ -1285,6 +1377,13 @@ class JuzzioAppController extends ChangeNotifier {
         'cameraBeautyEnabled': _cameraBeautyEnabled,
         'beautyLevel': _beautyLevel,
         'dataSaverEnabled': _dataSaverEnabled,
+        'quietHoursEnabled': _quietHoursEnabled,
+        'quietStartMin': _quietStartMin,
+        'quietEndMin': _quietEndMin,
+        'translationQuality': _translationQuality,
+        'bubbleRadius': _bubbleRadius,
+        'boldTextEnabled': _boldTextEnabled,
+        'colorVisionMode': _colorVisionMode,
         'callNoiseFilterEnabled': _callNoiseFilterEnabled,
         'eyeComfortMode': _eyeComfortMode,
         'eyeComfortIntensity': _eyeComfortIntensity,
@@ -1303,6 +1402,7 @@ class JuzzioAppController extends ChangeNotifier {
         'highContrastMode': _highContrastMode,
         'reduceMotion': _reduceMotion,
         'showLifeCenterShortcut': _showLifeCenterShortcut,
+        'rememberedLoginId': _rememberedLoginId,
         'autoplayVideos': _autoplayVideos,
         'notifyDirectMessages': _notifyDirectMessages,
         'notifyGroupMessages': _notifyGroupMessages,
@@ -1936,6 +2036,12 @@ class JuzzioAppController extends ChangeNotifier {
     _reduceMotion = val;
     _persistUserPreferences();
     notifyListeners();
+  }
+
+  void setRememberedLoginId(String val) {
+    final v = val.trim();
+    _rememberedLoginId = v.length > 120 ? v.substring(0, 120) : v;
+    _persistUserPreferences();
   }
 
   void setShowLifeCenterShortcut(bool val) {

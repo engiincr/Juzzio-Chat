@@ -1151,6 +1151,16 @@ class JuzzioSocialService {
       if (eventCategory == 'save') {
         return n.eventType == 'save';
       }
+      // v2.1 (tasarım: Bildirimler): İstekler · Bahsetmeler · Sistem
+      if (eventCategory == 'request') {
+        return n.eventType == 'friend_request' || n.eventType == 'follow_request';
+      }
+      if (eventCategory == 'mention') {
+        return n.eventType == 'mention' || n.eventType == 'comment_mention';
+      }
+      if (eventCategory == 'system') {
+        return n.eventType == 'system' || n.eventType.startsWith('system');
+      }
       return true;
     }).toList();
   }
@@ -1496,6 +1506,36 @@ class JuzzioSocialService {
     };
   }
 
+  /// v2.1 (Faz 8.3): cihazdaki Juzzio dosyalarının türe göre dökümü (halka grafik için).
+  /// Yalnız uygulamanın kendi klasörleri taranır; dosya içerikleri okunmaz.
+  Future<Map<String, int>> measureStorageByCategory() async {
+    final out = <String, int>{'photos': 0, 'videos': 0, 'audio': 0, 'documents': 0, 'other': 0};
+    Future<void> scan(Directory d) async {
+      if (!d.existsSync()) return;
+      try {
+        for (final e in d.listSync(recursive: true, followLinks: false)) {
+          if (e is! File) continue;
+          int len;
+          try {
+            len = e.lengthSync();
+          } catch (_) {
+            continue;
+          }
+          final k = juzzioStorageCategory(e.path);
+          out[k] = (out[k] ?? 0) + len;
+        }
+      } catch (_) {}
+    }
+
+    try {
+      await scan(await getTemporaryDirectory());
+    } catch (_) {}
+    try {
+      await scan(await getApplicationSupportDirectory());
+    } catch (_) {}
+    return out;
+  }
+
   Future<int> clearSafeTemporaryCache() async {
     int freed = 0;
     try {
@@ -1521,4 +1561,21 @@ class JuzzioSocialService {
     } catch (_) {}
     return freed;
   }
+}
+
+
+/// v2.1 (Faz 8.3): dosya uzantısından depolama kategorisi (saf; test edilir)
+String juzzioStorageCategory(String path) {
+  final dot = path.lastIndexOf('.');
+  final slash = path.lastIndexOf(RegExp(r'[/\\]'));
+  final ext = dot > slash && dot >= 0 ? path.substring(dot + 1).toLowerCase() : '';
+  const photos = {'jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'heif', 'bmp'};
+  const videos = {'mp4', 'mov', 'webm', 'mkv', '3gp', 'm4v'};
+  const audio = {'m4a', 'aac', 'mp3', 'ogg', 'opus', 'wav', 'flac', 'amr'};
+  const docs = {'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'csv', 'zip', 'json', 'rtf'};
+  if (photos.contains(ext)) return 'photos';
+  if (videos.contains(ext)) return 'videos';
+  if (audio.contains(ext)) return 'audio';
+  if (docs.contains(ext)) return 'documents';
+  return 'other';
 }

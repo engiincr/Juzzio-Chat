@@ -97,3 +97,31 @@ console.log(`translate: ${n}/${n} PASS`);
   if (deeplLang("pt", true) !== "PT-BR" || deeplLang("tr", false) !== "TR" || deeplLang("zh-tw", true) !== "ZH-HANT") throw new Error("deeplLang");
   console.log("translate v1.2.9 resmî sağlayıcı: 8/8 PASS");
 }
+// v2.1 (Faz 7.5): çeviri kipi
+{
+  const m = await import("./translate.js");
+  const { parseQuality, deeplModelType, translateChunked: tc } = m as unknown as {
+    parseQuality: (v: unknown) => string;
+    deeplModelType: (q: string) => string | null;
+    translateChunked: (...a: unknown[]) => Promise<{ text: string } | null>;
+  };
+  if (parseQuality("accurate") !== "accurate" || parseQuality("REALTIME") !== "realtime" || parseQuality("x") !== "fast" || parseQuality(undefined) !== "fast") throw new Error("parseQuality");
+  if (deeplModelType("accurate") !== "prefer_quality_optimized" || deeplModelType("realtime") !== "latency_optimized" || deeplModelType("fast") !== null) throw new Error("deeplModelType");
+  const order: string[] = [] as string[];
+  let model: unknown = "yok";
+  const f = async (url: string, init?: { body?: string }) => {
+    if (url.includes("deepl.com")) {
+      order.push("deepl");
+      model = JSON.parse(String(init?.body ?? "{}")).model_type;
+      return { ok: true, json: async () => ({ translations: [{ text: "D", detected_source_language: "TR" }] }) };
+    }
+    order.push("google");
+    return { ok: true, json: async () => ({ data: { translations: [{ translatedText: "G", detectedSourceLanguage: "tr" }] } }) };
+  };
+  const r = await tc("Selam", "auto", "en", f, { google: "k", deepl: "x:fx" }, "accurate");
+  if (!r || r.text !== "D" || String(order[0]) !== "deepl" || model !== "prefer_quality_optimized") throw new Error("yüksek doğruluk DeepL önce");
+  order.length = 0;
+  const r2 = await tc("Selam", "auto", "en", f, { google: "k", deepl: "x:fx" }, "fast");
+  if (!r2 || r2.text !== "G" || String(order[0]) !== "google") throw new Error("hızlı kip Google önce");
+  console.log("translate v2.1 çeviri kipi: 4/4 PASS");
+}

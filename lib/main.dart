@@ -44,6 +44,11 @@ import 'widgets/juzzio_password_strength.dart';
 import 'core/juzzio_text_safety.dart';
 import 'core/juzzio_audio_guard.dart';
 import 'widgets/juzzio_intro_motion.dart';
+import 'widgets/juzzio_auth_hero.dart';
+import 'widgets/juzzio_neon_kit.dart';
+import 'widgets/juzzio_a11y_filter.dart';
+import 'services/juzzio_mfa_service.dart';
+import 'screens/settings/juzzio_settings_v21.dart' show showJuzzioMfaCodeDialog;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -326,7 +331,9 @@ class JuzzioApp extends StatelessWidget {
               // v0.9.7: koyu/aydınlık geçişinde dairesel reveal
               // v1.1.0: Dynamic Island tarzı canlı durum kapsülü (arama, ses kaydı, yükleme) tüm sayfaların üstünde
               // v1.3.2: Windows'ta geniş pencerede içerik ortada okunaklı bir panelde
-              child: JuzzioDesktopFrame(
+              // v2.1 (Faz 8.5): kalın yazı + renk düzeltme (kapalıyken katman eklenmez)
+              child: JuzzioA11yFilter(
+                child: JuzzioDesktopFrame(
                 child: JuzzioEyeComfortOverlay(
                   child: JuzzioThemeReveal(
                     child: JuzzioClockGuard(
@@ -342,6 +349,7 @@ class JuzzioApp extends StatelessWidget {
                     ),
                   ),
                 ),
+              ),
               ),
             ),
           ),
@@ -370,6 +378,8 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
   // (tanıtım ekranı her açılışta görünmez).
   bool _booting = true;
   bool _isRegisterMode = false;
+  // v2.1: "Beni hatırla" (yalnız kullanıcı adı/e-posta saklanır)
+  bool _rememberMe = JuzzioAppController.instance.rememberedLoginId.isNotEmpty;
 
   final TextEditingController _usernameCtrl = TextEditingController();
   final TextEditingController _emailCtrl = TextEditingController();
@@ -387,6 +397,8 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
   @override
   void initState() {
     super.initState();
+    final remembered = JuzzioAppController.instance.rememberedLoginId;
+    if (remembered.isNotEmpty) _usernameCtrl.text = remembered;
     _boot();
   }
 
@@ -435,8 +447,32 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
           .toString()
           .replaceAll('@', '');
       final lang = (meta['preferred_lang'] ?? JuzzioAppController.instance.subtitleLang).toString();
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted) return;
+        // v2.1 (Faz 7.3): yarım kalmış (AAL1) oturumda iki adımlı doğrulama kodu istenir
+        if (await JuzzioMfaService.instance.needsChallenge()) {
+          if (!mounted) return;
+          final code = await showJuzzioMfaCodeDialog(context);
+          var ok = false;
+          if (code != null) {
+            try {
+              await JuzzioMfaService.instance.verifyLogin(code);
+              ok = true;
+            } catch (_) {}
+          }
+          if (!ok) {
+            await Supabase.instance.client.auth.signOut();
+            if (!mounted) return;
+            setState(() {
+              _booting = false;
+              _step = 2;
+              _errorText = JuzzioAppController.instance.trEn('İki adımlı doğrulama tamamlanmadı. Tekrar giriş yap.',
+                  'Two-step verification was not completed. Please sign in again.', 'Zwei-Schritt-Verifizierung nicht abgeschlossen. Bitte erneut anmelden.');
+            });
+            return;
+          }
+          if (!mounted) return;
+        }
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (_) => ChatScreen(
@@ -480,6 +516,87 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
   // v1.2.3: iki kutu — zorunlu (koşullar + 15 yaş + aydınlatma beyanı) ve isteğe bağlı ticari ileti
   JuzzioConsentState _consent = const JuzzioConsentState();
   bool _consentError = false;
+
+  /// v2.1: şifre sıfırlama bağlantısı. Hesabın var olup olmadığı açıklanmaz (aynı yanıt).
+  Future<void> _forgotPassword() async {
+    final appCtrl = JuzzioAppController.instance;
+    final initial = _usernameCtrl.text.contains('@') && _usernameCtrl.text.contains('.') ? _usernameCtrl.text.trim() : '';
+    final ctrl = TextEditingController(text: initial);
+    final email = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(appCtrl.trEn('Şifreni sıfırla', 'Reset your password', 'Passwort zurücksetzen')),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          keyboardType: TextInputType.emailAddress,
+          decoration: InputDecoration(
+            hintText: appCtrl.trEn('Hesabındaki e-posta adresi', 'Your account email', 'E-Mail deines Kontos'),
+            prefixIcon: const Icon(Icons.mail_outline_rounded),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(appCtrl.trEn('Vazgeç', 'Cancel', 'Abbrechen'))),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+            child: Text(appCtrl.trEn('Bağlantı gönder', 'Send link', 'Link senden')),
+          ),
+        ],
+      ),
+    );
+    ctrl.dispose();
+    if (email == null || !mounted) return;
+    if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
+      setState(() => _errorText = appCtrl.trEn('Geçerli bir e-posta adresi yaz.', 'Enter a valid email address.', 'Gib eine gültige E-Mail-Adresse ein.'));
+      return;
+    }
+    try {
+      await Supabase.instance.client.auth.resetPasswordForEmail(email);
+    } catch (_) {
+      // hız sınırı vb. — kullanıcıya hesap varlığını sızdırmamak için aynı mesaj gösterilir
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(appCtrl.trEn(
+        'Bu adrese kayıtlı bir hesap varsa şifre sıfırlama bağlantısı gönderildi.',
+        'If an account exists for this address, a reset link has been sent.',
+        'Falls ein Konto existiert, wurde ein Link zum Zurücksetzen gesendet.',
+      )),
+    ));
+  }
+
+  /// v2.1: Google / Apple / GitHub ile giriş (yalnız JuzzioConfig.oauthProviders içindekiler görünür;
+  /// sağlayıcı Supabase panelinde açılmış ve yönlendirme adresi eklenmiş olmalıdır).
+  Future<void> _oauthSignIn(String provider) async {
+    final appCtrl = JuzzioAppController.instance;
+    if (!_consent.requiredAccepted) {
+      setState(() => _consentError = true);
+      final ok = await juzzioOpenRequiredConsent(context);
+      if (!mounted || !ok) return;
+      setState(() {
+        _consent = _consent.copyWith(termsNotice: true);
+        _consentError = false;
+      });
+    }
+    final p = switch (provider) {
+      'google' => OAuthProvider.google,
+      'apple' => OAuthProvider.apple,
+      'github' => OAuthProvider.github,
+      _ => null,
+    };
+    if (p == null) return;
+    try {
+      await Supabase.instance.client.auth.signInWithOAuth(p, redirectTo: JuzzioConfig.oauthRedirect);
+      await JuzzioConsentService.instance.record(_consent);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _errorText = appCtrl.trEn(
+            'Bu giriş yöntemi şu an kullanılamıyor. Kullanıcı adı ve şifreyle giriş yapabilirsin.',
+            'This sign-in method is unavailable right now. Use your username and password.',
+            'Diese Anmeldeart ist gerade nicht verfügbar. Nutze Benutzername und Passwort.',
+          ));
+    }
+  }
 
   Future<void> _submitAuth() async {
     final appCtrl = JuzzioAppController.instance;
@@ -558,9 +675,11 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
           usernameOrEmail: _usernameCtrl.text.trim(),
           password: password,
           fallbackLang: appCtrl.subtitleLang,
+          mfaCodePrompt: () => showJuzzioMfaCodeDialog(context),
         );
 
         await JuzzioConsentService.instance.record(_consent);
+        appCtrl.setRememberedLoginId(_rememberMe ? _usernameCtrl.text.trim() : '');
         if (!mounted) return;
         final uname = (result['username'] ?? _usernameCtrl.text.trim()).toString().replaceAll('@', '');
         final lang = (result['preferredLang'] ?? appCtrl.subtitleLang).toString();
@@ -1149,152 +1268,98 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Üst Sekme: Giriş Yap / Kayıt Ol (Instagram.jpg Hap Tasarımı)
-          Container(
-            padding: const EdgeInsets.all(5),
-            decoration: BoxDecoration(
-              color: p.pillBg,
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: p.glassBorder),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => setState(() {
-                      _isRegisterMode = false;
-                      _errorText = null;
-                    }),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 220),
-                      padding: const EdgeInsets.symmetric(vertical: 13),
-                      decoration: BoxDecoration(
-                        color: !_isRegisterMode ? (p.isDark ? Colors.white : JuzzioColors.ink) : Colors.transparent,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        s.t('login_tab'),
-                        style: TextStyle(
-                          fontFamily: JuzzioConfig.fontRegularBold,
-                          color: !_isRegisterMode ? (p.isDark ? const Color(0xFF111113) : Colors.white) : p.textSecondary,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => setState(() {
-                      _isRegisterMode = true;
-                      _errorText = null;
-                    }),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 220),
-                      padding: const EdgeInsets.symmetric(vertical: 13),
-                      decoration: BoxDecoration(
-                        color: _isRegisterMode ? (p.isDark ? Colors.white : JuzzioColors.ink) : Colors.transparent,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        s.t('register_tab'),
-                        style: TextStyle(
-                          fontFamily: JuzzioConfig.fontRegularBold,
-                          color: _isRegisterMode ? (p.isDark ? const Color(0xFF111113) : Colors.white) : p.textSecondary,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 22),
-          // v0.5.0: "Hey" kaldırıldı. Kayıtta Ad Soyad alanına yazılan İLK ad her
-          // tuşta canlı güncellenir: "Hoşgeldin! E" → "Hoşgeldin! Engin" (soyad eklenmez).
-          ValueListenableBuilder<TextEditingValue>(
-            valueListenable: _fullNameCtrl,
-            builder: (context, value, _) {
-              final parts = value.text.trim().split(RegExp(r'\s+'));
-              final firstName = _isRegisterMode && parts.isNotEmpty ? parts.first : '';
-              final hello = appCtrl.trEn('Hoşgeldin!', 'Welcome!', 'Willkommen!');
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text.rich(
-                    TextSpan(
-                      children: [
-                        TextSpan(
-                          text: _isRegisterMode ? hello : appCtrl.trEn('Tekrar hoşgeldin!', 'Welcome back!', 'Willkommen zurück!'),
-                        ),
-                        if (firstName.isNotEmpty)
-                          TextSpan(
-                            text: ' $firstName',
-                            style: TextStyle(color: p.textPrimary.withValues(alpha: 0.72)),
-                          ),
-                      ],
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontFamily: JuzzioConfig.fontRegularBold,
-                      color: p.textPrimary,
-                      fontSize: 30,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.6,
-                      height: 1.15,
-                    ),
-                  ),
-                  if (_isRegisterMode) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      appCtrl.trEn('Hesap Oluştur', 'Create Account', 'Konto erstellen'),
-                      style: TextStyle(
-                        fontFamily: JuzzioConfig.fontRegularBold,
-                        color: p.textSecondary,
-                        fontSize: 19,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.2,
-                      ),
-                    ),
-                  ],
-                ],
-              );
-            },
-          ),
-          const SizedBox(height: 10),
-          // Kısa slogan (giriş ve kayıtta)
-          Text(
-            appCtrl.trEn(
-              'Dil engeline takılmadan dünyayla konuş, özgürce ilham al.',
-              'Talk to the world without language barriers and get inspired freely.',
-              'Sprich ohne Sprachbarrieren mit der Welt und lass dich frei inspirieren.',
-            ),
-            style: TextStyle(
-              color: p.textSecondary,
-              fontSize: 14,
-              height: 1.45,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          Container(
-            padding: const EdgeInsets.all(20),
+          // v2.1 (tasarım: Neon Yeşil Kayıt/Giriş): üstte kodla çizilen limon sahne, altında cam kart
+          const JuzzioAuthHero(height: 230),
+          Transform.translate(
+            offset: const Offset(0, -26),
+            child: Container(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
             decoration: BoxDecoration(
               color: p.cardBg,
               borderRadius: BorderRadius.circular(28),
-              border: Border.all(color: p.glassBorder),
+              border: Border.all(color: JuzzioGlassTokens.glow.withValues(alpha: 0.35)),
               boxShadow: p.softCardShadow,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: p.isDark ? Colors.white : JuzzioColors.ink,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      _isRegisterMode ? appCtrl.trEn('Hesap Oluştur', 'Create Account', 'Konto erstellen') : s.t('login_tab'),
+                      style: TextStyle(
+                        fontFamily: JuzzioConfig.fontRegularBold,
+                        color: p.isDark ? const Color(0xFF111113) : Colors.white,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: _fullNameCtrl,
+                  builder: (context, value, _) {
+                    final parts = value.text.trim().split(RegExp(r'\s+'));
+                    final firstName = _isRegisterMode && parts.isNotEmpty ? parts.first : '';
+                    return Center(
+                      child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Text.rich(
+                          TextSpan(
+                            children: [
+                              TextSpan(
+                                text: _isRegisterMode
+                                    ? (firstName.isEmpty
+                                        ? appCtrl.trEn("Juzzio'ya Katıl", 'Join Juzzio', 'Willkommen bei Juzzio')
+                                        : appCtrl.trEn('Hoş geldin,', 'Welcome,', 'Willkommen,'))
+                                    : appCtrl.trEn('Tekrar Hoş Geldin! 👋', 'Welcome back! 👋', 'Willkommen zurück! 👋'),
+                              ),
+                              if (firstName.isNotEmpty)
+                                TextSpan(
+                                  text: ' $firstName',
+                                  style: TextStyle(color: p.textPrimary.withValues(alpha: 0.72)),
+                                ),
+                            ],
+                          ),
+                          maxLines: 2,
+                          textAlign: TextAlign.center,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontFamily: JuzzioConfig.fontRegularBold,
+                            color: p.textPrimary,
+                            fontSize: 28,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.6,
+                            height: 1.15,
+                          ),
+                        ),
+                      ],
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 6),
+                Center(
+                  child: Text(
+                    _isRegisterMode
+                        ? appCtrl.trEn('Arkadaşlarınla bağlan, dünyanın her yerinden insanlarla sohbet et.',
+                            'Connect with friends and chat with people from all over the world.',
+                            'Verbinde dich mit Freunden und chatte mit Menschen aus aller Welt.')
+                        : appCtrl.trEn('Juzzio hesabına giriş yap, arkadaşlarınla kaldığın yerden devam et.',
+                            'Sign in to your Juzzio account and pick up where you left off.',
+                            'Melde dich bei Juzzio an und mach dort weiter, wo du aufgehört hast.'),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: p.textSecondary, fontSize: 13.5, height: 1.4, fontWeight: FontWeight.w500),
+                  ),
+                ),
+                const SizedBox(height: 18),
                 Text(
                   _isRegisterMode ? s.t('username_label') : s.t('username_or_email_label'),
                   style: TextStyle(
@@ -1496,6 +1561,36 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
                     ),
                   ),
                 ),
+                // v2.1: Beni hatırla · Şifremi unuttum? (yalnız girişte)
+                if (!_isRegisterMode)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 32,
+                          height: 32,
+                          child: Checkbox(
+                            value: _rememberMe,
+                            activeColor: JuzzioGlassTokens.glow,
+                            checkColor: JuzzioGlassTokens.onGlow,
+                            onChanged: (v) => setState(() => _rememberMe = v ?? false),
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () => setState(() => _rememberMe = !_rememberMe),
+                          child: Text(appCtrl.trEn('Beni hatırla', 'Remember me', 'Angemeldet bleiben'),
+                              style: TextStyle(color: p.textSecondary, fontSize: 13, fontWeight: FontWeight.w600)),
+                        ),
+                        const Spacer(),
+                        TextButton(
+                          onPressed: _forgotPassword,
+                          child: Text(appCtrl.trEn('Şifremi unuttum?', 'Forgot password?', 'Passwort vergessen?'),
+                              style: TextStyle(color: JuzzioGlassTokens.glowText, fontSize: 13, fontWeight: FontWeight.w800)),
+                        ),
+                      ],
+                    ),
+                  ),
                 // v1.2.4: şifre gücü ölçer (kayıtta; 4 parçalı çubuk + etiket)
                 if (_isRegisterMode)
                   ValueListenableBuilder<TextEditingValue>(
@@ -1581,15 +1676,63 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
                   ),
                 ],
                 const SizedBox(height: 22),
-                JuzzioCoolPillButton(
+                JuzzioLimeButton(
                   label: _isRegisterMode ? s.t('register_btn') : s.t('login_btn'),
-                  isLoading: _isLoading,
-                  onTap: _submitAuth,
+                  icon: Icons.arrow_forward_rounded,
+                  busy: _isLoading,
+                  onPressed: _submitAuth,
+                ),
+                if (JuzzioConfig.oauthProviders.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Row(children: [
+                    Expanded(child: Divider(color: p.glassBorder)),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      child: Text(appCtrl.trEn('veya', 'or', 'oder'), style: TextStyle(color: p.textMuted, fontSize: 12.5)),
+                    ),
+                    Expanded(child: Divider(color: p.glassBorder)),
+                  ]),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      for (final pr in JuzzioConfig.oauthProviders)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: JuzzioOAuthButton(provider: pr, onTap: _isLoading ? null : () => _oauthSignIn(pr)),
+                        ),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 14),
+                Center(
+                  child: Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(
+                        _isRegisterMode
+                            ? appCtrl.trEn('Zaten hesabın var mı? ', 'Already have an account? ', 'Schon ein Konto? ')
+                            : appCtrl.trEn('Hesabın yok mu? ', "Don't have an account? ", 'Noch kein Konto? '),
+                        style: TextStyle(color: p.textSecondary, fontSize: 13),
+                      ),
+                      GestureDetector(
+                        onTap: () => setState(() {
+                          _isRegisterMode = !_isRegisterMode;
+                          _errorText = null;
+                        }),
+                        child: Text(
+                          _isRegisterMode ? s.t('login_tab') : appCtrl.trEn('Hesap Oluştur', 'Create Account', 'Konto erstellen'),
+                          style: TextStyle(color: JuzzioGlassTokens.glowText, fontSize: 13, fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 24),
+          ),
+          const SizedBox(height: 8),
         ],
       ),
     );

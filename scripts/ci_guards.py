@@ -107,6 +107,23 @@ def check_audit_sentences(errors: list) -> None:
             errors.append(f"yönetici kaydı '{act}' için admin_audit_format.dart içinde özel cümle yok")
 
 
+def check_sql_grants(errors: list) -> None:
+    """v1.3.0: istemci rollerine TRUNCATE/REFERENCES/TRIGGER veya anon'a yazma yetkisi verilemez."""
+    path = os.path.join(ROOT, "supabase", "juzzio_database.sql")
+    if not os.path.exists(path):
+        return
+    text = read(path)
+    pat = re.compile(r"GRANT\s+([A-Z ,]+?)\s+ON\s+(?:TABLE\s+|ALL\s+TABLES\s+IN\s+SCHEMA\s+)?[\w.\"]+\s+TO\s+([\w ,]+);", re.I)
+    for m in pat.finditer(text):
+        privs = {p.strip().upper() for p in m.group(1).split(",")}
+        roles = {r.strip().lower() for r in m.group(2).split(",")}
+        line = text.count("\n", 0, m.start()) + 1
+        if privs & {"TRUNCATE", "REFERENCES", "TRIGGER", "ALL", "ALL PRIVILEGES"} and roles & {"anon", "authenticated", "public"}:
+            errors.append(f"juzzio_database.sql:{line}: istemci rolüne TRUNCATE/REFERENCES/TRIGGER/ALL verilemez")
+        elif privs & {"INSERT", "UPDATE", "DELETE"} and "anon" in roles:
+            errors.append(f"juzzio_database.sql:{line}: anon rolüne yazma yetkisi verilemez")
+
+
 def main() -> int:
     errors: list = []
     check_audit_sentences(errors)
@@ -132,6 +149,7 @@ def main() -> int:
             check_destructive(p, errors)
             check_push_force(p, errors)
     check_workflow(errors)
+    check_sql_grants(errors)
     if errors:
         for e in errors:
             print(f"::error::{e}")

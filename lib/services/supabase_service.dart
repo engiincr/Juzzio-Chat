@@ -17,6 +17,7 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'juzzio_mfa_service.dart';
 import '../widgets/motion/juzzio_send_fx.dart' show juzzioBigEmojiCount;
 import '../widgets/juzzio_encrypted_image.dart' show JuzzioEncryptedMedia;
 import '../core/juzzio_community.dart';
@@ -1335,6 +1336,7 @@ class SupabaseService {
     required String usernameOrEmail,
     required String password,
     String fallbackLang = 'tr',
+    Future<String?> Function()? mfaCodePrompt,
   }) async {
     final rawInput = usernameOrEmail.trim();
     if (rawInput.isEmpty) {
@@ -1377,6 +1379,23 @@ class SupabaseService {
     }
     if (user == null) {
       throw AuthException(_app.t('err_login_failed'));
+    }
+
+    // v2.1 (Faz 7.3): hesapta iki adımlı doğrulama açıksa oturum AAL2'ye yükselmeden girilmez
+    if (await JuzzioMfaService.instance.needsChallenge()) {
+      final code = mfaCodePrompt == null ? null : await mfaCodePrompt();
+      if (code == null) {
+        await client.auth.signOut();
+        throw AuthException(_app.trEn('Giriş için iki adımlı doğrulama kodu gerekli.',
+            'A two-step verification code is required to sign in.', 'Für die Anmeldung ist ein Bestätigungscode nötig.'));
+      }
+      try {
+        await JuzzioMfaService.instance.verifyLogin(code);
+      } catch (_) {
+        await client.auth.signOut();
+        throw AuthException(_app.trEn('Doğrulama kodu hatalı veya süresi doldu.',
+            'The verification code is wrong or expired.', 'Der Bestätigungscode ist falsch oder abgelaufen.'));
+      }
     }
 
     String resolvedUsername = (user.userMetadata?['username'] ?? input.split('@').first).toString();
@@ -2310,6 +2329,7 @@ class SupabaseService {
     try {
       final res = await client.functions.invoke('translate-bridge', body: {
         'mode': 'text',
+        'quality': _app.translationQuality, // v2.1 (Faz 7.5)
         'text': clean,
         'sourceLang': sl,
         'targetLang': tl,
@@ -3442,6 +3462,7 @@ class SupabaseService {
     try {
       final res = await client.functions.invoke('translate-bridge', body: {
         'mode': 'voice_note',
+        'quality': _app.translationQuality, // v2.1 (Faz 7.5)
         // v0.9.0: sunucu yolu veritabanından ve oda üyeliğinden doğrular; URL yetki değildir
         'storagePath': storagePath,
         'audioUrl': publicUrl,
@@ -3523,6 +3544,7 @@ class SupabaseService {
         await voice.upload(plainPath, audioFile, fileOptions: const FileOptions(contentType: 'audio/mp4', upsert: false));
         final res = await client.functions.invoke('translate-bridge', body: {
           'mode': 'voice_note',
+          'quality': _app.translationQuality, // v2.1 (Faz 7.5)
           'storagePath': plainPath,
           'audioUrl': voice.getPublicUrl(plainPath),
           'sourceLang': sourceLang,
@@ -3734,6 +3756,23 @@ class SupabaseService {
       return client.storage.from(JuzzioConfig.avatarBucket).getPublicUrl(path);
     } catch (e) {
       throw JuzzioServiceException(_friendlyError(e));
+    }
+  }
+
+  /// v2.1: ortak arkadaş sayıları (yalnız sayı; en çok 100 kişi). Hata olursa boş döner.
+  Future<Map<String, int>> mutualFriendCounts(List<String> userIds) async {
+    if (userIds.isEmpty) return const {};
+    try {
+      final rows = await client.rpc('mutual_friend_counts', params: {'p_users': userIds.take(100).toList()});
+      final out = <String, int>{};
+      if (rows is List) {
+        for (final r in rows) {
+          if (r is Map) out[(r['user_id'] ?? '').toString()] = (r['mutual'] as num?)?.toInt() ?? 0;
+        }
+      }
+      return out;
+    } catch (_) {
+      return const {};
     }
   }
 

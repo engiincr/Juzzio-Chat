@@ -15,16 +15,29 @@ class JuzzioConfig {
   JuzzioConfig._();
 
   // Uygulama Sürüm ve OTA Güncelleme Sabitleri
-  static const String appVersion = '2.0.0';
+  static const String appVersion = '2.1.0';
   /// CI her derlemede artan sürüm kodunu APP_BUILD olarak verir
   /// (`scripts/release_meta.py build-number`). Yerel derlemede pubspec.yaml'daki
   /// +N değeri kullanılır; `release_meta.py check` ikisinin aynı olmasını zorunlu kılar.
-  static const int appVersionCode = int.fromEnvironment('APP_BUILD', defaultValue: 200);
+  static const int appVersionCode = int.fromEnvironment('APP_BUILD', defaultValue: 210);
   /// v0.8.0: yayın imzası doğrulama anahtarı (ML-DSA-65, FIPS 204). Boşsa imza
   /// kontrolü yapılmaz; CI'da GitHub değişkeni ML_DSA_PUBLIC_KEY ile verilir.
   static const String mlDsaPublicKey = String.fromEnvironment('ML_DSA_PUBLIC_KEY');
   static const String githubOwner = 'engiincr';
   static const String githubRepo = 'Juzzio-Chat';
+
+  /// v2.1: giriş ekranındaki sosyal giriş düğmeleri ('google', 'apple', 'github').
+  /// Boşsa düğmeler gizlenir. Bir sağlayıcıyı açmak için: Supabase → Authentication → Providers
+  /// içinde sağlayıcıyı etkinleştir, "Redirect URLs" listesine [oauthRedirect] adresini ekle,
+  /// sonra adını buraya yaz (ör. const ['google']). Derleme anında da verilebilir:
+  /// --dart-define=OAUTH_PROVIDERS=google,github
+  static const String _oauthProvidersRaw = String.fromEnvironment('OAUTH_PROVIDERS');
+  static List<String> get oauthProviders => _oauthProvidersRaw
+      .split(',')
+      .map((e) => e.trim().toLowerCase())
+      .where((e) => e == 'google' || e == 'apple' || e == 'github')
+      .toList(growable: false);
+  static const String oauthRedirect = 'com.juzzio.app://login-callback';
   static const String supabaseRegion = 'ap-south-1';
 
   // Yazı tipi aileleri (sistem sans-serif)

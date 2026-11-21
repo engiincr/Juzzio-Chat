@@ -121,6 +121,8 @@ import '../services/juzzio_story_seen.dart';
 import '../widgets/juzzio_motion.dart';
 import '../core/juzzio_text_safety.dart';
 import '../core/juzzio_audio_guard.dart';
+import 'social/juzzio_friend_requests_page.dart';
+import 'social/juzzio_discover_view.dart';
 
 class ChatScreen extends StatefulWidget {
   final String myDisplayName;
@@ -2443,6 +2445,16 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     );
   }
 
+  /// v2.1: tasarımdaki Arkadaşlık İstekleri sayfası (Gelen/Gönderilen, ortak arkadaş, Tümünü Kabul Et)
+  Future<void> _openFriendRequestsPage() async {
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => JuzzioFriendRequestsPage(
+        respond: _respondFriendRequest,
+        onFindFriends: _showFriendSearchAndRequestsSheet,
+      ),
+    ));
+  }
+
   Future<void> _showFriendSearchAndRequestsSheet() async {
     final appCtrl = JuzzioAppController.instance;
     final p = JuzzioPalette(appCtrl.isDark);
@@ -3765,7 +3777,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
               dotColor: anyFriendOnline ? JuzzioGlassTokens.glow : null,
               badgeCount: _pendingIncomingRequests.length,
               tooltip: appCtrl.trEn('Arkadaşlar ve istekler', 'Friends and requests', 'Freunde und Anfragen'),
-              onTap: _showFriendSearchAndRequestsSheet,
+              onTap: _openFriendRequestsPage,
             ),
             JuzzioSpaceIconButton(
               icon: Icons.notifications_none_rounded,
@@ -4104,8 +4116,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
   /// v0.5.0: Keşfet yerine otomatik çevirili Küresel akış (X / Reddit tarzı)
   Widget _buildExploreTab(JuzzioPalette p, JuzzioStrings s, JuzzioAppController appCtrl) {
-    if (!JuzzioFeaturesService.instance.lastAppConfig.globalFeedEnabled) {
-      return Center(
+    // v2.1 (tasarım: KEŞFET): kişi kartları · eşleşmeler · beğeniler · küresel akış
+    final Widget feed = !JuzzioFeaturesService.instance.lastAppConfig.globalFeedEnabled
+        ? Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
           child: JuzzioGlass(
@@ -4121,9 +4134,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             ),
           ),
         ),
-      );
-    }
-    return JuzzioGlobalFeedView(
+      )
+        : JuzzioGlobalFeedView(
       key: ValueKey('juzzio_global_feed_$_globalFeedEpoch'),
       currentUser: _effectiveCurrentUserProfile,
       onOpenProfile: _openUserProfilePage,
@@ -4132,6 +4144,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       onCreateMedia: () => _openCreatePost(),
       onAddFriend: _showFriendSearchAndRequestsSheet,
     );
+    return JuzzioExploreHub(feed: feed, onOpenProfile: _openUserProfilePage);
   }
 
   Widget _buildConversationListCard({
@@ -6766,11 +6779,12 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                       padding: bigEmoji ? const EdgeInsets.symmetric(horizontal: 4, vertical: 2) : const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       decoration: bigEmoji ? null : BoxDecoration(
                         color: isMe ? p.outgoingBubble : p.incomingBubble,
+                        // v2.1 (Faz 8.4): köşe yuvarlaklığı Görünüm'den ayarlanır
                         borderRadius: BorderRadius.only(
-                          topLeft: const Radius.circular(20),
-                          topRight: const Radius.circular(20),
-                          bottomLeft: Radius.circular(isMe ? 20 : 6),
-                          bottomRight: Radius.circular(isMe ? 6 : 20),
+                          topLeft: Radius.circular(JuzzioAppController.instance.bubbleRadius),
+                          topRight: Radius.circular(JuzzioAppController.instance.bubbleRadius),
+                          bottomLeft: Radius.circular(isMe ? JuzzioAppController.instance.bubbleRadius : 6),
+                          bottomRight: Radius.circular(isMe ? 6 : JuzzioAppController.instance.bubbleRadius),
                         ),
                         // v0.8.1 sıvı cam balon: kristal kenar
                         border: Border.all(
@@ -6779,11 +6793,12 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                       ),
                       // üstten vuran ışık (sıvı cam parlaması)
                       foregroundDecoration: bigEmoji ? null : BoxDecoration(
+                        // v2.1 (Faz 8.4): köşe yuvarlaklığı Görünüm'den ayarlanır
                         borderRadius: BorderRadius.only(
-                          topLeft: const Radius.circular(20),
-                          topRight: const Radius.circular(20),
-                          bottomLeft: Radius.circular(isMe ? 20 : 6),
-                          bottomRight: Radius.circular(isMe ? 6 : 20),
+                          topLeft: Radius.circular(JuzzioAppController.instance.bubbleRadius),
+                          topRight: Radius.circular(JuzzioAppController.instance.bubbleRadius),
+                          bottomLeft: Radius.circular(isMe ? JuzzioAppController.instance.bubbleRadius : 6),
+                          bottomRight: Radius.circular(isMe ? 6 : JuzzioAppController.instance.bubbleRadius),
                         ),
                         gradient: const LinearGradient(
                           begin: Alignment.topLeft,
@@ -8195,7 +8210,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
               Expanded(
                 child: _quickCallCard(
                   icon: Icons.videocam_rounded,
-                  label: appCtrl.trEn('Görüntülü', 'Video', 'Video'),
+                  label: appCtrl.trEn('Görüntülü Arama', 'Video Call', 'Videoanruf'),
                   fill: JuzzioGlassTokens.spaceButton,
                   fg: JuzzioGlassTokens.textPrimary,
                   onTap: () => _showSelectFriendToCallSheet(p, s),

@@ -107,6 +107,9 @@ This document explains, **exactly as it is**, which personal data the Juzzio mob
 - **Record:** the text version, time and app version are stored on your account (establishing or defending rights). Your IP address is not stored. If the texts change, they are shown again on the next launch.
 - **Cross-border transfer (KVKK Art. 9 / GDPR Chapter V):** Supabase, LiveKit, Google Firebase, Deepgram, translation services and Open-Meteo run outside Türkiye. These continuous transfers rely on **appropriate safeguards (standard contractual clauses)**, so no separate "consent to cross-border transfer" is requested. End-to-end encrypted content exists there only as ciphertext.
 - **Marketing e-mails (optional):** sent only with your separate consent (Turkish Law No. 6563). Withdraw any time, free of charge, in Settings → Notifications or via the link in every e-mail; withdrawals are processed within 3 business days.
+- **Two-step verification (optional):** If you turn it on, Supabase Auth stores the authenticator factor for your account; the secret key is shown only on your device during setup and is never logged. A 6-digit code is required at sign-in.
+- **Download my data:** Settings → Account & Profile → Download my data returns only your own data as a JSON file (profile, friends, follows, posts, comments, calls, consents, sign-ins). Message contents are end-to-end encrypted and are not included. Limited to 3 times per day.
+- **Quiet hours and translation mode** are stored only on your device; the chosen translation mode is sent with a translation request to pick the provider model.
 - **Weather-based theme (on by default):** If you granted location permission, your approximate location (latitude/longitude rounded to ~10 km) is sent only to Open-Meteo to get the weather; it is never sent to or stored on our servers. Turn it off in Appearance → Weather theme.
 - **Abuse prevention:** Messages, friend requests, comments, reports and sign-in attempts are rate-limited; limits only count requests and never read content.
 
@@ -116,6 +119,13 @@ This document explains, **exactly as it is**, which personal data the Juzzio mob
 - **Offline changes:** Profile and settings changes made offline are kept on the device and written to the server when you reconnect.
 - **Save to gallery (on by default):** Photos, videos and documents you receive in chats are saved to your device gallery (Pictures/Movies/Downloads › Juzzio). These files are then in shared storage and other apps with gallery access can see them. View-once media is **never** saved. Turn it off in Settings → Chats → "Save media to gallery".
 - **Chat notifications:** Notifications show the sender's name, public profile photo and group name. If your notification preview is set to hidden, none of these are sent. "Mark as read" only marks that chat as read.
+
+## 4k. Explore (meeting new people), friend requests and "Remember me" (v2.1)
+- **Explore visibility.** Public accounts appear on other people's Explore cards by default; turn off "Appear in Explore" (Edit Profile or Explore) at any time to hide. Private accounts are never shown. The card shows only what you already show to everyone: display name, username, profile/cover photo and bio if set to "Everyone", preferred language, verified badge and online status if allowed.
+- **No location and no age** are used for Explore. Blocked users, private accounts, banned accounts and existing friends are never shown.
+- Your likes, super likes and passes are stored on our servers so that matches ("you both liked each other") can be found; others can only see that you liked them, and only in their own "Likes" list. Passes are hidden after 7 days. Data is deleted with your account.
+- **Mutual friends** on the Friend Requests page are shown only as a number, never as names.
+- **Remember me** stores only your username or e-mail on your device (never your password).
 
 ## 5. Service providers that receive data
 
