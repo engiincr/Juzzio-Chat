@@ -80,7 +80,7 @@ void main() {
 
     test('kayıt ve girişte zorunlu; sunucu kaydı', () {
       final m = _src('lib/main.dart');
-      expect(m.contains('JuzzioConsentPanel('), isTrue);
+      expect(m.contains('juzzioOpenRequiredConsent(context)'), isTrue); // v2.1.1: onay metni gönderirken açılır
       expect(m.contains('requiredAccepted'), isTrue);
       expect(m.contains('JuzzioConsentService.instance.record('), isTrue);
       final sql = _src('supabase/juzzio_database.sql');

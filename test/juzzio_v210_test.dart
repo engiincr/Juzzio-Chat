@@ -126,13 +126,15 @@ void main() {
   group('Faz 3 — giriş akışı', () {
     test('kayıt/giriş: üst sahne, limon düğme, beni hatırla, şifremi unuttum, geçiş bağlantısı', () {
       final m = _src('lib/main.dart');
-      expect(m.contains('const JuzzioAuthHero(height: 230)'), isTrue);
-      expect(m.contains("Juzzio'ya Katıl"), isTrue);
-      expect(m.contains('Tekrar Hoş Geldin! 👋'), isTrue);
+      // v2.1.1: tasarım şablonu birebir — limon sahne, "Juzzio'ya Katıl" / "Tekrar Hoş Geldin!" + vurgu çizgisi
+      expect(m.contains("t('Katıl', 'Juzzio', 'Juzzio')"), isTrue);
+      expect(m.contains("t('Geldin!', 'back!', 'zurück!')"), isTrue);
+      expect(m.contains('const JuzzioTitleScribble(width: 90)'), isTrue);
+      expect(m.contains("social('google'), social('apple'), social('github')"), isTrue);
       expect(m.contains('Future<void> _forgotPassword()'), isTrue);
       expect(m.contains('resetPasswordForEmail(email)'), isTrue);
       expect(m.contains('setRememberedLoginId(_rememberMe'), isTrue);
-      expect(m.contains('JuzzioLimeButton('), isTrue);
+      expect(m.contains('backgroundColor: lime,'), isTrue);
     });
     test('şifre hiçbir zaman hatırlanmaz; yalnız kimlik', () {
       final a = _src('lib/core/app_theme_and_locale.dart');

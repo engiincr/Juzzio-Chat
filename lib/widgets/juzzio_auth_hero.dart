@@ -173,3 +173,80 @@ class _ScribblePainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _ScribblePainter old) => old.color != color;
 }
+
+/// Google "G" işareti (dört renk, kodla çizilir — "Google ile giriş" düğmesi için)
+class JuzzioGoogleMark extends StatelessWidget {
+  const JuzzioGoogleMark({super.key, this.size = 26});
+  final double size;
+  @override
+  Widget build(BuildContext context) => CustomPaint(size: Size.square(size), painter: _GooglePainter());
+}
+
+class _GooglePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final s = size.width;
+    final stroke = s * 0.2;
+    final rect = Rect.fromCircle(center: Offset(s / 2, s / 2), radius: s / 2 - stroke / 2);
+    Paint pen(Color c) => Paint()
+      ..color = c
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke;
+    const deg = math.pi / 180;
+    canvas.drawArc(rect, -150 * deg, 105 * deg, false, pen(const Color(0xFFEA4335))); // kırmızı (üst)
+    canvas.drawArc(rect, 150 * deg, 60 * deg, false, pen(const Color(0xFFFBBC05))); // sarı (sol)
+    canvas.drawArc(rect, 45 * deg, 105 * deg, false, pen(const Color(0xFF34A853))); // yeşil (alt)
+    canvas.drawArc(rect, 0, 45 * deg, false, pen(const Color(0xFF4285F4))); // mavi (sağ)
+    // mavi yatay çubuk
+    canvas.drawRect(Rect.fromLTWH(s / 2, s / 2 - stroke / 2, s / 2 - stroke * 0.05, stroke), Paint()..color = const Color(0xFF4285F4));
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// GitHub işareti (sade kedi silueti, kodla çizilir — "GitHub ile giriş" düğmesi için)
+class JuzzioGithubMark extends StatelessWidget {
+  const JuzzioGithubMark({super.key, this.size = 28, this.color = Colors.white});
+  final double size;
+  final Color color;
+  @override
+  Widget build(BuildContext context) => CustomPaint(size: Size.square(size), painter: _GithubPainter(color));
+}
+
+class _GithubPainter extends CustomPainter {
+  _GithubPainter(this.color);
+  final Color color;
+  @override
+  void paint(Canvas canvas, Size size) {
+    final s = size.width;
+    final fill = Paint()..color = color;
+    // dış daire
+    canvas.drawCircle(Offset(s / 2, s / 2), s / 2, fill);
+    final hole = Paint()..color = const Color(0xFF1B1D20);
+    // kedi başı (koyu)
+    final head = Path()
+      ..moveTo(s * 0.30, s * 0.30)
+      ..lineTo(s * 0.33, s * 0.18)
+      ..lineTo(s * 0.42, s * 0.26)
+      ..quadraticBezierTo(s * 0.50, s * 0.24, s * 0.58, s * 0.26)
+      ..lineTo(s * 0.67, s * 0.18)
+      ..lineTo(s * 0.70, s * 0.30)
+      ..quadraticBezierTo(s * 0.80, s * 0.42, s * 0.74, s * 0.56)
+      ..quadraticBezierTo(s * 0.68, s * 0.66, s * 0.58, s * 0.68)
+      ..lineTo(s * 0.58, s * 0.92)
+      ..lineTo(s * 0.42, s * 0.92)
+      ..lineTo(s * 0.42, s * 0.80)
+      ..quadraticBezierTo(s * 0.30, s * 0.82, s * 0.26, s * 0.72)
+      ..lineTo(s * 0.32, s * 0.72)
+      ..quadraticBezierTo(s * 0.36, s * 0.76, s * 0.42, s * 0.74)
+      ..lineTo(s * 0.42, s * 0.68)
+      ..quadraticBezierTo(s * 0.32, s * 0.66, s * 0.26, s * 0.56)
+      ..quadraticBezierTo(s * 0.20, s * 0.42, s * 0.30, s * 0.30)
+      ..close();
+    canvas.drawPath(head, hole);
+  }
+
+  @override
+  bool shouldRepaint(covariant _GithubPainter old) => old.color != color;
+}

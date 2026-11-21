@@ -217,8 +217,8 @@ void main() {
 
     test('cinsiyet simgeleri, durum şeridi, bildirimler, yapımcı videosu', () {
       final m = _src('lib/main.dart');
-      expect(m.contains('Icons.female_rounded'), isTrue);
-      expect(m.contains('Icons.male_rounded'), isTrue);
+      // v2.1.1: tasarımdaki kayıt ekranında cinsiyet alanı yok (cinsiyet profil düzenlemede)
+      expect(m.contains('Future<void> _submitAuth()'), isTrue);
       final c = _src('lib/screens/chat_screen.dart');
       expect(c.contains("realFriends.where((f) => !storyOwners.containsKey(f.id))"), isFalse);
       expect(c.contains('_showReactionsWho(p, msg)'), isTrue);
