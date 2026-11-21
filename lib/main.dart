@@ -723,12 +723,14 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
     final s = JuzzioStrings(appCtrl.uiLang);
     final authBg = (!_booting && _step >= 2)
         // v2.1 (tasarım: Giriş/Kayıt): üst yarı limon, alt yarı koyu
-        ? const [Color(0xFF8DB02E), Color(0xFF0E0F10), Color(0xFF0E0F10)]
+        ? const [Color(0xFFA5C748), Color(0xFF111213), Color(0xFF111213)]
         : lightText
             ? const [Color(0xFF050916), Color(0xFF0A1230), Color(0xFF070B1C)]
             : const [Color(0xFFF6F8FE), Color(0xFFE9EEFA), Color(0xFFF3F6FD)];
 
     return Scaffold(
+      // v2.1: giriş/kayıtta klavye sayfayı küçültmez (sayfa kendisi kaydırır)
+      resizeToAvoidBottomInset: _booting || _step < 2,
       backgroundColor: authBg.first,
       body: Container(
         width: double.infinity,
@@ -1303,17 +1305,17 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
         style: const TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.55), fontSize: 14.5),
+          hintStyle: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: Colors.white.withValues(alpha: 0.55), fontSize: 14.5),
           prefixIcon: Padding(
             padding: const EdgeInsets.only(left: 18, right: 10),
             child: Icon(icon, color: Colors.white, size: 22),
           ),
           suffixIcon: suffix,
           filled: true,
-          fillColor: Colors.white.withValues(alpha: 0.12),
+          fillColor: Colors.black.withValues(alpha: 0.30),
           contentPadding: const EdgeInsets.symmetric(vertical: 17),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(999), borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.26))),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(999), borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.26))),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(999), borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.20))),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(999), borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.20))),
           focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(999), borderSide: const BorderSide(color: lime, width: 1.8)),
         ),
           ),
@@ -1366,7 +1368,7 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
           decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(999)),
           child: Text(reg ? t('Hesap Oluştur', 'Create Account', 'Konto erstellen') : t('Giriş Yap', 'Sign In', 'Anmelden'),
-              style: const TextStyle(color: Color(0xFF111113), fontWeight: FontWeight.w800, fontSize: 13)),
+              style: const TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: Color(0xFF111113), fontWeight: FontWeight.w800, fontSize: 13)),
         ),
         const SizedBox(height: 12),
         JuzzioMarkedTitle(
@@ -1374,23 +1376,25 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
           mark: titleMark,
           suffix: reg ? '' : ' 👋',
           scribbleColor: lime,
-          style: TextStyle(
+          style: const TextStyle(
               fontFamily: JuzzioConfig.fontRegularBold,
               fontFamilyFallback: kJuzzioEmojiFallback,
               color: Colors.white,
               fontSize: 30,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.6),
+              fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 6),
-        Text(
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 320),
+          child: Text(
           reg
-              ? t('Arkadaşlarınla bağlan, dünyanın her yerinden\ninsanlarla sohbet et.',
-                  'Connect with friends and chat with\npeople all over the world.', 'Verbinde dich mit Freunden und\nchatte weltweit.')
-              : t('Juzzio hesabına giriş yap, arkadaşlarınla\nkaldığın yerden devam et.',
-                  'Sign in to Juzzio and pick up where\nyou left off with your friends.', 'Melde dich bei Juzzio an und mach\nweiter, wo du aufgehört hast.'),
+              ? t('Arkadaşlarınla bağlan, dünyanın her yerinden insanlarla sohbet et.',
+                  'Connect with friends and chat with people all over the world.', 'Verbinde dich mit Freunden und chatte weltweit.')
+              : t('Juzzio hesabına giriş yap, arkadaşlarınla kaldığın yerden devam et.',
+                  'Sign in to Juzzio and pick up where you left off with your friends.', 'Melde dich bei Juzzio an und mach weiter, wo du aufgehört hast.'),
           textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 14.5, height: 1.4),
+          style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: Colors.white.withValues(alpha: 0.85), fontSize: 14.5, height: 1.4),
+        ),
         ),
         const SizedBox(height: 18),
         if (reg) ...[
@@ -1433,20 +1437,20 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
                 ),
                 const SizedBox(width: 10),
                 Text(t('Beni hatırla', 'Remember me', 'Angemeldet bleiben'),
-                    style: const TextStyle(color: Colors.white, fontSize: 14.5, fontWeight: FontWeight.w500)),
+                    style: const TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: Colors.white, fontSize: 14.5, fontWeight: FontWeight.w500)),
               ]),
             ),
             const Spacer(),
             GestureDetector(
               onTap: _forgotPassword,
               child: Text(t('Şifremi unuttum?', 'Forgot password?', 'Passwort vergessen?'),
-                  style: const TextStyle(color: lime, fontSize: 14.5, fontWeight: FontWeight.w800)),
+                  style: const TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: lime, fontSize: 14.5, fontWeight: FontWeight.w800)),
             ),
           ]),
         ],
         if (_errorText != null) ...[
           const SizedBox(height: 10),
-          Text(_errorText!, textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFFFF6B6B), fontWeight: FontWeight.w600)),
+          Text(_errorText!, textAlign: TextAlign.center, style: const TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: Color(0xFFFF6B6B), fontWeight: FontWeight.w600)),
         ],
         const SizedBox(height: 16),
         SizedBox(
@@ -1478,7 +1482,7 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
                     const Icon(Icons.arrow_forward_rounded, size: 24),
                     const SizedBox(width: 12),
                     Text(reg ? t('Kayıt Ol', 'Sign Up', 'Registrieren') : t('Giriş Yap', 'Sign In', 'Anmelden'),
-                        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
+                        style: const TextStyle(fontFamily: JuzzioConfig.fontRegularBold, fontSize: 17, fontWeight: FontWeight.w900)),
                   ]),
           ),
         ),
@@ -1487,7 +1491,7 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
           Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.18), indent: 28)),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: Text(t('veya', 'or', 'oder'), style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 14)),
+            child: Text(t('veya', 'or', 'oder'), style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: Colors.white.withValues(alpha: 0.8), fontSize: 14)),
           ),
           Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.18), endIndent: 28)),
         ]),
@@ -1498,146 +1502,172 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             Text(reg ? t('Zaten hesabın var mı? ', 'Already have an account? ', 'Schon ein Konto? ') : t('Hesabın yok mu? ', "Don't have an account? ", 'Noch kein Konto? '),
-                style: const TextStyle(color: Colors.white, fontSize: 14.5)),
+                style: const TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: Colors.white, fontSize: 14.5)),
             GestureDetector(
               onTap: () => setState(() {
                 _isRegisterMode = !_isRegisterMode;
                 _errorText = null;
               }),
               child: Text(reg ? t('Giriş Yap', 'Sign In', 'Anmelden') : t('Hesap Oluştur', 'Create Account', 'Konto erstellen'),
-                  style: const TextStyle(color: lime, fontSize: 14.5, fontWeight: FontWeight.w800)),
+                  style: const TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: lime, fontSize: 14.5, fontWeight: FontWeight.w800)),
             ),
           ],
         ),
         const SizedBox(height: 14),
         Text(
           '© ${DateTime.now().year} Juzzio · ${t('Tüm hakları saklıdır.', 'All rights reserved.', 'Alle Rechte vorbehalten.')}',
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 11.5, fontWeight: FontWeight.w600),
+          style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: Colors.white.withValues(alpha: 0.45), fontSize: 11.5, fontWeight: FontWeight.w600),
         ),
       ],
     );
 
-    final cardDecoration = BoxDecoration(
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(44)),
-      // buzlu cam: arkadaki sahne hafifçe görünür (BackdropFilter ile bulanık)
+    // v2.1 Liquid Glass kart: üstte açık buzlu cam (arkadaki sahne bulanık görünür), aşağı doğru
+    // derin kömür grisine iner; kenarda limon ışık çizgisi (ayrı ressam) ve dışta limon hale.
+    const cardDecoration = BoxDecoration(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(40)),
       gradient: LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [const Color(0xFF2B3A1C).withValues(alpha: 0.72), const Color(0xFF17191A).withValues(alpha: 0.86), const Color(0xFF0E0F10).withValues(alpha: 0.94)],
+        colors: [Color(0x2EFFFFFF), Color(0x14FFFFFF), Color(0xD91B1D1F), Color(0xF7131415), Color(0xFF111213)],
+        stops: [0, 0.10, 0.34, 0.62, 1],
       ),
-      border: Border.all(color: lime.withValues(alpha: 0.8), width: 1.4),
-      boxShadow: [BoxShadow(color: lime.withValues(alpha: 0.45), blurRadius: 30, offset: const Offset(0, -4))],
     );
-
-    Widget topRow() => SizedBox(
-          height: 58,
-          child: Stack(children: [
-            Positioned(
-              left: 18,
-              top: 6,
-              child: GestureDetector(
-                onTap: () {
-                  if (reg) {
-                    setState(() {
-                      _isRegisterMode = false;
-                      _errorText = null;
-                    });
-                  } else {
-                    setState(() => _step = 1);
-                  }
-                },
-                child: Container(
-                  width: 46,
-                  height: 46,
-                  decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.black.withValues(alpha: 0.22)),
-                  child: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 24),
-                ),
-              ),
-            ),
-            const Positioned(top: 8, left: 0, right: 0, child: Center(child: JuzzioWordmark(size: 30, color: Colors.white))),
-          ]),
-        );
 
     return LayoutBuilder(
       key: const ValueKey('auth_screen'),
       builder: (context, box) {
-        // Klavye açıkken alanlar görünür kalsın diye doğal boyutta kaydırılabilir düzen
-        if (MediaQuery.viewInsetsOf(context).bottom > 0) {
-          return SingleChildScrollView(
-            child: Column(children: [
-              topRow(),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(24, 18, 24, 18),
-                decoration: cardDecoration,
-                child: cardColumn,
+        // Ekran klavyeyle KÜÇÜLMEZ (dış Scaffold yeniden boyutlanmaz); klavye açılınca sayfa olduğu
+        // gibi kalır ve odaktaki alan klavyenin üstüne kaydırılır.
+        final kb = MediaQuery.of(context).viewInsets.bottom;
+        final w = box.maxWidth;
+        final h = box.maxHeight;
+        // Tasarım görseli (üst bar dahil) genişliğe tam oturur → boşluk ve renk kesişimi olmaz
+        // görsel: tasarımın üst bölümü (1192×836) + kartın arkasında bulanık görünen devamı (200 px)
+        final scale = w / 1192;
+        final imgH = 1036 * scale;
+        final sceneH = 836 * scale;
+        const overlap = 40.0;
+        final heroH = (sceneH - overlap).clamp(0.0, h * 0.46); // kartın başladığı yer
+        final page = SizedBox(
+          height: h,
+          child: Stack(
+            children: [
+              Positioned(
+                left: 0,
+                right: 0,
+                top: 0,
+                height: imgH,
+                child: Image.asset(
+                  'assets/images/auth_hero.jpg',
+                  fit: BoxFit.cover,
+                  alignment: Alignment.topCenter,
+                  filterQuality: FilterQuality.high,
+                ),
               ),
-            ]),
-          );
-        }
-        // Tek ekran (kaydırmasız): üstte görseldeki sahne, altta kart — her ekran boyutunda sığar
-        final heroH = box.maxHeight * 0.40;
-        return Stack(
-          children: [
-            // Tasarım görselindeki sahne (kadın, emojiler, ses hapı) — genişliğe oturur, alttan karta girer
-            // görseldeki limon zemin rengi (görselin kenarlarıyla birebir)
-            Positioned(left: 0, right: 0, top: 0, height: heroH + 30, child: const ColoredBox(color: Color(0xFFAFD939))),
-            Positioned(
-              left: 0,
-              right: 0,
-              top: 58,
-              height: heroH - 58 + 30,
-              child: ClipRect(child: Image.asset(
-                'assets/images/auth_hero.jpg',
-                fit: BoxFit.fitWidth,
-                alignment: Alignment.bottomCenter,
-                filterQuality: FilterQuality.high,
-              )),
-            ),
-            // canlı limonu yumuşatan hafif koyu örtü (üstte ve karta doğru)
-            Positioned(
-              left: 0,
-              right: 0,
-              top: 0,
-              height: heroH + 30,
-              child: IgnorePointer(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [Colors.black.withValues(alpha: 0.22), Colors.black.withValues(alpha: 0.08), Colors.black.withValues(alpha: 0.30)],
-                      stops: const [0, 0.45, 1],
+              // Uygulamanın kendi "J Juzzio" logosu ve yazı tipi (görseldeki logo kaldırıldı)
+              Positioned(
+                left: 0,
+                right: 0,
+                top: sceneH * 0.105 - sceneH * 0.06,
+                child: Center(child: JuzzioWordmark(size: (sceneH * 0.105).clamp(22.0, 44.0), color: Colors.white)),
+              ),
+              // görseldeki geri okunun üstünde dokunma alanı
+              Positioned(
+                left: w * 0.099 - 30,
+                top: sceneH * 0.0915 - 30,
+                width: 60,
+                height: 60,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    if (reg) {
+                      setState(() {
+                        _isRegisterMode = false;
+                        _errorText = null;
+                      });
+                    } else {
+                      setState(() => _step = 1);
+                    }
+                  },
+                  child: Semantics(button: true, label: MaterialLocalizations.of(context).backButtonTooltip),
+                ),
+              ),
+              Positioned(
+                left: 0,
+                right: 0,
+                top: heroH,
+                bottom: 0,
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(40)),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 26, sigmaY: 26, tileMode: TileMode.mirror),
+                    child: Container(
+                      foregroundDecoration: const _JuzzioRimLight(),
+                      decoration: cardDecoration,
+                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+                      // Kart içeriği tasarım ölçüsünde; yalnız gerekirse (çok kısa ekran) bütün olarak küçülür
+                      child: MediaQuery(
+                        data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.topCenter,
+                          child: SizedBox(width: (w - 32).clamp(280.0, 520.0), child: cardColumn),
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-            Positioned(left: 0, right: 0, top: 0, child: topRow()),
-            Positioned(
-              left: 0,
-              right: 0,
-              top: heroH,
-              bottom: 0,
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(44)),
-                child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-                child: Container(
-                decoration: cardDecoration,
-                padding: const EdgeInsets.fromLTRB(24, 16, 24, 10),
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.topCenter,
-                  child: SizedBox(width: (box.maxWidth - 48).clamp(260.0, 520.0), child: cardColumn),
-                ),
-              ),
-              ),
-              ),
-            ),
-          ],
+            ],
+          ),
+        );
+        return SingleChildScrollView(
+          physics: kb > 0 ? const ClampingScrollPhysics() : const NeverScrollableScrollPhysics(),
+          padding: EdgeInsets.only(bottom: kb),
+          child: page,
         );
       },
     );
+  }
+}
+
+/// v2.1 Liquid Glass kenar ışığı: YALNIZ kartın yuvarlak üst kenarında ince beyaz parıltı
+/// (ortada güçlü, köşelere doğru söner). Yanlarda ve altta hiçbir renkli çizgi/hale yoktur —
+/// kart ekranın kenarlarına kadar uzandığı için kenar çizgisi temayı bozuyordu.
+class _JuzzioRimLight extends Decoration {
+  const _JuzzioRimLight();
+  @override
+  BoxPainter createBoxPainter([VoidCallback? onChanged]) => _RimPainter();
+}
+
+class _RimPainter extends BoxPainter {
+  @override
+  void paint(Canvas canvas, Offset offset, ImageConfiguration cfg) {
+    final size = cfg.size;
+    if (size == null) return;
+    final rect = offset & size;
+    const r = 40.0;
+    const inset = 0.8;
+    final l = rect.left + inset, t = rect.top + inset, rgt = rect.right - inset;
+    // açık yol: sol köşe yayı → üst kenar → sağ köşe yayı (yan ve alt kenarlar çizilmez)
+    final path = Path()
+      ..moveTo(l, t + r)
+      ..arcToPoint(Offset(l + r, t), radius: const Radius.circular(r))
+      ..lineTo(rgt - r, t)
+      ..arcToPoint(Offset(rgt, t + r), radius: const Radius.circular(r));
+    final sheen = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2
+      ..strokeCap = StrokeCap.round
+      ..shader = LinearGradient(
+        colors: [
+          Colors.white.withValues(alpha: 0.0),
+          Colors.white.withValues(alpha: 0.42),
+          Colors.white.withValues(alpha: 0.42),
+          Colors.white.withValues(alpha: 0.0),
+        ],
+        stops: const [0, 0.22, 0.78, 1],
+      ).createShader(Rect.fromLTWH(rect.left, rect.top, rect.width, r));
+    canvas.drawPath(path, sheen);
   }
 }

@@ -27,7 +27,7 @@
 "lib/core/widgets/glass_components.dart": "37a67b137da9eee384777f26805105dedde765791d0f3773c1a5afeaf9a50176",
 "lib/l10n/juzzio_inline_catalog.dart": "03ab008de7495f1bc34b643d6628beec74d200cbf30d119a1117542f955626c1",
 "lib/l10n/juzzio_strings_v030.dart": "41e29e825eb3f5559986230b25994a1de9c45aaa8c60e8ce347e5a5bec1da2df",
-"lib/main.dart": "2984f8364725c7a3668bacb218d90a487c6487370926a93a54bac29c9d575569",
+"lib/main.dart": "647dd9a9278ff214f13330bac9430808fe75a6c020bfcf15fb063218a65cedf8",
 "lib/models/social_models.dart": "7350490946d39935cb6de935d4d8fd2d1bea3a58936304e892f02dfd8e813e58",
 "lib/screens/admin_audit_format.dart": "61f6ec30d5cc0dd06cbc83b9465913a9649fc0d7c1342336d9b659b54acb1efc",
 "lib/screens/admin_community_tab.dart": "1a1de3688e7340a6f054c41c6d9900a6a37451e6687ac9295da8d16dddf60762",
