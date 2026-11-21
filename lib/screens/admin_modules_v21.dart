@@ -6,11 +6,20 @@
 // sahte veri göstermez; "kurulmadı" bilgisini ve gerekenleri yazar.
 // Hiçbir modül mesaj içeriği, e-posta, IP veya gizli ayar değeri göstermez.
 
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/app_theme_and_locale.dart';
+import '../core/native_bridge.dart';
+import '../services/juzzio_legal_pdf.dart' show kJuzzioPdfFontRegular, kJuzzioPdfFontBold, juzzioPdfSafeText;
 import '../core/theme/juzzio_glass.dart';
 import '../services/juzzio_features_service.dart';
 import '../widgets/juzzio_brand.dart';
@@ -18,7 +27,7 @@ import '../widgets/juzzio_neon_kit.dart';
 
 /// Bir yönetici modülü: [tab] mevcut sekme kimliği, [stats] sunucu modülü, [info] yalnız bilgi
 class JuzzioAdminModule {
-  const JuzzioAdminModule(this.no, this.icon, this.tr, this.en, {this.tab, this.stats, this.info});
+  const JuzzioAdminModule(this.no, this.icon, this.tr, this.en, {this.tab, this.stats, this.info, this.page});
   final int no;
   final IconData icon;
   final String tr;
@@ -26,6 +35,9 @@ class JuzzioAdminModule {
   final int? tab;
   final String? stats;
   final String? info;
+
+  /// v2.1: kendi ekranı olan modül ('verification')
+  final String? page;
 }
 
 /// Sekme kimlikleri admin_panel_screen.dart'taki _allTabs sırasıdır.
@@ -48,7 +60,7 @@ const List<JuzzioAdminModule> kJuzzioAdminModules = [
   JuzzioAdminModule(16, Icons.support_agent_rounded, 'Destek Merkezi', 'Support Center', stats: 'feedback'),
   JuzzioAdminModule(17, Icons.admin_panel_settings_rounded, 'Sistem Ekstraları', 'System Extras', tab: 15),
   JuzzioAdminModule(18, Icons.history_rounded, 'Yönetici Denetim Kayıtları', 'Admin Audit Log', tab: 12),
-  JuzzioAdminModule(19, Icons.verified_rounded, 'Hesap Doğrulama', 'Account Verification', tab: 14),
+  JuzzioAdminModule(19, Icons.verified_rounded, 'Hesap Doğrulama', 'Account Verification', page: 'verification'),
   JuzzioAdminModule(20, Icons.smart_toy_outlined, 'Spam ve Bot Koruması', 'Spam & Bot Protection', stats: 'quota'),
   JuzzioAdminModule(21, Icons.sensors_rounded, 'Canlı Oturum İzleme', 'Live Sessions', stats: 'live'),
   JuzzioAdminModule(22, Icons.network_check_rounded, 'WebRTC Tanılama', 'WebRTC Diagnostics', stats: 'calls'),
@@ -56,7 +68,7 @@ const List<JuzzioAdminModule> kJuzzioAdminModules = [
   JuzzioAdminModule(24, Icons.perm_media_rounded, 'Medya ve Dosya Yönetimi', 'Media & Files', stats: 'media'),
   JuzzioAdminModule(25, Icons.privacy_tip_rounded, 'Gizlilik ve KVKK Merkezi', 'Privacy & KVKK', stats: 'lifecycle'),
   JuzzioAdminModule(26, Icons.speed_rounded, 'API ve Kota Yönetimi', 'API & Quotas', stats: 'quota'),
-  JuzzioAdminModule(27, Icons.flag_rounded, 'Özellik Yayınlama', 'Feature Rollout', stats: 'flags'),
+  JuzzioAdminModule(27, Icons.flag_rounded, 'Özellik Yayınlama ve A/B Testi', 'Feature Rollout & A/B Tests', page: 'flags'),
   JuzzioAdminModule(28, Icons.warning_amber_rounded, 'Sistem Olayları ve Alarmlar', 'System Events & Alerts', stats: 'errors'),
   JuzzioAdminModule(29, Icons.campaign_rounded, 'Duyuru ve Kampanya', 'Announcements', tab: 8),
   JuzzioAdminModule(30, Icons.autorenew_rounded, 'Veri Yaşam Döngüsü', 'Data Lifecycle', stats: 'lifecycle'),
@@ -107,6 +119,10 @@ class JuzzioAdminModulesPage extends StatelessWidget {
                       if (m.tab != null) {
                         Navigator.of(context).pop();
                         onOpenTab(m.tab!);
+                      } else if (m.page == 'verification') {
+                        Navigator.of(context).push(MaterialPageRoute(builder: (_) => JuzzioAdminVerificationPage(token: token)));
+                      } else if (m.page == 'flags') {
+                        Navigator.of(context).push(MaterialPageRoute(builder: (_) => JuzzioAdminFlagsPage(token: token)));
                       } else {
                         Navigator.of(context).push(MaterialPageRoute(
                           builder: (_) => JuzzioAdminModuleStatsPage(token: token, module: m),
@@ -136,7 +152,9 @@ class JuzzioAdminModulesPage extends StatelessWidget {
                           style: TextStyle(color: JuzzioGlassTokens.heading, fontSize: 14, fontWeight: FontWeight.w800, height: 1.2)),
                       const SizedBox(height: 4),
                       Text(
-                        m.tab != null
+                        m.page != null
+                            ? app.trEn('Başvurular', 'Requests', 'Anträge')
+                            : m.tab != null
                             ? app.trEn('Sekmeyi aç', 'Open tab', 'Tab öffnen')
                             : m.info != null
                                 ? app.trEn('Bilgi', 'Info', 'Info')
@@ -175,6 +193,76 @@ List<List<String>> juzzioFlattenForCsv(Map<String, dynamic> data) {
 
   data.forEach((k, v) => walk(k, v));
   return rows;
+}
+
+/// v2.1 (Faz 13.2): modül verisini PDF rapora çevirir (Türkçe karakterler gömülü yazı tipiyle)
+Future<Uint8List> juzzioAdminModulePdf({
+  required String title,
+  required Map<String, dynamic> data,
+  required bool english,
+  ByteData? fontRegular,
+  ByteData? fontBold,
+}) async {
+  final regular = pw.Font.ttf(fontRegular ?? await rootBundle.load(kJuzzioPdfFontRegular));
+  final bold = pw.Font.ttf(fontBold ?? await rootBundle.load(kJuzzioPdfFontBold));
+  final rows = juzzioFlattenForCsv(data).skip(1).toList();
+  final doc = pw.Document(theme: pw.ThemeData.withFont(base: regular, bold: bold), title: 'Juzzio — $title', author: 'Juzzio');
+  doc.addPage(pw.MultiPage(
+    pageFormat: PdfPageFormat.a4,
+    margin: const pw.EdgeInsets.all(32),
+    header: (ctx) => pw.Container(
+      padding: const pw.EdgeInsets.only(bottom: 6),
+      decoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(width: 1))),
+      child: pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
+        pw.Text(juzzioPdfSafeText('Juzzio · $title'), style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 13)),
+        pw.Text('${english ? 'Page' : 'Sayfa'} ${ctx.pageNumber}/${ctx.pagesCount}', style: const pw.TextStyle(fontSize: 9)),
+      ]),
+    ),
+    build: (ctx) => [
+      pw.SizedBox(height: 8),
+      pw.Text(
+          juzzioPdfSafeText('${english ? 'Generated (UTC)' : 'Oluşturulma (UTC)'}: ${data['generated_at'] ?? DateTime.now().toUtc().toIso8601String()}'),
+          style: const pw.TextStyle(fontSize: 9)),
+      pw.SizedBox(height: 10),
+      pw.TableHelper.fromTextArray(
+        headers: [english ? 'Metric' : 'Ölçüm', english ? 'Value' : 'Değer'],
+        data: [for (final r in rows) [juzzioPdfSafeText(r[0]), juzzioPdfSafeText(r[1])]],
+        headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9),
+        cellStyle: const pw.TextStyle(fontSize: 8.5),
+        columnWidths: {0: const pw.FlexColumnWidth(2), 1: const pw.FlexColumnWidth(3)},
+      ),
+      pw.SizedBox(height: 10),
+      pw.Text(
+          english
+              ? 'Contains only aggregate numbers; no message content, e-mail, IP or secret setting values.'
+              : 'Yalnız toplu sayılar içerir; mesaj içeriği, e-posta, IP veya gizli ayar değeri yoktur.',
+          style: const pw.TextStyle(fontSize: 8)),
+    ],
+  ));
+  return doc.save();
+}
+
+/// PDF'i kaydeder: Android → İndirilenler/Juzzio, masaüstü → İndirilenler. Kaydedilen yol ya da null.
+Future<String?> juzzioSaveAdminPdf(String name, Uint8List bytes) async {
+  if (kIsWeb) return null;
+  if (Platform.isAndroid) {
+    final dir = await getTemporaryDirectory();
+    final f = File('${dir.path}/$name');
+    await f.writeAsBytes(bytes, flush: true);
+    final ok = await JuzzioNative.saveToGallery(path: f.path, mime: 'application/pdf', name: name, kind: 'document');
+    try {
+      await f.delete();
+    } catch (_) {}
+    return ok ? 'Download/Juzzio/$name' : null;
+  }
+  Directory? dir;
+  try {
+    dir = await getDownloadsDirectory();
+  } catch (_) {}
+  dir ??= await getApplicationDocumentsDirectory();
+  final f = File('${dir.path}${Platform.pathSeparator}$name');
+  await f.writeAsBytes(bytes, flush: true);
+  return f.path;
 }
 
 String juzzioCsvEncode(List<List<String>> rows) => rows
@@ -372,15 +460,40 @@ class _JuzzioAdminModuleStatsPageState extends State<JuzzioAdminModuleStatsPage>
                 title: '${m.no}. ${app.trEn(m.tr, m.en, m.en)}',
                 trailing: m.stats == null || d == null
                     ? null
-                    : JuzzioHeaderCircleButton(
-                        icon: Icons.file_download_outlined,
-                        tooltip: app.trEn('CSV olarak kopyala', 'Copy as CSV', 'Als CSV kopieren'),
-                        onTap: () {
-                          Clipboard.setData(ClipboardData(text: juzzioCsvEncode(juzzioFlattenForCsv(d))));
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                              content: Text(app.trEn('CSV panoya kopyalandı', 'CSV copied', 'CSV kopiert'))));
-                        },
-                      ),
+                    : Row(mainAxisSize: MainAxisSize.min, children: [
+                        JuzzioHeaderCircleButton(
+                          icon: Icons.table_chart_outlined,
+                          tooltip: app.trEn('CSV olarak kopyala', 'Copy as CSV', 'Als CSV kopieren'),
+                          onTap: () {
+                            Clipboard.setData(ClipboardData(text: juzzioCsvEncode(juzzioFlattenForCsv(d))));
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                content: Text(app.trEn('CSV panoya kopyalandı', 'CSV copied', 'CSV kopiert'))));
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        // v2.1 (Faz 13.2): PDF rapor
+                        JuzzioHeaderCircleButton(
+                          icon: Icons.picture_as_pdf_outlined,
+                          tooltip: app.trEn('PDF rapor indir', 'Download PDF report', 'PDF-Bericht laden'),
+                          onTap: () async {
+                            final messenger = ScaffoldMessenger.of(context);
+                            final english = app.uiLang != 'tr';
+                            try {
+                              final bytes = await juzzioAdminModulePdf(
+                                  title: '${m.no}. ${english ? m.en : m.tr}', data: d, english: english);
+                              final stamp = DateTime.now().toUtc().toIso8601String().substring(0, 10);
+                              final saved = await juzzioSaveAdminPdf('Juzzio_modul_${m.no}_$stamp.pdf', bytes);
+                              messenger.showSnackBar(SnackBar(
+                                  content: Text(saved == null
+                                      ? app.trEn('PDF kaydedilemedi', 'Could not save the PDF', 'PDF nicht gespeichert')
+                                      : app.trEn('PDF kaydedildi: $saved', 'PDF saved: $saved', 'PDF gespeichert: $saved'))));
+                            } catch (_) {
+                              messenger.showSnackBar(SnackBar(
+                                  content: Text(app.trEn('PDF oluşturulamadı', 'Could not create the PDF', 'PDF-Fehler'))));
+                            }
+                          },
+                        ),
+                      ]),
               ),
               if (m.info != null)
                 _info(m.info!)
@@ -533,6 +646,340 @@ class _JuzzioAdminChangePasswordPageState extends State<JuzzioAdminChangePasswor
                   ),
                 ]),
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+
+/// v2.1 (Faz 14.1) — Mavi tik başvuruları: onayla / reddet
+class JuzzioAdminVerificationPage extends StatefulWidget {
+  const JuzzioAdminVerificationPage({super.key, required this.token});
+  final String token;
+
+  @override
+  State<JuzzioAdminVerificationPage> createState() => _JuzzioAdminVerificationPageState();
+}
+
+class _JuzzioAdminVerificationPageState extends State<JuzzioAdminVerificationPage> {
+  List<Map<String, dynamic>>? _rows;
+  String _status = 'pending';
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _error = null);
+    try {
+      final res = await Supabase.instance.client.rpc('admin_verification_list', params: {'p_token': widget.token, 'p_status': _status});
+      if (!mounted) return;
+      setState(() => _rows = res is List ? res.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList() : const []);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _error = JuzzioAppController.instance.trEn('Başvurular alınamadı (veritabanı güncellemesi 10.49 gerekli olabilir).',
+            'Could not load requests (database update 10.49 may be required).', 'Anträge nicht verfügbar.'));
+      }
+    }
+  }
+
+  Future<void> _decide(Map<String, dynamic> r, bool approve) async {
+    final app = JuzzioAppController.instance;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await Supabase.instance.client.rpc('admin_verification_decide',
+          params: {'p_token': widget.token, 'p_id': r['id'], 'p_approve': approve, 'p_note': ''});
+      messenger.showSnackBar(SnackBar(
+          content: Text(approve
+              ? app.trEn('@${r['username']} doğrulandı', '@${r['username']} verified', '@${r['username']} verifiziert')
+              : app.trEn('Başvuru reddedildi', 'Request rejected', 'Antrag abgelehnt'))));
+      await _load();
+    } catch (_) {
+      messenger.showSnackBar(SnackBar(content: Text(app.trEn('İşlem yapılamadı', 'Action failed', 'Fehlgeschlagen'))));
+    }
+  }
+
+  String _cat(String c) {
+    final app = JuzzioAppController.instance;
+    return switch (c) {
+      'creator' => app.trEn('İçerik üreticisi', 'Creator', 'Creator'),
+      'public_figure' => app.trEn('Tanınmış kişi', 'Public figure', 'Person des öffentlichen Lebens'),
+      'business' => app.trEn('İşletme / marka', 'Business / brand', 'Unternehmen'),
+      'journalist' => app.trEn('Gazeteci', 'Journalist', 'Journalist'),
+      _ => app.trEn('Diğer', 'Other', 'Sonstiges'),
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final app = JuzzioAppController.instance;
+    final rows = _rows;
+    const statuses = ['pending', 'approved', 'rejected', 'all'];
+    return Scaffold(
+      backgroundColor: JuzzioGlassTokens.space.depth.last,
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: _load,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
+            children: [
+              JuzzioScreenHeader(title: '19. ${app.trEn('Hesap Doğrulama', 'Account Verification', 'Verifizierung')}'),
+              JuzzioNeonChips(
+                labels: [
+                  app.trEn('Bekleyen', 'Pending', 'Offen'),
+                  app.trEn('Onaylanan', 'Approved', 'Genehmigt'),
+                  app.trEn('Reddedilen', 'Rejected', 'Abgelehnt'),
+                  app.trEn('Tümü', 'All', 'Alle'),
+                ],
+                selected: statuses.indexOf(_status),
+                onChanged: (k) {
+                  setState(() {
+                    _status = statuses[k];
+                    _rows = null;
+                  });
+                  _load();
+                },
+              ),
+              const SizedBox(height: 12),
+              if (_error != null)
+                Text(_error!, style: const TextStyle(color: Color(0xFFFF5A6A)))
+              else if (rows == null)
+                const Padding(padding: EdgeInsets.all(40), child: Center(child: CircularProgressIndicator()))
+              else if (rows.isEmpty)
+                Text(app.trEn('Başvuru yok.', 'No requests.', 'Keine Anträge.'), style: TextStyle(color: JuzzioGlassTokens.textSecondary))
+              else
+                for (final r in rows)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: JuzzioNeonCard(
+                      padding: const EdgeInsets.all(14),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text('@${r['username'] ?? ''} · ${r['display_name'] ?? ''}',
+                            style: TextStyle(color: JuzzioGlassTokens.heading, fontWeight: FontWeight.w800)),
+                        const SizedBox(height: 4),
+                        Text('${_cat('${r['category'] ?? ''}')} · ${(r['created_at'] ?? '').toString().split('T').first} · ${r['status']}',
+                            style: TextStyle(color: JuzzioGlassTokens.textSecondary, fontSize: 12)),
+                        const SizedBox(height: 8),
+                        Text('${r['reason'] ?? ''}', style: TextStyle(color: JuzzioGlassTokens.heading, fontSize: 13.5)),
+                        if ('${r['links'] ?? ''}'.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          SelectableText('${r['links']}', style: const TextStyle(color: JuzzioBrandColors.lime, fontSize: 12.5)),
+                        ],
+                        if (r['status'] == 'pending') ...[
+                          const SizedBox(height: 12),
+                          Row(children: [
+                            Expanded(
+                              child: JuzzioLimeButton(
+                                label: app.trEn('Onayla', 'Approve', 'Genehmigen'),
+                                icon: Icons.verified_rounded,
+                                height: 42,
+                                onPressed: () => _decide(r, true),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: JuzzioLimeButton(
+                                label: app.trEn('Reddet', 'Reject', 'Ablehnen'),
+                                style: JuzzioLimeButtonStyle.outline,
+                                height: 42,
+                                onPressed: () => _decide(r, false),
+                              ),
+                            ),
+                          ]),
+                        ],
+                      ]),
+                    ),
+                  ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+
+/// v2.1 (Faz 15.4) — Özellik yayınlama (kademeli %) ve A/B testi
+class JuzzioAdminFlagsPage extends StatefulWidget {
+  const JuzzioAdminFlagsPage({super.key, required this.token});
+  final String token;
+
+  @override
+  State<JuzzioAdminFlagsPage> createState() => _JuzzioAdminFlagsPageState();
+}
+
+class _JuzzioAdminFlagsPageState extends State<JuzzioAdminFlagsPage> {
+  List<Map<String, dynamic>>? _rows;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final r = await Supabase.instance.client.rpc('admin_flags_list', params: {'p_token': widget.token});
+      if (!mounted) return;
+      setState(() {
+        _error = null;
+        _rows = r is List ? r.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList() : const [];
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() => _error = JuzzioAppController.instance.trEn('Bayraklar alınamadı (veritabanı güncellemesi 10.50 gerekli olabilir).',
+            'Could not load flags (database update 10.50 may be required).', 'Flags nicht verfügbar.'));
+      }
+    }
+  }
+
+  Future<void> _save(String key, String desc, bool enabled, int pct, List<String> variants) async {
+    final app = JuzzioAppController.instance;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await Supabase.instance.client.rpc('admin_flag_upsert', params: {
+        'p_token': widget.token,
+        'p_key': key,
+        'p_description': desc,
+        'p_enabled': enabled,
+        'p_rollout': pct,
+        'p_variants': variants,
+      });
+      await _load();
+    } catch (_) {
+      messenger.showSnackBar(SnackBar(
+          content: Text(app.trEn('Kaydedilemedi (anahtar: küçük harf, rakam, _ ; en çok 6 varyant)',
+              'Could not save (key: lowercase, digits, _; max 6 variants)', 'Speichern fehlgeschlagen'))));
+    }
+  }
+
+  Future<void> _edit([Map<String, dynamic>? f]) async {
+    final app = JuzzioAppController.instance;
+    final key = TextEditingController(text: '${f?['key'] ?? ''}');
+    final desc = TextEditingController(text: '${f?['description'] ?? ''}');
+    final vars = TextEditingController(text: (f?['variants'] is List ? (f!['variants'] as List).join(', ') : ''));
+    var enabled = f?['enabled'] == true;
+    var pct = ((f?['rollout_pct'] as num?) ?? 100).toDouble();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setD) => AlertDialog(
+          title: Text(f == null ? app.trEn('Yeni özellik', 'New feature flag', 'Neues Flag') : '${f['key']}'),
+          content: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              if (f == null)
+                TextField(controller: key, decoration: InputDecoration(labelText: app.trEn('Anahtar (ör. yeni_sohbet)', 'Key (e.g. new_chat)', 'Schlüssel'))),
+              TextField(controller: desc, decoration: InputDecoration(labelText: app.trEn('Açıklama', 'Description', 'Beschreibung'))),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(app.trEn('Açık', 'Enabled', 'Aktiv')),
+                value: enabled,
+                onChanged: (v) => setD(() => enabled = v),
+              ),
+              Text('${app.trEn('Kullanıcıların', 'Rollout to', 'Rollout')} %${pct.round()}'),
+              Slider(value: pct, min: 0, max: 100, divisions: 20, onChanged: (v) => setD(() => pct = v)),
+              TextField(
+                controller: vars,
+                decoration: InputDecoration(
+                    labelText: app.trEn('A/B varyantları (virgülle, ör. a, b)', 'A/B variants (comma-separated, e.g. a, b)', 'A/B-Varianten')),
+              ),
+            ]),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(app.trEn('Vazgeç', 'Cancel', 'Abbrechen'))),
+            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(app.trEn('Kaydet', 'Save', 'Speichern'))),
+          ],
+        ),
+      ),
+    );
+    if (ok == true) {
+      final variants = vars.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+      await _save((f?['key'] ?? key.text).toString().trim().toLowerCase(), desc.text.trim(), enabled, pct.round(), variants);
+    }
+  }
+
+  Future<void> _delete(String key) async {
+    final app = JuzzioAppController.instance;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(app.trEn('“$key” silinsin mi?', 'Delete “$key”?', '„$key“ löschen?')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(app.trEn('Vazgeç', 'Cancel', 'Abbrechen'))),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(app.trEn('Sil', 'Delete', 'Löschen'))),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await Supabase.instance.client.rpc('admin_flag_delete', params: {'p_token': widget.token, 'p_key': key});
+      await _load();
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final app = JuzzioAppController.instance;
+    final rows = _rows;
+    return Scaffold(
+      backgroundColor: JuzzioGlassTokens.space.depth.last,
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: JuzzioBrandColors.lime,
+        foregroundColor: const Color(0xFF111113),
+        onPressed: () => _edit(),
+        icon: const Icon(Icons.add_rounded),
+        label: Text(app.trEn('Yeni', 'New', 'Neu')),
+      ),
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: _load,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 90),
+            children: [
+              JuzzioScreenHeader(
+                title: '27. ${app.trEn('Özellik Yayınlama ve A/B', 'Feature Rollout & A/B', 'Rollout & A/B')}',
+                subtitle: app.trEn('Kademeli yüzde ve A/B varyantı; aynı kişi hep aynı gruptadır.',
+                    'Gradual percentage and A/B variants; each person always stays in the same group.', 'Schrittweise und A/B.'),
+              ),
+              if (_error != null)
+                Text(_error!, style: const TextStyle(color: Color(0xFFFF5A6A)))
+              else if (rows == null)
+                const Padding(padding: EdgeInsets.all(40), child: Center(child: CircularProgressIndicator()))
+              else if (rows.isEmpty)
+                Text(app.trEn('Henüz özellik bayrağı yok.', 'No feature flags yet.', 'Noch keine Flags.'),
+                    style: TextStyle(color: JuzzioGlassTokens.textSecondary))
+              else
+                JuzzioNeonGroup(children: [
+                  for (final f in rows)
+                    JuzzioNeonRow(
+                      icon: f['enabled'] == true ? Icons.flag_rounded : Icons.outlined_flag_rounded,
+                      title: '${f['key']}',
+                      subtitle: '${f['enabled'] == true ? app.trEn('Açık', 'On', 'An') : app.trEn('Kapalı', 'Off', 'Aus')} · %${f['rollout_pct']}'
+                          '${(f['variants'] is List && (f['variants'] as List).isNotEmpty) ? ' · A/B: ${(f['variants'] as List).join('/')}' : ''}'
+                          '${'${f['description'] ?? ''}'.isEmpty ? '' : ' · ${f['description']}'}',
+                      onTap: () => _edit(f),
+                    ),
+                ]),
+              if (rows != null && rows.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Text(app.trEn('Silmek için aşağıdaki çipe dokun.', 'Tap a chip below to delete that flag.', 'Zum Löschen Chip antippen.'),
+                    style: TextStyle(color: JuzzioGlassTokens.textSecondary, fontSize: 12)),
+                Wrap(spacing: 8, children: [
+                  for (final f in rows)
+                    ActionChip(
+                      avatar: const Icon(Icons.delete_outline_rounded, size: 16),
+                      label: Text('${f['key']}'),
+                      onPressed: () => _delete('${f['key']}'),
+                    ),
+                ]),
+              ],
             ],
           ),
         ),

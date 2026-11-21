@@ -47,6 +47,8 @@ import '../widgets/juzzio_desktop_shell.dart'
     show JuzzioDesktopShell, JuzzioDesktopNavRail, JuzzioDesktopRightPlaceholder,
          JuzzioDesktopAction, showJuzzioCommandCenter, kJuzzioDesktopThreePanelMin;
 import '../widgets/juzzio_attach_menu.dart';
+import '../widgets/juzzio_auto_download.dart';
+import '../services/juzzio_feature_flags.dart';
 import '../widgets/juzzio_space_kit.dart';
 import '../widgets/juzzio_rich_text.dart';
 import '../widgets/juzzio_copy_feedback.dart';
@@ -436,6 +438,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    // v2.1 (Faz 15.4): özellik bayrakları / A/B atamaları önbelleğe alınır
+    unawaited(JuzzioFeatureFlags.instance.refresh());
     WidgetsBinding.instance.addObserver(this);
     JuzzioAppController.instance.ensureBackgroundNotificationReady();
     unawaited(SupabaseService.instance.touchDailyStreak());
@@ -6848,7 +6852,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                                   constraints: const BoxConstraints(maxHeight: 320),
                                   child: ClipRRect(
                                     borderRadius: BorderRadius.circular(14),
-                                    child: JuzzioEncryptedImage(messageId: msg.id, url: msg.imageUrl!, fit: BoxFit.contain),
+                                    child: JuzzioAutoDownloadGate(id: msg.id, isMine: isMe, child: JuzzioEncryptedImage(messageId: msg.id, url: msg.imageUrl!, fit: BoxFit.contain)),
                                   ),
                                 ),
                               ),
@@ -6867,7 +6871,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                                 constraints: const BoxConstraints(maxHeight: 320),
                                 child: ClipRRect(
                                 borderRadius: BorderRadius.circular(14),
-                                child: JuzzioStorageImage(
+                                // v2.1 (Faz 8.2): otomatik indirme kuralı
+                                child: JuzzioAutoDownloadGate(id: msg.id, isMine: isMe, child: JuzzioStorageImage(
                                   msg.imageUrl!,
                                   fit: BoxFit.contain,
                                   gaplessPlayback: true,
@@ -6886,7 +6891,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                                     alignment: Alignment.center,
                                     child: Icon(Icons.image_outlined, color: p.textMuted, size: 40),
                                   ),
-                                ),
+                                )),
                               ),
                               ),
                               ),
@@ -11213,9 +11218,10 @@ class JuzzioOfficialAvatar extends StatelessWidget {
       height: radius * 2,
       decoration: const BoxDecoration(
         shape: BoxShape.circle,
-        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFF0B1220), Color(0xFF1D2B4F)]),
+        // v2.1: resmî logo siyah zeminli; daire de siyah
+        color: Color(0xFF000000),
       ),
-      padding: EdgeInsets.all(radius * 0.28),
+      padding: EdgeInsets.all(radius * 0.04),
       child: Image.asset(
         'assets/logo/juzzio_logo.png',
         fit: BoxFit.contain,

@@ -128,6 +128,16 @@ JuzzioAuditLine juzzioFormatAudit(Map<String, dynamic> a, String lang) {
       sentence = t('$who, $target kullanıcısını yasakladı', '$who banned $target', '$who hat $target gesperrt');
       add(t('Gerekçe', 'Reason', 'Grund'), d['reason']);
       if (d['devices'] != null) details.add(t('${d['devices']} cihaz engellendi', '${d['devices']} device(s) blocked', '${d['devices']} Gerät(e) gesperrt'));
+    case 'feature_flag':
+      icon = Icons.flag_rounded;
+      tone = 1;
+      sentence = t('$who “$target” özelliğini güncelledi', '$who updated the “$target” feature flag', '$who hat das Feature „$target“ aktualisiert');
+      add(t('Açık', 'Enabled', 'Aktiv'), d['enabled']);
+      add(t('Yayın yüzdesi', 'Rollout %', 'Rollout %'), d['rollout']);
+    case 'feature_flag_delete':
+      icon = Icons.flag_outlined;
+      tone = 2;
+      sentence = t('$who “$target” özelliğini sildi', '$who deleted the “$target” feature flag', '$who hat das Feature „$target“ gelöscht');
     case 'admin_password_changed':
       icon = Icons.key_rounded;
       tone = 1;

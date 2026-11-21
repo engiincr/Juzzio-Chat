@@ -392,7 +392,7 @@ class _JuzzioSettingsMainPageState extends State<JuzzioSettingsMainPage> {
               _l3('Kapat', 'Close', 'Schließen'),
               style: TextStyle(
                 fontFamily: JuzzioConfig.fontRegularBold,
-                color: p.amberGlow,
+                color: JuzzioGlassTokens.glow,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -446,6 +446,11 @@ class JuzzioAccountProfileHubPage extends StatelessWidget {
                 title: app.trEn('Kullanıcı adı', 'Username', 'Benutzername'),
                 value: '@$username',
                 onTap: () => push(JuzzioUsernameSettingsPage(currentUsername: username)),
+              ),
+              JuzzioNeonRow(
+                icon: Icons.verified_outlined,
+                title: app.trEn('Mavi tik başvurusu', 'Verification request', 'Verifizierung beantragen'),
+                onTap: () => push(const JuzzioVerificationRequestPage()),
               ),
             ]),
             JuzzioNeonSectionLabel(app.trEn('Giriş bilgileri', 'Sign-in details', 'Anmeldedaten')),
@@ -1910,8 +1915,12 @@ class _JuzzioAccountSettingsPageState extends State<JuzzioAccountSettingsPage> {
     final isTr = appCtrl.uiLang == 'tr';
 
     return Scaffold(
-      backgroundColor: p.bgPrimary,
+      backgroundColor: JuzzioGlassTokens.space.depth.last,
       appBar: AppBar(
+            // v2.1 Neon Lime: ortalı başlık + yuvarlak geri düğmesi
+            centerTitle: true,
+            leadingWidth: 64,
+            leading: const JuzzioNeonBackButton(),
         // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
             backgroundColor: Colors.transparent,
             surfaceTintColor: Colors.transparent,
@@ -1931,19 +1940,19 @@ class _JuzzioAccountSettingsPageState extends State<JuzzioAccountSettingsPage> {
             padding: const EdgeInsets.only(left: 6, bottom: 8),
             child: Text(
               _l3('Hesap', 'Account', 'Konto'),
-              style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.amberGlow, fontWeight: FontWeight.w800, fontSize: 13.5),
+              style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: JuzzioGlassTokens.glow, fontWeight: FontWeight.w800, fontSize: 13.5),
             ),
           ),
           Container(
             decoration: BoxDecoration(
-              color: p.cardBg,
+              color: JuzzioGlassTokens.spaceCard,
               borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: p.glassBorder),
+              border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
             ),
             child: Column(
               children: [
                 ListTile(
-                  leading: Icon(Icons.badge_outlined, color: p.amberGlow),
+                  leading: Icon(Icons.badge_outlined, color: JuzzioGlassTokens.glow),
                   title: Text(
                     _l3('Profili ve Kişisel Bilgileri Düzenle', 'Edit Profile & Personal Info', 'Profil & persönliche Daten bearbeiten'),
                     style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w700),
@@ -1964,7 +1973,7 @@ class _JuzzioAccountSettingsPageState extends State<JuzzioAccountSettingsPage> {
                 ),
                 Divider(height: 1, color: p.glassBorder),
                 ListTile(
-                  leading: Icon(Icons.qr_code_2_rounded, color: p.amberGlow),
+                  leading: Icon(Icons.qr_code_2_rounded, color: JuzzioGlassTokens.glow),
                   title: Text(
                     _l3('Bağlı Cihazlar (Masaüstü QR Senkronizasyon)', 'Linked Devices (Desktop QR Sync)', 'Verknüpfte Geräte (Desktop-QR-Sync)'),
                     style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w700),
@@ -1978,7 +1987,7 @@ class _JuzzioAccountSettingsPageState extends State<JuzzioAccountSettingsPage> {
                 ),
                 Divider(height: 1, color: p.glassBorder),
                 ListTile(
-                  leading: Icon(Icons.password_rounded, color: p.amberGlow),
+                  leading: Icon(Icons.password_rounded, color: JuzzioGlassTokens.glow),
                   title: Text(
                     _l3('Şifre', 'Password', 'Passwort'),
                     style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w700),
@@ -1994,7 +2003,7 @@ class _JuzzioAccountSettingsPageState extends State<JuzzioAccountSettingsPage> {
                 ),
                 Divider(height: 1, color: p.glassBorder),
                 ListTile(
-                  leading: Icon(Icons.email_outlined, color: p.amberGlow),
+                  leading: Icon(Icons.email_outlined, color: JuzzioGlassTokens.glow),
                   title: Text(
                     _l3('E-Posta adresi', 'Email address', 'E-Mail-Adresse'),
                     style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w700),
@@ -2008,7 +2017,7 @@ class _JuzzioAccountSettingsPageState extends State<JuzzioAccountSettingsPage> {
                 ),
                 Divider(height: 1, color: p.glassBorder),
                 ListTile(
-                  leading: Icon(Icons.shield_rounded, color: p.amberGlow),
+                  leading: Icon(Icons.shield_rounded, color: JuzzioGlassTokens.glow),
                   title: Text(
                     _l3('Güvenlik Merkezi', 'Security Center', 'Sicherheitscenter'),
                     style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w700),
@@ -2023,7 +2032,7 @@ class _JuzzioAccountSettingsPageState extends State<JuzzioAccountSettingsPage> {
                 // v0.9.5
                 Divider(height: 1, color: p.glassBorder),
                 ListTile(
-                  leading: Icon(Icons.emoji_events_rounded, color: p.amberGlow),
+                  leading: Icon(Icons.emoji_events_rounded, color: JuzzioGlassTokens.glow),
                   title: Text(_l3('Rozetler ve seriler', 'Badges & streaks', 'Abzeichen & Serien'),
                       style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w700)),
                   subtitle: Text(_l3('Günlük seri, civciv bakımı, kazanılan rozetler, bugün geçmişte', 'Daily streak, chick care, earned badges, on this day', 'Serien, Abzeichen, Erinnerungen'),
@@ -2033,7 +2042,7 @@ class _JuzzioAccountSettingsPageState extends State<JuzzioAccountSettingsPage> {
                 ),
                 Divider(height: 1, color: p.glassBorder),
                 ListTile(
-                  leading: Icon(Icons.help_center_rounded, color: p.amberGlow),
+                  leading: Icon(Icons.help_center_rounded, color: JuzzioGlassTokens.glow),
                   title: Text(_l3('Soru kutum', 'My question box', 'Mein Fragekasten'),
                       style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w700)),
                   subtitle: Text(_l3('Profilinde anonim soru al ve yanıtla', 'Receive and answer anonymous questions on your profile', 'Anonyme Fragen beantworten'),
@@ -2044,7 +2053,7 @@ class _JuzzioAccountSettingsPageState extends State<JuzzioAccountSettingsPage> {
                 // v0.9.6
                 Divider(height: 1, color: p.glassBorder),
                 ListTile(
-                  leading: Icon(Icons.nightlight_round, color: p.amberGlow),
+                  leading: Icon(Icons.nightlight_round, color: JuzzioGlassTokens.glow),
                   title: Text(_l3('Göz Konforu', 'Eye Comfort', 'Augenkomfort'),
                       style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w700)),
                   subtitle: Text(_l3('Mavi ışık filtresi: elle, zamanlanmış veya gün batımında', 'Blue-light filter: manual, scheduled or at sunset', 'Blaulichtfilter: manuell, geplant oder bei Sonnenuntergang'),
@@ -2062,7 +2071,7 @@ class _JuzzioAccountSettingsPageState extends State<JuzzioAccountSettingsPage> {
                 Divider(height: 1, color: p.glassBorder),
                 JuzzioSwitchListTile(
                   activeThumbColor: p.onlineGreen,
-                  secondary: Icon(Icons.bug_report_rounded, color: p.amberGlow),
+                  secondary: Icon(Icons.bug_report_rounded, color: JuzzioGlassTokens.glow),
                   title: Text(_l3('Hata raporlarını otomatik gönder', 'Send crash reports automatically', 'Absturzberichte automatisch senden'),
                       style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w700)),
                   subtitle: Text(_l3('Yalnız hata türü ve yığın izi; mesaj içeriği, e-posta ve numaralar maskelenir', 'Only error type and stack trace; message content, emails and numbers are masked', 'Nur Fehlertyp und Stacktrace; Inhalte maskiert'),
@@ -2076,7 +2085,7 @@ class _JuzzioAccountSettingsPageState extends State<JuzzioAccountSettingsPage> {
                 ),
                 Divider(height: 1, color: p.glassBorder),
                 ListTile(
-                  leading: Icon(Icons.security_rounded, color: p.amberGlow),
+                  leading: Icon(Icons.security_rounded, color: JuzzioGlassTokens.glow),
                   title: Text(
                     _l3('Güvenlik Bildirimleri', 'Security Notifications', 'Sicherheitsbenachrichtigungen'),
                     style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w700),
@@ -2101,26 +2110,26 @@ class _JuzzioAccountSettingsPageState extends State<JuzzioAccountSettingsPage> {
             padding: const EdgeInsets.only(left: 6, bottom: 8),
             child: Text(
               _l3('Hesabınız', 'Your Account', 'Dein Konto'),
-              style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.amberGlow, fontWeight: FontWeight.w800, fontSize: 13.5),
+              style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: JuzzioGlassTokens.glow, fontWeight: FontWeight.w800, fontSize: 13.5),
             ),
           ),
           Container(
             decoration: BoxDecoration(
-              color: p.cardBg,
+              color: JuzzioGlassTokens.spaceCard,
               borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: p.glassBorder),
+              border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
             ),
             child: Column(
               children: [
                 ListTile(
-                  leading: Icon(Icons.alternate_email_rounded, color: p.amberGlow),
+                  leading: Icon(Icons.alternate_email_rounded, color: JuzzioGlassTokens.glow),
                   title: Text(
                     _l3('Kullanıcı adı', 'Username', 'Benutzername'),
                     style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w700),
                   ),
                   subtitle: Text(
                     '@$_currentUsername',
-                    style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.amberGlow, fontWeight: FontWeight.w700, fontSize: 13),
+                    style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: JuzzioGlassTokens.glow, fontWeight: FontWeight.w700, fontSize: 13),
                   ),
                   trailing: Icon(Icons.chevron_right_rounded, color: p.textMuted),
                   onTap: () async {
@@ -2277,8 +2286,12 @@ class _JuzzioChangePasswordPageState extends State<JuzzioChangePasswordPage> {
   Widget build(BuildContext context) {
     final p = JuzzioPalette(JuzzioAppController.instance.isDark);
     return Scaffold(
-      backgroundColor: p.bgPrimary,
+      backgroundColor: JuzzioGlassTokens.space.depth.last,
       appBar: AppBar(
+            // v2.1 Neon Lime: ortalı başlık + yuvarlak geri düğmesi
+            centerTitle: true,
+            leadingWidth: 64,
+            leading: const JuzzioNeonBackButton(),
         // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
             backgroundColor: Colors.transparent,
             surfaceTintColor: Colors.transparent,
@@ -2293,9 +2306,9 @@ class _JuzzioChangePasswordPageState extends State<JuzzioChangePasswordPage> {
           Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: p.cardBg,
+              color: JuzzioGlassTokens.spaceCard,
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: p.glassBorder),
+              border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2312,7 +2325,7 @@ class _JuzzioChangePasswordPageState extends State<JuzzioChangePasswordPage> {
                   decoration: InputDecoration(
                     hintText: JuzzioAppController.instance.trEn('Kullandığınız mevcut şifreyi girin', 'Enter your current password', 'Gib dein aktuelles Passwort ein'),
                     hintStyle: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textMuted),
-                    prefixIcon: Icon(Icons.lock_outline_rounded, color: p.amberGlow),
+                    prefixIcon: Icon(Icons.lock_outline_rounded, color: JuzzioGlassTokens.glow),
                     filled: true,
                     fillColor: p.inputBg,
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(999)),
@@ -2331,7 +2344,7 @@ class _JuzzioChangePasswordPageState extends State<JuzzioChangePasswordPage> {
                   decoration: InputDecoration(
                     hintText: JuzzioAppController.instance.trEn('Yeni şifrenizi girin', 'Enter your new password', 'Gib dein neues Passwort ein'),
                     hintStyle: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textMuted),
-                    prefixIcon: Icon(Icons.key_rounded, color: p.amberGlow),
+                    prefixIcon: Icon(Icons.key_rounded, color: JuzzioGlassTokens.glow),
                     filled: true,
                     fillColor: p.inputBg,
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(999)),
@@ -2350,7 +2363,7 @@ class _JuzzioChangePasswordPageState extends State<JuzzioChangePasswordPage> {
                   decoration: InputDecoration(
                     hintText: JuzzioAppController.instance.trEn('Yeni şifrenizi tekrar girin', 'Re-enter your new password', 'Gib dein neues Passwort erneut ein'),
                     hintStyle: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textMuted),
-                    prefixIcon: Icon(Icons.verified_user_outlined, color: p.amberGlow),
+                    prefixIcon: Icon(Icons.verified_user_outlined, color: JuzzioGlassTokens.glow),
                     filled: true,
                     fillColor: p.inputBg,
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(999)),
@@ -2432,8 +2445,12 @@ class JuzzioSecurityNotificationsPage extends StatelessWidget {
       builder: (context, _) {
         final p = JuzzioPalette(appCtrl.isDark);
         return Scaffold(
-          backgroundColor: p.bgPrimary,
+          backgroundColor: JuzzioGlassTokens.space.depth.last,
           appBar: AppBar(
+            // v2.1 Neon Lime: ortalı başlık + yuvarlak geri düğmesi
+            centerTitle: true,
+            leadingWidth: 64,
+            leading: const JuzzioNeonBackButton(),
             // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
             backgroundColor: Colors.transparent,
             surfaceTintColor: Colors.transparent,
@@ -2448,9 +2465,9 @@ class JuzzioSecurityNotificationsPage extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(22),
                 decoration: BoxDecoration(
-                  color: p.cardBg,
+                  color: JuzzioGlassTokens.spaceCard,
                   borderRadius: BorderRadius.circular(26),
-                  border: Border.all(color: p.glassBorder),
+                  border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
@@ -2503,9 +2520,9 @@ class JuzzioSecurityNotificationsPage extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: p.cardBg,
+                  color: JuzzioGlassTokens.spaceCard,
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: p.glassBorder),
+                  border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -2552,7 +2569,7 @@ class JuzzioSecurityNotificationsPage extends StatelessWidget {
               color: p.amberPrimary.withValues(alpha: 0.18),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(icon, color: p.amberGlow, size: 20),
+            child: Icon(icon, color: JuzzioGlassTokens.glow, size: 20),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -2638,7 +2655,7 @@ class _JuzzioUsernameSettingsPageState extends State<JuzzioUsernameSettingsPage>
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: Icon(Icons.edit_rounded, color: p.amberGlow),
+              leading: Icon(Icons.edit_rounded, color: JuzzioGlassTokens.glow),
               title: Text(
                 _l3('Kullanıcı adını değiştir', 'Change username', 'Benutzernamen ändern'),
                 style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w800),
@@ -2676,8 +2693,12 @@ class _JuzzioUsernameSettingsPageState extends State<JuzzioUsernameSettingsPage>
   Widget build(BuildContext context) {
     final p = JuzzioPalette(JuzzioAppController.instance.isDark);
     return Scaffold(
-      backgroundColor: p.bgPrimary,
+      backgroundColor: JuzzioGlassTokens.space.depth.last,
       appBar: AppBar(
+            // v2.1 Neon Lime: ortalı başlık + yuvarlak geri düğmesi
+            centerTitle: true,
+            leadingWidth: 64,
+            leading: const JuzzioNeonBackButton(),
         // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
             backgroundColor: Colors.transparent,
             surfaceTintColor: Colors.transparent,
@@ -2690,7 +2711,7 @@ class _JuzzioUsernameSettingsPageState extends State<JuzzioUsernameSettingsPage>
             onPressed: () => _openEditMenu(p),
             child: Text(
               _l3('Düzenleyin', 'Edit', 'Bearbeiten'),
-              style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.amberGlow, fontWeight: FontWeight.w800, fontSize: 15),
+              style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: JuzzioGlassTokens.glow, fontWeight: FontWeight.w800, fontSize: 15),
             ),
           ),
         ],
@@ -2701,9 +2722,9 @@ class _JuzzioUsernameSettingsPageState extends State<JuzzioUsernameSettingsPage>
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: p.cardBg,
+              color: JuzzioGlassTokens.spaceCard,
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: p.glassBorder),
+              border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2725,7 +2746,7 @@ class _JuzzioUsernameSettingsPageState extends State<JuzzioUsernameSettingsPage>
                   ),
                   decoration: InputDecoration(
                     prefixText: '@',
-                    prefixStyle: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.amberGlow, fontWeight: FontWeight.w800, fontSize: 17),
+                    prefixStyle: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: JuzzioGlassTokens.glow, fontWeight: FontWeight.w800, fontSize: 17),
                     filled: true,
                     fillColor: p.inputBg,
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(999)),
@@ -2898,8 +2919,12 @@ class _JuzzioDeleteAccountPageState extends State<JuzzioDeleteAccountPage> {
   Widget build(BuildContext context) {
     final p = JuzzioPalette(JuzzioAppController.instance.isDark);
     return Scaffold(
-      backgroundColor: p.bgPrimary,
+      backgroundColor: JuzzioGlassTokens.space.depth.last,
       appBar: AppBar(
+            // v2.1 Neon Lime: ortalı başlık + yuvarlak geri düğmesi
+            centerTitle: true,
+            leadingWidth: 64,
+            leading: const JuzzioNeonBackButton(),
         // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
             backgroundColor: Colors.transparent,
             surfaceTintColor: Colors.transparent,
@@ -3051,8 +3076,12 @@ class JuzzioPrivacySettingsPage extends StatelessWidget {
       builder: (context, _) {
         final p = JuzzioPalette(appCtrl.isDark);
         return Scaffold(
-          backgroundColor: p.bgPrimary,
+          backgroundColor: JuzzioGlassTokens.space.depth.last,
           appBar: AppBar(
+            // v2.1 Neon Lime: ortalı başlık + yuvarlak geri düğmesi
+            centerTitle: true,
+            leadingWidth: 64,
+            leading: const JuzzioNeonBackButton(),
             // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
             backgroundColor: Colors.transparent,
             surfaceTintColor: Colors.transparent,
@@ -3069,14 +3098,14 @@ class JuzzioPrivacySettingsPage extends StatelessWidget {
                 padding: const EdgeInsets.only(left: 6, bottom: 8),
                 child: Text(
                   _l3('Kişisel bilgilerimi kimler görebilir', 'Who can see my personal info', 'Wer meine persönlichen Infos sehen kann'),
-                  style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.amberGlow, fontWeight: FontWeight.w800, fontSize: 13.5),
+                  style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: JuzzioGlassTokens.glow, fontWeight: FontWeight.w800, fontSize: 13.5),
                 ),
               ),
               Container(
                 decoration: BoxDecoration(
-                  color: p.cardBg,
+                  color: JuzzioGlassTokens.spaceCard,
                   borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: p.glassBorder),
+                  border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
                 ),
                 child: Column(
                   children: [
@@ -3199,14 +3228,14 @@ class JuzzioPrivacySettingsPage extends StatelessWidget {
                 padding: const EdgeInsets.only(left: 6, bottom: 8),
                 child: Text(
                   _l3('Süreli mesajlar', 'Disappearing messages', 'Selbstlöschende Nachrichten'),
-                  style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.amberGlow, fontWeight: FontWeight.w800, fontSize: 13.5),
+                  style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: JuzzioGlassTokens.glow, fontWeight: FontWeight.w800, fontSize: 13.5),
                 ),
               ),
               Container(
                 decoration: BoxDecoration(
-                  color: p.cardBg,
+                  color: JuzzioGlassTokens.spaceCard,
                   borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: p.glassBorder),
+                  border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
                 ),
                 child: ListTile(
                   title: Text(
@@ -3231,14 +3260,14 @@ class JuzzioPrivacySettingsPage extends StatelessWidget {
                 padding: const EdgeInsets.only(left: 6, bottom: 8),
                 child: Text(
                   _l3('Gruplar, Aramalar, Kişiler ve Kamera', 'Groups, Calls, Contacts & Camera', 'Gruppen, Anrufe, Kontakte & Kamera'),
-                  style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.amberGlow, fontWeight: FontWeight.w800, fontSize: 13.5),
+                  style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: JuzzioGlassTokens.glow, fontWeight: FontWeight.w800, fontSize: 13.5),
                 ),
               ),
               Container(
                 decoration: BoxDecoration(
-                  color: p.cardBg,
+                  color: JuzzioGlassTokens.spaceCard,
                   borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: p.glassBorder),
+                  border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
                 ),
                 child: Column(
                   children: [
@@ -3367,14 +3396,14 @@ class JuzzioPrivacySettingsPage extends StatelessWidget {
               // BÖLÜM 4: İzin Yöneticisi & Gelişmiş Gizlilik
               Container(
                 decoration: BoxDecoration(
-                  color: p.cardBg,
+                  color: JuzzioGlassTokens.spaceCard,
                   borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: p.glassBorder),
+                  border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
                 ),
                 child: Column(
                   children: [
                     ListTile(
-                      leading: Icon(Icons.verified_user_outlined, color: p.amberGlow),
+                      leading: Icon(Icons.verified_user_outlined, color: JuzzioGlassTokens.glow),
                       title: Text(
                         appCtrl.trEn('İzin Yöneticisi (Kamera, Mikrofon, Konum)', 'Permissions Manager (Camera, Mic, Location)', 'Berechtigungen (Kamera, Mikrofon, Standort)'),
                         style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w800),
@@ -3390,7 +3419,7 @@ class JuzzioPrivacySettingsPage extends StatelessWidget {
                     ),
                     Divider(height: 1, color: p.glassBorder),
                     ListTile(
-                      leading: Icon(Icons.shield_outlined, color: p.amberGlow),
+                      leading: Icon(Icons.shield_outlined, color: JuzzioGlassTokens.glow),
                       title: Text(
                         appCtrl.trEn('Gelişmiş & Katı Hesap Koruması', 'Advanced & Strict Account Protection', 'Erweiterter & strenger Kontoschutz'),
                         style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w800),
@@ -3429,8 +3458,12 @@ class JuzzioLastSeenOnlinePrivacyPage extends StatelessWidget {
       builder: (context, _) {
         final p = JuzzioPalette(appCtrl.isDark);
         return Scaffold(
-          backgroundColor: p.bgPrimary,
+          backgroundColor: JuzzioGlassTokens.space.depth.last,
           appBar: AppBar(
+            // v2.1 Neon Lime: ortalı başlık + yuvarlak geri düğmesi
+            centerTitle: true,
+            leadingWidth: 64,
+            leading: const JuzzioNeonBackButton(),
             // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
             backgroundColor: Colors.transparent,
             surfaceTintColor: Colors.transparent,
@@ -3445,16 +3478,16 @@ class JuzzioLastSeenOnlinePrivacyPage extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: p.cardBg,
+                  color: JuzzioGlassTokens.spaceCard,
                   borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: p.glassBorder),
+                  border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       JuzzioAppController.instance.loc('Son görülme bilgimi kimler görebilir?', 'Who can see my last seen?', 'Wer kann meinen Zuletzt-online-Status sehen?'),
-                      style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.amberGlow, fontWeight: FontWeight.w800, fontSize: 14),
+                      style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: JuzzioGlassTokens.glow, fontWeight: FontWeight.w800, fontSize: 14),
                     ),
                     const SizedBox(height: 8),
                     _radioItem(p, _l3('Herkes', 'Everyone', 'Alle'), 'everyone', appCtrl.lastSeenPrivacy, appCtrl.setLastSeenPrivacy),
@@ -3463,7 +3496,7 @@ class JuzzioLastSeenOnlinePrivacyPage extends StatelessWidget {
                     const Divider(height: 24),
                     Text(
                       JuzzioAppController.instance.loc('Çevrimiçi olduğumu kimler görebilir?', 'Who can see when I am online?', 'Wer kann sehen, wann ich online bin?'),
-                      style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.amberGlow, fontWeight: FontWeight.w800, fontSize: 14),
+                      style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: JuzzioGlassTokens.glow, fontWeight: FontWeight.w800, fontSize: 14),
                     ),
                     const SizedBox(height: 8),
                     _radioItem(p, _l3('Herkes', 'Everyone', 'Alle'), 'everyone', appCtrl.onlinePrivacy, appCtrl.setOnlinePrivacy),
@@ -3534,8 +3567,12 @@ class JuzzioSingleChoicePrivacyPage extends StatelessWidget {
       builder: (context, _) {
         final p = JuzzioPalette(appCtrl.isDark);
         return Scaffold(
-          backgroundColor: p.bgPrimary,
+          backgroundColor: JuzzioGlassTokens.space.depth.last,
           appBar: AppBar(
+            // v2.1 Neon Lime: ortalı başlık + yuvarlak geri düğmesi
+            centerTitle: true,
+            leadingWidth: 64,
+            leading: const JuzzioNeonBackButton(),
             // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
             backgroundColor: Colors.transparent,
             surfaceTintColor: Colors.transparent,
@@ -3549,9 +3586,9 @@ class JuzzioSingleChoicePrivacyPage extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: p.cardBg,
+                color: JuzzioGlassTokens.spaceCard,
                 borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: p.glassBorder),
+                border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -3559,7 +3596,7 @@ class JuzzioSingleChoicePrivacyPage extends StatelessWidget {
                 children: [
                   Text(
                     questionTitle,
-                    style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.amberGlow, fontWeight: FontWeight.w800, fontSize: 14.5),
+                    style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: JuzzioGlassTokens.glow, fontWeight: FontWeight.w800, fontSize: 14.5),
                   ),
                   const SizedBox(height: 10),
                   for (final entry in [
@@ -3604,8 +3641,12 @@ class JuzzioDefaultMessageTimerPage extends StatelessWidget {
       builder: (context, _) {
         final p = JuzzioPalette(appCtrl.isDark);
         return Scaffold(
-          backgroundColor: p.bgPrimary,
+          backgroundColor: JuzzioGlassTokens.space.depth.last,
           appBar: AppBar(
+            // v2.1 Neon Lime: ortalı başlık + yuvarlak geri düğmesi
+            centerTitle: true,
+            leadingWidth: 64,
+            leading: const JuzzioNeonBackButton(),
             // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
             backgroundColor: Colors.transparent,
             surfaceTintColor: Colors.transparent,
@@ -3619,9 +3660,9 @@ class JuzzioDefaultMessageTimerPage extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: p.cardBg,
+                color: JuzzioGlassTokens.spaceCard,
                 borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: p.glassBorder),
+                border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -3629,7 +3670,7 @@ class JuzzioDefaultMessageTimerPage extends StatelessWidget {
                 children: [
                   Text(
                     _l3('Yeni sohbetlere şu süreli mesaj süresi ayarı ile başlayın:', 'Start new chats with this message timer:', 'Neue Chats mit diesem Nachrichtentimer starten:'),
-                    style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.amberGlow, fontWeight: FontWeight.w800, fontSize: 14.5),
+                    style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: JuzzioGlassTokens.glow, fontWeight: FontWeight.w800, fontSize: 14.5),
                   ),
                   const SizedBox(height: 10),
                   for (final item in [
@@ -3677,8 +3718,12 @@ class JuzzioGroupsPrivacyPage extends StatelessWidget {
       builder: (context, _) {
         final p = JuzzioPalette(appCtrl.isDark);
         return Scaffold(
-          backgroundColor: p.bgPrimary,
+          backgroundColor: JuzzioGlassTokens.space.depth.last,
           appBar: AppBar(
+            // v2.1 Neon Lime: ortalı başlık + yuvarlak geri düğmesi
+            centerTitle: true,
+            leadingWidth: 64,
+            leading: const JuzzioNeonBackButton(),
             // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
             backgroundColor: Colors.transparent,
             surfaceTintColor: Colors.transparent,
@@ -3692,9 +3737,9 @@ class JuzzioGroupsPrivacyPage extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: p.cardBg,
+                color: JuzzioGlassTokens.spaceCard,
                 borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: p.glassBorder),
+                border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -3702,7 +3747,7 @@ class JuzzioGroupsPrivacyPage extends StatelessWidget {
                 children: [
                   Text(
                     _l3('Beni gruba kimler ekleyebilir?', 'Who can add me to groups?', 'Wer kann mich zu Gruppen hinzufügen?'),
-                    style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.amberGlow, fontWeight: FontWeight.w800, fontSize: 14.5),
+                    style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: JuzzioGlassTokens.glow, fontWeight: FontWeight.w800, fontSize: 14.5),
                   ),
                   const SizedBox(height: 10),
                   for (final item in [
@@ -3784,8 +3829,12 @@ class _JuzzioContactsAndBlockedPageState extends State<JuzzioContactsAndBlockedP
         final blocked = appCtrl.blockedUsernames;
 
         return Scaffold(
-          backgroundColor: p.bgPrimary,
+          backgroundColor: JuzzioGlassTokens.space.depth.last,
           appBar: AppBar(
+            // v2.1 Neon Lime: ortalı başlık + yuvarlak geri düğmesi
+            centerTitle: true,
+            leadingWidth: 64,
+            leading: const JuzzioNeonBackButton(),
             // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
             backgroundColor: Colors.transparent,
             surfaceTintColor: Colors.transparent,
@@ -3800,9 +3849,9 @@ class _JuzzioContactsAndBlockedPageState extends State<JuzzioContactsAndBlockedP
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: p.cardBg,
+                  color: JuzzioGlassTokens.spaceCard,
                   borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: p.glassBorder),
+                  border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -3828,16 +3877,16 @@ class _JuzzioContactsAndBlockedPageState extends State<JuzzioContactsAndBlockedP
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: p.cardBg,
+                  color: JuzzioGlassTokens.spaceCard,
                   borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: p.glassBorder),
+                  border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       _l3('Engellenmiş Hesaplar (${blocked.length})', 'Blocked Accounts (${blocked.length})', 'Blockierte Konten (${blocked.length})'),
-                      style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.amberGlow, fontWeight: FontWeight.w800, fontSize: 15),
+                      style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: JuzzioGlassTokens.glow, fontWeight: FontWeight.w800, fontSize: 15),
                     ),
                     const SizedBox(height: 10),
                     Row(
@@ -3928,8 +3977,12 @@ class JuzzioAdvancedPrivacyPage extends StatelessWidget {
       builder: (context, _) {
         final p = JuzzioPalette(appCtrl.isDark);
         return Scaffold(
-          backgroundColor: p.bgPrimary,
+          backgroundColor: JuzzioGlassTokens.space.depth.last,
           appBar: AppBar(
+            // v2.1 Neon Lime: ortalı başlık + yuvarlak geri düğmesi
+            centerTitle: true,
+            leadingWidth: 64,
+            leading: const JuzzioNeonBackButton(),
             // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
             backgroundColor: Colors.transparent,
             surfaceTintColor: Colors.transparent,
@@ -3943,9 +3996,9 @@ class JuzzioAdvancedPrivacyPage extends StatelessWidget {
             children: [
               Container(
                 decoration: BoxDecoration(
-                  color: p.cardBg,
+                  color: JuzzioGlassTokens.spaceCard,
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: p.glassBorder),
+                  border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
                 ),
                 child: Column(
                   children: [
@@ -4073,8 +4126,12 @@ class _JuzzioStrictAccountSettingsPageState extends State<JuzzioStrictAccountSet
     final p = JuzzioPalette(appCtrl.isDark);
 
     return Scaffold(
-      backgroundColor: p.bgPrimary,
+      backgroundColor: JuzzioGlassTokens.space.depth.last,
       appBar: AppBar(
+            // v2.1 Neon Lime: ortalı başlık + yuvarlak geri düğmesi
+            centerTitle: true,
+            leadingWidth: 64,
+            leading: const JuzzioNeonBackButton(),
         // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
             backgroundColor: Colors.transparent,
             surfaceTintColor: Colors.transparent,
@@ -4094,9 +4151,9 @@ class _JuzzioStrictAccountSettingsPageState extends State<JuzzioStrictAccountSet
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: p.cardBg,
+        color: JuzzioGlassTokens.spaceCard,
         borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: p.glassBorder),
+        border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -4163,7 +4220,7 @@ class _JuzzioStrictAccountSettingsPageState extends State<JuzzioStrictAccountSet
             leading: Stack(
               alignment: Alignment.bottomRight,
               children: [
-                Icon(Icons.lock_rounded, color: p.amberGlow, size: 26),
+                Icon(Icons.lock_rounded, color: JuzzioGlassTokens.glow, size: 26),
                 Icon(Icons.check_circle_rounded, color: p.onlineGreen, size: 13),
               ],
             ),
@@ -4218,7 +4275,7 @@ class _JuzzioStrictAccountSettingsPageState extends State<JuzzioStrictAccountSet
       decoration: BoxDecoration(
         color: p.cardBg,
         borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: p.amberGlow),
+        border: Border.all(color: JuzzioGlassTokens.glow),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -4230,7 +4287,7 @@ class _JuzzioStrictAccountSettingsPageState extends State<JuzzioStrictAccountSet
               color: p.amberPrimary.withValues(alpha: 0.2),
               shape: BoxShape.circle,
             ),
-            child: Icon(Icons.warning_amber_rounded, color: p.amberGlow, size: 48),
+            child: Icon(Icons.warning_amber_rounded, color: JuzzioGlassTokens.glow, size: 48),
           ),
           const SizedBox(height: 20),
           Text(
@@ -4354,8 +4411,12 @@ class JuzzioChatsSettingsPage extends StatelessWidget {
         final p = JuzzioPalette(appCtrl.isDark);
         final chatThemeName = appCtrl.chatPalette?.label(appCtrl.uiLang) ?? appCtrl.currentChatTheme.localizedName;
         return Scaffold(
-          backgroundColor: p.bgPrimary,
+          backgroundColor: JuzzioGlassTokens.space.depth.last,
           appBar: AppBar(
+            // v2.1 Neon Lime: ortalı başlık + yuvarlak geri düğmesi
+            centerTitle: true,
+            leadingWidth: 64,
+            leading: const JuzzioNeonBackButton(),
             // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
             backgroundColor: Colors.transparent,
             surfaceTintColor: Colors.transparent,
@@ -4368,15 +4429,16 @@ class JuzzioChatsSettingsPage extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(18, 16, 18, 36),
             children: [
               const JuzzioChatQuickCard(), // v2.1 (Faz 8.2)
+              const JuzzioAutoDownloadCard(),
               // v1.2.0: tüm tema / sohbet teması / yazı boyutu ayarları Görünüm sayfasına taşındı
               Container(
                 decoration: BoxDecoration(
-                  color: p.cardBg,
+                  color: JuzzioGlassTokens.spaceCard,
                   borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: p.glassBorder),
+                  border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
                 ),
                 child: ListTile(
-                  leading: Icon(Icons.palette_rounded, color: p.amberGlow),
+                  leading: Icon(Icons.palette_rounded, color: JuzzioGlassTokens.glow),
                   title: Text(_l3('Görünüm, temalar ve yazı boyutu', 'Appearance, themes & font size', 'Darstellung, Designs & Schrift'),
                       style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w700)),
                   subtitle: Text('$chatThemeName · ${_fontSizeText(appCtrl.fontSizeOption)}',
@@ -4392,14 +4454,14 @@ class JuzzioChatsSettingsPage extends StatelessWidget {
                 padding: const EdgeInsets.only(left: 6, bottom: 8),
                 child: Text(
                   _l3('Sohbet ayarları', 'Chat settings', 'Chat-Einstellungen'),
-                  style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.amberGlow, fontWeight: FontWeight.w800, fontSize: 13.5),
+                  style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: JuzzioGlassTokens.glow, fontWeight: FontWeight.w800, fontSize: 13.5),
                 ),
               ),
               Container(
                 decoration: BoxDecoration(
-                  color: p.cardBg,
+                  color: JuzzioGlassTokens.spaceCard,
                   borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: p.glassBorder),
+                  border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
                 ),
                 child: Column(
                   children: [
@@ -4408,7 +4470,7 @@ class JuzzioChatsSettingsPage extends StatelessWidget {
                       activeColor: p.amberGlow,
                       value: appCtrl.autoSaveMedia,
                       onChanged: appCtrl.setAutoSaveMedia,
-                      secondary: Icon(Icons.photo_library_rounded, color: p.amberGlow),
+                      secondary: Icon(Icons.photo_library_rounded, color: JuzzioGlassTokens.glow),
                       title: Text(
                         _l3('Medyayı galeriye kaydet', 'Save media to gallery', 'Medien in Galerie speichern'),
                         style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w700),
@@ -4490,14 +4552,14 @@ class JuzzioChatsSettingsPage extends StatelessWidget {
                 padding: const EdgeInsets.only(left: 6, bottom: 8),
                 child: Text(
                   _l3('Arşivlenmiş sohbetler', 'Archived chats', 'Archivierte Chats'),
-                  style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.amberGlow, fontWeight: FontWeight.w800, fontSize: 13.5),
+                  style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: JuzzioGlassTokens.glow, fontWeight: FontWeight.w800, fontSize: 13.5),
                 ),
               ),
               Container(
                 decoration: BoxDecoration(
-                  color: p.cardBg,
+                  color: JuzzioGlassTokens.spaceCard,
                   borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: p.glassBorder),
+                  border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
                 ),
                 child: JuzzioSwitchListTile(
                   activeColor: p.amberGlow,
@@ -4519,14 +4581,14 @@ class JuzzioChatsSettingsPage extends StatelessWidget {
               // YEDEKLEME, AKTARMA VE SOHBET GEÇMİŞİ
               Container(
                 decoration: BoxDecoration(
-                  color: p.cardBg,
+                  color: JuzzioGlassTokens.spaceCard,
                   borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: p.glassBorder),
+                  border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
                 ),
                 child: Column(
                   children: [
                     ListTile(
-                      leading: Icon(Icons.backup_outlined, color: p.amberGlow),
+                      leading: Icon(Icons.backup_outlined, color: JuzzioGlassTokens.glow),
                       title: Text(
                         JuzzioAppController.instance.loc('Mesajları / Sohbetleri yedekle', 'Back up messages / chats', 'Chats sichern'),
                         style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w700),
@@ -4542,7 +4604,7 @@ class JuzzioChatsSettingsPage extends StatelessWidget {
                     ),
                     Divider(height: 1, color: p.glassBorder),
                     ListTile(
-                      leading: Icon(Icons.phonelink_setup_rounded, color: p.amberGlow),
+                      leading: Icon(Icons.phonelink_setup_rounded, color: JuzzioGlassTokens.glow),
                       title: Text(
                         JuzzioAppController.instance.loc('Sohbetleri aktarma', 'Transfer chats', 'Chats übertragen'),
                         style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w700),
@@ -4558,7 +4620,7 @@ class JuzzioChatsSettingsPage extends StatelessWidget {
                     ),
                     Divider(height: 1, color: p.glassBorder),
                     ListTile(
-                      leading: Icon(Icons.history_rounded, color: p.amberGlow),
+                      leading: Icon(Icons.history_rounded, color: JuzzioGlassTokens.glow),
                       title: Text(
                         JuzzioAppController.instance.loc('Sohbet geçmişi', 'Chat history', 'Chatverlauf'),
                         style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w700),
@@ -4600,6 +4662,10 @@ class JuzzioGlassThemePage extends StatelessWidget {
         return Scaffold(
           backgroundColor: Colors.transparent,
           appBar: AppBar(
+            // v2.1 Neon Lime: ortalı başlık + yuvarlak geri düğmesi
+            centerTitle: true,
+            leadingWidth: 64,
+            leading: const JuzzioNeonBackButton(),
             backgroundColor: Colors.transparent,
             foregroundColor: p.textPrimary,
             elevation: 0,
@@ -4712,8 +4778,12 @@ class JuzzioChatThemeCustomizerPage extends StatelessWidget {
       builder: (context, _) {
         final p = JuzzioPalette(appCtrl.isDark);
         return Scaffold(
-          backgroundColor: p.bgPrimary,
+          backgroundColor: JuzzioGlassTokens.space.depth.last,
           appBar: AppBar(
+            // v2.1 Neon Lime: ortalı başlık + yuvarlak geri düğmesi
+            centerTitle: true,
+            leadingWidth: 64,
+            leading: const JuzzioNeonBackButton(),
             // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
             backgroundColor: Colors.transparent,
             surfaceTintColor: Colors.transparent,
@@ -4738,7 +4808,7 @@ class JuzzioChatThemeCustomizerPage extends StatelessWidget {
                   children: [
                     Text(
                       _l3('CANLI SOHBET ÖNİZLEMESİ', 'LIVE CHAT PREVIEW', 'LIVE-CHAT-VORSCHAU'),
-                      style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.amberGlow, fontSize: 11, fontWeight: FontWeight.w800),
+                      style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: JuzzioGlassTokens.glow, fontSize: 11, fontWeight: FontWeight.w800),
                     ),
                     const SizedBox(height: 12),
                     Align(
@@ -4787,9 +4857,9 @@ class JuzzioChatThemeCustomizerPage extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: p.cardBg,
+                  color: JuzzioGlassTokens.spaceCard,
                   borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: p.glassBorder),
+                  border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -4803,7 +4873,7 @@ class JuzzioChatThemeCustomizerPage extends StatelessWidget {
                         ),
                         Text(
                           '${(appCtrl.chatThemeIntensity * 100).round()}%',
-                          style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.amberGlow, fontWeight: FontWeight.w800),
+                          style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: JuzzioGlassTokens.glow, fontWeight: FontWeight.w800),
                         ),
                       ],
                     ),
@@ -4821,14 +4891,14 @@ class JuzzioChatThemeCustomizerPage extends StatelessWidget {
 
               Text(
                 _l3('${kJuzzioAuroraPalettes.length} Liquid Glass Tasarım Ailesi', '${kJuzzioAuroraPalettes.length} Liquid Glass Design Family', '${kJuzzioAuroraPalettes.length} Liquid-Glass-Designfamilie'),
-                style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.amberGlow, fontWeight: FontWeight.w800, fontSize: 14),
+                style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: JuzzioGlassTokens.glow, fontWeight: FontWeight.w800, fontSize: 14),
               ),
               const SizedBox(height: 6),
               const JuzzioChatThemeGallery(),
               const SizedBox(height: 18),
               Text(
                 _l3('${kJuzzioChatThemes.length} Sıvı Cam Sohbet Teması', '${kJuzzioChatThemes.length} Liquid Glass Chat Themes', '${kJuzzioChatThemes.length} Liquid-Glass-Chatdesigns'),
-                style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.amberGlow, fontWeight: FontWeight.w800, fontSize: 14),
+                style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: JuzzioGlassTokens.glow, fontWeight: FontWeight.w800, fontSize: 14),
               ),
               const SizedBox(height: 10),
               ...List.generate(kJuzzioChatThemes.length, (idx) {
@@ -4922,6 +4992,10 @@ class JuzzioChatBackupPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
+            // v2.1 Neon Lime: ortalı başlık + yuvarlak geri düğmesi
+            centerTitle: true,
+            leadingWidth: 64,
+            leading: const JuzzioNeonBackButton(),
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
         foregroundColor: p.textPrimary,
@@ -4996,8 +5070,12 @@ class JuzzioChatHistoryPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = JuzzioPalette(JuzzioAppController.instance.isDark);
     return Scaffold(
-      backgroundColor: p.bgPrimary,
+      backgroundColor: JuzzioGlassTokens.space.depth.last,
       appBar: AppBar(
+            // v2.1 Neon Lime: ortalı başlık + yuvarlak geri düğmesi
+            centerTitle: true,
+            leadingWidth: 64,
+            leading: const JuzzioNeonBackButton(),
         // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
             backgroundColor: Colors.transparent,
             surfaceTintColor: Colors.transparent,
@@ -5011,9 +5089,9 @@ class JuzzioChatHistoryPage extends StatelessWidget {
         children: [
           Container(
             decoration: BoxDecoration(
-              color: p.cardBg,
+              color: JuzzioGlassTokens.spaceCard,
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: p.glassBorder),
+              border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
             ),
             child: Column(
               children: [
@@ -5064,13 +5142,13 @@ class JuzzioAppearanceSettingsPage extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(left: 6, bottom: 8),
             child: Row(children: [
-              Icon(icon, size: 16, color: p.amberGlow),
+              Icon(icon, size: 16, color: JuzzioGlassTokens.glow),
               const SizedBox(width: 6),
-              Text(title, style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.amberGlow, fontWeight: FontWeight.w800, fontSize: 13.5)),
+              Text(title, style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: JuzzioGlassTokens.glow, fontWeight: FontWeight.w800, fontSize: 13.5)),
             ]),
           ),
           Container(
-            decoration: BoxDecoration(color: p.cardBg, borderRadius: BorderRadius.circular(24), border: Border.all(color: p.glassBorder)),
+            decoration: BoxDecoration(color: JuzzioGlassTokens.spaceCard, borderRadius: BorderRadius.circular(24), border: Border.all(color: JuzzioGlassTokens.spaceCardBorder)),
             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children),
           ),
         ]),
@@ -5088,8 +5166,12 @@ class JuzzioAppearanceSettingsPage extends StatelessWidget {
         final divider = Divider(height: 1, color: p.glassBorder);
         final chatThemeName = appCtrl.chatPalette?.label(appCtrl.uiLang) ?? appCtrl.currentChatTheme.localizedName;
         return Scaffold(
-          backgroundColor: p.bgPrimary,
+          backgroundColor: JuzzioGlassTokens.space.depth.last,
           appBar: AppBar(
+            // v2.1 Neon Lime: ortalı başlık + yuvarlak geri düğmesi
+            centerTitle: true,
+            leadingWidth: 64,
+            leading: const JuzzioNeonBackButton(),
             // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
             backgroundColor: Colors.transparent,
             surfaceTintColor: Colors.transparent,
@@ -5115,7 +5197,7 @@ class JuzzioAppearanceSettingsPage extends StatelessWidget {
                     appCtrl.setWeatherThemeEnabled(v);
                     if (v) JuzzioWeatherService.instance.refresh();
                   },
-                  secondary: Icon(Icons.thunderstorm_rounded, color: p.amberGlow),
+                  secondary: Icon(Icons.thunderstorm_rounded, color: JuzzioGlassTokens.glow),
                   title: Text(_l3('Hava durumuna göre tema', 'Theme follows the weather', 'Design folgt dem Wetter'), style: title),
                   subtitle: Text(
                     _l3('Gökyüzü 2.1: bulunduğun yerin havasına ve yerel saatine göre gök rengi, gün doğumundan batımına yayda ilerleyen güneş, gerçek evresiyle ay, göz kırpan yıldızlar, bulut, yağmur, şimşek, kar ve sis. Konum ~10 km yuvarlanıp yalnız Open-Meteo\'ya gider, saklanmaz. Hava verisi: Open-Meteo.com (CC BY 4.0).',
@@ -5154,7 +5236,7 @@ class JuzzioAppearanceSettingsPage extends StatelessWidget {
                 ),
                 divider,
                 ListTile(
-                  leading: Icon(Icons.brush_rounded, color: p.amberGlow),
+                  leading: Icon(Icons.brush_rounded, color: JuzzioGlassTokens.glow),
                   title: Text(appCtrl.trEn('Tema Stüdyosu', 'Theme Studio', 'Design-Studio'), style: title),
                   subtitle: Text(
                     appCtrl.activeCustomTheme != null
@@ -5170,7 +5252,7 @@ class JuzzioAppearanceSettingsPage extends StatelessWidget {
                   JuzzioSwitchListTile(
                     value: appCtrl.followGlobalTheme && appCtrl.activeCustomTheme == null,
                     onChanged: appCtrl.setFollowGlobalTheme,
-                    secondary: Icon(Icons.public_rounded, color: p.amberGlow),
+                    secondary: Icon(Icons.public_rounded, color: JuzzioGlassTokens.glow),
                     title: Text(appCtrl.trEn('Juzzio\'nun önerdiği tema', 'Juzzio recommended theme', 'Empfohlenes Design'), style: title),
                     subtitle: Text('${appCtrl.globalTheme!.name} · v${appCtrl.globalThemeVersion}', style: sub),
                   ),
@@ -5232,7 +5314,7 @@ class JuzzioAppearanceSettingsPage extends StatelessWidget {
                 ),
                 divider,
                 ListTile(
-                  leading: Icon(Icons.tune_rounded, color: p.amberGlow),
+                  leading: Icon(Icons.tune_rounded, color: JuzzioGlassTokens.glow),
                   title: Text(_l3('Tüm sohbet temaları ve önizleme', 'All chat themes & preview', 'Alle Chatdesigns'), style: title),
                   subtitle: Text(_l3('${kJuzzioChatThemes.length} sıvı cam tema, canlı balon önizlemesi', '${kJuzzioChatThemes.length} liquid glass themes, live bubble preview', '${kJuzzioChatThemes.length} Designs mit Vorschau'), style: sub),
                   trailing: Icon(Icons.chevron_right_rounded, color: p.textMuted),
@@ -5297,7 +5379,7 @@ class JuzzioAppearanceSettingsPage extends StatelessWidget {
                 ),
                 divider,
                 ListTile(
-                  leading: Icon(Icons.accessibility_new_rounded, color: p.amberGlow),
+                  leading: Icon(Icons.accessibility_new_rounded, color: JuzzioGlassTokens.glow),
                   title: Text(appCtrl.loc('Erişilebilirlik', 'Accessibility', 'Barrierefreiheit'), style: title),
                   subtitle: Text(appCtrl.trEn('Yüksek kontrast ve animasyonları azalt', 'High contrast & reduce motion', 'Hoher Kontrast & reduzierte Bewegung'), style: sub),
                   trailing: Icon(Icons.chevron_right_rounded, color: p.textMuted),
@@ -5305,7 +5387,7 @@ class JuzzioAppearanceSettingsPage extends StatelessWidget {
                 ),
                 divider,
                 ListTile(
-                  leading: Icon(Icons.nightlight_round, color: p.amberGlow),
+                  leading: Icon(Icons.nightlight_round, color: JuzzioGlassTokens.glow),
                   title: Text(_l3('Göz Konforu', 'Eye Comfort', 'Augenkomfort'), style: title),
                   subtitle: Text(_l3('Mavi ışık filtresi: elle, zamanlanmış veya gün batımında', 'Blue-light filter: manual, scheduled or at sunset', 'Blaulichtfilter'), style: sub),
                   trailing: Icon(Icons.chevron_right_rounded, color: p.textMuted),
@@ -5417,8 +5499,12 @@ class _JuzzioStorageSettingsPageState extends State<JuzzioStorageSettingsPage> {
     final app = JuzzioAppController.instance;
     final p = JuzzioPalette(app.isDark);
     return Scaffold(
-      backgroundColor: p.bgPrimary,
+      backgroundColor: JuzzioGlassTokens.space.depth.last,
       appBar: AppBar(
+            // v2.1 Neon Lime: ortalı başlık + yuvarlak geri düğmesi
+            centerTitle: true,
+            leadingWidth: 64,
+            leading: const JuzzioNeonBackButton(),
         // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
             backgroundColor: Colors.transparent,
             surfaceTintColor: Colors.transparent,
@@ -5442,14 +5528,14 @@ class _JuzzioStorageSettingsPageState extends State<JuzzioStorageSettingsPage> {
                 Container(
                   padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
-                    color: p.cardBg,
+                    color: JuzzioGlassTokens.spaceCard,
                     borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: p.glassBorder),
+                    border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
                   ),
                   child: Column(
                     children: [
                       ListTile(
-                        leading: Icon(Icons.folder_outlined, color: p.amberGlow),
+                        leading: Icon(Icons.folder_outlined, color: JuzzioGlassTokens.glow),
                         title: Text(
                           app.trEn('Geçici Medya Önbelleği', 'Temporary Media Cache', 'Temporärer Mediencache'),
                           style: TextStyle(
@@ -5472,7 +5558,7 @@ class _JuzzioStorageSettingsPageState extends State<JuzzioStorageSettingsPage> {
                       ),
                       Divider(height: 1, color: p.glassBorder),
                       ListTile(
-                        leading: Icon(Icons.perm_media_rounded, color: p.amberGlow),
+                        leading: Icon(Icons.perm_media_rounded, color: JuzzioGlassTokens.glow),
                         title: Text(app.trEn('Dosya Merkezi', 'File Center', 'Dateizentrale'),
                             style: TextStyle(color: p.textPrimary, fontWeight: FontWeight.w700)),
                         subtitle: Text(app.trEn('Medya, belgeler ve sesli mesajlar', 'Media, documents and voice messages', 'Medien, Dokumente, Sprachnachrichten'),
@@ -5481,7 +5567,7 @@ class _JuzzioStorageSettingsPageState extends State<JuzzioStorageSettingsPage> {
                         onTap: () => JuzzioFileCenterPage.open(context),
                       ),
                       ListTile(
-                        leading: Icon(Icons.storage_rounded, color: p.amberGlow),
+                        leading: Icon(Icons.storage_rounded, color: JuzzioGlassTokens.glow),
                         title: Text(
                           app.trEn('Uygulama Tercihleri & Yerel Veri', 'App Preferences & Local Data', 'App-Einstellungen & lokale Daten'),
                           style: TextStyle(
@@ -5514,8 +5600,12 @@ class JuzzioNotificationsSettingsPage extends StatelessWidget {
       builder: (context, _) {
         final p = JuzzioPalette(appCtrl.isDark);
         return Scaffold(
-          backgroundColor: p.bgPrimary,
+          backgroundColor: JuzzioGlassTokens.space.depth.last,
           appBar: AppBar(
+            // v2.1 Neon Lime: ortalı başlık + yuvarlak geri düğmesi
+            centerTitle: true,
+            leadingWidth: 64,
+            leading: const JuzzioNeonBackButton(),
             // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
             backgroundColor: Colors.transparent,
             surfaceTintColor: Colors.transparent,
@@ -5539,9 +5629,9 @@ class JuzzioNotificationsSettingsPage extends StatelessWidget {
               const SizedBox(height: 14),
               Container(
                 decoration: BoxDecoration(
-                  color: p.cardBg,
+                  color: JuzzioGlassTokens.spaceCard,
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: p.glassBorder),
+                  border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
                 ),
                 child: Column(
                   children: [
@@ -5570,7 +5660,7 @@ class JuzzioNotificationsSettingsPage extends StatelessWidget {
                       Divider(height: 1, color: p.glassBorder),
                     ],
                     ListTile(
-                      leading: Icon(Icons.notifications_active_outlined, color: p.amberGlow),
+                      leading: Icon(Icons.notifications_active_outlined, color: JuzzioGlassTokens.glow),
                       title: Text(
                         appCtrl.trEn('Bildirim Akışı (Son Bildirimler)', 'Notifications Feed', 'Benachrichtigungs-Feed'),
                         style: TextStyle(color: p.textPrimary, fontWeight: FontWeight.w800),
@@ -5844,8 +5934,12 @@ class JuzzioLanguageSettingsPage extends StatelessWidget {
         final subOpt = appCtrl.getLanguageOption(appCtrl.subtitleLang);
 
         return Scaffold(
-          backgroundColor: p.bgPrimary,
+          backgroundColor: JuzzioGlassTokens.space.depth.last,
           appBar: AppBar(
+            // v2.1 Neon Lime: ortalı başlık + yuvarlak geri düğmesi
+            centerTitle: true,
+            leadingWidth: 64,
+            leading: const JuzzioNeonBackButton(),
             // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
             backgroundColor: Colors.transparent,
             surfaceTintColor: Colors.transparent,
@@ -5863,9 +5957,9 @@ class JuzzioLanguageSettingsPage extends StatelessWidget {
               const JuzzioTranslationModeCard(), // v2.1 (Faz 7.5)
               Container(
                 decoration: BoxDecoration(
-                  color: p.cardBg,
+                  color: JuzzioGlassTokens.spaceCard,
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: p.glassBorder),
+                  border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
                 ),
                 child: Column(
                   children: [
@@ -5939,8 +6033,12 @@ class JuzzioHelpAndSupportPage extends StatelessWidget {
       builder: (context, _) {
         final p = JuzzioPalette(appCtrl.isDark);
         return Scaffold(
-          backgroundColor: p.bgPrimary,
+          backgroundColor: JuzzioGlassTokens.space.depth.last,
           appBar: AppBar(
+            // v2.1 Neon Lime: ortalı başlık + yuvarlak geri düğmesi
+            centerTitle: true,
+            leadingWidth: 64,
+            leading: const JuzzioNeonBackButton(),
             // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
             backgroundColor: Colors.transparent,
             surfaceTintColor: Colors.transparent,
@@ -5958,14 +6056,14 @@ class JuzzioHelpAndSupportPage extends StatelessWidget {
               const JuzzioFaqCard(), // v2.1 (Faz 9.1)
               Container(
                 decoration: BoxDecoration(
-                  color: p.cardBg,
+                  color: JuzzioGlassTokens.spaceCard,
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: p.glassBorder),
+                  border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
                 ),
                 child: Column(
                   children: [
                     ListTile(
-                      leading: Icon(Icons.system_update_rounded, color: p.amberGlow),
+                      leading: Icon(Icons.system_update_rounded, color: JuzzioGlassTokens.glow),
                       title: Text(
                         appCtrl.trEn('Yazılım Güncelleme Denetleme (OTA)', 'Software Update (OTA)', 'Software-Update (OTA)'),
                         style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w800),
@@ -6013,7 +6111,7 @@ class JuzzioHelpAndSupportPage extends StatelessWidget {
                     // v1.2.0: Sohbetler ve Depolama ana Ayarlar'daki kendi başlıklarına taşındı
                     Divider(height: 1, color: p.glassBorder),
                     ListTile(
-                      leading: Icon(Icons.person_add_alt_rounded, color: p.amberGlow),
+                      leading: Icon(Icons.person_add_alt_rounded, color: JuzzioGlassTokens.glow),
                       title: Text(
                         appCtrl.trEn('Arkadaşlarını Davet Et', 'Invite Friends', 'Freunde einladen'),
                         style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w800),
@@ -6022,7 +6120,7 @@ class JuzzioHelpAndSupportPage extends StatelessWidget {
                         '@$username',
                         style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textSecondary, fontSize: 12),
                       ),
-                      trailing: Icon(Icons.copy_rounded, color: p.amberGlow, size: 19),
+                      trailing: Icon(Icons.copy_rounded, color: JuzzioGlassTokens.glow, size: 19),
                       onTap: () {
                         final inviteText =
                             _l3('Juzzio uygulamasında beni @$username kullanıcı adımla ekle! Canlı çevirili görüntülü konuşalım. Uygulama: https://github.com/engiincr/Juzzio-Chat/releases/latest', 'Add me on Juzzio with my username @$username! Let\'s video chat with live translation. App: https://github.com/engiincr/Juzzio-Chat/releases/latest', 'Füge mich auf Juzzio mit meinem Benutzernamen @$username hinzu! Lass uns per Video mit Live-Übersetzung sprechen. App: https://github.com/engiincr/Juzzio-Chat/releases/latest');
@@ -6062,8 +6160,12 @@ class JuzzioAccessibilitySettingsPage extends StatelessWidget {
       builder: (context, _) {
         final p = JuzzioPalette(appCtrl.isDark);
         return Scaffold(
-          backgroundColor: p.bgPrimary,
+          backgroundColor: JuzzioGlassTokens.space.depth.last,
           appBar: AppBar(
+            // v2.1 Neon Lime: ortalı başlık + yuvarlak geri düğmesi
+            centerTitle: true,
+            leadingWidth: 64,
+            leading: const JuzzioNeonBackButton(),
             // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
             backgroundColor: Colors.transparent,
             surfaceTintColor: Colors.transparent,
@@ -6078,9 +6180,9 @@ class JuzzioAccessibilitySettingsPage extends StatelessWidget {
               const JuzzioA11yExtrasCard(), // v2.1 (Faz 8.5)
               Container(
                 decoration: BoxDecoration(
-                  color: p.cardBg,
+                  color: JuzzioGlassTokens.spaceCard,
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: p.glassBorder),
+                  border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
                 ),
                 child: Column(
                   children: [
@@ -6100,7 +6202,7 @@ class JuzzioAccessibilitySettingsPage extends StatelessWidget {
                     Divider(height: 1, color: p.glassBorder),
                     // v1.2.9: görevler/hatırlatıcılar kısayolu Profil'de sürekli görünmez; buradan açılır
                     ListTile(
-                      leading: Icon(Icons.checklist_rounded, color: p.amberGlow),
+                      leading: Icon(Icons.checklist_rounded, color: JuzzioGlassTokens.glow),
                       title: Text(JuzzioAppController.instance.loc('Görevlerim ve hatırlatıcılar', 'My tasks & reminders', 'Aufgaben & Erinnerungen'),
                           style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w700)),
                       trailing: Icon(Icons.chevron_right_rounded, color: p.textMuted),
@@ -6226,6 +6328,10 @@ class JuzzioDeveloperPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
+            // v2.1 Neon Lime: ortalı başlık + yuvarlak geri düğmesi
+            centerTitle: true,
+            leadingWidth: 64,
+            leading: const JuzzioNeonBackButton(),
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
         foregroundColor: t,
@@ -6541,6 +6647,10 @@ class JuzzioOtaUpdateSettingsPage extends StatelessWidget {
         return Scaffold(
           backgroundColor: Colors.transparent,
           appBar: AppBar(
+            // v2.1 Neon Lime: ortalı başlık + yuvarlak geri düğmesi
+            centerTitle: true,
+            leadingWidth: 64,
+            leading: const JuzzioNeonBackButton(),
             backgroundColor: Colors.transparent,
             surfaceTintColor: Colors.transparent,
             foregroundColor: p.textPrimary,
@@ -6862,8 +6972,12 @@ class JuzzioBatteryOptimizationPage extends StatelessWidget {
       builder: (context, _) {
         final p = JuzzioPalette(appCtrl.isDark);
         return Scaffold(
-          backgroundColor: p.bgPrimary,
+          backgroundColor: JuzzioGlassTokens.space.depth.last,
           appBar: AppBar(
+            // v2.1 Neon Lime: ortalı başlık + yuvarlak geri düğmesi
+            centerTitle: true,
+            leadingWidth: 64,
+            leading: const JuzzioNeonBackButton(),
             // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
             backgroundColor: Colors.transparent,
             surfaceTintColor: Colors.transparent,
@@ -6881,9 +6995,9 @@ class JuzzioBatteryOptimizationPage extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: p.cardBg,
+                  color: JuzzioGlassTokens.spaceCard,
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: p.glassBorder),
+                  border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
                 ),
                 child: Column(
                   children: [
@@ -7000,7 +7114,7 @@ class JuzzioBatteryOptimizationPage extends StatelessWidget {
                       child: OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
                           foregroundColor: p.amberGlow,
-                          side: BorderSide(color: p.amberGlow),
+                          side: BorderSide(color: JuzzioGlassTokens.glow),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
                         ),
                         onPressed: appCtrl.requestAndroidBatteryExemption,
@@ -7020,16 +7134,16 @@ class JuzzioBatteryOptimizationPage extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
-                  color: p.cardBg,
+                  color: JuzzioGlassTokens.spaceCard,
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: p.glassBorder),
+                  border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       appCtrl.trEn('Görüntülü Arama Kare Hızı (FPS) ve Pil Dengesi', 'Video Call Frame Rate (FPS) & Battery Balance', 'Bildrate (FPS) bei Videoanrufen & Akkubalance'),
-                      style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.amberGlow, fontWeight: FontWeight.w800, fontSize: 14.5),
+                      style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: JuzzioGlassTokens.glow, fontWeight: FontWeight.w800, fontSize: 14.5),
                     ),
                     const SizedBox(height: 8),
                     for (final item in [
@@ -7120,8 +7234,12 @@ class _JuzzioPermissionsCenterPageState extends State<JuzzioPermissionsCenterPag
     final p = JuzzioPalette(appCtrl.isDark);
 
     return Scaffold(
-      backgroundColor: p.bgPrimary,
+      backgroundColor: JuzzioGlassTokens.space.depth.last,
       appBar: AppBar(
+            // v2.1 Neon Lime: ortalı başlık + yuvarlak geri düğmesi
+            centerTitle: true,
+            leadingWidth: 64,
+            leading: const JuzzioNeonBackButton(),
         // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
             backgroundColor: Colors.transparent,
             surfaceTintColor: Colors.transparent,
@@ -7139,9 +7257,9 @@ class _JuzzioPermissionsCenterPageState extends State<JuzzioPermissionsCenterPag
           Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: p.cardBg,
+              color: JuzzioGlassTokens.spaceCard,
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: p.glassBorder),
+              border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
             ),
             child: Column(
               children: [
@@ -7228,7 +7346,7 @@ class _JuzzioPermissionsCenterPageState extends State<JuzzioPermissionsCenterPag
   ) {
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      leading: Icon(icon, color: p.amberGlow),
+      leading: Icon(icon, color: JuzzioGlassTokens.glow),
       title: Text(title, style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w700)),
       subtitle: Text(subtitle, style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textSecondary, fontSize: 12)),
       trailing: ElevatedButton(

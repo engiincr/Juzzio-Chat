@@ -17,6 +17,7 @@ import 'package:juzzio/services/juzzio_data_export.dart';
 import 'package:juzzio/services/social_service.dart' show juzzioStorageCategory;
 import 'package:juzzio/widgets/juzzio_a11y_filter.dart';
 import 'package:juzzio/screens/admin_modules_v21.dart';
+import 'package:juzzio/widgets/juzzio_auto_download.dart';
 import 'package:juzzio/screens/admin_legal_report.dart';
 import 'package:juzzio/services/juzzio_legal_package.dart' show juzzioLegalSummary, juzzioVerificationReadme;
 import 'package:juzzio/core/app_theme_and_locale.dart' show JuzzioAppController;
@@ -43,11 +44,20 @@ void main() {
       expect(JuzzioBrandColors.lime, const Color(0xFFC6F135));
       expect(_src('lib/core/theme/juzzio_aurora.dart').contains('0xFFD7F36B'), isFalse);
     });
-    test('logo geometrisi ikon üreticisiyle aynı', () {
-      final py = _src('tools/brand_icon.py');
-      expect(py.contains('STEM = [(0.64, 0.17)'), isTrue);
-      expect(py.contains('WIDTH = 0.19'), isTrue);
-      expect(JuzzioLogoGeometry.width, 0.19);
+    test('resmî logo: tek kaynaktan vektör + tüm platform ikonları', () {
+      expect(File('assets/brand/juzzio_logo_source.png').existsSync(), isTrue);
+      expect(_src('tools/brand_logo.py').contains('juzzio_logo_source.png'), isTrue);
+      expect(JuzzioLogoGeometry.logoLime, const Color(0xFFBAFA08));
+      final b = JuzzioLogoGeometry.glyph(100).getBounds();
+      expect(b.left, greaterThanOrEqualTo(-1));
+      expect(b.right, lessThanOrEqualTo(101));
+      expect(b.width, greaterThan(50));
+      for (final d in ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi', 'xxxhdpi']) {
+        expect(File('android/app/src/main/res/drawable-$d/ic_stat_juzzio.png').existsSync(), isTrue);
+      }
+      expect(_src('android/app/src/main/kotlin/com/juzzio/app/MainActivity.kt').contains('R.drawable.ic_stat_juzzio'), isTrue);
+      expect(File('windows/runner/resources/app_icon.ico').existsSync(), isTrue);
+      expect(_src('tools/brand/juzzio_logo.svg').contains('#BAFA08'), isTrue);
     });
     test('başlatıcı ikonları üretilmiş', () {
       for (final d in ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi', 'xxxhdpi']) {
@@ -369,7 +379,7 @@ void main() {
       expect(kJuzzioAdminModules.length, 34);
       expect(kJuzzioAdminModules.map((m) => m.no).toSet().length, 34);
       for (final m in kJuzzioAdminModules) {
-        final kinds = [m.tab != null, m.stats != null, m.info != null].where((x) => x).length;
+        final kinds = [m.tab != null, m.stats != null, m.info != null, m.page != null].where((x) => x).length;
         expect(kinds, 1, reason: m.tr);
         if (m.tab != null) expect(m.tab, inInclusiveRange(0, 16));
       }
@@ -445,6 +455,40 @@ void main() {
       expect(juzzioLegalSummary(b, english: true).first.key, 'Account examined');
       expect(juzzioVerificationReadme(hasTimestamp: false, tsaHost: '', english: true), contains('VERIFICATION GUIDE'));
       expect(_src('lib/screens/admin_god_tab.dart').contains("english: english,"), isTrue);
+    });
+  });
+
+  group('Kalan işler: otomatik indirme, biyometrik, doğrulama, A/B, PDF, Play paketi, neon alt sayfalar', () {
+    test('otomatik indirme kuralı', () {
+      expect(juzzioShouldAutoDownload('always', unmetered: false, isMine: false), isTrue);
+      expect(juzzioShouldAutoDownload('wifi', unmetered: false, isMine: false), isFalse);
+      expect(juzzioShouldAutoDownload('wifi', unmetered: true, isMine: false), isTrue);
+      expect(juzzioShouldAutoDownload('never', unmetered: true, isMine: false), isFalse);
+      expect(juzzioShouldAutoDownload('never', unmetered: false, isMine: true), isTrue);
+      expect(RegExp('JuzzioAutoDownloadGate\\(').allMatches(_src('lib/screens/chat_screen.dart')).length, 2);
+    });
+    test('yönetici: biyometrik, doğrulama başvuruları, A/B, PDF', () {
+      final k = _src('android/app/src/main/kotlin/com/juzzio/app/JuzzioBiometric.kt');
+      expect(k.contains('BiometricPrompt.Builder'), isTrue);
+      expect(_src('lib/screens/admin_panel_screen.dart').contains('juzzioAdminBiometricOk()'), isTrue);
+      final sql = _src('supabase/juzzio_database.sql');
+      expect(sql.contains('CREATE OR REPLACE FUNCTION public.verification_submit'), isTrue);
+      expect(sql.contains('CREATE OR REPLACE FUNCTION public.my_feature_flags()'), isTrue);
+      final m = _src('lib/screens/admin_modules_v21.dart');
+      expect(m.contains('juzzioAdminModulePdf('), isTrue);
+      expect(kJuzzioAdminModules.firstWhere((x) => x.no == 19).page, 'verification');
+      expect(kJuzzioAdminModules.firstWhere((x) => x.no == 27).page, 'flags');
+    });
+    test('Play paketi APK kurma iznini kaldırır, normal APK değişmez', () {
+      expect(_src('android/app/src/play/AndroidManifest.xml').contains('REQUEST_INSTALL_PACKAGES" tools:node="remove"'), isTrue);
+      expect(_src('android/app/build.gradle').contains('System.getenv("JUZZIO_PLAY") == "1"'), isTrue);
+      expect(_src('.github/workflows/android-ci.yml').contains('JUZZIO_PLAY=1 flutter build appbundle'), isTrue);
+      expect(_src('lib/core/app_theme_and_locale.dart').contains('JuzzioConfig.playStoreBuild'), isTrue);
+    });
+    test('ayar alt sayfaları neon: ortalı başlık, yuvarlak geri, neon kartlar', () {
+      final st = _src('lib/screens/settings_suite_screens.dart');
+      expect(RegExp('leading: const JuzzioNeonBackButton\\(\\)').allMatches(st).length, greaterThanOrEqualTo(25));
+      expect(st.contains('backgroundColor: p.bgPrimary,'), isFalse);
     });
   });
 }

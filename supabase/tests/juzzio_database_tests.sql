@@ -3003,4 +3003,62 @@ SELECT pg_temp.check('ek yönetici şifre tablosu istemciye kapalı', NOT has_ta
 DELETE FROM admin_sessions WHERE user_id = :'C';
 DELETE FROM admin_login_attempts WHERE user_id = :'C';
 DELETE FROM admin_user_secrets WHERE user_id = :'C';
+
+-- 10.49 Mavi tik başvurusu
+RESET ROLE;
+SET search_path = public, extensions;
+UPDATE profiles SET is_verified = false WHERE id = :'B';
+DELETE FROM verification_requests WHERE user_id = :'B';
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'B');
+SELECT pg_temp.check('başvuru gönderildi', (verification_submit('creator', 'Juzzio içerik üreticisiyim, takipçim çok.', 'https://example.com')->>'ok')::boolean);
+DO $$ DECLARE v_hit BOOLEAN := false; BEGIN
+  BEGIN PERFORM public.verification_submit('creator', 'İkinci başvuru denemesi yapıyorum.', ''); EXCEPTION WHEN OTHERS THEN v_hit := (SQLERRM = 'already_pending'); END;
+  PERFORM pg_temp.check('bekleyen başvuru varken ikinci başvuru olmaz', v_hit);
+END $$;
+SELECT pg_temp.check('kendi durumunu görür', verification_my_status()->'request'->>'status' = 'pending');
+RESET ROLE;
+SELECT pg_temp.check('başvuru tablosu istemciye kapalı', NOT has_table_privilege('authenticated', 'public.verification_requests', 'SELECT'));
+UPDATE profiles SET username = 'tugkancr' WHERE id = :'A';
+DELETE FROM admin_sessions WHERE user_id = :'A';
+INSERT INTO admin_sessions (token_hash, user_id, expires_at) VALUES (encode(digest('tok249', 'sha256'), 'hex'), :'A', NOW() + INTERVAL '1 hour');
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+SELECT (admin_verification_list('tok249', 'pending')->0->>'id') AS vid \gset
+SELECT pg_temp.check('yönetici onayladı', (admin_verification_decide('tok249', :'vid'::bigint, true, '')->>'ok')::boolean);
+RESET ROLE;
+SELECT pg_temp.check('onayla mavi tik geldi', (SELECT is_verified FROM profiles WHERE id = :'B'));
+DELETE FROM admin_sessions WHERE user_id = :'A';
+UPDATE profiles SET username = (SELECT username FROM _u47) WHERE id = :'A';
+UPDATE profiles SET is_verified = false WHERE id = :'B';
+DELETE FROM verification_requests WHERE user_id = :'B';
+
+-- 10.50 Özellik bayrakları + A/B
+RESET ROLE;
+SET search_path = public, extensions;
+UPDATE profiles SET username = 'tugkancr' WHERE id = :'A';
+DELETE FROM admin_sessions WHERE user_id = :'A';
+INSERT INTO admin_sessions (token_hash, user_id, expires_at) VALUES (encode(digest('tok250', 'sha256'), 'hex'), :'A', NOW() + INTERVAL '1 hour');
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+SELECT admin_flag_upsert('tok250', 'yeni_sohbet_listesi', 'test', true, 100, ARRAY['a', 'b']);
+SELECT admin_flag_upsert('tok250', 'kapali_ozellik', 'test', true, 0, ARRAY[]::text[]);
+SELECT pg_temp.check('bayrak listesi', jsonb_array_length(admin_flags_list('tok250')) >= 2);
+SELECT pg_temp.as_user(:'B');
+SELECT pg_temp.check('%100 yayın: açık', (my_feature_flags()->'yeni_sohbet_listesi'->>'on')::boolean);
+SELECT pg_temp.check('A/B varyantı atanır', my_feature_flags()->'yeni_sohbet_listesi'->>'variant' IN ('a', 'b'));
+SELECT pg_temp.check('aynı kişi hep aynı varyant', my_feature_flags()->'yeni_sohbet_listesi'->>'variant' = my_feature_flags()->'yeni_sohbet_listesi'->>'variant');
+SELECT pg_temp.check('%0 yayın: kapalı', NOT (my_feature_flags()->'kapali_ozellik'->>'on')::boolean);
+DO $$ DECLARE v_hit BOOLEAN := false; BEGIN
+  BEGIN PERFORM public.admin_flag_upsert('tok250', 'x_y', '', true, 50, ARRAY[]::text[]); EXCEPTION WHEN OTHERS THEN v_hit := (SQLERRM = 'super_admin_required'); END;
+  PERFORM pg_temp.check('yönetici olmayan bayrak yazamaz', v_hit);
+END $$;
+SELECT pg_temp.as_user(:'A');
+SELECT admin_flag_delete('tok250', 'yeni_sohbet_listesi');
+SELECT admin_flag_delete('tok250', 'kapali_ozellik');
+RESET ROLE;
+SELECT pg_temp.check('bayrak tablosu istemciye kapalı', NOT has_table_privilege('authenticated', 'public.feature_flags', 'SELECT'));
+SELECT pg_temp.check('kova 0..99', (SELECT bool_and(juzzio_flag_bucket(gen_random_uuid(), 'k') BETWEEN 0 AND 99) FROM generate_series(1, 200)));
+DELETE FROM admin_sessions WHERE user_id = :'A';
+UPDATE profiles SET username = (SELECT username FROM _u47) WHERE id = :'A';
 SELECT 'TÜM v2.1 TESTLERİ GEÇTİ';

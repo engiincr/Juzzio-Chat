@@ -1294,7 +1294,7 @@ class _CallScreenState extends State<CallScreen> {
               : CameraPosition.front;
           // v2.1: önce anında çevir (iz yeniden başlamaz → donma yok); olmazsa eski yol
           if (!await _controller.switchCameraFast()) {
-            await track.setCameraPosition(_cameraPosition);
+            await _controller.flipCameraFallback(track, _cameraPosition);
           }
           setState(() {});
           break;

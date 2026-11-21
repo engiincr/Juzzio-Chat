@@ -62,6 +62,7 @@ Juzzio 2.1: the new green ribbon J logo and a Neon Lime look that matches the de
 - 🔳 My Profile QR: copy link, share, save to gallery, open a profile from a code or username
 - 🔔 Requests, Mentions and System filters in notifications
 - 🌐 "Live Translation · Active" badge in video calls
+- 🟢 New official Juzzio logo: app icon, splash screen, notification icon and every screen
 - 🎥 Video calls: up to 1080p · 60 fps, never below 480p · 60 fps; freezing when turning on or flipping the camera is fixed
 - 🖥️ Screen sharing in calls (Android and desktop): start/stop from the top bar
 - 📷 Scan QR codes with the camera (Android/iOS), torch button and paste fallback

@@ -9,6 +9,9 @@
 //  • Şikâyet inceleme, kullanıcı arama, hazır sebeplerle hesap + cihaz engeli.
 // =============================================================================
 
+import 'dart:io' show Platform;
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -66,6 +69,9 @@ Future<void> openJuzzioAdminPanel(BuildContext context, {int? initialTab}) async
     return;
   }
   var token = await features.storedAdminToken();
+  // v2.1 (Faz 10.1): hatırlanan oturumla girerken telefonda parmak izi / yüz / ekran kilidi istenir.
+  // Doğrulanamazsa şifre ekranı açılır; cihazda kilit yoksa eskisi gibi devam edilir.
+  if (token != null && !await juzzioAdminBiometricOk()) token = null;
   if (token == null) {
     if (!context.mounted) return;
     // v0.8.0: şifre penceresi yerine ayrı, tüm cam temalarla uyumlu giriş sayfası
@@ -75,6 +81,21 @@ Future<void> openJuzzioAdminPanel(BuildContext context, {int? initialTab}) async
   }
   if (token == null) return;
   await navigator.push(MaterialPageRoute(builder: (_) => JuzzioAdminPanelScreen(token: token!, initialTab: initialTab)));
+}
+
+/// v2.1: "ok"/"unavailable" → devam; "cancel" → şifre istenir. Telefon dışı platformlarda devam.
+Future<bool> juzzioAdminBiometricOk() async {
+  if (kIsWeb || !Platform.isAndroid) return true;
+  final app = JuzzioAppController.instance;
+  try {
+    final r = await const MethodChannel('juzzio/notifications').invokeMethod<String>('biometricAuth', {
+      'title': app.trEn('Yönetici paneli', 'Admin panel', 'Admin-Panel'),
+      'subtitle': app.trEn('Kimliğini doğrula', 'Verify your identity', 'Identität bestätigen'),
+    });
+    return r != 'cancel';
+  } catch (_) {
+    return true;
+  }
 }
 
 class _AdminUnlockDialog extends StatefulWidget {

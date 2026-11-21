@@ -18996,3 +18996,162 @@ RETURNS JSONB LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $
 $$;
 REVOKE ALL ON FUNCTION public.admin_whoami() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.admin_whoami() TO authenticated;
+
+-- =============================================================================
+-- 10.49 (v2.1) — Mavi tik (hesap doğrulama) başvurusu — Faz 14.1
+--   Kullanıcı başvurur (bekleyen tek başvuru, günde 3 deneme); yönetici onaylar/reddeder.
+--   Onayda profiles.is_verified = true ve denetim kaydı yazılır. Tablo istemciye kapalı.
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS public.verification_requests (
+    id BIGSERIAL PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    category TEXT NOT NULL CHECK (category IN ('creator', 'public_figure', 'business', 'journalist', 'other')),
+    reason TEXT NOT NULL CHECK (char_length(reason) BETWEEN 10 AND 600),
+    links TEXT NOT NULL DEFAULT '' CHECK (char_length(links) <= 600),
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+    admin_note TEXT NOT NULL DEFAULT '',
+    decided_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    decided_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_verification_pending ON public.verification_requests (user_id) WHERE status = 'pending';
+ALTER TABLE public.verification_requests ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.verification_requests FROM PUBLIC, anon, authenticated;
+DROP POLICY IF EXISTS verification_requests_deny ON public.verification_requests;
+CREATE POLICY verification_requests_deny ON public.verification_requests FOR ALL TO authenticated USING (false) WITH CHECK (false);
+
+CREATE OR REPLACE FUNCTION public.verification_submit(p_category TEXT, p_reason TEXT, p_links TEXT DEFAULT '')
+RETURNS JSONB LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_me UUID := auth.uid();
+BEGIN
+    IF v_me IS NULL THEN RAISE EXCEPTION 'not_authenticated'; END IF;
+    IF EXISTS (SELECT 1 FROM public.profiles WHERE id = v_me AND is_verified) THEN RAISE EXCEPTION 'already_verified'; END IF;
+    IF EXISTS (SELECT 1 FROM public.verification_requests WHERE user_id = v_me AND status = 'pending') THEN RAISE EXCEPTION 'already_pending'; END IF;
+    IF NOT public.juzzio_rate_check(v_me, 'verification_submit', 3, 86400) THEN RAISE EXCEPTION 'rate_limited'; END IF;
+    INSERT INTO public.verification_requests (user_id, category, reason, links)
+    VALUES (v_me, p_category, BTRIM(COALESCE(p_reason, '')), LEFT(BTRIM(COALESCE(p_links, '')), 600));
+    RETURN jsonb_build_object('ok', true);
+END $$;
+REVOKE ALL ON FUNCTION public.verification_submit(TEXT, TEXT, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.verification_submit(TEXT, TEXT, TEXT) TO authenticated;
+
+-- Kullanıcının kendi son başvurusu (durum ekranı)
+CREATE OR REPLACE FUNCTION public.verification_my_status()
+RETURNS JSONB LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+    SELECT jsonb_build_object(
+        'verified', COALESCE((SELECT is_verified FROM public.profiles WHERE id = auth.uid()), false),
+        'request', (SELECT jsonb_build_object('status', status, 'category', category, 'created_at', created_at, 'decided_at', decided_at)
+                      FROM public.verification_requests WHERE user_id = auth.uid() ORDER BY created_at DESC LIMIT 1));
+$$;
+REVOKE ALL ON FUNCTION public.verification_my_status() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.verification_my_status() TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.admin_verification_list(p_token TEXT, p_status TEXT DEFAULT 'pending')
+RETURNS JSONB LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+    IF NOT public.admin_check_token(p_token) THEN RAISE EXCEPTION 'super_admin_required'; END IF;
+    RETURN COALESCE((SELECT jsonb_agg(jsonb_build_object(
+            'id', r.id, 'user_id', r.user_id, 'username', p.username, 'display_name', p.display_name,
+            'category', r.category, 'reason', r.reason, 'links', r.links, 'status', r.status,
+            'created_at', r.created_at, 'decided_at', r.decided_at) ORDER BY r.created_at DESC)
+        FROM public.verification_requests r JOIN public.profiles p ON p.id = r.user_id
+       WHERE p_status = 'all' OR r.status = p_status), '[]'::jsonb);
+END $$;
+REVOKE ALL ON FUNCTION public.admin_verification_list(TEXT, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_verification_list(TEXT, TEXT) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.admin_verification_decide(p_token TEXT, p_id BIGINT, p_approve BOOLEAN, p_note TEXT DEFAULT '')
+RETURNS JSONB LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_user UUID;
+BEGIN
+    IF NOT public.admin_check_token(p_token) THEN RAISE EXCEPTION 'super_admin_required'; END IF;
+    UPDATE public.verification_requests
+       SET status = CASE WHEN p_approve THEN 'approved' ELSE 'rejected' END,
+           admin_note = LEFT(COALESCE(p_note, ''), 300), decided_by = auth.uid(), decided_at = NOW()
+     WHERE id = p_id AND status = 'pending'
+     RETURNING user_id INTO v_user;
+    IF v_user IS NULL THEN RAISE EXCEPTION 'not_found'; END IF;
+    IF p_approve THEN UPDATE public.profiles SET is_verified = true WHERE id = v_user; END IF;
+    INSERT INTO public.admin_audit_log (admin_id, action, target, details)
+    VALUES (auth.uid(), 'set_verified', v_user::text, jsonb_build_object('verified', p_approve, 'request', p_id));
+    RETURN jsonb_build_object('ok', true);
+END $$;
+REVOKE ALL ON FUNCTION public.admin_verification_decide(TEXT, BIGINT, BOOLEAN, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_verification_decide(TEXT, BIGINT, BOOLEAN, TEXT) TO authenticated;
+
+-- =============================================================================
+-- 10.50 (v2.1) — Özellik yayınlama + A/B testi (Faz 15.4)
+--   Bayrak: açık/kapalı, kademeli yayın yüzdesi (0–100) ve isteğe bağlı A/B varyantları.
+--   Atama kullanıcıya göre DETERMİNİSTİKTİR (md5(kullanıcı||anahtar)) → aynı kişi hep aynı grupta.
+--   İstemci yalnız kendi sonucunu görür (my_feature_flags); tabloyu yalnız yönetici yönetir.
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS public.feature_flags (
+    key TEXT PRIMARY KEY CHECK (key ~ '^[a-z0-9_]{2,48}$'),
+    description TEXT NOT NULL DEFAULT '',
+    enabled BOOLEAN NOT NULL DEFAULT false,
+    rollout_pct INTEGER NOT NULL DEFAULT 100 CHECK (rollout_pct BETWEEN 0 AND 100),
+    variants TEXT[] NOT NULL DEFAULT '{}',
+    updated_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+ALTER TABLE public.feature_flags ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.feature_flags FROM PUBLIC, anon, authenticated;
+DROP POLICY IF EXISTS feature_flags_deny ON public.feature_flags;
+CREATE POLICY feature_flags_deny ON public.feature_flags FOR ALL TO authenticated USING (false) WITH CHECK (false);
+
+-- 0..99 arası kova (saf)
+CREATE OR REPLACE FUNCTION public.juzzio_flag_bucket(p_user UUID, p_key TEXT)
+RETURNS INTEGER LANGUAGE sql IMMUTABLE AS $$
+    SELECT (('x' || substr(md5(p_user::text || ':' || p_key), 1, 8))::bit(32)::bigint % 100)::int;
+$$;
+
+CREATE OR REPLACE FUNCTION public.my_feature_flags()
+RETURNS JSONB LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+    SELECT COALESCE(jsonb_object_agg(f.key, jsonb_build_object(
+               'on', f.enabled AND auth.uid() IS NOT NULL AND public.juzzio_flag_bucket(auth.uid(), f.key) < f.rollout_pct,
+               'variant', CASE WHEN cardinality(f.variants) = 0 OR auth.uid() IS NULL THEN NULL
+                               ELSE f.variants[1 + (public.juzzio_flag_bucket(auth.uid(), f.key || ':v') % cardinality(f.variants))] END)),
+           '{}'::jsonb)
+      FROM public.feature_flags f;
+$$;
+REVOKE ALL ON FUNCTION public.my_feature_flags() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.my_feature_flags() TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.admin_flags_list(p_token TEXT)
+RETURNS JSONB LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+    IF NOT public.admin_check_token(p_token) THEN RAISE EXCEPTION 'super_admin_required'; END IF;
+    RETURN COALESCE((SELECT jsonb_agg(jsonb_build_object('key', key, 'description', description, 'enabled', enabled,
+                     'rollout_pct', rollout_pct, 'variants', to_jsonb(variants), 'updated_at', updated_at) ORDER BY key)
+                     FROM public.feature_flags), '[]'::jsonb);
+END $$;
+REVOKE ALL ON FUNCTION public.admin_flags_list(TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_flags_list(TEXT) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.admin_flag_upsert(p_token TEXT, p_key TEXT, p_description TEXT, p_enabled BOOLEAN, p_rollout INTEGER, p_variants TEXT[])
+RETURNS JSONB LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+    IF NOT public.admin_check_token(p_token) THEN RAISE EXCEPTION 'super_admin_required'; END IF;
+    IF cardinality(COALESCE(p_variants, '{}')) > 6 THEN RAISE EXCEPTION 'too_many_variants'; END IF;
+    INSERT INTO public.feature_flags (key, description, enabled, rollout_pct, variants, updated_by, updated_at)
+    VALUES (lower(BTRIM(p_key)), LEFT(COALESCE(p_description, ''), 200), COALESCE(p_enabled, false),
+            LEAST(100, GREATEST(0, COALESCE(p_rollout, 100))), COALESCE(p_variants, '{}'), auth.uid(), NOW())
+    ON CONFLICT (key) DO UPDATE SET description = EXCLUDED.description, enabled = EXCLUDED.enabled,
+        rollout_pct = EXCLUDED.rollout_pct, variants = EXCLUDED.variants, updated_by = auth.uid(), updated_at = NOW();
+    INSERT INTO public.admin_audit_log (admin_id, action, target, details)
+    VALUES (auth.uid(), 'feature_flag', lower(BTRIM(p_key)), jsonb_build_object('enabled', p_enabled, 'rollout', p_rollout));
+    RETURN jsonb_build_object('ok', true);
+END $$;
+REVOKE ALL ON FUNCTION public.admin_flag_upsert(TEXT, TEXT, TEXT, BOOLEAN, INTEGER, TEXT[]) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_flag_upsert(TEXT, TEXT, TEXT, BOOLEAN, INTEGER, TEXT[]) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.admin_flag_delete(p_token TEXT, p_key TEXT)
+RETURNS JSONB LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+    IF NOT public.admin_check_token(p_token) THEN RAISE EXCEPTION 'super_admin_required'; END IF;
+    DELETE FROM public.feature_flags WHERE key = lower(BTRIM(p_key));
+    INSERT INTO public.admin_audit_log (admin_id, action, target, details) VALUES (auth.uid(), 'feature_flag_delete', lower(BTRIM(p_key)), '{}'::jsonb);
+    RETURN jsonb_build_object('ok', true);
+END $$;
+REVOKE ALL ON FUNCTION public.admin_flag_delete(TEXT, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_flag_delete(TEXT, TEXT) TO authenticated;

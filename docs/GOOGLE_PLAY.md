@@ -22,15 +22,16 @@ Görseller `docs/play/` klasöründe; hepsi kodla çizilir (`tools/play_feature_
 | FOREGROUND_SERVICE_MEDIA_PLAYBACK | Sinema Parti oynatma | — |
 | USE_FULL_SCREEN_INTENT | Gelen arama ekranı | Arama uygulaması olarak izinli; beyan gerekir |
 | POST_NOTIFICATIONS, VIBRATE, WAKE_LOCK, RECEIVE_BOOT_COMPLETED | Bildirimler, arama zili | — |
-| ACCESS_COARSE_LOCATION | Hava durumu teması (konum ~10 km yuvarlanır) | **ACCESS_FINE_LOCATION** gerekmiyorsa Play paketinden çıkarılmalı |
+| ACCESS_COARSE_LOCATION / ACCESS_FINE_LOCATION | Hava teması (yaklaşık), sohbette konum paylaşımı ve Güvenli Yürüyüş (kesin) | Konum beyanı: yalnız kullanıcı paylaşınca, arka planda değil |
 | READ_MEDIA_IMAGES / VIDEO | Galeriden fotoğraf/video gönderme | Fotoğraf seçici kullanılırsa kaldırılabilir; beyan formu gerekir |
 | BLUETOOTH_CONNECT | Aramada kulaklık | — |
 | REQUEST_IGNORE_BATTERY_OPTIMIZATIONS | Aramaların kaçmaması | Gerekçe ister; reddedilirse kaldırılmalı |
-| **REQUEST_INSTALL_PACKAGES** | Uygulama içi OTA güncelleme (APK) | **Play'den dağıtılan sürümde OLMAMALI.** Play uygulaması kendini Play dışından güncelleyemez. Play paketi için bu izin ve OTA indirme kapatılmalı |
+| REQUEST_INSTALL_PACKAGES | Uygulama içi OTA güncelleme (yalnız GitHub APK) | **Play paketinden otomatik kaldırılır** (JUZZIO_PLAY) |
 
-> Yapılacak (Play'e ilk yüklemeden önce): `play` adlı ayrı bir derleme türü (flavor) ile
-> REQUEST_INSTALL_PACKAGES / ACCESS_FINE_LOCATION kaldırılmalı ve OTA kapatılmalı. Bu değişiklik
-> APK derleme komutunu da değiştirdiği için derleme denenmeden yapılmadı.
+> Play paketi: CI, AAB'yi `JUZZIO_PLAY=1` ve `--dart-define=JUZZIO_PLAY=true` ile derler. Bu pakette
+> `android/app/src/play/AndroidManifest.xml` REQUEST_INSTALL_PACKAGES iznini kaldırır ve uygulama içi APK
+> güncellemesi yerine Play Store sayfası açılır. GitHub'daki normal APK değişmez (OTA çalışmaya devam eder).
+> ACCESS_FINE_LOCATION kalır: sohbette konum paylaşımı ve Güvenli Yürüyüş kesin konum ister (Play beyanında belirtin).
 
 ## 17.3 Veri Güvenliği formu (Data safety)
 

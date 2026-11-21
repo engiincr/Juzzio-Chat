@@ -283,7 +283,8 @@ jobs:
           (cd release-output && sha256sum Juzzio-latest.apk > Juzzio-latest.apk.sha256 && sha256sum "juzzio-v${APP_VER}-release.apk" > "juzzio-v${APP_VER}-release.apk.sha256")
           # v2.1 (Faz 17.1): Google Play için imzalı AAB — yalnız yükleme anahtarı varsa; başarısızlık APK yayınını durdurmaz
           if [ -f android/key.properties ]; then
-            if flutter build appbundle --release --android-skip-build-dependency-validation --build-number="$BUILD_NO" "${DEFINES[@]}"; then
+            # JUZZIO_PLAY=1 → Play manifesti (APK kurma izni yok) + uygulama içi APK güncellemesi kapalı, Play'e yönlendirir
+            if JUZZIO_PLAY=1 flutter build appbundle --release --android-skip-build-dependency-validation --build-number="$BUILD_NO" "${DEFINES[@]}" --dart-define=JUZZIO_PLAY=true; then
               cp build/app/outputs/bundle/release/app-release.aab "release-output/juzzio-v${APP_VER}-play.aab"
               (cd release-output && sha256sum "juzzio-v${APP_VER}-play.aab" > "juzzio-v${APP_VER}-play.aab.sha256")
             else

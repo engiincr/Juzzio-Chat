@@ -37,6 +37,7 @@ cd.rounded_rectangle([cx0,cy0,cx1,cy1],radius=48*S,fill=(255,255,255,22),outline
 im=Image.alpha_composite(im.convert('RGBA'),card)
 # logo
 logo=Image.open(os.path.join(ROOT,'assets/logo/juzzio_logo.png')).convert('RGBA').resize((250*S,250*S),Image.LANCZOS)
+_m=Image.new('L',logo.size,0); ImageDraw.Draw(_m).rounded_rectangle([0,0,logo.size[0]-1,logo.size[1]-1],radius=int(logo.size[0]*0.22),fill=255); logo.putalpha(_m)  # v2.1: yuvarlak köşeli ikon
 glow=Image.new('RGBA',im.size,(0,0,0,0))
 gd=ImageDraw.Draw(glow)
 gd.ellipse([135*S,185*S,135*S+270*S,185*S+270*S],fill=(80,140,255,120))

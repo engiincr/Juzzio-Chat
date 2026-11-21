@@ -468,3 +468,30 @@ class JuzzioOAuthButton extends StatelessWidget {
     );
   }
 }
+
+/// v2.1 — Ayar alt sayfalarının üst çubuğu için yuvarlak neon geri düğmesi (tasarımdaki gibi).
+/// Geri gidilemeyen sayfada hiçbir şey çizmez.
+class JuzzioNeonBackButton extends StatelessWidget {
+  const JuzzioNeonBackButton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final nav = Navigator.of(context);
+    if (!nav.canPop()) return const SizedBox.shrink();
+    return Center(
+      child: Material(
+        color: JuzzioGlassTokens.spaceCard,
+        shape: CircleBorder(side: BorderSide(color: JuzzioGlassTokens.spaceCardBorder)),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: () => nav.maybePop(),
+          child: SizedBox(
+            width: 40,
+            height: 40,
+            child: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: JuzzioGlassTokens.heading),
+          ),
+        ),
+      ),
+    );
+  }
+}

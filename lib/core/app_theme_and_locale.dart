@@ -553,6 +553,7 @@ class JuzzioAppController extends ChangeNotifier {
   double _bubbleRadius = 20;
   bool _boldTextEnabled = false;
   String _colorVisionMode = 'off';
+  String _autoDownloadMode = 'always';
   bool _callNoiseFilterEnabled = true;
   // v0.9.6: Göz Konforu (mavi ışık filtresi) ve otomatik hata raporları
   String _eyeComfortMode = 'off'; // off · on · schedule · sun
@@ -762,6 +763,15 @@ class JuzzioAppController extends ChangeNotifier {
   void setColorVisionMode(String m) {
     if (!colorVisionModes.contains(m)) return;
     _colorVisionMode = m;
+    _persistUserPreferences();
+    notifyListeners();
+  }
+
+  // --- v2.1 (Faz 8.2) Medya otomatik indirme: 'always' | 'wifi' | 'never'
+  String get autoDownloadMode => _autoDownloadMode;
+  void setAutoDownloadMode(String m) {
+    if (!const {'always', 'wifi', 'never'}.contains(m)) return;
+    _autoDownloadMode = m;
     _persistUserPreferences();
     notifyListeners();
   }
@@ -1229,6 +1239,8 @@ class JuzzioAppController extends ChangeNotifier {
       if (raw['quietEndMin'] is num) _quietEndMin = (raw['quietEndMin'] as num).toInt().clamp(0, 1439);
       final tq = raw['translationQuality'];
       if (tq is String && const {'realtime', 'fast', 'accurate'}.contains(tq)) _translationQuality = tq;
+      final adm = raw['autoDownloadMode'];
+      if (adm is String && const {'always', 'wifi', 'never'}.contains(adm)) _autoDownloadMode = adm;
       if (raw['boldTextEnabled'] is bool) _boldTextEnabled = raw['boldTextEnabled'] as bool;
       final cvm = raw['colorVisionMode'];
       if (cvm is String && colorVisionModes.contains(cvm)) _colorVisionMode = cvm;
@@ -1384,6 +1396,7 @@ class JuzzioAppController extends ChangeNotifier {
         'bubbleRadius': _bubbleRadius,
         'boldTextEnabled': _boldTextEnabled,
         'colorVisionMode': _colorVisionMode,
+        'autoDownloadMode': _autoDownloadMode,
         'callNoiseFilterEnabled': _callNoiseFilterEnabled,
         'eyeComfortMode': _eyeComfortMode,
         'eyeComfortIntensity': _eyeComfortIntensity,
@@ -2868,6 +2881,11 @@ class JuzzioAppController extends ChangeNotifier {
   Future<String> startOtaDownloadAndInstall() async {
     // v2.0.0: Platform-aware update routing
     // iOS → App Store; Windows → download page; Android → embedded APK
+    // v2.1: Google Play paketi kendini güncelleyemez → Play Store sayfası açılır
+    if (JuzzioConfig.playStoreBuild && !kIsWeb && Platform.isAndroid) {
+      await launchUrlString(JuzzioConfig.playStoreUrl, mode: LaunchMode.externalApplication);
+      return trEn('Güncelleme Google Play üzerinden yapılır.', 'Updates are installed through Google Play.', 'Updates erfolgen über Google Play.');
+    }
     if (!kIsWeb && Platform.isIOS) {
       await launchUrlString(JuzzioConfig.iosAppStoreUrl, mode: LaunchMode.externalApplication);
       return trEn(
@@ -3005,6 +3023,9 @@ class JuzzioAppController extends ChangeNotifier {
   /// İndirilmiş güncellemeyi kurar. Bilinmeyen kaynak izni yoksa izin ekranını açar;
   /// izin verildikten sonra aynı düğmeye tekrar basmak yeterlidir (yeniden indirmez).
   Future<String> installDownloadedOta([String? path]) async {
+    if (JuzzioConfig.playStoreBuild) {
+      return trEn('Güncelleme Google Play üzerinden yapılır.', 'Updates are installed through Google Play.', 'Updates erfolgen über Google Play.');
+    }
     final apkPath = path ?? _lastOtaApkPath;
     if (apkPath == null) {
       return trEn('Önce güncellemeyi indirin.', 'Download the update first.', 'Lade das Update zuerst herunter.');

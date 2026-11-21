@@ -116,7 +116,8 @@ class JuzzioCallService : Service() {
         val openPi = PendingIntent.getActivity(this, NOTIF_ID, open, flagsImm)
         val hang = Intent(this, JuzzioCallService::class.java).setAction(ACTION_HANGUP)
         val hangPi = PendingIntent.getService(this, NOTIF_ID + 1, hang, flagsImm)
-        val icon = if (applicationInfo.icon != 0) applicationInfo.icon else R.mipmap.ic_launcher
+        // v2.1: bildirim çubuğunda beyaz logo silueti (renkli ikon Android'de beyaz kare görünürdü)
+        val icon = R.drawable.ic_stat_juzzio
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(icon)
             .setContentTitle(title)

@@ -32,6 +32,7 @@
     "tr": {
       "reason": "Juzzio 2.1: yeni yeşil şerit J logosu ve tasarım dosyalarıyla birebir Neon Lime görünüm. Yeni Kayıt/Giriş ekranı, Arkadaşlık İstekleri sayfası, kişi keşfetme (kart, eşleşme, beğeni), Profil Karekodum ve veritabanı güvenlik sıkılaştırması.",
       "features": [
+        "🟢 Yeni resmî Juzzio logosu: uygulama ikonu, açılış ekranı, bildirim simgesi ve tüm sayfalar",
         "🎥 Görüntülü arama: en yüksek 1080p · 60 fps, en düşük 480p · 60 fps; kamera açılınca ve kamera çevrilince yaşanan donma giderildi",
         "🟢 Yeni marka: yeşil şerit J logosu (uygulama ikonu dahil) ve Neon Lime renkleri",
         "🔐 Yeni Kayıt Ol / Giriş Yap ekranı: Beni hatırla, Şifremi unuttum",
@@ -57,6 +58,7 @@
     "en": {
       "reason": "Juzzio 2.1: the new green ribbon J logo and a Neon Lime look that matches the design files. New sign-in/sign-up, Friend Requests page, people discovery (cards, matches, likes), My Profile QR and database hardening.",
       "features": [
+        "🟢 New official Juzzio logo: app icon, splash screen, notification icon and every screen",
         "🎥 Video calls: up to 1080p · 60 fps, never below 480p · 60 fps; freezing when turning on or flipping the camera is fixed",
         "🟢 New brand: green ribbon J logo (incl. app icon) and Neon Lime colours",
         "🔐 New Sign up / Sign in screen: Remember me, Forgot password",
@@ -82,6 +84,7 @@
     "de": {
       "reason": "Juzzio 2.1: neues grünes Band-J-Logo und ein Neon-Lime-Design nach den Entwürfen. Neue Anmeldung/Registrierung, Freundschaftsanfragen, Leute entdecken (Karten, Matches, Likes), Mein Profil-QR und Datenbank-Härtung.",
       "features": [
+        "🟢 Neues offizielles Juzzio-Logo: App-Symbol, Startbildschirm, Benachrichtigungssymbol und alle Seiten",
         "🎥 Videoanrufe: bis 1080p · 60 fps, nie unter 480p · 60 fps; Einfrieren beim Einschalten/Wechseln der Kamera behoben",
         "🟢 Neue Marke: grünes Band-J-Logo (inkl. App-Symbol) und Neon-Lime-Farben",
         "🔐 Neuer Anmelde-/Registrierungsbildschirm: Angemeldet bleiben, Passwort vergessen",

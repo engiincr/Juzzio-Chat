@@ -23,6 +23,11 @@ class JuzzioConfig {
   /// v0.8.0: yayın imzası doğrulama anahtarı (ML-DSA-65, FIPS 204). Boşsa imza
   /// kontrolü yapılmaz; CI'da GitHub değişkeni ML_DSA_PUBLIC_KEY ile verilir.
   static const String mlDsaPublicKey = String.fromEnvironment('ML_DSA_PUBLIC_KEY');
+
+  /// v2.1 (Faz 17.2): Google Play paketi mi? (CI: --dart-define=JUZZIO_PLAY=true)
+  /// Play paketinde APK indirip kurma yoktur; güncelleme Play Store sayfasına yönlendirilir.
+  static const bool playStoreBuild = bool.fromEnvironment('JUZZIO_PLAY');
+  static const String playStoreUrl = 'https://play.google.com/store/apps/details?id=com.juzzio.app';
   static const String githubOwner = 'engiincr';
   static const String githubRepo = 'Juzzio-Chat';
 

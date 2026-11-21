@@ -189,7 +189,7 @@ class JuzzioReplyReceiver : BroadcastReceiver() {
     private fun updateNotification(ctx: Context, id: Int, title: String, channelId: String, text: String, statusCode: String) {
         try {
             val ok = statusCode == "ok"
-            val icon = if (ctx.applicationInfo.icon != 0) ctx.applicationInfo.icon else R.mipmap.ic_launcher
+            val icon = R.drawable.ic_stat_juzzio // v2.1: beyaz logo silueti
             val status = statusText(statusCode)
             // Kilit ekranında yanıt metni görünmez; yalnızca durum
             val publicVersion = NotificationCompat.Builder(ctx, channelId)

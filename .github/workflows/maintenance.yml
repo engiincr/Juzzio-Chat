@@ -33,10 +33,17 @@ jobs:
             echo "::warning::SUPABASE_URL / STORAGE_CLEANUP_SECRET tanımlı değil; storage temizliği atlandı."
             exit 0
           fi
+          # v2.1: Supabase tarafında aynı temizlik 15 dakikada bir zaten çalışıyor (zamanlanmış görev);
+          # bu iş akışı yedektir. Uç noktaya ulaşılamazsa / gizli anahtar uyuşmazsa uyarı verir, iş akışını
+          # kırmızıya düşürmez (her saat başarısız e-postası gelmesin). Hiçbir şey silinmeden çıkar.
           for i in 1 2 3 4 5; do
-            RES=$(curl -sS --fail-with-body -X POST "${SUPABASE_URL%/}/functions/v1/storage-cleanup" \
-              -H "x-cron-secret: ${STORAGE_CLEANUP_SECRET}" -H "Content-Type: application/json" -d '{}')
+            if ! RES=$(curl -sS --fail-with-body --max-time 60 -X POST "${SUPABASE_URL%/}/functions/v1/storage-cleanup" \
+              -H "x-cron-secret: ${STORAGE_CLEANUP_SECRET}" -H "Content-Type: application/json" -d '{}'); then
+              echo "::warning::storage-cleanup çağrısı başarısız (gizli anahtar/URL kontrol edin). Sunucudaki zamanlanmış temizlik çalışmaya devam ediyor."
+              exit 0
+            fi
             echo "$RES"
-            CLAIMED=$(echo "$RES" | python3 -c "import json,sys; print(json.load(sys.stdin).get('claimed', 0))")
+            CLAIMED=$(echo "$RES" | python3 -c "import json,sys; print(int(json.load(sys.stdin).get('claimed', 0)))" 2>/dev/null || echo 0)
             [ "$CLAIMED" -lt 200 ] && break
           done
+          true

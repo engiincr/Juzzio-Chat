@@ -1111,3 +1111,214 @@ class JuzzioChatQuickCard extends StatelessWidget {
     );
   }
 }
+
+/// Faz 8.2 — Medya otomatik indirme seçimi
+class JuzzioAutoDownloadCard extends StatelessWidget {
+  const JuzzioAutoDownloadCard({super.key});
+  static const modes = ['always', 'wifi', 'never'];
+
+  @override
+  Widget build(BuildContext context) {
+    final app = JuzzioAppController.instance;
+    return ListenableBuilder(
+      listenable: app,
+      builder: (context, _) => Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: JuzzioNeonCard(
+          padding: const EdgeInsets.all(16),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              const Icon(Icons.download_for_offline_outlined, color: JuzzioBrandColors.lime, size: 20),
+              const SizedBox(width: 8),
+              Text(app.trEn('Medyayı otomatik indir', 'Auto-download media', 'Medien automatisch laden'),
+                  style: TextStyle(color: JuzzioGlassTokens.heading, fontSize: 15.5, fontWeight: FontWeight.w800)),
+            ]),
+            const SizedBox(height: 12),
+            JuzzioNeonChips(
+              labels: [
+                app.trEn('Her zaman', 'Always', 'Immer'),
+                app.trEn('Yalnız Wi-Fi', 'Wi-Fi only', 'Nur WLAN'),
+                app.trEn('Hiçbir zaman', 'Never', 'Nie'),
+              ],
+              selected: modes.indexOf(app.autoDownloadMode).clamp(0, 2),
+              onChanged: (k) => app.setAutoDownloadMode(modes[k]),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              app.trEn('Kapalıyken sohbetteki fotoğraflar dokununca indirilir. Kendi gönderdiklerin her zaman görünür.',
+                  'When off, photos in chats download when you tap them. Your own media is always shown.',
+                  'Aus: Fotos werden beim Tippen geladen. Eigene Medien immer sichtbar.'),
+              style: TextStyle(color: JuzzioGlassTokens.textSecondary, fontSize: 12.5),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+/// v2.1 (Faz 14.1) — Mavi tik başvurusu (kullanıcı tarafı)
+class JuzzioVerificationRequestPage extends StatefulWidget {
+  const JuzzioVerificationRequestPage({super.key});
+
+  @override
+  State<JuzzioVerificationRequestPage> createState() => _JuzzioVerificationRequestPageState();
+}
+
+class _JuzzioVerificationRequestPageState extends State<JuzzioVerificationRequestPage> {
+  static const _cats = ['creator', 'public_figure', 'business', 'journalist', 'other'];
+  final _reason = TextEditingController();
+  final _links = TextEditingController();
+  int _cat = 0;
+  bool _busy = false;
+  Map<String, dynamic>? _status;
+  String? _msg;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _reason.dispose();
+    _links.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    try {
+      final r = await Supabase.instance.client.rpc('verification_my_status');
+      if (mounted) setState(() => _status = r is Map ? Map<String, dynamic>.from(r) : <String, dynamic>{});
+    } catch (_) {
+      if (mounted) setState(() => _status = <String, dynamic>{});
+    }
+  }
+
+  Future<void> _submit() async {
+    final app = JuzzioAppController.instance;
+    if (_reason.text.trim().length < 10) {
+      setState(() => _msg = app.trEn('Neden doğrulanman gerektiğini en az 10 karakterle yaz.', 'Explain why in at least 10 characters.',
+          'Bitte mindestens 10 Zeichen.'));
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _msg = null;
+    });
+    try {
+      await Supabase.instance.client.rpc('verification_submit',
+          params: {'p_category': _cats[_cat], 'p_reason': _reason.text.trim(), 'p_links': _links.text.trim()});
+      await _load();
+      if (mounted) setState(() => _msg = app.trEn('Başvurun alındı. Sonuç bildirim olarak gelecek.', 'Request received.', 'Antrag erhalten.'));
+    } catch (e) {
+      final m = e.toString();
+      if (mounted) {
+        setState(() => _msg = m.contains('already_pending')
+            ? app.trEn('Zaten bekleyen bir başvurun var.', 'You already have a pending request.', 'Bereits ein offener Antrag.')
+            : m.contains('already_verified')
+                ? app.trEn('Hesabın zaten doğrulanmış.', 'Your account is already verified.', 'Bereits verifiziert.')
+                : m.contains('rate_limited')
+                    ? app.trEn('Bugün çok deneme yaptın, yarın tekrar dene.', 'Too many attempts today.', 'Zu viele Versuche.')
+                    : app.trEn('Başvuru gönderilemedi.', 'Could not send the request.', 'Antrag fehlgeschlagen.'));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final app = JuzzioAppController.instance;
+    final st = _status;
+    final verified = st?['verified'] == true;
+    final req = st?['request'] is Map ? Map<String, dynamic>.from(st!['request'] as Map) : null;
+    final pending = req?['status'] == 'pending';
+    return Scaffold(
+      backgroundColor: JuzzioGlassTokens.space.depth.last,
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
+          children: [
+            JuzzioScreenHeader(
+              title: app.trEn('Mavi tik başvurusu', 'Verification request', 'Verifizierung beantragen'),
+              subtitle: app.trEn('Tanınmış, özgün ve aktif hesaplar doğrulanır.', 'Notable, authentic and active accounts can be verified.',
+                  'Bekannte, echte und aktive Konten.'),
+            ),
+            if (st == null)
+              const Padding(padding: EdgeInsets.all(40), child: Center(child: CircularProgressIndicator()))
+            else if (verified || pending || req?['status'] == 'rejected')
+              JuzzioNeonCard(
+                padding: const EdgeInsets.all(16),
+                child: Row(children: [
+                  Icon(verified ? Icons.verified_rounded : (pending ? Icons.hourglass_top_rounded : Icons.info_outline_rounded),
+                      color: JuzzioBrandColors.lime),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      verified
+                          ? app.trEn('Hesabın doğrulandı.', 'Your account is verified.', 'Dein Konto ist verifiziert.')
+                          : pending
+                              ? app.trEn('Başvurun inceleniyor.', 'Your request is under review.', 'Dein Antrag wird geprüft.')
+                              : app.trEn('Son başvurun reddedildi; yeniden başvurabilirsin.', 'Your last request was rejected; you can apply again.',
+                                  'Letzter Antrag abgelehnt; erneut möglich.'),
+                      style: TextStyle(color: JuzzioGlassTokens.heading, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ]),
+              ),
+            if (st != null && !verified && !pending) ...[
+              const SizedBox(height: 12),
+              JuzzioNeonSectionLabel(app.trEn('Kategori', 'Category', 'Kategorie')),
+              Wrap(spacing: 8, runSpacing: 8, children: [
+                for (var k = 0; k < _cats.length; k++)
+                  ChoiceChip(
+                    label: Text([
+                      app.trEn('İçerik üreticisi', 'Creator', 'Creator'),
+                      app.trEn('Tanınmış kişi', 'Public figure', 'Person des öffentlichen Lebens'),
+                      app.trEn('İşletme / marka', 'Business / brand', 'Unternehmen'),
+                      app.trEn('Gazeteci', 'Journalist', 'Journalist'),
+                      app.trEn('Diğer', 'Other', 'Sonstiges'),
+                    ][k]),
+                    selected: _cat == k,
+                    selectedColor: JuzzioBrandColors.lime,
+                    labelStyle: TextStyle(color: _cat == k ? const Color(0xFF111113) : JuzzioGlassTokens.heading, fontWeight: FontWeight.w700),
+                    onSelected: (_) => setState(() => _cat = k),
+                  ),
+              ]),
+              const SizedBox(height: 14),
+              TextField(
+                controller: _reason,
+                maxLines: 4,
+                maxLength: 600,
+                style: TextStyle(color: JuzzioGlassTokens.heading),
+                decoration: InputDecoration(
+                    labelText: app.trEn('Neden doğrulanmalısın?', 'Why should you be verified?', 'Warum verifizieren?')),
+              ),
+              TextField(
+                controller: _links,
+                maxLength: 600,
+                style: TextStyle(color: JuzzioGlassTokens.heading),
+                decoration: InputDecoration(
+                    labelText: app.trEn('Bağlantılar (web sitesi, haber, sosyal hesap)', 'Links (website, press, social)', 'Links')),
+              ),
+              const SizedBox(height: 8),
+              JuzzioLimeButton(
+                label: app.trEn('Başvur', 'Apply', 'Beantragen'),
+                icon: Icons.verified_outlined,
+                busy: _busy,
+                onPressed: _busy ? null : _submit,
+              ),
+            ],
+            if (_msg != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Text(_msg!, style: TextStyle(color: JuzzioGlassTokens.textSecondary)),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}

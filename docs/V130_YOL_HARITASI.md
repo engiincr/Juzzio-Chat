@@ -81,7 +81,7 @@ Kurallar
 
 ## Faz 8 — Ayarlar II
 - [x] 8.1 Arama Ayarları (kalite, düşük veri, ekran paylaşımı, canlı çeviri, gürültü engelleme)
-- [~] 8.2 Sohbet Ayarları (bağlantı önizlemesi, Enter ile gönder, veri tasarrufu, arka plan, yazı boyutu) — ayrı "otomatik indirme" kuralı yok
+- [x] 8.2 Sohbet Ayarları (bağlantı önizlemesi, Enter ile gönder, otomatik indirme: Her zaman / Yalnız Wi-Fi / Hiçbir zaman, veri tasarrufu, arka plan, yazı boyutu)
 - [x] 8.3 Medya ve Depolama (halka grafik, tür dökümü, güvenli temizle)
 - [x] 8.4 Görünüm (Sistem/Açık/Koyu/Zamanlı, Tema Stüdyosu ile vurgu rengi, sohbet arka planı, balon köşe yuvarlaklığı, cam yoğunluğu)
 - [x] 8.5 Erişilebilirlik (yazı boyutu, kalın yazı, yüksek kontrast, hareket azalt, renk düzeltme)
@@ -94,7 +94,7 @@ Kurallar
 - [x] 9.5 Yaş sınırı (15+) ve onay yönetimi (geçmiş + isteğe bağlı izinler)
 
 ## Faz 10 — Yönetici Paneli I
-- [~] 10.1 Yönetici girişi (yalnız @tugkancr, şifre + hesap 2FA) — biyometrik giriş eklenmedi (MainActivity'nin FragmentActivity'ye geçmesi gerekir)
+- [x] 10.1 Yönetici girişi (@tugkancr + @ari, şifre, hesap 2FA; hatırlanan oturumda Android parmak izi/yüz/ekran kilidi)
 - [x] 10.2 Genel Bakış panosu (mevcut Genel sekmesi + Aramalar/Canlı modülleri gerçek sayılar)
 - [x] 10.3 Modül ızgarası gezinmesi (34 numaralı kart; üst çubuktaki ızgara düğmesi)
 - [x] 10.4 Kullanıcı Yönetimi (mevcut Kullanıcılar sekmesi)
@@ -116,13 +116,13 @@ Kurallar
 
 ## Faz 13 — Yönetici Paneli IV
 - [x] 13.1 Supabase ve Altyapı
-- [~] 13.2 Analitik ve Raporlar (her modül CSV olarak kopyalanır) — PDF yok
+- [x] 13.2 Analitik ve Raporlar (her modül CSV kopyalama + PDF rapor, TR/EN)
 - [x] 13.3 Destek Merkezi
 - [x] 13.4 Sistem Ekstraları
 - [x] 13.5 Yönetici Denetim Kayıtları
 
 ## Faz 14 — Yönetici Paneli V
-- [~] 14.1 Hesap Doğrulama (Güven sekmesi + doğrulanmış sayısı) — ayrı başvuru formu yok
+- [x] 14.1 Hesap Doğrulama (kullanıcı başvuru formu + yönetici onay/ret ekranı)
 - [x] 14.2 Spam ve Bot Koruması
 - [x] 14.3 Canlı Oturum İzleme
 - [x] 14.4 WebRTC Tanılama
@@ -132,7 +132,7 @@ Kurallar
 - [x] 15.1 Medya ve Dosya Yönetimi
 - [x] 15.2 Gizlilik ve KVKK Merkezi
 - [x] 15.3 API ve Kota Yönetimi
-- [~] 15.4 Özellik Yayınlama (ayar anahtarları listesi) — A/B testi yok
+- [x] 15.4 Özellik Yayınlama + A/B testi (kademeli %, varyantlar, kullanıcıya sabit atama)
 - [x] 15.5 Sistem Olayları ve Alarmlar
 
 ## Faz 16 — Yönetici Paneli VII
@@ -144,7 +144,7 @@ Kurallar
 
 ## Faz 17 — Google Play hazırlığı
 - [x] 17.1 AAB derlemesi + imzalama (CI imzalı AAB artefaktı; Play App Signing adımları docs/GOOGLE_PLAY.md)
-- [~] 17.2 Hedef SDK 36 / izin gerekçeleri yazıldı — Play paketi için REQUEST_INSTALL_PACKAGES'ı kaldıracak ayrı derleme türü henüz yok
+- [x] 17.2 Hedef SDK 36 / izin gerekçeleri; Play paketi APK kurma iznini kaldırır, güncellemeyi Play'e yönlendirir
 - [x] 17.3 Veri Güvenliği formu metni + içerik derecelendirmesi (docs/GOOGLE_PLAY.md)
 - [~] 17.4 Mağaza listesi (metinler, 512 ikon, 1024×500 görsel) — ekran görüntüleri gerçek cihazdan alınmalı
 - [~] 17.5 Çökme izleme: uygulamanın kendi hata kaydı + Android vitals — Crashlytics eklenmedi

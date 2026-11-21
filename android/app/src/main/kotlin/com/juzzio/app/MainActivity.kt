@@ -345,11 +345,8 @@ class MainActivity : FlutterActivity() {
                     if (isCall) RingtoneManager.TYPE_RINGTONE else RingtoneManager.TYPE_NOTIFICATION
                 )
 
-                val smallIconRes: Int = if (context.applicationInfo.icon != 0) {
-                    context.applicationInfo.icon
-                } else {
-                    R.mipmap.ic_launcher
-                }
+                // v2.1: bildirim çubuğunda beyaz logo silueti
+                val smallIconRes: Int = R.drawable.ic_stat_juzzio
 
                 val builder = NotificationCompat.Builder(context, resolvedChannelId)
                 builder.setSmallIcon(smallIconRes)
@@ -805,6 +802,14 @@ class MainActivity : FlutterActivity() {
                         } catch (_: Exception) {}
                     }
                     result.success(true)
+                }
+                // v2.1 (Faz 10.1): yönetici paneli biyometrik / ekran kilidi doğrulaması
+                "biometricAuth" -> {
+                    JuzzioBiometric.prompt(
+                        this,
+                        call.argument<String>("title") ?: "Juzzio",
+                        call.argument<String>("subtitle") ?: ""
+                    ) { r -> result.success(r) }
                 }
                 // v2.1 (Faz 7.4): zamanlanmış sessiz saatler
                 "setQuietHours" -> {

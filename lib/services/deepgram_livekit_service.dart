@@ -1703,7 +1703,7 @@ class DeepgramLiveKitController extends ChangeNotifier {
   /// v1.2.9: bir kişinin görüntü katmanını uygular (HIGH ≈720p, MEDIUM ≈480p, LOW ≈360p)
   // v1.2.9 düzeltme: kademe artık elle ZORLANMAZ. Oda "adaptiveStream + dynacast + simulcast" ile kurulu;
   // LiveKit çözünürlüğü (720p/480p/360p katmanları) ağa ve görüntü boyutuna göre kendisi seçer. Elle
-  // setVideoQuality/setVideoFPS çağrıları bu otomatikle çakışıp katman değişimlerini ve donmayı artırıyordu.
+  // elle kalite/kare hızı zorlama çağrıları bu otomatikle çakışıp katman değişimlerini ve donmayı artırıyordu.
   // Burada yalnız ekrandaki kalite rozeti güncellenir.
   Future<void> _applyTier(RemoteParticipant p, String tier) async {
     notifyListeners();
@@ -1848,6 +1848,13 @@ class DeepgramLiveKitController extends ChangeNotifier {
       }
     }
     return false;
+  }
+
+  /// Hızlı çevirme yapılamazsa (masaüstü vb.) iz yeni yönle yeniden başlatılır; yeni ize
+  /// güzelleştirme yeniden bağlanır (eski ize bağlı kalırsa filtre sessizce kaybolurdu).
+  Future<void> flipCameraFallback(LocalVideoTrack track, CameraPosition position) async {
+    await track.setCameraPosition(position);
+    await _applyBeautyFilter();
   }
 
   Future<void> toggleCamera() async {

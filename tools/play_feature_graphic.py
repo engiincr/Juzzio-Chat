@@ -41,11 +41,11 @@ def main():
     glow = Image.new("RGBA", img.size, (0, 0, 0, 0))
     gd = ImageDraw.Draw(glow)
     cx, cy, rr = 250 * SS, 250 * SS, 210 * SS
-    gd.ellipse([cx - rr, cy - rr, cx + rr, cy + rr], fill=(198, 241, 53, 70))
+    gd.ellipse([cx - rr, cy - rr, cx + rr, cy + rr], fill=(186, 250, 8, 70))
     glow = glow.filter(ImageFilter.GaussianBlur(70 * SS))
     img = Image.alpha_composite(img.convert("RGBA"), glow)
     # logo karosu
-    mark = bi.render(300 * SS // 2 * 2 // SS, "legacy").resize((300 * SS, 300 * SS), Image.LANCZOS)
+    mark = bi.render(300 * SS, "legacy")
     img.alpha_composite(mark, (100 * SS, 100 * SS))
     d = ImageDraw.Draw(img)
     d.text((450 * SS, 150 * SS), "Juzzio", font=font("Inter-Black.otf", 92), fill=(245, 247, 250))
