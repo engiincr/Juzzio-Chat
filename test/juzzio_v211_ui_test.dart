@@ -108,7 +108,7 @@ void main() {
     final sql = _src('supabase/juzzio_database.sql');
     expect(sql.contains("('github_updates_enabled', 'false'::jsonb)"), isTrue);
     final ci = _src('.github/workflows/android-ci.yml');
-    expect("juzzio_setting_bool('github_updates_enabled', false)".allMatches(ci).length, 2);
+    expect("juzzio_setting_bool('github_updates_enabled', false)".allMatches(ci).length, 3);
     expect(_src('lib/screens/chat_screen.dart').contains('if (cfg.githubUpdatesEnabled) JuzzioAppController.instance.checkForOtaUpdate();'), isTrue);
     expect(_src('lib/screens/admin_god_tab.dart').contains("'github_updates_enabled', v"), isTrue);
   });

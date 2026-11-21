@@ -613,6 +613,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ML_DSA_SEED: ${{ secrets.ML_DSA_SEED }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
           set -euo pipefail
           APP_VER=$(grep -m1 '^version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f1 | tr -d '\r')
@@ -659,6 +660,20 @@ jobs:
           # sahibin GitHub noreply kimliğiyle atılır (github-actions[bot] görünmez).
           git config user.name "${{ github.repository_owner }}"
           git config user.email "${{ github.repository_owner_id }}+${{ github.repository_owner }}@users.noreply.github.com"
+          # v2.1: depodaki version.json uygulamaların güncelleme kaynağıdır. Yönetici panelinde
+          # "GitHub güncellemelerini kullanıcılara ilet" KAPALIYSA ana dala yazılmaz → kullanıcılara
+          # güncelleme bildirimi gitmez (sürüm sayfası ve APK yine yayımlanır).
+          UPD=f
+          if [ -n "${SUPABASE_DB_URL:-}" ]; then
+            command -v psql >/dev/null 2>&1 || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client >/dev/null)
+            DB_URL="$(python3 scripts/resolve_db_url.py)"
+            echo "::add-mask::$DB_URL"
+            UPD="$(psql "$DB_URL" -tA -X -c "SELECT public.juzzio_setting_bool('github_updates_enabled', false)" 2>/dev/null || echo f)"
+          fi
+          if [ "$UPD" != "t" ]; then
+            echo "Güncelleme bildirimi kapalı — version.json ana dala yazılmadı"
+            git checkout -- version.json README.md release-notes.md 2>/dev/null || true
+          fi
           git add version.json README.md release-notes.md
           if ! git diff --cached --quiet; then
             git commit -m "chore: v${APP_VER} APK SHA-256 doğrulaması [skip ci]"
