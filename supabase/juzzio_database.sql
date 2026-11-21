@@ -19155,3 +19155,143 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION public.admin_flag_delete(TEXT, TEXT) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.admin_flag_delete(TEXT, TEXT) TO authenticated;
+
+-- =============================================================================
+-- 10.51 (v2.1) — GitHub güncelleme bildirimleri yönetici anahtarına bağlandı
+--  GitHub'a her yüklenen sürüm (deneme/düzeltme dahil) tüm kullanıcılara bildirim olarak
+--  gitmesin: varsayılan KAPALI. Süper yönetici panelden açınca uygulamalar sürümü görür,
+--  CI app_releases kaydını ve topluluk duyurusunu yalnız açıkken yapar.
+-- =============================================================================
+INSERT INTO public.app_settings (key, value) VALUES ('github_updates_enabled', 'false'::jsonb)
+ON CONFLICT (key) DO NOTHING;
+
+CREATE OR REPLACE FUNCTION public.admin_set_setting(p_token TEXT, p_key TEXT, p_value JSONB)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_num NUMERIC;
+BEGIN
+    PERFORM public._staff_require(p_token, 'settings');
+    IF p_key IN ('maintenance_message', 'announcement_banner') THEN
+        IF jsonb_typeof(p_value) <> 'string' THEN RAISE EXCEPTION 'invalid_setting'; END IF;
+        p_value := to_jsonb(LEFT(p_value #>> '{}', 500));
+    ELSIF p_key = 'default_glass_palette' THEN
+        IF jsonb_typeof(p_value) <> 'string'
+           OR (p_value #>> '{}') NOT IN ('juzzio_liquid', 'ocean', 'glass_white', 'amethyst', 'emerald', 'lagoon', 'chrome',
+                                        'obsidian_oled', 'lavender_mist', 'rose_quartz', 'cyber_neon', 'high_contrast',
+                                        'aurora_borealis', 'frosted_pearl', 'midnight_sapphire', 'nordic_frost') THEN
+            RAISE EXCEPTION 'invalid_setting';
+        END IF;
+    ELSIF p_key IN ('call_moderation_interval_sec', 'voice_max_seconds', 'audio_bitrate_kbps', 'video_max_seconds',
+                    'min_supported_build', 'ai_daily_quota_per_user', 'admin_bruteforce_max_fails', 'admin_bruteforce_window_min',
+                    'media_cache_max_mb', 'media_cache_max_age_days') THEN
+        IF jsonb_typeof(p_value) <> 'number' THEN RAISE EXCEPTION 'invalid_setting'; END IF;
+        v_num := (p_value #>> '{}')::numeric;
+        IF v_num <> trunc(v_num) OR NOT (
+               (p_key = 'call_moderation_interval_sec' AND v_num BETWEEN 3 AND 60)
+            OR (p_key = 'voice_max_seconds' AND v_num BETWEEN 15 AND 900)
+            OR (p_key = 'audio_bitrate_kbps' AND v_num BETWEEN 16 AND 256)
+            OR (p_key = 'video_max_seconds' AND v_num BETWEEN 10 AND 600)
+            OR (p_key = 'min_supported_build' AND v_num BETWEEN 0 AND 100000)
+            OR (p_key = 'ai_daily_quota_per_user' AND v_num BETWEEN 0 AND 100000)
+            OR (p_key = 'admin_bruteforce_max_fails' AND v_num BETWEEN 3 AND 20)
+            OR (p_key = 'admin_bruteforce_window_min' AND v_num BETWEEN 5 AND 1440)
+            OR (p_key = 'media_cache_max_mb' AND v_num BETWEEN 50 AND 4096)
+            OR (p_key = 'media_cache_max_age_days' AND v_num BETWEEN 0 AND 365)) THEN
+            RAISE EXCEPTION 'invalid_setting';
+        END IF;
+        IF p_key IN ('min_supported_build', 'admin_bruteforce_max_fails', 'admin_bruteforce_window_min')
+           AND NOT public.admin_check_token(p_token) THEN
+            RAISE EXCEPTION 'super_admin_required';
+        END IF;
+    ELSIF p_key IN ('maintenance_mode', 'signups_enabled', 'live_translation_enabled', 'chick_game_enabled',
+                    'stories_enabled', 'beauty_filter_enabled', 'call_moderation_enabled',
+                    'speech_moderation_enabled', 'avatar_moderation_enabled', 'posts_enabled', 'calls_enabled',
+                    'group_creation_enabled', 'global_feed_enabled', 'error_reporting_enabled',
+                    'itunes_previews_enabled', 'github_updates_enabled') THEN
+        IF jsonb_typeof(p_value) <> 'boolean' THEN RAISE EXCEPTION 'invalid_setting'; END IF;
+        IF p_key IN ('maintenance_mode', 'github_updates_enabled') AND NOT public.admin_check_token(p_token) THEN
+            RAISE EXCEPTION 'super_admin_required';
+        END IF;
+    ELSE
+        RAISE EXCEPTION 'invalid_setting';
+    END IF;
+    INSERT INTO public.app_settings (key, value, updated_at) VALUES (p_key, p_value, NOW())
+    ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW();
+    INSERT INTO public.admin_audit_log (admin_id, action, target, details)
+    VALUES (auth.uid(), 'set_setting', p_key, jsonb_build_object('value', p_value));
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.admin_set_setting(TEXT, TEXT, JSONB) TO authenticated;
+
+-- =============================================================================
+-- 10.52 (v2.1) — Ek yöneticinin varsayılan şifresiyle girişi engellenmez
+--  @ari varsayılan şifreyle girince panel "oturum geçersiz" gibi hatalar veriyordu: must_change
+--  açıkken tüm yönetici işlemleri kilitliydi ve oturum 30 dk ile sınırlıydı. Kurucu isteğiyle:
+--  doğru şifreyle giriş HER ZAMAN paneli açar; şifre değiştirme ekranı önerilir, zorunlu değildir.
+-- =============================================================================
+CREATE OR REPLACE FUNCTION public.admin_check_token(p_token TEXT)
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+    SELECT public.is_juzzio_admin(auth.uid())
+       AND EXISTS (
+        SELECT 1 FROM public.admin_sessions s
+        WHERE s.token_hash = encode(digest(COALESCE(p_token, ''), 'sha256'), 'hex')
+          AND s.user_id = auth.uid() AND s.expires_at > NOW()
+    );
+$$;
+GRANT EXECUTE ON FUNCTION public.admin_check_token(TEXT) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.admin_unlock(p_password TEXT, p_device_id TEXT, p_remember BOOLEAN DEFAULT false)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+DECLARE
+    v_uid UUID := auth.uid();
+    v_hash TEXT;
+    v_must BOOLEAN := false;
+    v_token TEXT;
+    v_fails INTEGER;
+    v_exp TIMESTAMPTZ;
+BEGIN
+    IF NOT public.is_juzzio_admin(v_uid) THEN RAISE EXCEPTION 'not_allowed'; END IF;
+    SELECT COUNT(*) INTO v_fails FROM public.admin_login_attempts
+    WHERE user_id = v_uid AND NOT success AND created_at > NOW() - INTERVAL '15 minutes';
+    IF v_fails >= 5 THEN RAISE EXCEPTION 'too_many_attempts'; END IF;
+
+    -- Ek yöneticinin kendi şifresi; yoksa kurucunun ortak panel şifresi
+    SELECT password_hash, must_change INTO v_hash, v_must FROM public.admin_user_secrets WHERE user_id = v_uid;
+    IF v_hash IS NULL THEN
+        SELECT password_hash INTO v_hash FROM public.admin_secret WHERE id = 1;
+        v_must := false;
+    END IF;
+    IF v_hash IS NULL THEN RAISE EXCEPTION 'admin_password_not_set'; END IF;
+    IF crypt(COALESCE(p_password, ''), v_hash) <> v_hash THEN
+        INSERT INTO public.admin_login_attempts (user_id, device_id, success) VALUES (v_uid, LEFT(COALESCE(p_device_id, ''), 128), false);
+        RETURN jsonb_build_object('ok', false, 'remaining', GREATEST(0, 4 - v_fails));
+    END IF;
+
+    INSERT INTO public.admin_login_attempts (user_id, device_id, success) VALUES (v_uid, LEFT(COALESCE(p_device_id, ''), 128), true);
+    v_token := encode(gen_random_bytes(32), 'hex');
+    -- v2.1.1: varsayılan şifreyle de panel tam açılır; şifre değiştirme önerilir (engellemez)
+    v_exp := NOW() + CASE WHEN p_remember THEN INTERVAL '30 days' ELSE INTERVAL '12 hours' END;
+    INSERT INTO public.admin_sessions (token_hash, user_id, device_id, expires_at)
+    VALUES (encode(digest(v_token, 'sha256'), 'hex'), v_uid, LEFT(COALESCE(p_device_id, ''), 128), v_exp);
+    DELETE FROM public.admin_sessions WHERE expires_at < NOW();
+    RETURN jsonb_build_object('ok', true, 'token', v_token, 'expires_at', v_exp, 'must_change', v_must);
+END;
+$$;
+REVOKE ALL ON FUNCTION public.admin_unlock(TEXT, TEXT, BOOLEAN) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_unlock(TEXT, TEXT, BOOLEAN) TO authenticated;
+-- Önceki sürümde açılmış kısa (30 dk) oturumlar normal süreye uzatılır
+UPDATE public.admin_sessions SET expires_at = GREATEST(expires_at, created_at + INTERVAL '12 hours')
+ WHERE expires_at > NOW();

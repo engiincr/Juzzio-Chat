@@ -78,102 +78,6 @@ const List<JuzzioAdminModule> kJuzzioAdminModules = [
   JuzzioAdminModule(34, Icons.auto_awesome_rounded, 'Juzzio Story', 'Juzzio Story', tab: 13),
 ];
 
-class JuzzioAdminModulesPage extends StatelessWidget {
-  const JuzzioAdminModulesPage({super.key, required this.token, required this.visibleTabs, required this.onOpenTab});
-  final String token;
-  final List<int> visibleTabs;
-  final ValueChanged<int> onOpenTab;
-
-  @override
-  Widget build(BuildContext context) {
-    final app = JuzzioAppController.instance;
-    final mods = kJuzzioAdminModules.where((m) => m.tab == null || visibleTabs.contains(m.tab)).toList();
-    return Scaffold(
-      backgroundColor: JuzzioGlassTokens.space.depth.last,
-      body: SafeArea(
-        child: CustomScrollView(slivers: [
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: JuzzioScreenHeader(
-                title: app.trEn('Yönetici Modülleri', 'Admin Modules', 'Admin-Module'),
-                subtitle: app.trEn('${mods.length} modül · gerçek veriler', '${mods.length} modules · live data', '${mods.length} Module'),
-              ),
-            ),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
-            sliver: SliverGrid(
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 210,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 1.15,
-              ),
-              delegate: SliverChildBuilderDelegate(
-                (context, i) {
-                  final m = mods[i];
-                  return JuzzioNeonCard(
-                    padding: const EdgeInsets.all(14),
-                    onTap: () {
-                      if (m.tab != null) {
-                        Navigator.of(context).pop();
-                        onOpenTab(m.tab!);
-                      } else if (m.page == 'verification') {
-                        Navigator.of(context).push(MaterialPageRoute(builder: (_) => JuzzioAdminVerificationPage(token: token)));
-                      } else if (m.page == 'flags') {
-                        Navigator.of(context).push(MaterialPageRoute(builder: (_) => JuzzioAdminFlagsPage(token: token)));
-                      } else {
-                        Navigator.of(context).push(MaterialPageRoute(
-                          builder: (_) => JuzzioAdminModuleStatsPage(token: token, module: m),
-                        ));
-                      }
-                    },
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Row(children: [
-                        Container(
-                          width: 26,
-                          height: 26,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: JuzzioBrandColors.lime.withValues(alpha: 0.16),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text('${m.no}',
-                              style: const TextStyle(color: JuzzioBrandColors.lime, fontSize: 12, fontWeight: FontWeight.w900)),
-                        ),
-                        const Spacer(),
-                        Icon(m.icon, color: JuzzioBrandColors.lime, size: 22),
-                      ]),
-                      const Spacer(),
-                      Text(app.trEn(m.tr, m.en, m.en),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: JuzzioGlassTokens.heading, fontSize: 14, fontWeight: FontWeight.w800, height: 1.2)),
-                      const SizedBox(height: 4),
-                      Text(
-                        m.page != null
-                            ? app.trEn('Başvurular', 'Requests', 'Anträge')
-                            : m.tab != null
-                            ? app.trEn('Sekmeyi aç', 'Open tab', 'Tab öffnen')
-                            : m.info != null
-                                ? app.trEn('Bilgi', 'Info', 'Info')
-                                : app.trEn('Canlı sayılar', 'Live numbers', 'Live-Zahlen'),
-                        style: TextStyle(color: JuzzioGlassTokens.textSecondary, fontSize: 11.5),
-                      ),
-                    ]),
-                  );
-                },
-                childCount: mods.length,
-              ),
-            ),
-          ),
-        ]),
-      ),
-    );
-  }
-}
-
 /// Modül verisini düz CSV satırlarına çevirir (saf; test edilir). İç içe değerler "a.b" anahtarıyla.
 List<List<String>> juzzioFlattenForCsv(Map<String, dynamic> data) {
   final rows = <List<String>>[
@@ -371,7 +275,7 @@ class _JuzzioAdminModuleStatsPageState extends State<JuzzioAdminModuleStatsPage>
             padding: const EdgeInsets.all(14),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(_fmt(e.key, e.value),
-                  style: const TextStyle(color: JuzzioBrandColors.lime, fontSize: 22, fontWeight: FontWeight.w900)),
+                  style: TextStyle(color: JuzzioGlassTokens.glowText, fontSize: 22, fontWeight: FontWeight.w900)),
               const SizedBox(height: 4),
               Text(_label(e.key), style: TextStyle(color: JuzzioGlassTokens.textSecondary, fontSize: 12)),
             ]),
@@ -401,7 +305,7 @@ class _JuzzioAdminModuleStatsPageState extends State<JuzzioAdminModuleStatsPage>
                   child: LinearProgressIndicator(
                     value: e.value is num ? ((e.value as num) / max).toDouble() : 0,
                     minHeight: 8,
-                    color: JuzzioBrandColors.lime,
+                    color: JuzzioGlassTokens.glowText,
                     backgroundColor: Colors.white.withValues(alpha: 0.08),
                   ),
                 ),
@@ -439,6 +343,68 @@ class _JuzzioAdminModuleStatsPageState extends State<JuzzioAdminModuleStatsPage>
           const SizedBox(height: 8),
           body,
         ]),
+      ),
+    );
+  }
+
+  Widget _serviceCard(String name) {
+    final app = JuzzioAppController.instance;
+    final ok = _error == null && _data != null;
+    final c = ok ? const Color(0xFF34D27B) : const Color(0xFFFF5A6A);
+    return JuzzioNeonCard(
+      highlighted: true,
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      child: Row(children: [
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            color: c.withValues(alpha: 0.14),
+            border: Border.all(color: c.withValues(alpha: 0.5)),
+          ),
+          child: Icon(ok ? Icons.check_circle_rounded : Icons.error_outline_rounded, color: c),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(name, style: TextStyle(color: JuzzioGlassTokens.heading, fontWeight: FontWeight.w800, fontSize: 15)),
+            const SizedBox(height: 2),
+            Text(ok ? app.trEn('Çalışıyor', 'Running', 'Läuft') : app.trEn('Yanıt yok', 'No response', 'Keine Antwort'),
+                style: TextStyle(color: c, fontWeight: FontWeight.w800, fontSize: 13)),
+          ]),
+        ),
+      ]),
+    );
+  }
+
+  Future<void> _openDetails(String title, Map<String, dynamic> d) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.75,
+        builder: (ctx, sc) => Container(
+          decoration: BoxDecoration(
+            color: JuzzioGlassTokens.sheet,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
+          ),
+          child: ListView(
+            controller: sc,
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+            children: [
+              Text(title, style: TextStyle(color: JuzzioGlassTokens.heading, fontSize: 19, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 12),
+              _tiles(d),
+              for (final e in d.entries)
+                if (e.value is Map || e.value is List) _section(e.key, e.value),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -502,7 +468,27 @@ class _JuzzioAdminModuleStatsPageState extends State<JuzzioAdminModuleStatsPage>
               else if (d == null)
                 const Padding(padding: EdgeInsets.all(40), child: Center(child: CircularProgressIndicator()))
               else ...[
+                // v2.1 (tasarım): servis durumu kartı
+                if (_kServiceName[m.no] != null) _serviceCard(app.trEn(_kServiceName[m.no]!.$1, _kServiceName[m.no]!.$2, _kServiceName[m.no]!.$2)),
                 _tiles(d),
+                // v2.1 (tasarım): modülün alt başlıkları — dokununca ilgili ayrıntılar açılır
+                if (_kModuleItems[m.no] != null) ...[
+                  const SizedBox(height: 6),
+                  JuzzioNeonCard(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Column(children: [
+                      for (final it in _kModuleItems[m.no]!)
+                        ListTile(
+                          leading: Icon(it.$1, color: JuzzioGlassTokens.glowText),
+                          title: Text(app.trEn(it.$2, it.$3, it.$3),
+                              style: TextStyle(color: JuzzioGlassTokens.heading, fontWeight: FontWeight.w700, fontSize: 14.5)),
+                          trailing: Icon(Icons.chevron_right_rounded, color: JuzzioGlassTokens.textMuted),
+                          onTap: () => _openDetails(app.trEn(it.$2, it.$3, it.$3), d),
+                        ),
+                    ]),
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 for (final e in d.entries)
                   if (e.value is Map || e.value is List) _section(e.key, e.value),
               ],
@@ -615,9 +601,9 @@ class _JuzzioAdminChangePasswordPageState extends State<JuzzioAdminChangePasswor
               JuzzioScreenHeader(
                 title: app.trEn('Yönetici şifresini değiştir', 'Change admin password', 'Admin-Passwort ändern'),
                 subtitle: widget.forced
-                    ? app.trEn('İlk girişte varsayılan şifreyi değiştirmen gerekiyor. Değiştirmeden panel açılmaz.',
-                        'You must change the default password on first sign-in. The panel stays locked until you do.',
-                        'Beim ersten Login muss das Standardpasswort geändert werden.')
+                    ? app.trEn('Varsayılan şifreyle giriş yaptın. Güvenliğin için değiştirmeni öneririz; istersen "Şimdi değil" ile panele geç.',
+                        'You signed in with the default password. We recommend changing it; or tap "Not now" to open the panel.',
+                        'Mit Standardpasswort angemeldet. Bitte ändern, oder "Nicht jetzt" tippen.')
                     : app.trEn('Bu şifre yalnız yönetici paneline giriş içindir.', 'This password is only for the admin panel.',
                         'Nur für das Admin-Panel.'),
               ),
@@ -644,6 +630,14 @@ class _JuzzioAdminChangePasswordPageState extends State<JuzzioAdminChangePasswor
                     busy: _busy,
                     onPressed: _busy ? null : _save,
                   ),
+                  if (widget.forced) ...[
+                    const SizedBox(height: 8),
+                    JuzzioLimeButton(
+                      label: app.trEn('Şimdi değil, panele geç', 'Not now, open the panel', 'Nicht jetzt'),
+                      style: JuzzioLimeButtonStyle.ghost,
+                      onPressed: _busy ? null : () => Navigator.of(context).pop(false),
+                    ),
+                  ],
                 ]),
               ),
             ],
@@ -769,7 +763,7 @@ class _JuzzioAdminVerificationPageState extends State<JuzzioAdminVerificationPag
                         Text('${r['reason'] ?? ''}', style: TextStyle(color: JuzzioGlassTokens.heading, fontSize: 13.5)),
                         if ('${r['links'] ?? ''}'.isNotEmpty) ...[
                           const SizedBox(height: 6),
-                          SelectableText('${r['links']}', style: const TextStyle(color: JuzzioBrandColors.lime, fontSize: 12.5)),
+                          SelectableText('${r['links']}', style: TextStyle(color: JuzzioGlassTokens.glowText, fontSize: 12.5)),
                         ],
                         if (r['status'] == 'pending') ...[
                           const SizedBox(height: 12),
@@ -931,7 +925,7 @@ class _JuzzioAdminFlagsPageState extends State<JuzzioAdminFlagsPage> {
     return Scaffold(
       backgroundColor: JuzzioGlassTokens.space.depth.last,
       floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: JuzzioBrandColors.lime,
+        backgroundColor: JuzzioGlassTokens.glowText,
         foregroundColor: const Color(0xFF111113),
         onPressed: () => _edit(),
         icon: const Icon(Icons.add_rounded),
@@ -987,3 +981,75 @@ class _JuzzioAdminFlagsPageState extends State<JuzzioAdminFlagsPage> {
     );
   }
 }
+
+/// v2.1 (tasarım): modül sayfalarındaki servis adı ve alt başlıklar (tasarım görselleriyle aynı)
+const Map<int, (String, String)> _kServiceName = {
+  5: ('Mesaj Servisi', 'Messaging Service'),
+  6: ('WebRTC Servisi', 'WebRTC Service'),
+  7: ('Çeviri Servisi', 'Translation Service'),
+  8: ('FCM / APNs Servisi', 'FCM / APNs Service'),
+  9: ('Keşfet Modülü', 'Explore Module'),
+  10: ('Sinema Parti ve Civciv', 'Watch Party & Chick'),
+  13: ('Sistem Güvenliği · Koruma Aktif', 'System Security · Protection On'),
+  14: ('Supabase Durumu', 'Supabase Status'),
+  16: ('Destek Merkezi', 'Support Center'),
+};
+
+const Map<int, List<(IconData, String, String)>> _kModuleItems = {
+  5: [
+    (Icons.queue_rounded, 'Mesaj Kuyruğu', 'Message Queue'),
+    (Icons.local_shipping_outlined, 'Teslimat Raporları', 'Delivery Reports'),
+    (Icons.report_gmailerrorred_rounded, 'Spam Analizi', 'Spam Analysis'),
+    (Icons.block_rounded, 'Engellenen Mesajlar', 'Blocked Messages'),
+  ],
+  6: [
+    (Icons.list_alt_rounded, 'Arama Kayıtları', 'Call Logs'),
+    (Icons.speed_rounded, 'Kalite ve Performans', 'Quality & Performance'),
+    (Icons.link_off_rounded, 'Bağlantı Hataları', 'Connection Errors'),
+    (Icons.dns_rounded, 'Sunucu Durumu (TURN/STUN)', 'Server Status (TURN/STUN)'),
+  ],
+  7: [
+    (Icons.memory_rounded, 'Dil Motorları (AI)', 'Language Engines (AI)'),
+    (Icons.subtitles_rounded, 'Altyazı (Canlı Çeviri)', 'Subtitles (Live Translation)'),
+    (Icons.language_rounded, 'Dil Yönetimi', 'Language Management'),
+    (Icons.receipt_long_rounded, 'Çeviri Kullanım Raporu', 'Translation Usage Report'),
+  ],
+  8: [
+    (Icons.send_rounded, 'Push Gönderimi', 'Push Sending'),
+    (Icons.article_outlined, 'Bildirim Şablonları', 'Notification Templates'),
+    (Icons.local_shipping_outlined, 'Teslimat Raporları', 'Delivery Reports'),
+    (Icons.devices_rounded, 'Cihaz ve Token Yönetimi', 'Devices & Tokens'),
+  ],
+  9: [
+    (Icons.hub_rounded, 'Eşleşme Algoritması', 'Matching Algorithm'),
+    (Icons.filter_alt_outlined, 'Keşfet Filtreleri', 'Explore Filters'),
+    (Icons.fact_check_outlined, 'İçerik Denetimi', 'Content Review'),
+    (Icons.rule_rounded, 'Kısıtlamalar ve Kurallar', 'Restrictions & Rules'),
+  ],
+  10: [
+    (Icons.meeting_room_outlined, 'Odalar ve Etkinlikler', 'Rooms & Events'),
+    (Icons.trending_up_rounded, 'Oyun İlerleme Raporu', 'Game Progress Report'),
+    (Icons.card_giftcard_rounded, 'Hediyeler ve Ödüller', 'Gifts & Rewards'),
+    (Icons.bar_chart_rounded, 'Kullanım İstatistikleri', 'Usage Statistics'),
+  ],
+  13: [
+    (Icons.person_pin_rounded, 'Yönetici Oturumları', 'Admin Sessions'),
+    (Icons.password_rounded, 'İki Adımlı Doğrulama (MFA)', 'Two-step Verification (MFA)'),
+    (Icons.admin_panel_settings_outlined, 'Erişim Yetkileri ve Roller', 'Access & Roles'),
+    (Icons.history_rounded, 'Denetim Kayıtları (Audit Log)', 'Audit Log'),
+    (Icons.public_rounded, 'IP Erişim Kontrolü', 'IP Access Control'),
+    (Icons.timer_outlined, 'Oturum Süresi ve Politikalar', 'Session Lifetime & Policies'),
+  ],
+  14: [
+    (Icons.table_chart_outlined, 'Tablo ve Veri Yönetimi', 'Tables & Data'),
+    (Icons.bolt_rounded, 'Edge Function Logları', 'Edge Function Logs'),
+    (Icons.cloud_outlined, 'Depolama (Storage)', 'Storage'),
+    (Icons.shield_outlined, 'RLS / Güvenlik Politikaları', 'RLS / Security Policies'),
+    (Icons.backup_outlined, 'Yedekleme ve Geri Yükleme', 'Backup & Restore'),
+  ],
+  16: [
+    (Icons.settings_outlined, 'Destek Ayarları', 'Support Settings'),
+    (Icons.quickreply_outlined, 'Hızlı Yanıt Şablonları', 'Quick Reply Templates'),
+    (Icons.quiz_outlined, 'Sıkça Sorulan Sorular (SSS)', 'FAQ'),
+  ],
+};

@@ -50,6 +50,9 @@ import '../widgets/juzzio_attach_menu.dart';
 import '../widgets/juzzio_auto_download.dart';
 import '../services/juzzio_feature_flags.dart';
 import '../widgets/juzzio_space_kit.dart';
+import '../widgets/juzzio_brand.dart';
+import '../widgets/juzzio_call_kit21.dart';
+import '../widgets/juzzio_neon_kit.dart';
 import '../widgets/juzzio_rich_text.dart';
 import '../widgets/juzzio_copy_feedback.dart';
 import '../widgets/juzzio_gif_stickers.dart';
@@ -320,6 +323,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   bool _friendshipsLoadedOnce = false;
   int _lastRenderedMessageCount = 0;
   String _callsFilter = 'all';
+  bool _callsSearchOpen = false;
   Stream<List<JuzzioMessage>>? _activeMessagesStream;
   String? _activeMessagesStreamRoomId;
 
@@ -785,12 +789,18 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       if (mounted) maybeOfferJuzzioRestore(context);
     });
     // 8. OTA sürüm güncelleme (kalıcı erteleme durumu önce yüklenir)
-    JuzzioAppController.instance.ensureOtaStateLoaded().then((_) {
-      JuzzioAppController.instance.checkForOtaUpdate();
+    // v2.1: GitHub'dan otomatik güncelleme bildirimi yalnız yönetici panelinden açıksa
+    // (Yönetici → Ayarlar → "GitHub güncellemelerini kullanıcılara ilet"). Kapalıyken kullanıcı
+    // hiçbir güncelleme bildirimi almaz; Ayarlar → Hakkında → "Güncellemeleri denetle" elle çalışır.
+    JuzzioAppController.instance.ensureOtaStateLoaded().then((_) async {
+      final cfg = await JuzzioFeaturesService.instance.fetchAppConfig();
+      if (cfg.githubUpdatesEnabled) JuzzioAppController.instance.checkForOtaUpdate();
       if (mounted) JuzzioWhatsNewSheet.showIfPending(context);
     });
     _releaseSub = svc.watchAppReleases().listen((rows) {
       if (!mounted || rows.isEmpty) return;
+      // app_releases satırını CI yalnız anahtar açıkken yazar; yöneticinin panelden elle
+      // yayınladığı sürüm her durumda iletilir.
       final latest = rows.first;
       final ver = (latest['version_name'] ?? JuzzioConfig.appVersion).toString();
       final code = (latest['version_code'] as num?)?.toInt() ?? JuzzioConfig.appVersionCode;
@@ -2189,6 +2199,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             partnerAvatarUrl: targetPartnerAvatar ?? _resolveAvatar(partnerId),
             enableVideo: enableVideo,
             invitableUsers: _callInvitableUsers,
+            partnerVerified: _isUserVerified(partnerId),
           ),
       );
     } catch (e) {
@@ -2247,6 +2258,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     }
   }
 
+  /// v2.1: arama ekranlarında doğrulanmış rozeti için
+  bool _isUserVerified(String userId) =>
+      _allProfiles.where((p) => p.id == userId).firstOrNull?.isVerified ?? false;
+
   Future<void> _acceptIncomingCall() async {
     final call = _incomingCall;
     final uid = SupabaseService.instance.currentUserId;
@@ -2286,6 +2301,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             groupMembers: group?.groupMembers ?? const [],
             groupMemberLanguages: group != null ? _resolveGroupMemberLanguages(group.groupMembers) : const [],
             invitableUsers: _callInvitableUsers,
+            partnerVerified: !call.isGroup && _isUserVerified(call.callerId),
           ),
       );
     } finally {
@@ -2859,11 +2875,13 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       },
       child: Scaffold(
       backgroundColor: p.headerDarkForest,
-      bottomNavigationBar: _isInsideConversation
+      bottomNavigationBar: _isInsideConversation || _incomingCallBannerVisible
           ? null
           : _buildFloatingGlassBottomDock(p, s),
       body: Stack(
         children: [
+          // v2.1: hava ambiyansı içeriğin ARKASINDA (sayfaların üstüne binmez)
+          const Positioned.fill(child: JuzzioWeatherAmbience()),
           Positioned.fill(child: SafeArea(
         bottom: false,
         child: Column(
@@ -2871,7 +2889,6 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             if (appCtrl.otaUpdateAvailable) _buildOtaUpdateTopBanner(p, appCtrl),
             if (!_isInsideConversation && JuzzioFeaturesService.instance.lastAppConfig.announcementBanner.trim().isNotEmpty)
               _buildAnnouncementBanner(JuzzioFeaturesService.instance.lastAppConfig.announcementBanner.trim()),
-            if (_incomingCallBannerVisible) _buildIncomingCallBanner(p, s),
             if (_headsUpFriendRequest != null) _buildIncomingFriendRequestBanner(p, s),
             Expanded(
               child: AnimatedSwitcher(
@@ -2902,6 +2919,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         ),
       )),
           if (!_isInsideConversation) Positioned.fill(child: _buildExitHint(p, appCtrl)),
+          // v2.1 (tasarım: Gelen Arama) — tam ekran gelen arama
+          if (_incomingCallBannerVisible) Positioned.fill(child: _buildIncomingCallBanner(p, s)),
         ],
       ),
       ),
@@ -3426,146 +3445,26 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     );
   }
 
+  /// v2.1 (tasarım: Gelen Arama) — tam ekran: logo + "CANLI ÇEVİRİ • GÖRÜNTÜLÜ • SESLİ", ışık halkalı
+  /// avatar ve J rozeti, ad + doğrulanmış rozeti, "Gelen Arama...", arama türü hapı, ses dalgası,
+  /// Reddet / Kabul Et.
   Widget _buildIncomingCallBanner(JuzzioPalette p, JuzzioStrings s) {
     final appCtrl = JuzzioAppController.instance;
     final call = _incomingCall!;
-    final incomingCallIsGroup = call.isGroup;
-    final incomingCallIsVideo = call.isVideo;
-    final incomingCallerName = call.callerName;
-    final incomingGroupTitle = call.groupTitle.isNotEmpty ? call.groupTitle : appCtrl.trEn('Grup', 'Group', 'Gruppe');
-    final incomingGroupMembers = _groupRooms.where((g) => g.id == call.roomId).firstOrNull?.groupMembers ?? const <String>[];
-    final headline = incomingCallIsGroup
-        ? appCtrl.trEn(
-            '$incomingCallerName • $incomingGroupTitle (${incomingCallIsVideo ? "Görüntülü" : "Sesli"} Konferans)',
-            '$incomingCallerName • $incomingGroupTitle (${incomingCallIsVideo ? "Video" : "Voice"} Conference)', '$incomingCallerName • $incomingGroupTitle (${incomingCallIsVideo ? "Video" : "Sprach"}konferenz)',
-          )
-        : appCtrl.trEn('$incomingCallerName seni arıyor...', '$incomingCallerName is calling you...', '$incomingCallerName ruft dich an...');
-    final subline = incomingCallIsGroup
-        ? appCtrl.trEn(
-            'Katılımcılar: ${incomingGroupMembers.join(", ")}',
-            'Participants: ${incomingGroupMembers.join(", ")}', 'Teilnehmer: ${incomingGroupMembers.join(", ")}',
-          )
-        : (incomingCallIsVideo
-            ? appCtrl.trEn('Gelen HD Görüntülü Arama', 'Incoming HD Video Call', 'Eingehender HD-Videoanruf')
-            : appCtrl.trEn('Gelen HD Sesli Arama', 'Incoming HD Voice Call', 'Eingehender HD-Sprachanruf'));
-
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 10, 16, 8),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: p.cardBg,
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: p.glassBorder, width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.14),
-            blurRadius: 28,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: p.accentDeep,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  incomingCallIsGroup
-                      ? Icons.groups_rounded
-                      : (incomingCallIsVideo ? Icons.videocam_rounded : Icons.phone_in_talk_rounded),
-                  color: Colors.white,
-                  size: 26,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      headline,
-                      style: TextStyle(
-                        fontFamily: JuzzioConfig.fontRegularBold,
-                        color: p.textPrimary,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      subline,
-                      style: TextStyle(
-                        fontFamily: JuzzioConfig.fontRegularBold,
-                        color: p.textSecondary,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: SizedBox(
-                  height: 48,
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: JuzzioColors.red500,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-                    ),
-                    onPressed: _declineIncomingCall,
-                    icon: const Icon(Icons.call_end_rounded, size: 18),
-                    label: Text(
-                      s.t('decline_call'),
-                      style: const TextStyle(
-                        fontFamily: JuzzioConfig.fontRegularBold,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: SizedBox(
-                  height: 48,
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: JuzzioColors.emerald500,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-                    ),
-                    onPressed: _acceptIncomingCall,
-                    icon: const Icon(Icons.call_rounded, size: 18),
-                    label: Text(
-                      s.t('accept_call'),
-                      style: const TextStyle(
-                        fontFamily: JuzzioConfig.fontRegularBold,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+    final group = call.isGroup ? _groupRooms.where((g) => g.id == call.roomId).firstOrNull : null;
+    return JuzzioIncomingCallView(
+      key: ValueKey('incoming_${call.id}'),
+      callerName: call.callerName,
+      avatarUrl: call.callerAvatar,
+      isVideo: call.isVideo,
+      isGroup: call.isGroup,
+      groupTitle: call.isGroup
+          ? (call.groupTitle.isNotEmpty ? call.groupTitle : (group?.title ?? appCtrl.trEn('Grup', 'Group', 'Gruppe')))
+          : null,
+      participants: group?.groupMembers ?? const <String>[],
+      verified: !call.isGroup && _isUserVerified(call.callerId),
+      onAccept: _acceptIncomingCall,
+      onDecline: _declineIncomingCall,
     );
   }
 
@@ -3640,73 +3539,6 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  // v2.0.0 Figma: Canlı Çeviri / Sinema Parti / Civciv Oyunu / Topluluklar kısayolları
-  Widget _buildFeatureShortcutsRow(JuzzioAppController app) {
-    final glow = JuzzioGlassTokens.glow;
-    final bg = JuzzioGlassTokens.space.depth[1];
-    final border = JuzzioGlassTokens.spaceCardBorder;
-    final items = [
-      (Icons.translate_rounded, app.trEn('Canlı Çeviri', 'Live Translate', 'Live-Übersetzung'), () {
-        setState(() => _selectedBottomTab = 1);
-      }),
-      (Icons.movie_filter_rounded, app.trEn('Sinema Parti', 'Cinema Party', 'Kino-Party'), () {
-        setState(() => _selectedBottomTab = 1);
-      }),
-      (Icons.egg_alt_rounded, app.trEn('Civciv Oyunu', 'Chick Game', 'Küken-Spiel'), () {
-        final friends = _acceptedFriendProfiles;
-        if (friends.isNotEmpty) _openChickGame(friends.first);
-      }),
-      (Icons.groups_rounded, app.trEn('Topluluklar', 'Communities', 'Gruppen'), () {
-        setState(() => _selectedBottomTab = 3);
-      }),
-    ];
-    return SizedBox(
-      height: 76,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
-        itemBuilder: (_, i) {
-          final (icon, label, onTap) = items[i];
-          return GestureDetector(
-            onTap: onTap,
-            child: Container(
-              width: 76,
-              decoration: BoxDecoration(
-                color: bg.withValues(alpha: 0.6),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: border, width: 1.1),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: glow.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(icon, color: glow, size: 20),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    label,
-                    style: TextStyle(color: JuzzioGlassTokens.textSecondary, fontSize: 10, fontWeight: FontWeight.w600, height: 1.1),
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
       ),
     );
   }
@@ -3887,10 +3719,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                               ],
                             ),
                           ),
-                          const SizedBox(height: 18),
-                          // v2.0.0 Figma: özellik kısayolları satırı
-                          _buildFeatureShortcutsRow(appCtrl),
-                          const SizedBox(height: 18),
+                          // v2.1: üstteki kısayol kutuları (Canlı Çeviri / Sinema Parti / Civciv Oyunu /
+                          // Topluluklar) kaldırıldı — liste için yer açıldı; hepsi Keşfet ve + menüsünde.
+                          const SizedBox(height: 14),
                           JuzzioSpaceSectionHeader(
                             // Figma 01: "Mesajlar · 03 sohbet"
                             eyebrow: chatCount > 0
@@ -8149,10 +7980,14 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     return picked;
   }
 
+  /// v2.1 (tasarım: Aramalar) — J Juzzio başlığı + arama/filtre/görüntülü arama düğmeleri,
+  /// "Aramalar" başlığı ve açıklaması, Tümü/Görüntülü/Sesli/Cevapsız sekmeleri,
+  /// "Son Aramalar" + "Tümünü Temizle", halkalı avatarlı arama satırları.
   Widget _buildCallsTab(JuzzioPalette p, JuzzioStrings s) {
     final appCtrl = JuzzioAppController.instance;
     final myUid = SupabaseService.instance.currentUserId;
     final friends = _acceptedFriendProfiles;
+    final glow = JuzzioGlassTokens.glow;
     final filteredLogs = _callLogs.where((log) {
       final out = log.callerId == myUid;
       switch (_callsFilter) {
@@ -8168,278 +8003,429 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         case 'video':
           if (!log.isVideo) return false;
           break;
+        case 'voice':
+          if (log.isVideo) return false;
+          break;
       }
       if (_callsSearchQuery.trim().isEmpty) return true;
       final q = _callsSearchQuery.toLowerCase();
-      return log.callerName.toLowerCase().contains(q) || log.receiverName.toLowerCase().contains(q);
+      return log.callerName.toLowerCase().contains(q) ||
+          log.receiverName.toLowerCase().contains(q) ||
+          log.groupTitle.toLowerCase().contains(q);
     }).toList();
 
+    final tabs = <List<String>>[
+      ['all', appCtrl.trEn('Tümü', 'All', 'Alle')],
+      ['video', appCtrl.trEn('Görüntülü', 'Video', 'Video')],
+      ['voice', appCtrl.trEn('Sesli', 'Voice', 'Sprache')],
+      ['missed', appCtrl.trEn('Cevapsız', 'Missed', 'Verpasst')],
+    ];
+    const tabIcons = <String, IconData>{
+      'all': Icons.phone_callback_rounded,
+      'video': Icons.videocam_outlined,
+      'voice': Icons.call_outlined,
+      'missed': Icons.call_missed_rounded,
+    };
+
     return Container(
-      color: p.headerDarkForest,
+      color: Colors.transparent,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          JuzzioSpaceHeader(
-            eyebrow: appCtrl.trEn('Bağlantıda kal', 'Stay connected', 'Bleib verbunden'),
-            title: JuzzioSpaceBrand(text: appCtrl.trEn('Aramalar', 'Calls', 'Anrufe'), size: 32),
-            actions: [
-              JuzzioSpaceComposeButton(
-                icon: Icons.add_ic_call_outlined,
-                tooltip: appCtrl.trEn('Yeni arama başlat', 'Start new call', 'Neuen Anruf starten'),
-                onTap: () => _showSelectFriendToCallSheet(p, s),
-              ),
-            ],
-          ),
+          // Üst çubuk: J Juzzio · ara · filtre · görüntülü arama (yeşil)
           Padding(
-            padding: const EdgeInsets.fromLTRB(JuzzioSpaceMetrics.gutter, 0, JuzzioSpaceMetrics.gutter, 16),
-            child: JuzzioSpaceSearchBar(
-              hint: appCtrl.trEn('Kişi veya grup ara', 'Search people or groups', 'Personen oder Gruppen suchen'),
-              shortcutLabel: null,
-              onChanged: (v) => setState(() => _callsSearchQuery = v),
-            ),
-          ),
-          // Figma 03: hızlı "Sesli arama" / "Görüntülü" kartları
-          Padding(
-            padding: const EdgeInsets.fromLTRB(JuzzioSpaceMetrics.gutter, 0, JuzzioSpaceMetrics.gutter, 16),
-            child: Row(children: [
-              Expanded(
-                child: _quickCallCard(
-                  icon: Icons.call_rounded,
-                  label: appCtrl.trEn('Sesli arama', 'Voice call', 'Sprachanruf'),
-                  fill: JuzzioGlassTokens.glow.withValues(alpha: 0.16),
-                  fg: JuzzioGlassTokens.glowText,
-                  onTap: () => _showSelectFriendToCallSheet(p, s),
+            padding: const EdgeInsets.fromLTRB(JuzzioSpaceMetrics.gutter, 10, JuzzioSpaceMetrics.gutter, 0),
+            child: Row(
+              children: [
+                const JuzzioWordmark(size: 22),
+                const Spacer(),
+                JuzzioHeaderCircleButton(
+                  icon: _callsSearchOpen ? Icons.close_rounded : Icons.search_rounded,
+                  tooltip: appCtrl.trEn('Ara', 'Search', 'Suchen'),
+                  onTap: () => setState(() {
+                    _callsSearchOpen = !_callsSearchOpen;
+                    if (!_callsSearchOpen) _callsSearchQuery = '';
+                  }),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _quickCallCard(
-                  icon: Icons.videocam_rounded,
-                  label: appCtrl.trEn('Görüntülü Arama', 'Video Call', 'Videoanruf'),
-                  fill: JuzzioGlassTokens.spaceButton,
-                  fg: JuzzioGlassTokens.textPrimary,
-                  onTap: () => _showSelectFriendToCallSheet(p, s),
+                const SizedBox(width: 8),
+                JuzzioHeaderCircleButton(
+                  icon: Icons.tune_rounded,
+                  tooltip: appCtrl.trEn('Filtrele', 'Filter', 'Filtern'),
+                  onTap: () => _openCallsFilterSheet(appCtrl),
                 ),
-              ),
-            ]),
-          ),
-          const JuzzioSpaceDivider(),
-          Expanded(
-            child: Container(
-              width: double.infinity,
-              // v1.0.0: ayrı "çekmece" yerine zeminle bütünleşik liste (Juzzio Space)
-              // v1.2.4: aşağı çekerek yenileme (bebek eli) + çevrimdışı önbellek
-              child: JuzzioClothRefresh(
-               onRefresh: _refreshCallLogs,
-               child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(20, 18, 20, 96),
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        appCtrl.trEn('Son Aramalar', 'Recent Calls', 'Letzte Anrufe'),
-                        style: TextStyle(
-                          fontFamily: JuzzioConfig.fontRegularBold,
-                          color: p.textPrimary,
-                          fontSize: 16.5,
-                          fontWeight: FontWeight.w800,
-                        ),
+                const SizedBox(width: 8),
+                Tooltip(
+                  message: appCtrl.trEn('Yeni görüntülü arama', 'New video call', 'Neuer Videoanruf'),
+                  child: GestureDetector(
+                    onTap: () => _showSelectFriendToCallSheet(p, s),
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: glow,
+                        boxShadow: [BoxShadow(color: glow.withValues(alpha: 0.45), blurRadius: 16)],
                       ),
-                      GestureDetector(
-                        onTap: () async {
-                          final ids = _callLogs.map((l) => l.id).toList();
-                          setState(() => _callLogs = []);
-                          await SupabaseService.instance.deleteCallLogs(ids);
-                        },
-                        child: Text(
-                          appCtrl.trEn('Temizle', 'Clear', 'Löschen'),
-                          style: TextStyle(
-                            fontFamily: JuzzioConfig.fontRegularBold,
-                            color: p.amberGlow,
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        for (final f in <List<String>>[
-                          ['all', appCtrl.trEn('Tümü', 'All', 'Alle')],
-                          ['missed', appCtrl.trEn('Cevapsız', 'Missed', 'Verpasst')],
-                          ['in', appCtrl.trEn('Gelen', 'Incoming', 'Eingehend')],
-                          ['out', appCtrl.trEn('Giden', 'Outgoing', 'Ausgehend')],
-                          ['video', appCtrl.trEn('Görüntülü', 'Video', 'Video')],
-                        ])
-                          Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: JuzzioSpaceFilterPill(
-                              label: f[1],
-                              selected: _callsFilter == f[0],
-                              onTap: () => setState(() => _callsFilter = f[0]),
-                            ),
-                          ),
-                      ],
+                      child: Icon(Icons.videocam_rounded, size: 21, color: JuzzioGlassTokens.onGlow),
                     ),
                   ),
-                  const SizedBox(height: 10),
-
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(JuzzioSpaceMetrics.gutter, 18, JuzzioSpaceMetrics.gutter, 0),
+            child: Text(
+              appCtrl.trEn('Aramalar', 'Calls', 'Anrufe'),
+              style: TextStyle(
+                fontFamily: JuzzioConfig.fontRegularBold,
+                color: JuzzioGlassTokens.heading,
+                fontSize: 32,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.8,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(JuzzioSpaceMetrics.gutter, 4, JuzzioSpaceMetrics.gutter, 14),
+            child: Text(
+              appCtrl.trEn('Arama geçmişi, sesli ve görüntülü aramalarınız.', 'Call history, your voice and video calls.',
+                  'Anrufverlauf, deine Sprach- und Videoanrufe.'),
+              style: TextStyle(color: JuzzioGlassTokens.textSecondary, fontSize: 14),
+            ),
+          ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 180),
+            child: !_callsSearchOpen
+                ? const SizedBox(width: double.infinity)
+                : Padding(
+                    padding: const EdgeInsets.fromLTRB(JuzzioSpaceMetrics.gutter, 0, JuzzioSpaceMetrics.gutter, 14),
+                    child: JuzzioSpaceSearchBar(
+                      hint: appCtrl.trEn('Kişi veya grup ara', 'Search people or groups', 'Personen oder Gruppen suchen'),
+                      shortcutLabel: null,
+                      onChanged: (v) => setState(() => _callsSearchQuery = v),
+                    ),
+                  ),
+          ),
+          // Sekmeler: Tümü / Görüntülü / Sesli / Cevapsız (etkin: vurgu çerçeve + alt çizgi)
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: JuzzioSpaceMetrics.gutter),
+            child: Row(
+              children: [
+                for (final t in tabs)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 10),
+                    child: _callsTabChip(
+                      label: t[1],
+                      icon: tabIcons[t[0]],
+                      iconColor: t[0] == 'missed' ? JuzzioColors.redAlert : null,
+                      selected: _callsFilter == t[0],
+                      onTap: () => setState(() => _callsFilter = t[0]),
+                    ),
+                  ),
+                if (_callsFilter == 'in' || _callsFilter == 'out')
+                  _callsTabChip(
+                    label: _callsFilter == 'in'
+                        ? appCtrl.trEn('Gelen', 'Incoming', 'Eingehend')
+                        : appCtrl.trEn('Giden', 'Outgoing', 'Ausgehend'),
+                    selected: true,
+                    onTap: () => setState(() => _callsFilter = 'all'),
+                  ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: JuzzioClothRefresh(
+              onRefresh: _refreshCallLogs,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(JuzzioSpaceMetrics.gutter, 18, JuzzioSpaceMetrics.gutter, 110),
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          appCtrl.trEn('Son Aramalar', 'Recent Calls', 'Letzte Anrufe'),
+                          style: TextStyle(
+                            fontFamily: JuzzioConfig.fontRegularBold,
+                            color: JuzzioGlassTokens.heading,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      if (_callLogs.isNotEmpty)
+                        GestureDetector(
+                          onTap: () => _confirmClearCallLogs(appCtrl),
+                          child: Text(
+                            appCtrl.trEn('Tümünü Temizle', 'Clear All', 'Alle löschen'),
+                            style: TextStyle(
+                              fontFamily: JuzzioConfig.fontRegularBold,
+                              color: JuzzioGlassTokens.glowText,
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
                   if (filteredLogs.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 18),
-                      child: Text(
-                        appCtrl.trEn('Henüz arama geçmişin yok.', 'No calls yet.', 'Noch keine Anrufe.'),
-                        style: TextStyle(color: p.textSecondary, fontSize: 13.5),
+                    Container(
+                      margin: const EdgeInsets.only(top: 8),
+                      padding: const EdgeInsets.symmetric(vertical: 34, horizontal: 20),
+                      decoration: BoxDecoration(
+                        color: JuzzioGlassTokens.spaceCard,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
+                      ),
+                      child: Column(
+                        children: [
+                          Icon(Icons.call_rounded, color: JuzzioGlassTokens.glowText, size: 34),
+                          const SizedBox(height: 10),
+                          Text(
+                            _callLogs.isEmpty
+                                ? appCtrl.trEn('Henüz arama geçmişin yok.', 'No calls yet.', 'Noch keine Anrufe.')
+                                : appCtrl.trEn('Bu filtrede arama yok.', 'No calls in this filter.', 'Keine Anrufe in diesem Filter.'),
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: JuzzioGlassTokens.textSecondary, fontSize: 14),
+                          ),
+                          if (_callLogs.isEmpty) ...[
+                            const SizedBox(height: 14),
+                            JuzzioLimeButton(
+                              label: appCtrl.trEn('Arama başlat', 'Start a call', 'Anruf starten'),
+                              icon: Icons.add_call,
+                              height: 44,
+                              onPressed: friends.isEmpty ? _showFriendSearchAndRequestsSheet : () => _showSelectFriendToCallSheet(p, s),
+                            ),
+                          ],
+                        ],
                       ),
                     )
                   else
-                    ...filteredLogs.map((log) {
-                      final isOutgoing = log.callerId == myUid;
-                      final partnerId = isOutgoing ? log.receiverId : log.callerId;
-                      final partnerName = log.isGroup && log.groupTitle.isNotEmpty
-                          ? log.groupTitle
-                          : (isOutgoing ? log.receiverName : log.callerName);
-                      final partnerAvatar = isOutgoing ? log.receiverAvatar : log.callerAvatar;
-                      final isMissed = !isOutgoing && log.isMissedLike;
-                      final statusLabel = log.status == 'rejected'
-                          ? appCtrl.trEn('Reddedildi', 'Declined', 'Abgelehnt')
-                          : log.status == 'missed' || log.status == 'cancelled'
-                              ? (isOutgoing ? appCtrl.trEn('Cevap yok', 'No answer', 'Keine Antwort') : appCtrl.trEn('Cevapsız', 'Missed', 'Verpasst'))
-                              : log.status == 'busy_silent'
-                                  ? appCtrl.trEn('Meşgul', 'Busy', 'Beschäftigt')
-                                  : _formatCallDuration(log.durationSec);
-                      final when = _formatRelativeMinutes(log.createdAt);
-                      final group = log.isGroup ? _groupRooms.where((g) => g.id == log.roomId).firstOrNull : null;
-                      return _buildCallHistoryRow(
-                        p: p,
-                        name: partnerName,
-                        avatarUrl: partnerAvatar,
-                        isGroup: log.isGroup,
-                        groupMembers: group?.groupMembers ?? const [],
-                        subText:
-                            // v1.2.1: yön oku satırın simgesinde zaten var — metinde ikinci ok yazılmaz ("↗ ↗ Sesli" hatası)
-                            '${log.isVideo ? appCtrl.trEn("Görüntülü", "Video", "Video") : appCtrl.trEn("Sesli", "Voice", "Sprache")} • $statusLabel • $when',
-                        isVideo: log.isVideo,
-                        outgoing: isOutgoing,
-                        isMissed: isMissed,
-                        isOnline: !log.isGroup &&
-                            (friends.where((f) => f.id == partnerId).firstOrNull?.isEffectivelyOnline ?? false),
-                        onTap: () => JuzzioCallDetailPage.open(context, log, onCallBack: () {
-                          if (group != null) {
-                            _launchGroupConferenceCall(group: group, isVideo: log.isVideo);
-                          } else if (!log.isGroup && partnerId != null) {
-                            _launchCall(
-                              enableVideo: log.isVideo,
-                              targetPartnerName: partnerName,
-                              targetPartnerId: partnerId,
-                              targetPartnerAvatar: partnerAvatar,
-                            );
-                          }
-                        }),
-                        onCallTap: () {
-                          if (group != null) {
-                            _launchGroupConferenceCall(group: group, isVideo: log.isVideo);
-                          } else if (!log.isGroup && partnerId != null) {
-                            _launchCall(
-                              enableVideo: log.isVideo,
-                              targetPartnerName: partnerName,
-                              targetPartnerId: partnerId,
-                              targetPartnerAvatar: partnerAvatar,
-                            );
-                          }
-                        },
-                      );
-                    }),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: JuzzioGlassTokens.spaceCard,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
+                      ),
+                      child: Column(
+                        children: [
+                          for (var i = 0; i < filteredLogs.length; i++) ...[
+                            if (i > 0)
+                              Divider(height: 1, indent: 82, endIndent: 14, color: JuzzioGlassTokens.spaceCardBorder),
+                            Builder(builder: (_) {
+                              final log = filteredLogs[i];
+                              final isOutgoing = log.callerId == myUid;
+                              final partnerId = isOutgoing ? log.receiverId : log.callerId;
+                              final partnerName = log.isGroup && log.groupTitle.isNotEmpty
+                                  ? log.groupTitle
+                                  : (isOutgoing ? log.receiverName : log.callerName);
+                              final partnerAvatar = isOutgoing ? log.receiverAvatar : log.callerAvatar;
+                              final isMissed = !isOutgoing && log.isMissedLike;
+                              final kind = log.isVideo
+                                  ? appCtrl.trEn('Görüntülü arama', 'Video call', 'Videoanruf')
+                                  : appCtrl.trEn('Sesli arama', 'Voice call', 'Sprachanruf');
+                              final statusLabel = log.status == 'rejected'
+                                  ? appCtrl.trEn('Reddedildi', 'Declined', 'Abgelehnt')
+                                  : log.status == 'missed' || log.status == 'cancelled'
+                                      ? (isOutgoing
+                                          ? appCtrl.trEn('Cevap yok', 'No answer', 'Keine Antwort')
+                                          : appCtrl.trEn('Cevapsız', 'Missed', 'Verpasst'))
+                                      : log.status == 'busy_silent'
+                                          ? appCtrl.trEn('Meşgul', 'Busy', 'Beschäftigt')
+                                          : juzzioCallDurationLong(log.durationSec);
+                              final group = log.isGroup ? _groupRooms.where((g) => g.id == log.roomId).firstOrNull : null;
+                              void callBack() {
+                                if (group != null) {
+                                  _launchGroupConferenceCall(group: group, isVideo: log.isVideo);
+                                } else if (!log.isGroup && partnerId != null) {
+                                  _launchCall(
+                                    enableVideo: log.isVideo,
+                                    targetPartnerName: partnerName,
+                                    targetPartnerId: partnerId,
+                                    targetPartnerAvatar: partnerAvatar,
+                                  );
+                                }
+                              }
 
-                  const SizedBox(height: 22),
-                  Text(
-                    appCtrl.trEn('Arkadaşların', 'Your Friends', 'Deine Freunde'),
-                    style: TextStyle(
-                      fontFamily: JuzzioConfig.fontRegularBold,
-                      color: p.textPrimary,
-                      fontSize: 16.5,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  if (friends.isNotEmpty)
-                    ...friends.asMap().entries.map((entry) {
-                      final f = entry.value;
-                      final presence = f.formattedPresence(isTr: s.isTr);
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 14),
-                        child: Row(
-                          children: [
-                            _buildUserAvatar(
-                              avatarUrl: f.avatarUrl,
-                              fallbackName: f.displayName,
-                              radius: 24,
-                              p: p,
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    f.displayName,
-                                    style: TextStyle(
-                                      fontFamily: JuzzioConfig.fontRegularBold,
-                                      color: p.textPrimary,
-                                      fontSize: 15.5,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    presence,
-                                    style: TextStyle(color: p.textSecondary, fontSize: 12.5),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            IconButton(
-                              onPressed: () => _launchCall(
-                                enableVideo: false,
-                                targetPartnerName: f.displayName,
-                                targetPartnerId: f.id,
-                                targetPartnerAvatar: f.avatarUrl,
-                                targetPartnerLang: f.preferredLang,
-                              ),
-                              icon: Icon(Icons.call_outlined, color: p.textPrimary, size: 22),
-                            ),
+                              return _buildCallHistoryRow(
+                                p: p,
+                                name: partnerName,
+                                avatarUrl: partnerAvatar,
+                                isGroup: log.isGroup,
+                                groupMembers: group?.groupMembers ?? const [],
+                                subText: isMissed
+                                    ? (log.isVideo
+                                        ? appCtrl.trEn('Cevapsız görüntülü arama', 'Missed video call', 'Verpasster Videoanruf')
+                                        : appCtrl.trEn('Cevapsız arama', 'Missed call', 'Verpasster Anruf'))
+                                    : '$kind • $statusLabel',
+                                when: juzzioCallWhenLabel(log.createdAt),
+                                isVideo: log.isVideo,
+                                outgoing: isOutgoing,
+                                isMissed: isMissed,
+                                verified: !log.isGroup && partnerId != null && _isUserVerified(partnerId),
+                                isOnline: !log.isGroup &&
+                                    (friends.where((f) => f.id == partnerId).firstOrNull?.isEffectivelyOnline ?? false),
+                                onTap: () => JuzzioCallDetailPage.open(context, log, onCallBack: callBack),
+                                onCallTap: callBack,
+                              );
+                            }),
                           ],
-                        ),
-                      );
-                    })
-                  else
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: p.textPrimary,
-                          side: BorderSide(color: p.glassBorder),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-                        ),
-                        onPressed: _showFriendSearchAndRequestsSheet,
-                        icon: const Icon(Icons.person_add_alt_1_rounded, size: 18),
-                        label: Text(s.t('send_friend_req')),
+                        ],
                       ),
                     ),
                 ],
-              ),
               ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  Widget _callsTabChip({required String label, required bool selected, required VoidCallback onTap, IconData? icon, Color? iconColor}) {
+    final glow = JuzzioGlassTokens.glow;
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.fromLTRB(18, 9, 18, 0),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(999),
+          color: selected ? glow.withValues(alpha: 0.10) : JuzzioGlassTokens.spaceButton,
+          border: Border.all(color: selected ? glow : JuzzioGlassTokens.spaceCardBorder, width: selected ? 1.5 : 1),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (icon != null) ...[
+                  Icon(icon, size: 17, color: iconColor ?? (selected ? JuzzioGlassTokens.glowText : JuzzioGlassTokens.textSecondary)),
+                  const SizedBox(width: 6),
+                ],
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontFamily: JuzzioConfig.fontRegularBold,
+                    color: selected ? JuzzioGlassTokens.glowText : JuzzioGlassTokens.textSecondary,
+                    fontSize: 14,
+                    fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              width: selected ? 22 : 0,
+              height: 3,
+              decoration: BoxDecoration(color: glow, borderRadius: BorderRadius.circular(9)),
+            ),
+            const SizedBox(height: 4),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openCallsFilterSheet(JuzzioAppController appCtrl) async {
+    final opts = <List<Object>>[
+      ['all', Icons.all_inclusive_rounded, appCtrl.trEn('Tümü', 'All', 'Alle')],
+      ['in', Icons.call_received_rounded, appCtrl.trEn('Gelen aramalar', 'Incoming calls', 'Eingehende Anrufe')],
+      ['out', Icons.call_made_rounded, appCtrl.trEn('Giden aramalar', 'Outgoing calls', 'Ausgehende Anrufe')],
+      ['missed', Icons.call_missed_rounded, appCtrl.trEn('Cevapsız', 'Missed', 'Verpasst')],
+      ['video', Icons.videocam_rounded, appCtrl.trEn('Görüntülü', 'Video', 'Video')],
+      ['voice', Icons.call_rounded, appCtrl.trEn('Sesli', 'Voice', 'Sprache')],
+    ];
+    await showJuzzioGlassSheet<void>(
+      context: context,
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              appCtrl.trEn('Aramaları filtrele', 'Filter calls', 'Anrufe filtern'),
+              style: TextStyle(
+                fontFamily: JuzzioConfig.fontRegularBold,
+                color: JuzzioGlassTokens.heading,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 10),
+            for (final o in opts)
+              ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 6),
+                leading: Icon(o[1] as IconData, color: _callsFilter == o[0] ? JuzzioGlassTokens.glowText : JuzzioGlassTokens.icon),
+                title: Text(o[2] as String,
+                    style: TextStyle(color: JuzzioGlassTokens.textPrimary, fontWeight: FontWeight.w700)),
+                trailing: _callsFilter == o[0] ? Icon(Icons.check_circle_rounded, color: JuzzioGlassTokens.glowText) : null,
+                onTap: () {
+                  setState(() => _callsFilter = o[0] as String);
+                  Navigator.pop(ctx);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmClearCallLogs(JuzzioAppController appCtrl) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.7),
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 28),
+        child: JuzzioNeonCard(
+          opaque: true,
+          padding: const EdgeInsets.fromLTRB(22, 24, 22, 18),
+          radius: 26,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.delete_sweep_rounded, color: JuzzioColors.redAlert, size: 40),
+              const SizedBox(height: 12),
+              Text(
+                appCtrl.trEn('Arama geçmişi silinsin mi?', 'Clear call history?', 'Anrufverlauf löschen?'),
+                textAlign: TextAlign.center,
+                style: TextStyle(color: JuzzioGlassTokens.heading, fontSize: 18, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                appCtrl.trEn('Tüm arama kayıtların bu hesaptan kaldırılır.', 'All your call records are removed from this account.',
+                    'Alle Anrufeinträge werden aus diesem Konto entfernt.'),
+                textAlign: TextAlign.center,
+                style: TextStyle(color: JuzzioGlassTokens.textSecondary, fontSize: 13.5),
+              ),
+              const SizedBox(height: 18),
+              JuzzioLimeButton(
+                label: appCtrl.trEn('Tümünü Temizle', 'Clear All', 'Alle löschen'),
+                style: JuzzioLimeButtonStyle.danger,
+                onPressed: () => Navigator.pop(ctx, true),
+              ),
+              const SizedBox(height: 8),
+              JuzzioLimeButton(
+                label: appCtrl.trEn('Vazgeç', 'Cancel', 'Abbrechen'),
+                style: JuzzioLimeButtonStyle.ghost,
+                onPressed: () => Navigator.pop(ctx, false),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (ok != true) return;
+    final ids = _callLogs.map((l) => l.id).toList();
+    setState(() => _callLogs = []);
+    await SupabaseService.instance.deleteCallLogs(ids);
   }
 
   Widget _buildCallHistoryRow({
@@ -8454,91 +8440,137 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     bool isGroup = false,
     List<String> groupMembers = const [],
     bool isOnline = false,
+    bool verified = false,
+    String when = '',
     VoidCallback? onTap,
   }) {
+    final glow = JuzzioGlassTokens.glow;
+    final dirColor = isMissed ? JuzzioColors.redAlert : const Color(0xFF34D27B);
     return InkWell(
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(24),
       onTap: onTap,
       child: Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          Stack(
-            children: [
-              if (isGroup)
-                _buildGroup2x2AvatarGrid(groupMembers, name)
-              else
-                _buildUserAvatar(
-                  avatarUrl: avatarUrl,
-                  fallbackName: name,
-                  radius: 25,
-                  p: p,
-                ),
-              // v0.7.0: yeşil nokta yalnızca kişi gerçekten çevrimiçiyse
-              if (isOnline)
-              Positioned(
-                right: 0,
-                bottom: 0,
-                child: Container(
-                  width: 12,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: p.onlineGreen,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: p.cardBg, width: 2),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontFamily: JuzzioConfig.fontRegularBold,
-                    color: isMissed ? p.dangerRed : p.textPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Row(
-                  children: [
-                    Icon(
-                      isVideo ? Icons.videocam_outlined : (outgoing ? Icons.call_made_rounded : Icons.call_received_rounded),
-                      size: 14,
-                      color: isMissed ? p.dangerRed : p.onlineGreen,
+        padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 56,
+              height: 56,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: 56,
+                    height: 56,
+                    padding: const EdgeInsets.all(2.5),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: glow, width: 2),
                     ),
-                    const SizedBox(width: 5),
-                    Flexible(
-                      child: Text(
-                        subText,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: p.textSecondary, fontSize: 13),
+                    child: ClipOval(
+                      child: isGroup
+                          ? _buildGroup2x2AvatarGrid(groupMembers, name)
+                          : _buildUserAvatar(avatarUrl: avatarUrl, fallbackName: name, radius: 23, p: p),
+                    ),
+                  ),
+                  if (isOnline)
+                    Positioned(
+                      right: 1,
+                      bottom: 1,
+                      child: Container(
+                        width: 13,
+                        height: 13,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF34D27B),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: p.headerDarkForest, width: 2.2),
+                        ),
                       ),
                     ),
-                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontFamily: JuzzioConfig.fontRegularBold,
+                            color: JuzzioGlassTokens.heading,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      if (verified) ...[
+                        const SizedBox(width: 4),
+                        Icon(Icons.verified_rounded, size: 16, color: JuzzioGlassTokens.glowText),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(
+                        isMissed
+                            ? Icons.call_missed_rounded
+                            : (outgoing ? Icons.call_made_rounded : Icons.call_received_rounded),
+                        size: 15,
+                        color: dirColor,
+                      ),
+                      const SizedBox(width: 5),
+                      Flexible(
+                        child: Text(
+                          subText,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: isMissed ? JuzzioColors.redAlert : JuzzioGlassTokens.textSecondary, fontSize: 12.5),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (when.isNotEmpty)
+                  Text(when, style: TextStyle(color: JuzzioGlassTokens.textMuted, fontSize: 11.5, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 6),
+                Tooltip(
+                  message: isVideo
+                      ? JuzzioAppController.instance.trEn('Görüntülü ara', 'Video call', 'Videoanruf')
+                      : JuzzioAppController.instance.trEn('Sesli ara', 'Voice call', 'Sprachanruf'),
+                  child: GestureDetector(
+                    onTap: onCallTap,
+                    child: Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isMissed ? JuzzioGlassTokens.spaceButton : glow.withValues(alpha: 0.16),
+                        border: Border.all(color: isMissed ? JuzzioGlassTokens.spaceCardBorder : glow.withValues(alpha: 0.6)),
+                      ),
+                      child: Icon(isVideo ? Icons.videocam_outlined : Icons.call_outlined,
+                          size: 19, color: isMissed ? JuzzioGlassTokens.textPrimary : JuzzioGlassTokens.glowText),
+                    ),
+                  ),
                 ),
               ],
             ),
-          ),
-          IconButton(
-            onPressed: onCallTap,
-            icon: Icon(
-              isVideo ? Icons.videocam_outlined : Icons.call_outlined,
-              color: p.textPrimary,
-              size: 22,
-            ),
-          ),
-        ],
-      ),
+          ],
+        ),
       ),
     );
   }
@@ -8589,40 +8621,6 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     final first = full.split(RegExp(r'\s+')).firstWhere((w) => w.isNotEmpty, orElse: () => '');
     return first.isEmpty ? hello : '$hello, $first';
   }
-
-  Widget _quickCallCard({
-    required IconData icon,
-    required String label,
-    required Color fill,
-    required Color fg,
-    required VoidCallback onTap,
-  }) =>
-      Material(
-        color: fill,
-        borderRadius: BorderRadius.circular(18),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Container(
-            height: 52,
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
-            ),
-            child: Row(children: [
-              Icon(icon, color: fg, size: 20),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: fg, fontWeight: FontWeight.w800, fontSize: 14)),
-              ),
-            ]),
-          ),
-        ),
-      );
 
   void _showSelectFriendToCallSheet(JuzzioPalette p, JuzzioStrings s) {
     final friends = _acceptedFriendProfiles;
@@ -9805,7 +9803,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       },
       child: Scaffold(
         backgroundColor: p.headerDarkForest,
-        body: SafeArea(
+        body: Stack(children: [
+        // v2.1: hava ambiyansı içeriğin arkasında
+        const Positioned.fill(child: JuzzioWeatherAmbience()),
+        SafeArea(
           bottom: false,
           child: JuzzioDesktopShell(
             onShortcut: _handleDesktopShortcut,
@@ -9825,7 +9826,6 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                     JuzzioFeaturesService.instance.lastAppConfig.announcementBanner.trim().isNotEmpty)
                   _buildAnnouncementBanner(
                       JuzzioFeaturesService.instance.lastAppConfig.announcementBanner.trim()),
-                if (_incomingCallBannerVisible) _buildIncomingCallBanner(p, s),
                 if (_headsUpFriendRequest != null) _buildIncomingFriendRequestBanner(p, s),
                 Expanded(
                   child: AnimatedSwitcher(
@@ -9857,6 +9857,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                 : JuzzioDesktopRightPlaceholder(onNewChat: _startNewMessageDesktop),
           ),
         ),
+        if (_incomingCallBannerVisible) Positioned.fill(child: _buildIncomingCallBanner(p, s)),
+        ]),
       ),
     );
   }

@@ -366,8 +366,8 @@ class _JuzzioQrCameraScanPageState extends State<JuzzioQrCameraScanPage> {
                 height: 250,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(28),
-                  border: Border.all(color: JuzzioBrandColors.lime, width: 3),
-                  boxShadow: [BoxShadow(color: JuzzioBrandColors.lime.withValues(alpha: 0.35), blurRadius: 24)],
+                  border: Border.all(color: JuzzioGlassTokens.glowText, width: 3),
+                  boxShadow: [BoxShadow(color: JuzzioGlassTokens.glowText.withValues(alpha: 0.35), blurRadius: 24)],
                 ),
               ),
             ),
@@ -407,9 +407,9 @@ class _JuzzioQrCameraScanPageState extends State<JuzzioQrCameraScanPage> {
                     const SizedBox(height: 14),
                     TextButton.icon(
                       onPressed: () => Navigator.of(context).pop(JuzzioQrCameraScanPage.pasteSignal),
-                      icon: const Icon(Icons.link_rounded, color: JuzzioBrandColors.lime),
+                      icon: Icon(Icons.link_rounded, color: JuzzioGlassTokens.glowText),
                       label: Text(_t('Bağlantı yapıştır', 'Paste link', 'Link einfügen'),
-                          style: const TextStyle(color: JuzzioBrandColors.lime, fontWeight: FontWeight.w600)),
+                          style: TextStyle(color: JuzzioGlassTokens.glowText, fontWeight: FontWeight.w600)),
                     ),
                   ]),
                 ),

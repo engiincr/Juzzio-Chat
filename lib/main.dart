@@ -341,8 +341,8 @@ class JuzzioApp extends StatelessWidget {
                         fit: StackFit.expand,
                         children: [
                           child ?? const SizedBox.shrink(),
-                          // v1.2.1: hava durumuna göre tema ambiyansı (dokunmayı engellemez)
-                          const Positioned.fill(child: JuzzioWeatherAmbience()),
+                          // v2.1: hava ambiyansı artık sayfaların ÜSTÜNDE değil, ana ekranın arka planında
+                          // (chat_screen → JuzzioWeatherAmbience()); yazıların/diyalogların üstüne binmez.
                           const JuzzioLiveIsland(),
                         ],
                       ),

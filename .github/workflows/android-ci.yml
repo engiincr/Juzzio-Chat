@@ -450,7 +450,10 @@ jobs:
 
       - name: macOS DMG oluştur
         run: |
-          APP_PATH="build/macos/Build/Products/Release/Juzzio Chat.app"
+          # Ürün adı (PRODUCT_NAME) değişse de çalışsın: üretilen .app dinamik bulunur
+          APP_PATH="$(find build/macos/Build/Products/Release -maxdepth 1 -name '*.app' -type d | head -1)"
+          if [ -z "$APP_PATH" ]; then echo "::error::macOS .app bulunamadı"; ls -la build/macos/Build/Products/Release || true; exit 1; fi
+          echo "Paketlenen: $APP_PATH"
           mkdir -p release-output
           hdiutil create -volname "Juzzio" -srcfolder "$APP_PATH" -ov -format UDZO \
             "release-output/Juzzio-macos.dmg"
@@ -678,6 +681,9 @@ jobs:
           fi
           DB_URL="$(python3 scripts/resolve_db_url.py)"
           echo "::add-mask::$DB_URL"
+          # v2.1: yalnız yönetici panelinde "GitHub güncellemelerini kullanıcılara ilet" AÇIKSA
+          ON="$(psql "$DB_URL" -tA -X -c "SELECT public.juzzio_setting_bool('github_updates_enabled', false)" 2>/dev/null || echo f)"
+          if [ "$ON" != "t" ]; then echo "Güncelleme bildirimi yönetici panelinde kapalı — kullanıcılara iletilmedi"; exit 0; fi
           python3 scripts/release_meta.py publish-sql > /tmp/publish_release.sql
           psql "$DB_URL" -v ON_ERROR_STOP=1 -q -X -f /tmp/publish_release.sql
           echo "app_releases güncellendi; kullanıcılara anlık bildirim gönderildi"
@@ -694,6 +700,8 @@ jobs:
           if [ -z "${SUPABASE_DB_URL:-}" ]; then echo "SUPABASE_DB_URL yok, atlandı"; exit 0; fi
           DB_URL="$(python3 scripts/resolve_db_url.py)"
           echo "::add-mask::$DB_URL"
+          ON="$(psql "$DB_URL" -tA -X -c "SELECT public.juzzio_setting_bool('github_updates_enabled', false)" 2>/dev/null || echo f)"
+          if [ "$ON" != "t" ]; then echo "Güncelleme duyurusu yönetici panelinde kapalı — topluluğa paylaşılmadı"; exit 0; fi
           VER="$(python3 scripts/community_release_post.py ver)"
           TR="$(python3 scripts/community_release_post.py tr)"
           EN="$(python3 scripts/community_release_post.py en)"

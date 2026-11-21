@@ -751,6 +751,7 @@ class MainActivity : FlutterActivity() {
     }
 
     private var juzzioSpeech: JuzzioSpeech? = null
+    private var juzzioAudioRoute: JuzzioAudioRoute? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -764,9 +765,21 @@ class MainActivity : FlutterActivity() {
         juzzioSpeech = speech
         EventChannel(flutterEngine.dartExecutor.binaryMessenger, "juzzio/speech_events").setStreamHandler(speech)
 
+        // v2.1: arama ses çıkışı (ahize / hoparlör / kablolu / Bluetooth) + kulaklık tak-çıkar olayları
+        val audioRoute = JuzzioAudioRoute(applicationContext)
+        juzzioAudioRoute = audioRoute
+        EventChannel(flutterEngine.dartExecutor.binaryMessenger, "juzzio/audio_route_events").setStreamHandler(audioRoute)
+
         channel.setMethodCallHandler { call, result ->
             when (call.method) {
                 "speechAvailable" -> result.success(juzzioSpeech?.available() == true)
+                "audioRouteStart" -> result.success(juzzioAudioRoute?.start(call.argument<Boolean>("preferSpeaker") == true))
+                "audioRouteSet" -> result.success(juzzioAudioRoute?.apply(call.argument<String>("route") ?: "earpiece"))
+                "audioRouteState" -> result.success(juzzioAudioRoute?.state())
+                "audioRouteStop" -> {
+                    juzzioAudioRoute?.stop()
+                    result.success(true)
+                }
                 // v1.2.9: cihaz modeli / Android sürümü (giriş kaydı için; IMEI ASLA okunmaz)
                 "deviceInfo" -> result.success(mapOf(
                     "model" to ("${Build.MANUFACTURER} ${Build.MODEL}").trim(),

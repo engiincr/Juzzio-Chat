@@ -2988,7 +2988,7 @@ SET ROLE authenticated;
 SELECT pg_temp.as_user(:'C');
 SELECT (admin_unlock('Varsayilan1', 'dev-c-0001', false)) AS u48 \gset
 SELECT pg_temp.check('varsayılan şifreyle giriş: değiştirme zorunlu', (:'u48'::jsonb->>'must_change')::boolean = true);
-SELECT pg_temp.check('şifre değişmeden yönetici işlemi yok', NOT admin_check_token(:'u48'::jsonb->>'token'));
+SELECT pg_temp.check('varsayılan şifreyle de panel açılır (10.52)', admin_check_token(:'u48'::jsonb->>'token'));
 DO $$ DECLARE v_hit BOOLEAN := false; BEGIN
   BEGIN PERFORM public.admin_change_my_password(current_setting('juzzio.t48', true), 'Varsayilan1', 'kisa'); EXCEPTION WHEN OTHERS THEN v_hit := true; END;
   PERFORM pg_temp.check('zayıf/oturumsuz şifre değişimi reddedilir', v_hit);
@@ -3059,6 +3059,25 @@ SELECT admin_flag_delete('tok250', 'kapali_ozellik');
 RESET ROLE;
 SELECT pg_temp.check('bayrak tablosu istemciye kapalı', NOT has_table_privilege('authenticated', 'public.feature_flags', 'SELECT'));
 SELECT pg_temp.check('kova 0..99', (SELECT bool_and(juzzio_flag_bucket(gen_random_uuid(), 'k') BETWEEN 0 AND 99) FROM generate_series(1, 200)));
+DELETE FROM admin_sessions WHERE user_id = :'A';
+UPDATE profiles SET username = (SELECT username FROM _u47) WHERE id = :'A';
+-- 10.51 GitHub güncelleme bildirimi anahtarı (varsayılan kapalı, yalnız süper yönetici)
+RESET ROLE;
+SET search_path = public, extensions;
+SELECT pg_temp.check('güncelleme bildirimi varsayılan kapalı', (get_app_config()->>'github_updates_enabled') = 'false');
+UPDATE profiles SET username = 'tugkancr' WHERE id = :'A';
+DELETE FROM admin_sessions WHERE user_id = :'A';
+INSERT INTO admin_sessions (token_hash, user_id, expires_at) VALUES (encode(digest('tok251', 'sha256'), 'hex'), :'A', NOW() + INTERVAL '1 hour');
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+SELECT admin_set_setting('tok251', 'github_updates_enabled', 'true'::jsonb);
+SELECT pg_temp.check('yönetici güncelleme bildirimini açtı', (get_app_config()->>'github_updates_enabled') = 'true');
+SELECT admin_set_setting('tok251', 'github_updates_enabled', 'false'::jsonb);
+DO $$ DECLARE v_hit BOOLEAN := false; BEGIN
+  BEGIN PERFORM public.admin_set_setting('tok251', 'github_updates_enabled', '"evet"'::jsonb); EXCEPTION WHEN OTHERS THEN v_hit := true; END;
+  PERFORM pg_temp.check('güncelleme anahtarı yalnız mantıksal değer alır', v_hit);
+END $$;
+RESET ROLE;
 DELETE FROM admin_sessions WHERE user_id = :'A';
 UPDATE profiles SET username = (SELECT username FROM _u47) WHERE id = :'A';
 SELECT 'TÜM v2.1 TESTLERİ GEÇTİ';

@@ -262,7 +262,12 @@ class JuzzioGlass extends StatelessWidget {
     // çizdiği için cam tonu kayboluyor, renkler çamurlaşıyordu).
     final br = BorderRadius.circular(radius);
     final d = JuzzioGlassTokens._d;
-    final tint = color ?? (blur && !JuzzioGlassTokens.reducedEffects ? JuzzioGlassTokens.surface : JuzzioGlassTokens.surfaceSolid);
+    // v2.1: açılır pencerede (diyalog/alt sayfa) renk verilmemişse okunur opak sayfa rengi
+    final inPopup = color == null && ModalRoute.of(context) is PopupRoute;
+    final tint = color ??
+        (inPopup
+            ? JuzzioGlassTokens.sheet
+            : (blur && !JuzzioGlassTokens.reducedEffects ? JuzzioGlassTokens.surface : JuzzioGlassTokens.surfaceSolid));
     final body = CustomPaint(
       foregroundPainter: JuzzioGlassBorderPainter(
         radius: radius,

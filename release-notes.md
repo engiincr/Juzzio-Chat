@@ -19,6 +19,11 @@ Juzzio 2.1: the new green ribbon J logo and a Neon Lime look that matches the de
 - 📷 Scan QR codes with the camera (Android/iOS), torch button and paste fallback
 - 🌤️ Sky 2.1: weather ambience redesigned — sky colour by your local time, a sun that arcs through the day, the moon in its real phase, twinkling stars, clouds, windy rain, lightning, snow and fog
 - ⚙️ New Settings: Account & Profile, Privacy & Security, two-step verification (authenticator app), scheduled quiet hours, translation mode (Real-time / Fast / High accuracy), storage ring chart, bubble corners, bold text, colour correction, FAQ, Download my data, Consents; Call Settings and sign-out dialog
+- 📞 Call screens redesigned: new Calls tab, Voice Call, Video Call and full-screen Incoming Call (keypad removed — calls go over the internet)
+- 🎧 Audio output picker: arrow next to Speaker for earpiece / speaker / wired / Bluetooth; plugging a headset switches to it, unplugging returns to the earpiece
+- 🎬 Cinema Party room redesigned: theme-coloured cinema card, LIVE badge, glass control bar, seats for viewers
+- 🛡️ Admin Panel: every section and module on the home page; each opens as its own full page
+- 🔐 The two-step verification code now has a clear full page (6-box code, paste); Sign out and other dialogs are opaque and readable
 
 ## 🛠️ What was fixed?
 
@@ -30,16 +35,3 @@ Juzzio 2.1: the new green ribbon J logo and a Neon Lime look that matches the de
 - TRUNCATE/REFERENCES/TRIGGER removed from client roles on every table; signed-out (anon) writes fully blocked
 - Explore never uses location or age; private accounts are never shown and anyone can hide from Explore
 
-## ⬇️ Download
-
-- Latest: [Juzzio-latest.apk](https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk)
-- This version: `juzzio-v2.1.0-release.apk` (137.07 MB)
-
-## ✅ Verify the APK
-
-```bash
-sha256sum Juzzio-latest.apk
-# 754b6416f95a20c1f169e69ca3eac3b85584113245e3469966a3f3a76ff03c60  Juzzio-latest.apk
-```
-
-Built: 2026-11-21 06:44 UTC — GitHub Actions

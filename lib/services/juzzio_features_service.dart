@@ -256,6 +256,8 @@ class JuzzioAppConfig {
   final int videoMaxSeconds;
   final int minSupportedBuild;
   final bool errorReportingEnabled;
+  /// v2.1: GitHub sürümleri kullanıcılara otomatik duyurulsun mu? (varsayılan KAPALI — yönetici açar)
+  final bool githubUpdatesEnabled;
   // v0.9.7: cihazdaki medya önbelleği sınırı (MB) ve azami dosya yaşı (gün; 0 = sınırsız)
   final int mediaCacheMaxMb;
   final int mediaCacheMaxAgeDays;
@@ -284,6 +286,7 @@ class JuzzioAppConfig {
     this.videoMaxSeconds = 180,
     this.minSupportedBuild = 0,
     this.errorReportingEnabled = true,
+    this.githubUpdatesEnabled = false,
     this.mediaCacheMaxMb = 300,
     this.mediaCacheMaxAgeDays = 60,
   });
@@ -318,6 +321,7 @@ class JuzzioAppConfig {
       videoMaxSeconds: n('video_max_seconds', 180).clamp(10, 600),
       minSupportedBuild: n('min_supported_build', 0).clamp(0, 100000),
       errorReportingEnabled: b('error_reporting_enabled', true),
+      githubUpdatesEnabled: b('github_updates_enabled', false),
       mediaCacheMaxMb: n('media_cache_max_mb', 300).clamp(50, 4096),
       mediaCacheMaxAgeDays: n('media_cache_max_age_days', 60).clamp(0, 365),
     );

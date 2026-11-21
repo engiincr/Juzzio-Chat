@@ -185,10 +185,12 @@ void main() {
       expect(_src('lib/screens/chat_screen.dart').contains('onTap: _openFriendRequestsPage'), isTrue);
       expect(_src('supabase/juzzio_database.sql').contains('FUNCTION public.mutual_friend_counts(p_users UUID[])'), isTrue);
     });
-    test('Aramalar: Sesli / Görüntülü Arama düğmeleri ve filtreler', () {
+    test('Aramalar (v2.1 tasarım): Tümü / Görüntülü / Sesli / Cevapsız sekmeleri, Tümünü Temizle', () {
       final c = _src('lib/screens/chat_screen.dart');
-      expect(c.contains("appCtrl.trEn('Görüntülü Arama', 'Video Call', 'Videoanruf')"), isTrue);
+      expect(c.contains("['voice', appCtrl.trEn('Sesli', 'Voice', 'Sprache')]"), isTrue);
       expect(c.contains("['missed', appCtrl.trEn('Cevapsız', 'Missed', 'Verpasst')]"), isTrue);
+      expect(c.contains("appCtrl.trEn('Tümünü Temizle', 'Clear All', 'Alle löschen')"), isTrue);
+      expect(c.contains('_buildFeatureShortcutsRow'), isFalse);
     });
   });
 
@@ -212,7 +214,7 @@ void main() {
     });
     test('görüntülü aramada Canlı Çeviri Aktif rozeti', () {
       final c = _src('lib/screens/call_screen.dart');
-      expect('_liveTranslationBadge(top: topInset + 118)'.allMatches(c).length, 2);
+      expect(c.contains('if (_showSubtitles) _liveTranslationBadge(top: 72)'), isTrue);
     });
   });
 

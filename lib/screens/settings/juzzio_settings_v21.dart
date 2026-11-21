@@ -14,6 +14,8 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/app_theme_and_locale.dart';
+import '../../core/config.dart';
+import '../../core/theme/juzzio_colors.dart';
 import '../../core/theme/juzzio_glass.dart';
 import '../../widgets/juzzio_brand.dart';
 import '../../widgets/juzzio_neon_kit.dart';
@@ -196,73 +198,245 @@ Future<bool> showJuzzioLogoutDialog(BuildContext context) async {
 
 /// Girişte ve açılışta istenen 6 haneli kod. İptal → null.
 Future<String?> showJuzzioMfaCodeDialog(BuildContext context) {
-  final app = JuzzioAppController.instance;
-  final ctrl = TextEditingController();
-  return showDialog<String>(
-    context: context,
-    barrierDismissible: false,
-    builder: (ctx) {
-      String? error;
-      return StatefulBuilder(
-        builder: (ctx, setD) => Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.symmetric(horizontal: 28),
-          child: JuzzioNeonCard(
-            padding: const EdgeInsets.fromLTRB(22, 24, 22, 18),
-            radius: 26,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.shield_moon_outlined, color: JuzzioBrandColors.lime, size: 40),
-                const SizedBox(height: 12),
-                Text(
-                  app.trEn('İki adımlı doğrulama', 'Two-step verification', 'Zwei-Schritt-Verifizierung'),
-                  style: TextStyle(color: JuzzioGlassTokens.heading, fontSize: 18, fontWeight: FontWeight.w800),
+  // v2.1: saydam iletişim kutusu yerine OPAK tam sayfa (giriş ekranının üstüne binip okunmaz olmuyordu)
+  return Navigator.of(context, rootNavigator: true).push<String>(
+    PageRouteBuilder<String>(
+      opaque: true,
+      fullscreenDialog: true,
+      transitionDuration: const Duration(milliseconds: 260),
+      pageBuilder: (_, __, ___) => const JuzzioMfaCodePage(),
+      transitionsBuilder: (_, anim, __, child) => FadeTransition(
+        opacity: anim,
+        child: SlideTransition(
+          position: Tween(begin: const Offset(0, 0.04), end: Offset.zero)
+              .animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
+          child: child,
+        ),
+      ),
+    ),
+  );
+}
+
+/// v2.1 — İki adımlı doğrulama kodu sayfası (tam ekran, temaya uyumlu, 6 kutulu kod alanı)
+class JuzzioMfaCodePage extends StatefulWidget {
+  const JuzzioMfaCodePage({super.key});
+
+  @override
+  State<JuzzioMfaCodePage> createState() => _JuzzioMfaCodePageState();
+}
+
+class _JuzzioMfaCodePageState extends State<JuzzioMfaCodePage> {
+  final _app = JuzzioAppController.instance;
+  final _ctrl = TextEditingController();
+  final _focus = FocusNode();
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl.addListener(() {
+      if (_error != null) setState(() => _error = null);
+      setState(() {});
+      if (_ctrl.text.length == 6) _submit();
+    });
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final code = juzzioCleanTotpCode(_ctrl.text);
+    if (code == null) {
+      setState(() => _error = _app.trEn('6 haneli kodu gir', 'Enter the 6-digit code', '6-stelligen Code eingeben'));
+      return;
+    }
+    Navigator.of(context).pop(code);
+  }
+
+  Future<void> _paste() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final digits = (data?.text ?? '').replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.length >= 6) _ctrl.text = digits.substring(0, 6);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = JuzzioGlassTokens.isDarkResolver();
+    final depth = dark ? JuzzioGlassTokens.space.depth : JuzzioGlassTokens.space.depthLight;
+    final glow = JuzzioGlassTokens.glow;
+    final text = _ctrl.text;
+    return Scaffold(
+      backgroundColor: depth.last,
+      body: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: depth),
+        ),
+        child: SafeArea(
+          child: LayoutBuilder(
+            builder: (ctx, box) => SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 22),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: box.maxHeight),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        JuzzioHeaderCircleButton(
+                          icon: Icons.close_rounded,
+                          tooltip: _app.trEn('Vazgeç', 'Cancel', 'Abbrechen'),
+                          onTap: () => Navigator.of(context).pop(),
+                        ),
+                        const Expanded(child: Center(child: JuzzioWordmark(size: 20))),
+                        const SizedBox(width: 40),
+                      ],
+                    ),
+                    const SizedBox(height: 44),
+                    Container(
+                      width: 92,
+                      height: 92,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(30),
+                        color: glow.withValues(alpha: 0.12),
+                        border: Border.all(color: glow.withValues(alpha: 0.55), width: 1.4),
+                        boxShadow: [BoxShadow(color: glow.withValues(alpha: 0.28), blurRadius: 30)],
+                      ),
+                      child: Icon(Icons.shield_moon_outlined, color: JuzzioGlassTokens.glowText, size: 46),
+                    ),
+                    const SizedBox(height: 26),
+                    Text(
+                      _app.trEn('İki adımlı doğrulama', 'Two-step verification', 'Zwei-Schritt-Verifizierung'),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: JuzzioConfig.fontRegularBold,
+                        color: JuzzioGlassTokens.heading,
+                        fontSize: 26,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.4,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      _app.trEn('Hesabın korunuyor. Kimlik doğrulayıcı uygulamandaki 6 haneli kodu gir.',
+                          'Your account is protected. Enter the 6-digit code from your authenticator app.',
+                          'Dein Konto ist geschützt. Gib den 6-stelligen Code deiner Authenticator-App ein.'),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: JuzzioGlassTokens.textSecondary, fontSize: 14.5, height: 1.4),
+                    ),
+                    const SizedBox(height: 34),
+                    // 6 kutulu kod alanı (tek gizli metin alanı; yapıştırma ve SMS/otomatik doldurma destekli)
+                    GestureDetector(
+                      onTap: () => _focus.requestFocus(),
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: List.generate(6, (i) {
+                              final filled = i < text.length;
+                              final current = i == text.length && _focus.hasFocus;
+                              return Container(
+                                width: 46,
+                                height: 58,
+                                margin: EdgeInsets.only(right: i == 5 ? 0 : (i == 2 ? 16 : 8)),
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: JuzzioGlassTokens.spaceInset,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: _error != null
+                                        ? JuzzioColors.redAlert
+                                        : (current || filled ? glow : JuzzioGlassTokens.spaceCardBorder),
+                                    width: current ? 2 : 1.3,
+                                  ),
+                                ),
+                                child: Text(
+                                  filled ? text[i] : '',
+                                  style: TextStyle(
+                                    fontFamily: JuzzioConfig.fontRegularBold,
+                                    color: JuzzioGlassTokens.heading,
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              );
+                            }),
+                          ),
+                          Positioned.fill(
+                            child: Opacity(
+                              opacity: 0,
+                              child: TextField(
+                                controller: _ctrl,
+                                focusNode: _focus,
+                                autofocus: true,
+                                keyboardType: TextInputType.number,
+                                maxLength: 6,
+                                autofillHints: const [AutofillHints.oneTimeCode],
+                                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                                showCursor: false,
+                                enableInteractiveSelection: false,
+                                decoration: const InputDecoration(counterText: '', border: InputBorder.none),
+                                onSubmitted: (_) => _submit(),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (_error != null) ...[
+                      const SizedBox(height: 12),
+                      Text(_error!, style: const TextStyle(color: JuzzioColors.redAlert, fontSize: 13, fontWeight: FontWeight.w600)),
+                    ],
+                    const SizedBox(height: 14),
+                    TextButton.icon(
+                      onPressed: _paste,
+                      icon: Icon(Icons.content_paste_rounded, size: 18, color: JuzzioGlassTokens.glowText),
+                      label: Text(
+                        _app.trEn('Kodu yapıştır', 'Paste code', 'Code einfügen'),
+                        style: TextStyle(color: JuzzioGlassTokens.glowText, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    const SizedBox(height: 30),
+                    JuzzioLimeButton(
+                      label: _app.trEn('Doğrula ve giriş yap', 'Verify and sign in', 'Bestätigen und anmelden'),
+                      icon: Icons.verified_user_rounded,
+                      onPressed: text.length == 6 ? _submit : null,
+                    ),
+                    const SizedBox(height: 10),
+                    JuzzioLimeButton(
+                      label: _app.trEn('Vazgeç', 'Cancel', 'Abbrechen'),
+                      style: JuzzioLimeButtonStyle.ghost,
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                    const SizedBox(height: 26),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.lock_outline_rounded, size: 14, color: JuzzioGlassTokens.textMuted),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            _app.trEn('Kod her 30 saniyede yenilenir.', 'The code refreshes every 30 seconds.',
+                                'Der Code erneuert sich alle 30 Sekunden.'),
+                            style: TextStyle(color: JuzzioGlassTokens.textMuted, fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                  ],
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  app.trEn('Kimlik doğrulayıcı uygulamandaki 6 haneli kodu gir.',
-                      'Enter the 6-digit code from your authenticator app.', 'Gib den 6-stelligen Code deiner Authenticator-App ein.'),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: JuzzioGlassTokens.textSecondary, fontSize: 13.5),
-                ),
-                const SizedBox(height: 14),
-                TextField(
-                  controller: ctrl,
-                  autofocus: true,
-                  keyboardType: TextInputType.number,
-                  textAlign: TextAlign.center,
-                  maxLength: 6,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  style: TextStyle(color: JuzzioGlassTokens.heading, fontSize: 24, letterSpacing: 8, fontWeight: FontWeight.w700),
-                  decoration: InputDecoration(counterText: '', hintText: '••••••', errorText: error),
-                ),
-                const SizedBox(height: 12),
-                JuzzioLimeButton(
-                  label: app.trEn('Doğrula', 'Verify', 'Bestätigen'),
-                  onPressed: () {
-                    final code = juzzioCleanTotpCode(ctrl.text);
-                    if (code == null) {
-                      setD(() => error = app.trEn('6 haneli kodu gir', 'Enter the 6-digit code', '6-stelligen Code eingeben'));
-                      return;
-                    }
-                    Navigator.of(ctx).pop(code);
-                  },
-                ),
-                const SizedBox(height: 8),
-                JuzzioLimeButton(
-                  label: app.trEn('Vazgeç', 'Cancel', 'Abbrechen'),
-                  style: JuzzioLimeButtonStyle.outline,
-                  onPressed: () => Navigator.of(ctx).pop(),
-                ),
-              ],
+              ),
             ),
           ),
         ),
-      );
-    },
-  );
-  // Not: denetleyici, kapanış animasyonu sürerken kullanılabileceği için burada dispose edilmez.
+      ),
+    );
+  }
 }
 
 /// Faz 7.3 — İki adımlı doğrulama ayarı (tasarım: Gizlilik ve Güvenlik → 2FA)
@@ -438,10 +612,10 @@ class _JuzzioTwoFactorPageState extends State<JuzzioTwoFactorPage> {
                         child: Row(mainAxisSize: MainAxisSize.min, children: [
                           Flexible(
                             child: SelectableText(pending.secret,
-                                style: const TextStyle(color: JuzzioBrandColors.lime, fontFamily: 'monospace', fontWeight: FontWeight.w700, letterSpacing: 1.2)),
+                                style: TextStyle(color: JuzzioGlassTokens.glowText, fontFamily: 'monospace', fontWeight: FontWeight.w700, letterSpacing: 1.2)),
                           ),
                           const SizedBox(width: 6),
-                          const Icon(Icons.copy_rounded, size: 16, color: JuzzioBrandColors.lime),
+                          Icon(Icons.copy_rounded, size: 16, color: JuzzioGlassTokens.glowText),
                         ]),
                       ),
                     ),
@@ -570,7 +744,7 @@ class JuzzioTranslationModeCard extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
-                const Icon(Icons.translate_rounded, color: JuzzioBrandColors.lime, size: 20),
+                Icon(Icons.translate_rounded, color: JuzzioGlassTokens.glowText, size: 20),
                 const SizedBox(width: 8),
                 Text(app.trEn('Çeviri kipi', 'Translation mode', 'Übersetzungsmodus'),
                     style: TextStyle(color: JuzzioGlassTokens.heading, fontSize: 15.5, fontWeight: FontWeight.w800)),
@@ -633,14 +807,14 @@ class JuzzioAppearanceQuickCard extends StatelessWidget {
                   child: Text(app.trEn('Mesaj balonu köşeleri', 'Message bubble corners', 'Ecken der Sprechblasen'),
                       style: TextStyle(color: JuzzioGlassTokens.heading, fontSize: 14, fontWeight: FontWeight.w700)),
                 ),
-                Text('${r.round()}', style: const TextStyle(color: JuzzioBrandColors.lime, fontWeight: FontWeight.w800)),
+                Text('${r.round()}', style: TextStyle(color: JuzzioGlassTokens.glowText, fontWeight: FontWeight.w800)),
               ]),
               Slider(
                 value: r,
                 min: 8,
                 max: 28,
                 divisions: 10,
-                activeColor: JuzzioBrandColors.lime,
+                activeColor: JuzzioGlassTokens.glowText,
                 onChanged: app.setBubbleRadius,
               ),
               Align(
@@ -648,7 +822,7 @@ class JuzzioAppearanceQuickCard extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
-                    color: JuzzioBrandColors.lime,
+                    color: JuzzioGlassTokens.glowText,
                     borderRadius: BorderRadius.only(
                       topLeft: Radius.circular(r),
                       topRight: Radius.circular(r),
@@ -836,7 +1010,7 @@ class JuzzioA11yExtrasCard extends StatelessWidget {
               padding: const EdgeInsets.all(16),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [
-                  const Icon(Icons.palette_outlined, color: JuzzioBrandColors.lime, size: 20),
+                  Icon(Icons.palette_outlined, color: JuzzioGlassTokens.glowText, size: 20),
                   const SizedBox(width: 8),
                   Text(app.trEn('Renk düzeltme', 'Colour correction', 'Farbkorrektur'),
                       style: TextStyle(color: JuzzioGlassTokens.heading, fontSize: 15.5, fontWeight: FontWeight.w800)),
@@ -853,7 +1027,7 @@ class JuzzioA11yExtrasCard extends StatelessWidget {
                         app.trEn('Gri tonlama', 'Grayscale', 'Graustufen'),
                       ][k]),
                       selected: i == k,
-                      selectedColor: JuzzioBrandColors.lime,
+                      selectedColor: JuzzioGlassTokens.glowText,
                       labelStyle: TextStyle(
                           color: i == k ? const Color(0xFF111113) : JuzzioGlassTokens.heading, fontWeight: FontWeight.w700),
                       onSelected: (_) => app.setColorVisionMode(modes[k]),
@@ -941,7 +1115,7 @@ class _JuzzioConsentCenterPageState extends State<JuzzioConsentCenterPage> {
               JuzzioNeonCard(
                 padding: const EdgeInsets.all(16),
                 child: Row(children: [
-                  const Icon(Icons.cake_outlined, color: JuzzioBrandColors.lime),
+                  Icon(Icons.cake_outlined, color: JuzzioGlassTokens.glowText),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
@@ -1046,7 +1220,7 @@ class JuzzioFaqCard extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
               child: Row(children: [
-                const Icon(Icons.quiz_outlined, color: JuzzioBrandColors.lime, size: 20),
+                Icon(Icons.quiz_outlined, color: JuzzioGlassTokens.glowText, size: 20),
                 const SizedBox(width: 8),
                 Text(app.trEn('Sık Sorulan Sorular', 'FAQ', 'Häufige Fragen'),
                     style: TextStyle(color: JuzzioGlassTokens.heading, fontSize: 15.5, fontWeight: FontWeight.w800)),
@@ -1054,7 +1228,7 @@ class JuzzioFaqCard extends StatelessWidget {
             ),
             for (final (q, a) in items)
               ExpansionTile(
-                iconColor: JuzzioBrandColors.lime,
+                iconColor: JuzzioGlassTokens.glowText,
                 collapsedIconColor: JuzzioGlassTokens.textSecondary,
                 title: Text(q, style: TextStyle(color: JuzzioGlassTokens.heading, fontSize: 14, fontWeight: FontWeight.w700)),
                 childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -1128,7 +1302,7 @@ class JuzzioAutoDownloadCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
-              const Icon(Icons.download_for_offline_outlined, color: JuzzioBrandColors.lime, size: 20),
+              Icon(Icons.download_for_offline_outlined, color: JuzzioGlassTokens.glowText, size: 20),
               const SizedBox(width: 8),
               Text(app.trEn('Medyayı otomatik indir', 'Auto-download media', 'Medien automatisch laden'),
                   style: TextStyle(color: JuzzioGlassTokens.heading, fontSize: 15.5, fontWeight: FontWeight.w800)),
@@ -1253,7 +1427,7 @@ class _JuzzioVerificationRequestPageState extends State<JuzzioVerificationReques
                 padding: const EdgeInsets.all(16),
                 child: Row(children: [
                   Icon(verified ? Icons.verified_rounded : (pending ? Icons.hourglass_top_rounded : Icons.info_outline_rounded),
-                      color: JuzzioBrandColors.lime),
+                      color: JuzzioGlassTokens.glowText),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
@@ -1282,7 +1456,7 @@ class _JuzzioVerificationRequestPageState extends State<JuzzioVerificationReques
                       app.trEn('Diğer', 'Other', 'Sonstiges'),
                     ][k]),
                     selected: _cat == k,
-                    selectedColor: JuzzioBrandColors.lime,
+                    selectedColor: JuzzioGlassTokens.glowText,
                     labelStyle: TextStyle(color: _cat == k ? const Color(0xFF111113) : JuzzioGlassTokens.heading, fontWeight: FontWeight.w700),
                     onSelected: (_) => setState(() => _cat = k),
                   ),

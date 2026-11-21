@@ -23,6 +23,7 @@ class JuzzioNeonCard extends StatelessWidget {
     this.radius = 22,
     this.highlighted = false,
     this.onTap,
+    this.opaque,
   });
 
   final Widget child;
@@ -31,21 +32,35 @@ class JuzzioNeonCard extends StatelessWidget {
   final double radius;
   final bool highlighted;
   final VoidCallback? onTap;
+  /// v2.1: opak zemin. Boşsa otomatik: iletişim kutusu / açılır pencere (PopupRoute) içindeyse opak.
+  /// (Saydam kart diyalogda alttaki sayfanın yazılarıyla üst üste biniyordu.)
+  final bool? opaque;
+
+  /// Diyalog/alt sayfa gibi açılır pencereler için okunur, tamamen opak kart rengi
+  static Color solidColor() {
+    final dark = JuzzioGlassTokens.isDarkResolver();
+    final sp = JuzzioGlassTokens.space;
+    final base = dark ? sp.depth[sp.depth.length > 1 ? 1 : 0] : sp.depthLight.last;
+    return Color.alphaBlend(JuzzioGlassTokens.spaceCard, base.withValues(alpha: 1));
+  }
 
   @override
   Widget build(BuildContext context) {
     final glow = JuzzioGlassTokens.glow;
     final r = BorderRadius.circular(radius);
+    final solid = opaque ?? (ModalRoute.of(context) is PopupRoute);
     final box = Container(
       margin: margin,
       decoration: BoxDecoration(
-        color: JuzzioGlassTokens.spaceCard,
+        color: solid ? solidColor() : JuzzioGlassTokens.spaceCard,
         borderRadius: r,
         border: Border.all(
           color: highlighted ? glow.withValues(alpha: 0.75) : JuzzioGlassTokens.spaceCardBorder,
           width: highlighted ? 1.4 : 1,
         ),
-        boxShadow: highlighted ? [BoxShadow(color: glow.withValues(alpha: 0.22), blurRadius: 18, spreadRadius: -4)] : null,
+        boxShadow: highlighted
+            ? [BoxShadow(color: glow.withValues(alpha: 0.22), blurRadius: 18, spreadRadius: -4)]
+            : (solid ? [BoxShadow(color: Colors.black.withValues(alpha: 0.45), blurRadius: 30, offset: const Offset(0, 12))] : null),
       ),
       child: Material(
         type: MaterialType.transparency,

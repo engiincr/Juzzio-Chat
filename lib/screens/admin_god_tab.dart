@@ -698,6 +698,17 @@ class _JuzzioAdminGodTabState extends State<JuzzioAdminGodTab> {
           value: _cfg.errorReportingEnabled,
           onChanged: (v) => _run(() => JuzzioFeaturesService.instance.adminSetSetting(widget.token, 'error_reporting_enabled', v)),
         ),
+        // v2.1: GitHub sürümleri kullanıcılara otomatik iletilsin mi (varsayılan kapalı)
+        JuzzioSwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: Text(_t('GitHub güncellemelerini kullanıcılara ilet', 'Deliver GitHub updates to users', 'GitHub-Updates an Nutzer senden')),
+          subtitle: Text(_t(
+              'Kapalıyken GitHub\'a yüklenen sürümler kimseye bildirilmez ve toplulukta duyurulmaz. Açınca yeni sürümler otomatik iletilir.',
+              'When off, releases pushed to GitHub are not announced to anyone. When on, new versions are delivered automatically.',
+              'Aus = keine Update-Hinweise. An = neue Versionen werden automatisch gemeldet.')),
+          value: _cfg.githubUpdatesEnabled,
+          onChanged: (v) => _run(() => JuzzioFeaturesService.instance.adminSetSetting(widget.token, 'github_updates_enabled', v)),
+        ),
         const SizedBox(height: 8),
         Text(
           _t('Not: 2 adımlı doğrulama (2FA) için Supabase Auth → MFA ayarının panelden açılması gerekir; uygulama içi 2FA bu sürümde yoktur.',

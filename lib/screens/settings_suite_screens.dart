@@ -180,7 +180,7 @@ class _JuzzioSettingsMainPageState extends State<JuzzioSettingsMainPage> {
                     children: [
                       Container(
                         padding: const EdgeInsets.all(2.5),
-                        decoration: const BoxDecoration(shape: BoxShape.circle, color: JuzzioBrandColors.lime),
+                        decoration: BoxDecoration(shape: BoxShape.circle, color: JuzzioGlassTokens.glowText),
                         child: CircleAvatar(
                           radius: 30,
                           backgroundColor: p.accentDeep,
@@ -215,12 +215,12 @@ class _JuzzioSettingsMainPageState extends State<JuzzioSettingsMainPage> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
-                                color: JuzzioBrandColors.lime.withValues(alpha: 0.14),
+                                color: JuzzioGlassTokens.glowText.withValues(alpha: 0.14),
                                 borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: JuzzioBrandColors.lime.withValues(alpha: 0.5)),
+                                border: Border.all(color: JuzzioGlassTokens.glowText.withValues(alpha: 0.5)),
                               ),
                               child: Text(appCtrl.trEn('Profili Düzenle', 'Edit Profile', 'Profil bearbeiten'),
-                                  style: const TextStyle(color: JuzzioBrandColors.lime, fontSize: 12, fontWeight: FontWeight.w700)),
+                                  style: TextStyle(color: JuzzioGlassTokens.glowText, fontSize: 12, fontWeight: FontWeight.w700)),
                             ),
                           ],
                         ),

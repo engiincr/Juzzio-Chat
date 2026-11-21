@@ -30,7 +30,11 @@ import '../services/deepgram_livekit_service.dart' show DeepgramLiveKitControlle
 import '../services/juzzio_time_sync.dart';
 import '../services/juzzio_translation_memory.dart';
 import '../services/supabase_service.dart';
+import '../core/theme/juzzio_glass.dart';
+import '../widgets/juzzio_brand.dart';
+import '../widgets/juzzio_call_kit21.dart';
 import '../widgets/juzzio_motion.dart';
+import '../widgets/juzzio_neon_kit.dart';
 import '../widgets/juzzio_ui_kit.dart';
 import '../core/juzzio_text_safety.dart';
 
@@ -763,7 +767,11 @@ class _JuzzioWatchPartyScreenState extends State<JuzzioWatchPartyScreen> {
               child: Center(
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.62), borderRadius: BorderRadius.circular(10)),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.66),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: JuzzioCallColors.accent.withValues(alpha: 0.4)),
+                  ),
                   child: Text(_cueTranslated,
                       textAlign: TextAlign.center,
                       style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600, height: 1.3)),
@@ -775,25 +783,40 @@ class _JuzzioWatchPartyScreenState extends State<JuzzioWatchPartyScreen> {
     );
   }
 
+  String _sourceLabel(JuzzioWatchSession s) => switch (s.kind) {
+        'youtube' => 'YouTube',
+        'hls' => 'HLS',
+        'direct' => _app.trEn('Video', 'Video', 'Video'),
+        _ => 'Web',
+      };
+
+  /// v2.1 — Sinemadakiler: halkalı kişi kartları (konuşan vurgu halkası, mikrofon kapalı rozeti),
+  /// boş koltuklar davet kutusu
   Widget _viewerStrip() {
     return SizedBox(
-      height: 92,
+      height: 98,
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
           for (final v in _viewers.take(4)) _viewerAvatar(v),
           for (var i = _viewers.length; i < 4; i++)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: Container(
-                width: 54,
-                height: 54,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.16), width: 1.4),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 58,
+                  height: 58,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: JuzzioCallColors.glass,
+                    border: Border.all(color: JuzzioCallColors.glassBorder, width: 1.4),
+                  ),
+                  child: const Icon(Icons.event_seat_rounded, color: JuzzioCallColors.textDim, size: 22),
                 ),
-                child: Icon(Icons.person_add_alt_1_rounded, color: Colors.white.withValues(alpha: 0.28), size: 20),
-              ),
+                const SizedBox(height: 6),
+                Text(_app.trEn('Boş koltuk', 'Free seat', 'Freier Platz'),
+                    style: const TextStyle(color: JuzzioCallColors.textDim, fontSize: 11, fontWeight: FontWeight.w600)),
+              ],
             ),
         ],
       ),
@@ -804,128 +827,220 @@ class _JuzzioWatchPartyScreenState extends State<JuzzioWatchPartyScreen> {
     final part = _participantFor(v.userId);
     final speaking = part?.isSpeaking ?? false;
     final micOn = v.userId == _myId ? _micOn : (part?.isMicrophoneEnabled() ?? false);
-    final first = v.name.trim().isEmpty ? 'J' : v.name.trim().characters.first.toUpperCase();
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 220),
-                padding: const EdgeInsets.all(3),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  // konuşan kişinin çevresinde yeşil halka
-                  border: Border.all(color: speaking ? const Color(0xFF34D399) : Colors.transparent, width: 3),
-                  boxShadow: speaking ? [BoxShadow(color: const Color(0xFF34D399).withValues(alpha: 0.55), blurRadius: 12)] : null,
-                ),
-                child: CircleAvatar(
-                  radius: 24,
-                  backgroundColor: const Color(0xFF2A2740),
-                  backgroundImage: (v.avatar ?? '').startsWith('http') ? NetworkImage(v.avatar!) : null,
-                  child: (v.avatar ?? '').startsWith('http')
-                      ? null
-                      : Text(first, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+    final accent = JuzzioCallColors.accent;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              padding: const EdgeInsets.all(2.5),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                // konuşan kişinin çevresinde vurgu halkası (temanın rengi)
+                border: Border.all(color: speaking ? accent : JuzzioCallColors.glassBorder, width: speaking ? 3 : 1.4),
+                boxShadow: speaking ? [BoxShadow(color: accent.withValues(alpha: 0.55), blurRadius: 14)] : null,
+              ),
+              child: JuzzioGlassAvatar(imageUrl: v.avatar, name: v.name, radius: 26),
+            ),
+            if (!micOn)
+              Positioned(
+                right: -2,
+                bottom: -2,
+                child: Container(
+                  padding: const EdgeInsets.all(3.5),
+                  decoration: BoxDecoration(
+                    color: JuzzioCallColors.danger,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: JuzzioCallColors.depth.last, width: 2),
+                  ),
+                  child: const Icon(Icons.mic_off_rounded, size: 12, color: Colors.white),
                 ),
               ),
-              if (!micOn)
-                Positioned(
-                  right: -2,
-                  bottom: -2,
-                  child: Container(
-                    padding: const EdgeInsets.all(3),
-                    decoration: const BoxDecoration(color: Color(0xFFEF4444), shape: BoxShape.circle),
-                    child: const Icon(Icons.mic_off_rounded, size: 13, color: Colors.white),
-                  ),
+            if (v.userId == _s?.hostId)
+              Positioned(
+                left: -2,
+                top: -2,
+                child: Container(
+                  padding: const EdgeInsets.all(3),
+                  decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
+                  child: Icon(Icons.star_rounded, size: 11, color: JuzzioCallColors.onAccent),
                 ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          SizedBox(
-            width: 66,
-            child: Text(v.userId == _myId ? _app.trEn('Sen', 'You', 'Du') : v.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white70, fontSize: 11.5, fontWeight: FontWeight.w600)),
-          ),
-        ],
-      ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        SizedBox(
+          width: 70,
+          child: Text(v.userId == _myId ? _app.trEn('Sen', 'You', 'Du') : v.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: speaking ? accent : JuzzioCallColors.text,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+              )),
+        ),
+      ],
     );
   }
 
   Widget _controls(JuzzioWatchSession s) {
     final vc = _vc;
-    Widget roundBtn(IconData icon, String tip, VoidCallback onTap, {Color? bg, double size = 22}) => Tooltip(
-          message: tip,
-          child: Material(
-            color: bg ?? Colors.white.withValues(alpha: 0.10),
-            shape: const CircleBorder(),
-            child: InkWell(customBorder: const CircleBorder(), onTap: onTap, child: Padding(padding: const EdgeInsets.all(11), child: Icon(icon, color: Colors.white, size: size))),
-          ),
-        );
+    final accent = JuzzioCallColors.accent;
+    int cur() => vc != null && vc.value.isInitialized
+        ? vc.value.position.inMilliseconds
+        : (_webFrame != null ? _webPosMs : s.expectedPositionMs(JuzzioClock.nowUtc()));
+    final sliderTheme = SliderTheme.of(context).copyWith(
+      activeTrackColor: accent,
+      inactiveTrackColor: Colors.white.withValues(alpha: 0.14),
+      thumbColor: accent,
+      overlayColor: accent.withValues(alpha: 0.18),
+      trackHeight: 3.5,
+      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+    );
+    const timeStyle = TextStyle(
+      color: JuzzioCallColors.textDim,
+      fontSize: 12,
+      fontWeight: FontWeight.w700,
+      fontFeatures: [FontFeature.tabularFigures()],
+    );
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         if (vc != null && vc.value.isInitialized)
           ValueListenableBuilder<VideoPlayerValue>(
             valueListenable: vc,
             builder: (_, v, __) => Row(children: [
-              Text(_fmt(v.position), style: const TextStyle(color: Colors.white70, fontSize: 12)),
+              Text(_fmt(v.position), style: timeStyle),
               Expanded(
-                child: Slider(
-                  value: v.position.inMilliseconds.clamp(0, v.duration.inMilliseconds).toDouble(),
-                  max: v.duration.inMilliseconds <= 0 ? 1 : v.duration.inMilliseconds.toDouble(),
-                  onChanged: (x) => vc.seekTo(Duration(milliseconds: x.round())),
-                  onChangeEnd: (x) => _control(positionMs: x.round()),
+                child: SliderTheme(
+                  data: sliderTheme,
+                  child: Slider(
+                    value: v.position.inMilliseconds.clamp(0, v.duration.inMilliseconds).toDouble(),
+                    max: v.duration.inMilliseconds <= 0 ? 1 : v.duration.inMilliseconds.toDouble(),
+                    onChanged: (x) => vc.seekTo(Duration(milliseconds: x.round())),
+                    onChangeEnd: (x) => _control(positionMs: x.round()),
+                  ),
                 ),
               ),
-              Text(_fmt(v.duration), style: const TextStyle(color: Colors.white70, fontSize: 12)),
+              Text(_fmt(v.duration), style: timeStyle),
             ]),
-          )
-        else if (_webFrame != null)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Text(
-              '${_fmt(Duration(milliseconds: _webPosMs))}${_webDur > 0 ? ' / ${_fmt(Duration(seconds: _webDur.round()))}' : ''}  ·  '
-              '${_app.trEn('herkeste senkron', 'in sync for everyone', 'für alle synchron')}',
-              style: const TextStyle(color: Colors.white60, fontSize: 12),
-            ),
           )
         else
           Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Text(
-              _app.trEn('Videoyu sayfada başlat — herkeste aynı anda oynar', 'Start the video on the page — it plays for everyone at once',
-                  'Starte das Video auf der Seite — es läuft bei allen gleichzeitig'),
-              style: const TextStyle(color: Colors.white60, fontSize: 12),
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.sync_rounded, size: 15, color: accent),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    _webFrame != null
+                        ? '${_fmt(Duration(milliseconds: _webPosMs))}${_webDur > 0 ? ' / ${_fmt(Duration(seconds: _webDur.round()))}' : ''}  ·  '
+                            '${_app.trEn('herkeste senkron', 'in sync for everyone', 'für alle synchron')}'
+                        : _app.trEn('Videoyu sayfada başlat — herkeste aynı anda oynar',
+                            'Start the video on the page — it plays for everyone at once',
+                            'Starte das Video auf der Seite — es läuft bei allen gleichzeitig'),
+                    textAlign: TextAlign.center,
+                    style: timeStyle,
+                  ),
+                ),
+              ],
             ),
           ),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            roundBtn(_micOn ? Icons.mic_rounded : Icons.mic_off_rounded, _app.trEn('Mikrofon', 'Microphone', 'Mikrofon'), _toggleMic,
-                bg: _micOn ? null : const Color(0xFFEF4444)),
-            roundBtn(Icons.replay_10_rounded, juzzioSecondsLabel('-10', _app.uiLang), () {
-              final cur = vc != null && vc.value.isInitialized ? vc.value.position.inMilliseconds : (_webFrame != null ? _webPosMs : s.expectedPositionMs(JuzzioClock.nowUtc()));
-              _control(positionMs: (cur - 10000).clamp(0, 1 << 31));
-            }),
-            roundBtn(s.playing ? Icons.pause_rounded : Icons.play_arrow_rounded, s.playing ? _app.trEn('Duraklat', 'Pause', 'Pause') : _app.trEn('Oynat', 'Play', 'Abspielen'),
-                () => _control(playing: !s.playing), bg: const Color(0xFF7B5CFF), size: 30),
-            roundBtn(Icons.forward_10_rounded, juzzioSecondsLabel('+10', _app.uiLang), () {
-              final cur = vc != null && vc.value.isInitialized ? vc.value.position.inMilliseconds : (_webFrame != null ? _webPosMs : s.expectedPositionMs(JuzzioClock.nowUtc()));
-              _control(positionMs: cur + 10000);
-            }),
-            roundBtn(_translateCues ? Icons.subtitles_rounded : Icons.subtitles_off_rounded, _app.trEn('Altyazı çevirisi', 'Subtitle translation', 'Untertitel-Übersetzung'),
-                () => setState(() {
-                      _translateCues = !_translateCues;
-                      if (!_translateCues) _cueTranslated = '';
-                    })),
+            JuzzioCallCircleButton(
+              icon: _micOn ? Icons.mic_rounded : Icons.mic_off_rounded,
+              size: 50,
+              ring: !_micOn,
+              tooltip: _app.trEn('Mikrofon', 'Microphone', 'Mikrofon'),
+              onTap: _toggleMic,
+            ),
+            JuzzioCallCircleButton(
+              icon: Icons.replay_10_rounded,
+              size: 50,
+              tooltip: juzzioSecondsLabel('-10', _app.uiLang),
+              onTap: () => _control(positionMs: (cur() - 10000).clamp(0, 1 << 31)),
+            ),
+            Tooltip(
+              message: s.playing ? _app.trEn('Duraklat', 'Pause', 'Pause') : _app.trEn('Oynat', 'Play', 'Abspielen'),
+              child: GestureDetector(
+                onTap: () => _control(playing: !s.playing),
+                child: Container(
+                  width: 70,
+                  height: 70,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: accent,
+                    boxShadow: [BoxShadow(color: accent.withValues(alpha: 0.5), blurRadius: 22)],
+                  ),
+                  child: Icon(s.playing ? Icons.pause_rounded : Icons.play_arrow_rounded, size: 36, color: JuzzioCallColors.onAccent),
+                ),
+              ),
+            ),
+            JuzzioCallCircleButton(
+              icon: Icons.forward_10_rounded,
+              size: 50,
+              tooltip: juzzioSecondsLabel('+10', _app.uiLang),
+              onTap: () => _control(positionMs: cur() + 10000),
+            ),
+            JuzzioCallCircleButton(
+              icon: _translateCues ? Icons.subtitles_rounded : Icons.subtitles_off_rounded,
+              size: 50,
+              active: _translateCues,
+              tooltip: _app.trEn('Altyazı çevirisi', 'Subtitle translation', 'Untertitel-Übersetzung'),
+              onTap: () => setState(() {
+                _translateCues = !_translateCues;
+                if (!_translateCues) _cueTranslated = '';
+              }),
+            ),
           ],
         ),
       ],
+    );
+  }
+
+  Future<void> _openRoomMenu(JuzzioWatchSession s) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        Widget tile(IconData icon, String label, VoidCallback onTap, {bool danger = false}) => ListTile(
+              leading: Icon(icon, color: danger ? JuzzioCallColors.danger : JuzzioCallColors.text),
+              title: Text(label,
+                  style: TextStyle(color: danger ? JuzzioCallColors.danger : JuzzioCallColors.text, fontWeight: FontWeight.w700)),
+              onTap: () {
+                Navigator.pop(ctx);
+                onTap();
+              },
+            );
+        return SafeArea(
+          child: Container(
+            margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            decoration: BoxDecoration(
+              color: Color.lerp(JuzzioCallColors.depth.last, Colors.black, 0.35),
+              borderRadius: BorderRadius.circular(26),
+              border: Border.all(color: JuzzioCallColors.glassBorder),
+            ),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              tile(Icons.picture_in_picture_alt_rounded, _app.trEn('Küçük pencere', 'Picture-in-picture', 'Bild-im-Bild'), _enterPip),
+              tile(Icons.fullscreen_rounded, _app.trEn('Tam ekran', 'Full screen', 'Vollbild'), () => _setFullscreen(true)),
+              if (s.kind == 'youtube' && _webFrame == null)
+                tile(Icons.refresh_rounded, _app.trEn('Diğer YouTube görünümünü dene', 'Try the other YouTube view', 'Andere YouTube-Ansicht'),
+                    () => setState(() => _youtubeFallback = !_youtubeFallback)),
+              if (s.hostId == _myId) tile(Icons.stop_circle_outlined, _app.trEn('Gösterimi bitir', 'End screening', 'Vorführung beenden'), _end, danger: true),
+            ]),
+          ),
+        );
+      },
     );
   }
 
@@ -949,9 +1064,10 @@ class _JuzzioWatchPartyScreenState extends State<JuzzioWatchPartyScreen> {
                 top: 12,
                 right: 12,
                 child: SafeArea(
-                  child: IconButton.filledTonal(
-                    onPressed: () => _setFullscreen(false),
-                    icon: const Icon(Icons.fullscreen_exit_rounded),
+                  child: JuzzioCallCircleButton(
+                    icon: Icons.fullscreen_exit_rounded,
+                    tooltip: _app.trEn('Tam ekrandan çık', 'Exit full screen', 'Vollbild beenden'),
+                    onTap: () => _setFullscreen(false),
                   ),
                 ),
               ),
@@ -959,98 +1075,269 @@ class _JuzzioWatchPartyScreenState extends State<JuzzioWatchPartyScreen> {
         ),
       );
     }
+    final accent = JuzzioCallColors.accent;
+    final title = s?.title.isNotEmpty == true ? s!.title : _app.trEn('Sinema Parti', 'Cinema Party', 'Kino-Party');
+    // v2.1 — Sinema Parti odası (yeni tasarım): temanın koyu derinliği, vurgu renkli yuvarlak sinema
+    // kartı, oda başlığı + CANLI rozeti, cam kontrol rafı, "Sinemadakiler" koltukları.
     return Scaffold(
-      backgroundColor: const Color(0xFF0B0A16),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        title: Row(children: [
-          const Icon(Icons.movie_filter_rounded, size: 20),
-          const SizedBox(width: 8),
-          Flexible(
-            child: Text(
-              s?.title.isNotEmpty == true ? s!.title : _app.trEn('Sinema Parti', 'Cinema Party', 'Kino-Party'),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ]),
-        actions: [
-          if (s != null) ...[
-            IconButton(tooltip: _app.trEn('Küçük pencere', 'Picture-in-picture', 'Bild-im-Bild'), onPressed: _enterPip, icon: const Icon(Icons.picture_in_picture_alt_rounded)),
-            IconButton(tooltip: _app.trEn('Tam ekran', 'Full screen', 'Vollbild'), onPressed: () => _setFullscreen(true), icon: const Icon(Icons.fullscreen_rounded)),
-            if (s.hostId == _myId) IconButton(tooltip: _app.trEn('Bitir', 'End', 'Beenden'), onPressed: _end, icon: const Icon(Icons.stop_circle_outlined)),
-          ],
-        ],
-      ),
-      body: _loading
-          ? const JuzzioListSkeleton()
-          : s == null
-              ? _empty()
-              : SafeArea(
-                  top: false,
-                  child: Column(children: [
-                    AspectRatio(aspectRatio: 16 / 9, child: _videoArea(s)),
-                    if (s.kind == 'youtube' && _webFrame == null)
-                      TextButton.icon(
-                        onPressed: () => setState(() => _youtubeFallback = !_youtubeFallback),
-                        icon: const Icon(Icons.refresh_rounded, color: Colors.white54, size: 18),
-                        label: Text(_app.trEn('Oynatıcı açılmadı mı? Diğer YouTube görünümünü dene', 'Player not loading? Try the other YouTube view',
-                            'Player lädt nicht? Andere YouTube-Ansicht'),
-                            style: const TextStyle(color: Colors.white54, fontSize: 12)),
-                      ),
-                    if (_error != null)
-                      Padding(padding: const EdgeInsets.all(10), child: Text(_error!, style: const TextStyle(color: Colors.redAccent), textAlign: TextAlign.center)),
-                    const Spacer(),
-                    Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: _controls(s)),
-                    const SizedBox(height: 10),
-                    Text(
-                      '${_viewers.length}/4 · ${_app.trEn('sinemadakiler', 'in the cinema', 'im Kino')}',
-                      style: const TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w600),
+      backgroundColor: JuzzioCallColors.depth.last,
+      body: DecoratedBox(
+        decoration: JuzzioCallColors.backdrop(),
+        child: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 8, 14, 6),
+                child: Row(
+                  children: [
+                    JuzzioCallCircleButton(
+                      icon: Icons.arrow_back_rounded,
+                      iconSize: 22,
+                      tooltip: _app.trEn('Geri', 'Back', 'Zurück'),
+                      onTap: () => Navigator.of(context).maybePop(),
                     ),
-                    const SizedBox(height: 6),
-                    _viewerStrip(),
-                    const SizedBox(height: 8),
-                  ]),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.movie_filter_rounded, size: 18, color: accent),
+                              const SizedBox(width: 6),
+                              Text(
+                                _app.trEn('Sinema Parti', 'Cinema Party', 'Kino-Party'),
+                                style: const TextStyle(
+                                  color: JuzzioCallColors.text,
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: -0.2,
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (s != null) ...[
+                            const SizedBox(height: 3),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 7,
+                                  height: 7,
+                                  decoration: BoxDecoration(
+                                    color: s.playing ? const Color(0xFFFF4D5E) : JuzzioCallColors.textDim,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '${s.playing ? _app.trEn('CANLI', 'LIVE', 'LIVE') : _app.trEn('DURAKLATILDI', 'PAUSED', 'PAUSIERT')} · ${_viewers.length}/4',
+                                  style: const TextStyle(
+                                    color: JuzzioCallColors.textDim,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 1.1,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    if (s != null)
+                      JuzzioCallCircleButton(
+                        icon: Icons.more_horiz_rounded,
+                        tooltip: _app.trEn('Oda seçenekleri', 'Room options', 'Raumoptionen'),
+                        onTap: () => _openRoomMenu(s),
+                      )
+                    else
+                      const SizedBox(width: 44),
+                  ],
                 ),
+              ),
+              Expanded(
+                child: _loading
+                    ? const JuzzioListSkeleton()
+                    : s == null
+                        ? _empty()
+                        : ListView(
+                            padding: const EdgeInsets.fromLTRB(14, 8, 14, 20),
+                            children: [
+                              // Sinema kartı
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(26),
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(26),
+                                    border: Border.all(color: accent.withValues(alpha: 0.45), width: 1.4),
+                                  ),
+                                  child: AspectRatio(
+                                    aspectRatio: 16 / 9,
+                                    child: Stack(
+                                      fit: StackFit.expand,
+                                      children: [
+                                        _videoArea(s),
+                                        Positioned(
+                                          left: 10,
+                                          top: 10,
+                                          child: IgnorePointer(
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                                              decoration: BoxDecoration(
+                                                color: Colors.black.withValues(alpha: 0.55),
+                                                borderRadius: BorderRadius.circular(999),
+                                                border: Border.all(color: accent.withValues(alpha: 0.55)),
+                                              ),
+                                              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                                Icon(Icons.sync_rounded, size: 13, color: accent),
+                                                const SizedBox(width: 5),
+                                                Text(_app.trEn('SENKRON', 'IN SYNC', 'SYNCHRON'),
+                                                    style: const TextStyle(
+                                                        color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.1)),
+                                              ]),
+                                            ),
+                                          ),
+                                        ),
+                                        const Positioned(
+                                          right: 12,
+                                          bottom: 10,
+                                          child: IgnorePointer(child: Opacity(opacity: 0.35, child: JuzzioLogoGlyph(size: 22))),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      title,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: JuzzioCallColors.text,
+                                        fontSize: 19,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: -0.3,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                    decoration: BoxDecoration(
+                                      color: accent.withValues(alpha: 0.14),
+                                      borderRadius: BorderRadius.circular(999),
+                                      border: Border.all(color: accent.withValues(alpha: 0.5)),
+                                    ),
+                                    child: Text(_sourceLabel(s),
+                                        style: TextStyle(color: accent, fontSize: 11.5, fontWeight: FontWeight.w800)),
+                                  ),
+                                ],
+                              ),
+                              if (_error != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 10),
+                                  child: Text(_error!, style: const TextStyle(color: Colors.redAccent), textAlign: TextAlign.center),
+                                ),
+                              const SizedBox(height: 14),
+                              Container(
+                                padding: const EdgeInsets.fromLTRB(14, 12, 14, 16),
+                                decoration: BoxDecoration(
+                                  color: JuzzioCallColors.glass,
+                                  borderRadius: BorderRadius.circular(26),
+                                  border: Border.all(color: JuzzioCallColors.glassBorder),
+                                ),
+                                child: _controls(s),
+                              ),
+                              const SizedBox(height: 22),
+                              Row(
+                                children: [
+                                  const Icon(Icons.groups_rounded, size: 18, color: JuzzioCallColors.text),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    _app.trEn('Sinemadakiler', 'In the cinema', 'Im Kino'),
+                                    style: const TextStyle(color: JuzzioCallColors.text, fontSize: 15.5, fontWeight: FontWeight.w800),
+                                  ),
+                                  const Spacer(),
+                                  Text('${_viewers.length}/4',
+                                      style: TextStyle(color: accent, fontSize: 13, fontWeight: FontWeight.w900)),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Container(
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: JuzzioCallColors.glass,
+                                  borderRadius: BorderRadius.circular(24),
+                                  border: Border.all(color: JuzzioCallColors.glassBorder),
+                                ),
+                                child: _viewerStrip(),
+                              ),
+                            ],
+                          ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
-  Widget _empty() => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(28),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Container(
-              width: 92,
-              height: 92,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(colors: [Color(0xFF7B5CFF), Color(0xFFFF5CA8)]),
-              ),
-              child: const Icon(Icons.movie_filter_rounded, color: Colors.white, size: 44),
+  Widget _empty() {
+    final accent = JuzzioCallColors.accent;
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(28),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          JuzzioCallGlowAvatar(
+            size: 110,
+            rings: 2,
+            pulse: true,
+            avatar: ColoredBox(
+              color: JuzzioBrandColors.ink,
+              child: Icon(Icons.movie_filter_rounded, color: accent, size: 50),
             ),
-            const SizedBox(height: 18),
-            Text(_app.trEn('Birlikte izleyin', 'Watch together', 'Gemeinsam schauen'),
-                style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900)),
-            const SizedBox(height: 8),
-            Text(
-              _app.trEn('Film, dizi veya YouTube bağlantısı ekle. En fazla 4 kişi aynı anda izler ve sesli konuşur.',
-                  'Add a film, series or YouTube link. Up to 4 people watch at the same time and talk.',
-                  'Füge einen Film-, Serien- oder YouTube-Link hinzu. Bis zu 4 Personen schauen gleichzeitig.'),
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white70, height: 1.4),
+          ),
+          const SizedBox(height: 18),
+          Text(_app.trEn('Birlikte izleyin', 'Watch together', 'Gemeinsam schauen'),
+              style: const TextStyle(color: JuzzioCallColors.text, fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: -0.4)),
+          const SizedBox(height: 8),
+          Text(
+            _app.trEn('Film, dizi veya YouTube bağlantısı ekle. En fazla 4 kişi aynı anda izler ve sesli konuşur.',
+                'Add a film, series or YouTube link. Up to 4 people watch at the same time and talk.',
+                'Füge einen Film-, Serien- oder YouTube-Link hinzu. Bis zu 4 Personen schauen gleichzeitig.'),
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: JuzzioCallColors.textDim, height: 1.45, fontSize: 14),
+          ),
+          const SizedBox(height: 22),
+          for (final f in <(IconData, String)>[
+            (Icons.sync_rounded, _app.trEn('Herkeste aynı saniyede oynar', 'Plays on the same second for everyone', 'Läuft bei allen sekundengenau')),
+            (Icons.mic_rounded, _app.trEn('İzlerken sesli konuşun', 'Talk while you watch', 'Sprecht beim Schauen')),
+            (Icons.subtitles_rounded, _app.trEn('Altyazılar dilinize çevrilir', 'Subtitles in your language', 'Untertitel in deiner Sprache')),
+          ])
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(f.$1, size: 17, color: accent),
+                const SizedBox(width: 8),
+                Flexible(child: Text(f.$2, style: const TextStyle(color: JuzzioCallColors.text, fontSize: 13.5, fontWeight: FontWeight.w600))),
+              ]),
             ),
-            const SizedBox(height: 20),
-            FilledButton.icon(
-              style: FilledButton.styleFrom(backgroundColor: const Color(0xFF7B5CFF), padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14)),
-              onPressed: _start,
-              icon: const Icon(Icons.add_link_rounded),
-              label: Text(_app.trEn('Bağlantı ekle', 'Add a link', 'Link hinzufügen')),
-            ),
-            if (_error != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(_error!, style: const TextStyle(color: Colors.redAccent))),
-          ]),
-        ),
-      );
+          const SizedBox(height: 18),
+          JuzzioLimeButton(
+            label: _app.trEn('Bağlantı ekle', 'Add a link', 'Link hinzufügen'),
+            icon: Icons.add_link_rounded,
+            onPressed: _start,
+          ),
+          if (_error != null)
+            Padding(padding: const EdgeInsets.only(top: 12), child: Text(_error!, style: const TextStyle(color: Colors.redAccent))),
+        ]),
+      ),
+    );
+  }
 }
 
 /// v1.2.8 — modern bağlantı ekleme sayfası: yapıştır, kaynak otomatik tanınır, başlık önerilir
@@ -1115,9 +1402,10 @@ class _WatchLinkSheetState extends State<_WatchLinkSheet> {
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFF14121F),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        decoration: BoxDecoration(
+          color: Color.lerp(JuzzioCallColors.depth.last, Colors.black, 0.3),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          border: Border.all(color: JuzzioCallColors.glassBorder),
         ),
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
         child: SafeArea(
@@ -1134,9 +1422,10 @@ class _WatchLinkSheetState extends State<_WatchLinkSheet> {
                   height: 44,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(14),
-                    gradient: const LinearGradient(colors: [Color(0xFF7B5CFF), Color(0xFFFF5CA8)]),
+                    color: JuzzioCallColors.accent.withValues(alpha: 0.16),
+                    border: Border.all(color: JuzzioCallColors.accent.withValues(alpha: 0.6)),
                   ),
-                  child: const Icon(Icons.movie_filter_rounded, color: Colors.white),
+                  child: Icon(Icons.movie_filter_rounded, color: JuzzioCallColors.accent),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -1260,7 +1549,8 @@ class _WatchLinkSheetState extends State<_WatchLinkSheet> {
                 width: double.infinity,
                 child: FilledButton.icon(
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF7B5CFF),
+                    backgroundColor: JuzzioCallColors.accent,
+                    foregroundColor: JuzzioCallColors.onAccent,
                     disabledBackgroundColor: Colors.white12,
                     padding: const EdgeInsets.symmetric(vertical: 15),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),

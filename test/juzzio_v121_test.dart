@@ -147,7 +147,9 @@ void main() {
       expect(s.contains('weatherThemeEnabled'), isTrue);
       final a = _src('lib/core/app_theme_and_locale.dart');
       expect(a.contains("raw['weatherTheme'] != false"), isTrue);
-      expect(_src('lib/main.dart').contains('JuzzioWeatherAmbience()'), isTrue);
+      // v2.1: katman ana ekranın arka planına taşındı (sayfaların üstüne binmesin)
+      expect(_src('lib/screens/chat_screen.dart').contains('const Positioned.fill(child: JuzzioWeatherAmbience())'), isTrue);
+      expect(_src('lib/main.dart').contains('const Positioned.fill(child: JuzzioWeatherAmbience())'), isFalse);
     });
   });
 

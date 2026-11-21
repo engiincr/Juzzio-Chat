@@ -1283,12 +1283,12 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.timer_outlined, color: _timerSec > 0 ? const Color(0xFFFFD60A) : Colors.white, size: 18),
+                      Icon(Icons.timer_outlined, color: _timerSec > 0 ? JuzzioGlassTokens.glow : Colors.white, size: 18),
                       const SizedBox(width: 5),
                       Text(
                         _timerSec == 0 ? _l('Kapalı', 'Off', 'Aus') : '${_timerSec}s',
                         style: TextStyle(
-                          color: _timerSec > 0 ? const Color(0xFFFFD60A) : Colors.white,
+                          color: _timerSec > 0 ? JuzzioGlassTokens.glow : Colors.white,
                           fontWeight: FontWeight.w800,
                           fontSize: 13,
                         ),
@@ -1303,10 +1303,14 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
                   onTap: _goToEditor,
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(999)),
+                    decoration: BoxDecoration(
+                      color: JuzzioGlassTokens.glow,
+                      borderRadius: BorderRadius.circular(999),
+                      boxShadow: [BoxShadow(color: JuzzioGlassTokens.glow.withValues(alpha: 0.45), blurRadius: 14)],
+                    ),
                     child: Text(
                       '${_l('Devam', 'Next', 'Weiter')} (${_media.length})',
-                      style: const TextStyle(color: Color(0xFF111113), fontWeight: FontWeight.w900),
+                      style: TextStyle(color: JuzzioGlassTokens.onGlow, fontWeight: FontWeight.w900),
                     ),
                   ),
                 )
@@ -1316,17 +1320,47 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
           ),
         ),
         // Sağ dikey araçlar (hikâyede "Aa" yazı)
+        // v2.1: üstte ortada sayfa başlığı (Hikâye Oluştur / Gönderi Oluştur)
+        Positioned(
+          top: mq.padding.top + 62,
+          left: 0,
+          right: 0,
+          child: IgnorePointer(
+            child: Center(
+              child: Text(
+                _isStory ? _l('Hikâye Oluştur', 'Create Story', 'Story erstellen') : _l('Gönderi Oluştur', 'Create Post', 'Beitrag erstellen'),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.2,
+                  shadows: [Shadow(color: Color(0x99000000), blurRadius: 10)],
+                ),
+              ),
+            ),
+          ),
+        ),
         if (_isStory)
           Positioned(
             right: 14,
-            top: mq.padding.top + 76,
-            child: Column(
-              children: [
-                _CircleGlassButton(icon: Icons.text_fields_rounded, onTap: _startTextStory),
-                const SizedBox(height: 6),
-                Text(_l('Yazı', 'Text', 'Text'),
-                    style: const TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.w700)),
-              ],
+            top: mq.padding.top + 100,
+            child: JuzzioGlass(
+              radius: 28,
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+              child: Column(
+                children: [
+                  for (final t in <(IconData, String, VoidCallback)>[
+                    (Icons.text_fields_rounded, _l('Yazı', 'Text', 'Text'), _startTextStory),
+                    (Icons.photo_library_rounded, _l('Galeri', 'Gallery', 'Galerie'), _pickGalleryMedia),
+                    (Icons.cameraswitch_rounded, _l('Çevir', 'Flip', 'Wechseln'), _flipViewfinder),
+                  ]) ...[
+                    _CircleGlassButton(icon: t.$1, onTap: t.$3),
+                    const SizedBox(height: 4),
+                    Text(t.$2, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 10),
+                  ],
+                ],
+              ),
             ),
           ),
         // Alt: galeri · deklanşör · kamera çevir + mod seçici
@@ -1410,14 +1444,15 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
           curve: Curves.easeOut,
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
           decoration: BoxDecoration(
-            color: sel ? Colors.white : Colors.transparent,
+            color: sel ? JuzzioGlassTokens.glow : Colors.transparent,
             borderRadius: BorderRadius.circular(999),
+            boxShadow: sel ? [BoxShadow(color: JuzzioGlassTokens.glow.withValues(alpha: 0.45), blurRadius: 14)] : null,
           ),
           child: Text(
             label,
             style: TextStyle(
               fontFamily: JuzzioConfig.fontRegularBold,
-              color: sel ? Colors.black : Colors.white70,
+              color: sel ? JuzzioGlassTokens.onGlow : Colors.white70,
               fontWeight: FontWeight.w900,
               fontSize: 13,
               letterSpacing: 0.8,
@@ -1688,7 +1723,22 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
   Widget _buildToolRail(JuzzioStudioMedia? cur) {
     final tools = <Widget>[
       if (_isStory)
-        _RailButton(icon: Icons.text_fields_rounded, label: _l('Yazı', 'Text', 'Text'), onTap: _openTextEditor),
+        _RailButton(icon: Icons.text_fields_rounded, label: _l('Metin', 'Text', 'Text'), onTap: _openTextEditor),
+      // v2.1 (tasarım: Hikâye Oluştur) sırası: Metin · Çıkartma · Efekt · Filtre · Müzik · Kırp
+      if (_isStory)
+        _RailButton(
+          icon: Icons.emoji_emotions_outlined,
+          label: _l('Çıkartma', 'Sticker', 'Sticker'),
+          active: _stickers.isNotEmpty,
+          onTap: _addSticker,
+        ),
+      if (_isStory && cur != null && !cur.isVideo)
+        _RailButton(
+          icon: Icons.auto_fix_high_rounded,
+          label: _beautyOn ? '$_beautyLevel%' : _l('Efekt', 'Effect', 'Effekt'),
+          active: _beautyOn,
+          onTap: _openBeauty,
+        ),
       if (_textOnlyStory)
         _RailButton(
           icon: Icons.palette_rounded,
@@ -1708,13 +1758,6 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
         active: _music != null,
         onTap: _pickMusic,
       ),
-      if (_isStory)
-        _RailButton(
-          icon: Icons.emoji_emotions_outlined,
-          label: _l('Çıkartma', 'Sticker', 'Sticker'),
-          active: _stickers.isNotEmpty,
-          onTap: _addSticker,
-        ),
       if (cur != null && cur.isVideo) ...[
         _RailButton(
           icon: Icons.content_cut_rounded,
@@ -1736,19 +1779,17 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
           onTap: _toggleMute,
         ),
       ],
-      if (_isStory && cur != null && !cur.isVideo)
-        _RailButton(
-          icon: Icons.auto_awesome_rounded,
-          label: _beautyOn ? '$_beautyLevel%' : _l('Güzelleştir', 'Beauty', 'Beauty'),
-          active: _beautyOn,
-          onTap: _openBeauty,
-        ),
       if (cur != null && !cur.isVideo && !_isPost)
         _RailButton(icon: Icons.crop_rotate_rounded, label: _l('Kırp', 'Crop', 'Zuschnitt'), onTap: _cropCurrentPhoto),
       if (_media.isNotEmpty)
         _RailButton(icon: Icons.delete_outline_rounded, label: _l('Kaldır', 'Remove', 'Entfernen'), onTap: _removeCurrent),
     ];
-    return Column(mainAxisSize: MainAxisSize.min, children: tools);
+    // v2.1 (tasarım): araçlar cam kapsül içinde
+    return JuzzioGlass(
+      radius: 28,
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+      child: Column(mainAxisSize: MainAxisSize.min, children: tools),
+    );
   }
 
   Widget _buildFilterStrip() {
@@ -1954,6 +1995,21 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
     }
   }
 
+  Future<void> _saveCurrentToGallery() async {
+    final cur = _current;
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (cur == null) {
+      messenger?.showSnackBar(SnackBar(content: Text(_l('Kaydedilecek medya yok', 'Nothing to save', 'Nichts zu speichern'))));
+      return;
+    }
+    final ext = cur.file.path.split('.').last.toLowerCase();
+    final mime = cur.isVideo ? 'video/${ext == 'mov' ? 'quicktime' : 'mp4'}' : 'image/${ext == 'png' ? 'png' : 'jpeg'}';
+    final name = 'Juzzio_${DateTime.now().millisecondsSinceEpoch}.$ext';
+    final ok = await JuzzioNative.saveToGallery(path: cur.file.path, mime: mime, name: name, kind: cur.isVideo ? 'video' : 'image');
+    messenger?.showSnackBar(SnackBar(
+        content: Text(ok ? _l('Galeriye kaydedildi', 'Saved to gallery', 'In Galerie gespeichert') : _l('Kaydedilemedi', 'Could not save', 'Speichern fehlgeschlagen'))));
+  }
+
   Widget _buildStoryBottomBar() {
     String audienceLabel() {
       switch (_storyAudience) {
@@ -2019,6 +2075,24 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
         const SizedBox(height: 10),
         Row(
           children: [
+            // v2.1 (tasarım): Kaydet — geçerli fotoğraf/videoyu galeriye kaydeder
+            GestureDetector(
+              onTap: _saveCurrentToGallery,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: Colors.white24),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.download_rounded, color: Colors.white, size: 18),
+                  const SizedBox(width: 5),
+                  Text(_l('Kaydet', 'Save', 'Speichern'), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+                ]),
+              ),
+            ),
+            const SizedBox(width: 8),
             GestureDetector(
               // v0.7.0: Arkadaşlar → Yakın arkadaşlar → Herkes → Sadece ben
               // Uzun basınca yakın arkadaş listesi düzenlenir.
@@ -2058,20 +2132,41 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
                   children: [
                     Icon(audienceIcon(), color: Colors.white, size: 18),
                     const SizedBox(width: 6),
-                    Text(audienceLabel(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(_l('Hikâye Gizliliği', 'Story privacy', 'Story-Sichtbarkeit'),
+                            style: const TextStyle(color: Colors.white60, fontSize: 10, fontWeight: FontWeight.w700)),
+                        Text(audienceLabel(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13)),
+                      ],
+                    ),
                     const SizedBox(width: 2),
-                    const Icon(Icons.unfold_more_rounded, color: Colors.white54, size: 16),
+                    const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white70, size: 18),
                   ],
                 ),
               ),
             ),
             const Spacer(),
-            _GradientPill(
-              label: _media.length > 1
-                  ? _l('${_media.length} hikâye paylaş', 'Share ${_media.length} stories', '${_media.length} Storys teilen')
-                  : _l('Hikâyene ekle', 'Your story', 'Deine Story'),
-              icon: Icons.arrow_forward_rounded,
+            // v2.1 (tasarım): temanın renginde "➤ Paylaş"
+            GestureDetector(
               onTap: _publishStory,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                decoration: BoxDecoration(
+                  color: JuzzioGlassTokens.glow,
+                  borderRadius: BorderRadius.circular(999),
+                  boxShadow: [BoxShadow(color: JuzzioGlassTokens.glow.withValues(alpha: 0.45), blurRadius: 16)],
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.send_rounded, color: JuzzioGlassTokens.onGlow, size: 18),
+                  const SizedBox(width: 6),
+                  Text(
+                    _media.length > 1 ? _l('Paylaş (${_media.length})', 'Share (${_media.length})', 'Teilen (${_media.length})') : _l('Paylaş', 'Share', 'Teilen'),
+                    style: TextStyle(color: JuzzioGlassTokens.onGlow, fontWeight: FontWeight.w900),
+                  ),
+                ]),
+              ),
             ),
           ],
         ),
@@ -2867,8 +2962,11 @@ class _IosShutterButton extends StatelessWidget {
           height: 82,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 4.5),
-            boxShadow: const [BoxShadow(color: Color(0x55000000), blurRadius: 16)],
+            border: Border.all(color: JuzzioGlassTokens.glow, width: 4.5),
+            boxShadow: [
+              const BoxShadow(color: Color(0x55000000), blurRadius: 16),
+              BoxShadow(color: JuzzioGlassTokens.glow.withValues(alpha: 0.35), blurRadius: 22),
+            ],
           ),
           alignment: Alignment.center,
           child: AnimatedContainer(

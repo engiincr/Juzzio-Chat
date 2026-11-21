@@ -21,6 +21,7 @@ import 'package:record/record.dart';
 import 'package:web_socket_channel/io.dart';
 import '../core/app_theme_and_locale.dart';
 import '../core/config.dart';
+import 'juzzio_audio_route.dart';
 import 'juzzio_features_service.dart';
 import 'juzzio_speech_gate.dart';
 import 'supabase_service.dart';
@@ -740,11 +741,14 @@ class DeepgramLiveKitController extends ChangeNotifier {
       }
     }
 
-    // setSpeakerphoneOn is Android/iOS only; skip on desktop platforms
+    // v2.1: ses çıkışı — kulaklık takılıysa kulaklık; değilse görüntülüde hoparlör, sesli aramada ahize.
+    // Kulaklık arama sırasında çıkarılırsa yerel katman ahizeye döner (hoparlöre değil).
     if (!Platform.isWindows && !Platform.isLinux && !Platform.isMacOS) {
-      try {
-        await Hardware.instance.setSpeakerphoneOn(true);
-      } catch (_) {}
+      final route = JuzzioAudioRouteController.instance;
+      route.removeListener(_onAudioRouteChanged);
+      route.addListener(_onAudioRouteChanged);
+      await route.start(preferSpeaker: isCameraEnabled);
+      isSpeakerphoneOn = route.isSpeaker;
     }
     isConnected = true;
     _syncParticipantLanguages();
@@ -1774,6 +1778,20 @@ class DeepgramLiveKitController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// v2.1: "HD" hapından 1080p 60 fps'e geri dönüş (Veri Koruma kapatılınca)
+  Future<void> applyHdLive() async {
+    final lp = _room?.localParticipant;
+    if (lp == null) return;
+    if (isCameraEnabled) {
+      try {
+        await lp.setCameraEnabled(false);
+        await lp.setCameraEnabled(true, cameraCaptureOptions: const CameraCaptureOptions(params: kJuzzioVideoMax));
+        await _applyBeautyFilter();
+      } catch (_) {}
+    }
+    notifyListeners();
+  }
+
   Future<void> toggleMicrophone() async {
     isMicEnabled = !isMicEnabled;
     await _room?.localParticipant?.setMicrophoneEnabled(isMicEnabled);
@@ -1905,12 +1923,26 @@ class DeepgramLiveKitController extends ChangeNotifier {
   }
 
   Future<void> toggleSpeakerphone() async {
-    isSpeakerphoneOn = !isSpeakerphoneOn;
     if (!Platform.isWindows && !Platform.isLinux && !Platform.isMacOS) {
-      try {
-        await Hardware.instance.setSpeakerphoneOn(isSpeakerphoneOn);
-      } catch (_) {}
+      await JuzzioAudioRouteController.instance.toggleSpeaker();
+      isSpeakerphoneOn = JuzzioAudioRouteController.instance.isSpeaker;
+    } else {
+      isSpeakerphoneOn = !isSpeakerphoneOn;
     }
+    notifyListeners();
+  }
+
+  /// v2.1: ses çıkışı seçici (ahize / hoparlör / kablolu / Bluetooth)
+  Future<void> selectAudioOutput(JuzzioAudioOutput o) async {
+    await JuzzioAudioRouteController.instance.select(o);
+    isSpeakerphoneOn = JuzzioAudioRouteController.instance.isSpeaker;
+    notifyListeners();
+  }
+
+  void _onAudioRouteChanged() {
+    if (_isDisposed) return;
+    final on = JuzzioAudioRouteController.instance.isSpeaker;
+    if (on != isSpeakerphoneOn) isSpeakerphoneOn = on;
     notifyListeners();
   }
 
@@ -1919,6 +1951,8 @@ class DeepgramLiveKitController extends ChangeNotifier {
   Future<void> disconnectCall() async {
     if (_isDisconnecting) return;
     _isDisconnecting = true;
+    JuzzioAudioRouteController.instance.removeListener(_onAudioRouteChanged);
+    unawaited(JuzzioAudioRouteController.instance.stop());
     if (isScreenSharing) {
       isScreenSharing = false;
       try {
@@ -1991,6 +2025,7 @@ class DeepgramLiveKitController extends ChangeNotifier {
   @override
   void dispose() {
     _isDisposed = true;
+    JuzzioAudioRouteController.instance.removeListener(_onAudioRouteChanged);
     _peerGraceTimer?.cancel();
     _powerRestoreTimer?.cancel();
     _moderationTimer?.cancel();

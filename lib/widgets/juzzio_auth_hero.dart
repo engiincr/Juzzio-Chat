@@ -10,6 +10,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../core/app_theme_and_locale.dart';
+import '../core/theme/juzzio_glass.dart';
 import 'juzzio_brand.dart';
 
 class JuzzioAuthHero extends StatefulWidget {
@@ -109,7 +110,7 @@ class _JuzzioAuthHeroState extends State<JuzzioAuthHero> with SingleTickerProvid
                           Container(
                             width: 24,
                             height: 24,
-                            decoration: const BoxDecoration(color: JuzzioBrandColors.lime, shape: BoxShape.circle),
+                            decoration: BoxDecoration(color: JuzzioGlassTokens.glowText, shape: BoxShape.circle),
                             child: const Icon(Icons.play_arrow_rounded, size: 18, color: JuzzioBrandColors.ink),
                           ),
                           const SizedBox(width: 8),
@@ -118,7 +119,7 @@ class _JuzzioAuthHeroState extends State<JuzzioAuthHero> with SingleTickerProvid
                               margin: const EdgeInsets.symmetric(horizontal: 1.3),
                               width: 3,
                               height: 6 + 10 * (0.5 + 0.5 * math.sin(t * 2 + i * 0.9)).abs(),
-                              decoration: BoxDecoration(color: JuzzioBrandColors.lime, borderRadius: BorderRadius.circular(2)),
+                              decoration: BoxDecoration(color: JuzzioGlassTokens.glowText, borderRadius: BorderRadius.circular(2)),
                             ),
                         ],
                       ),
