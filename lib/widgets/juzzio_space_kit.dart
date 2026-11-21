@@ -174,14 +174,11 @@ class JuzzioSpaceIconButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final r = BorderRadius.circular(size * 0.34);
     final dot = badgeCount > 0 ? const Color(0xFFFF6B5E) : dotColor;
+    // v2.1 Liquid Glass
     Widget b = Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(
-        color: JuzzioGlassTokens.spaceButton,
-        borderRadius: r,
-        border: Border.all(color: JuzzioGlassTokens.spaceCardBorder, width: 1),
-      ),
+      decoration: juzzioLiquidDecoration(radius: r, strong: true),
       child: Stack(
         children: [
           // v1.1.0 Symbol Effect: rozet sayısı değişince ikon zıplar
@@ -369,13 +366,10 @@ class JuzzioSpaceSearchBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final r = BorderRadius.circular(JuzzioSpaceMetrics.searchRadius);
+    // v2.1 Liquid Glass arama çubuğu
     return Container(
       height: JuzzioSpaceMetrics.searchHeight,
-      decoration: BoxDecoration(
-        color: JuzzioGlassTokens.spaceInset,
-        borderRadius: r,
-        border: Border.all(color: JuzzioGlassTokens.spaceCardBorder, width: 1),
-      ),
+      decoration: juzzioLiquidDecoration(radius: r),
       padding: const EdgeInsets.only(left: 16, right: 10),
       child: Row(
         children: [
@@ -749,21 +743,17 @@ class JuzzioSpaceCard extends StatelessWidget {
     final r = BorderRadius.circular(radius);
     Widget body = Container(
       padding: padding,
-      decoration: BoxDecoration(
-        borderRadius: r,
-        color: color ?? (highlighted ? JuzzioGlassTokens.glow.withValues(alpha: 0.10) : JuzzioGlassTokens.spaceCard),
-        border: Border.all(
-          color: highlighted ? JuzzioGlassTokens.glow.withValues(alpha: 0.35) : JuzzioGlassTokens.spaceCardBorder,
-          width: 1.2,
-        ),
-      ),
+      // v2.1 Liquid Glass kart (özel renk verilmişse o renk korunur)
+      decoration: color != null
+          ? BoxDecoration(borderRadius: r, color: color, border: Border.all(color: JuzzioGlassTokens.spaceCardBorder, width: 1.2))
+          : juzzioLiquidDecoration(radius: r, glowBorder: highlighted),
       // Sol üstten hafif cam ışığı (dolgu rengini EZMEMESİ için ayrı katmanda)
       foregroundDecoration: BoxDecoration(
         borderRadius: r,
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Colors.white.withValues(alpha: _dark ? 0.035 : 0.18), Colors.white.withValues(alpha: 0)],
+          colors: [Colors.white.withValues(alpha: _dark ? 0.08 : 0.30), Colors.white.withValues(alpha: 0)],
         ),
       ),
       child: child,

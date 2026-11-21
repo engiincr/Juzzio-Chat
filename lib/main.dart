@@ -7,6 +7,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:ui' show ImageFilter;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -722,7 +723,7 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
     final s = JuzzioStrings(appCtrl.uiLang);
     final authBg = (!_booting && _step >= 2)
         // v2.1 (tasarım: Giriş/Kayıt): üst yarı limon, alt yarı koyu
-        ? const [Color(0xFFB8EE3A), Color(0xFF8CC83A), Color(0xFF0E0F10)]
+        ? const [Color(0xFF8DB02E), Color(0xFF0E0F10), Color(0xFF0E0F10)]
         : lightText
             ? const [Color(0xFF050916), Color(0xFF0A1230), Color(0xFF070B1C)]
             : const [Color(0xFFF6F8FE), Color(0xFFE9EEFA), Color(0xFFF3F6FD)];
@@ -1286,7 +1287,12 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
       Widget? suffix,
       TextInputType? type,
     }) {
-      return TextField(
+      // v2.1 Liquid Glass alan: arkası bulanık, yarı saydam
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(999),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+          child: TextField(
         controller: c,
         obscureText: obscure,
         autocorrect: false,
@@ -1304,11 +1310,13 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
           ),
           suffixIcon: suffix,
           filled: true,
-          fillColor: Colors.white.withValues(alpha: 0.06),
+          fillColor: Colors.white.withValues(alpha: 0.12),
           contentPadding: const EdgeInsets.symmetric(vertical: 17),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(999), borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.16))),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(999), borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.16))),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(999), borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.26))),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(999), borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.26))),
           focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(999), borderSide: const BorderSide(color: lime, width: 1.8)),
+        ),
+          ),
         ),
       );
     }
@@ -1350,289 +1358,286 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
     final title = reg ? t("Juzzio'ya ", 'Join ', 'Willkommen bei ') : t('Tekrar Hoş ', 'Welcome ', 'Willkommen ');
     final titleMark = reg ? t('Katıl', 'Juzzio', 'Juzzio') : t('Geldin!', 'back!', 'zurück!');
 
-    return LayoutBuilder(
-      key: const ValueKey('auth_screen'),
-      builder: (context, box) => SingleChildScrollView(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(minHeight: box.maxHeight),
-          child: Column(
-            children: [
-              // ---- Üst: limon sahne ----
-              SizedBox(
-                height: 330,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Positioned(
-                      left: 18,
-                      top: 8,
-                      child: GestureDetector(
-                        onTap: () {
-                          if (reg) {
-                            setState(() {
-                              _isRegisterMode = false;
-                              _errorText = null;
-                            });
-                          } else {
-                            setState(() => _step = 1);
-                          }
-                        },
-                        child: Container(
-                          width: 46,
-                          height: 46,
-                          decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.black.withValues(alpha: 0.22)),
-                          child: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 24),
-                        ),
-                      ),
-                    ),
-                    const Positioned(
-                      top: 10,
-                      left: 0,
-                      right: 0,
-                      child: Center(child: JuzzioWordmark(size: 30, color: Colors.white)),
-                    ),
-                    // yüzen emojiler
-                    for (final e in const [(0.20, 92.0, '😎', 74.0), (0.10, 178.0, '😄', 58.0), (0.80, 196.0, '😁', 70.0)])
-                      Positioned(
-                        left: (box.maxWidth * e.$1) - e.$4 / 2,
-                        top: e.$2,
-                        child: Container(
-                          width: e.$4,
-                          height: e.$4,
-                          decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withValues(alpha: 0.16)),
-                          alignment: Alignment.center,
-                          child: Text(e.$3, style: juzzioEmojiStyle(e.$4 * 0.52), textScaler: TextScaler.noScaling),
-                        ),
-                      ),
-                    // ortada büyük J
-                    const Positioned(
-                      top: 84,
-                      left: 0,
-                      right: 0,
-                      child: Center(child: JuzzioLogoTile(size: 170)),
-                    ),
-                    // ses hapı
-                    Positioned(
-                      left: 26,
-                      top: 252,
-                      child: Container(
-                        padding: const EdgeInsets.fromLTRB(6, 6, 14, 6),
-                        decoration: BoxDecoration(color: lime, borderRadius: BorderRadius.circular(999),
-                            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 10)]),
-                        child: Row(mainAxisSize: MainAxisSize.min, children: [
-                          Container(
-                            width: 30,
-                            height: 30,
-                            decoration: const BoxDecoration(color: Color(0xFF111113), shape: BoxShape.circle),
-                            child: const Icon(Icons.play_arrow_rounded, color: lime, size: 20),
-                          ),
-                          const SizedBox(width: 8),
-                          for (final h in const [10.0, 18.0, 12.0, 22.0, 14.0, 20.0, 9.0, 16.0])
-                            Container(
-                              margin: const EdgeInsets.symmetric(horizontal: 1.6),
-                              width: 3,
-                              height: h,
-                              decoration: BoxDecoration(color: const Color(0xFF111113), borderRadius: BorderRadius.circular(4)),
-                            ),
-                        ]),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              // ---- Alt: limon kenarlı cam kart ----
-              Container(
-                width: double.infinity,
-                constraints: BoxConstraints(minHeight: (box.maxHeight - 330).clamp(0.0, double.infinity)),
-                padding: const EdgeInsets.fromLTRB(24, 22, 24, 26),
-                decoration: BoxDecoration(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(44)),
-                  gradient: const LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Color(0xF0202A12), Color(0xFA131515), Color(0xFF0E0F10)],
-                  ),
-                  border: Border.all(color: lime.withValues(alpha: 0.75), width: 1.4),
-                  boxShadow: [BoxShadow(color: lime.withValues(alpha: 0.35), blurRadius: 28, offset: const Offset(0, -4))],
-                ),
-                child: Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
-                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(999)),
-                      child: Text(reg ? t('Hesap Oluştur', 'Create Account', 'Konto erstellen') : t('Giriş Yap', 'Sign In', 'Anmelden'),
-                          style: const TextStyle(color: Color(0xFF111113), fontWeight: FontWeight.w800, fontSize: 13)),
-                    ),
-                    const SizedBox(height: 14),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Flexible(
-                          child: Text(title,
-                              style: const TextStyle(
-                                  fontFamily: JuzzioConfig.fontRegularBold,
-                                  color: Colors.white,
-                                  fontSize: 30,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: -0.6)),
-                        ),
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(titleMark,
-                                style: const TextStyle(
-                                    fontFamily: JuzzioConfig.fontRegularBold,
-                                    color: Colors.white,
-                                    fontSize: 30,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: -0.6)),
-                            const JuzzioTitleScribble(width: 90),
-                          ],
-                        ),
-                        if (!reg) Text(' 👋', style: juzzioEmojiStyle(28), textScaler: TextScaler.noScaling),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      reg
-                          ? t('Arkadaşlarınla bağlan, dünyanın her yerinden insanlarla sohbet et.',
-                              'Connect with friends and chat with people all over the world.',
-                              'Verbinde dich mit Freunden und chatte weltweit.')
-                          : t('Juzzio hesabına giriş yap, arkadaşlarınla kaldığın yerden devam et.',
-                              'Sign in to Juzzio and pick up where you left off with your friends.',
-                              'Melde dich bei Juzzio an und mach weiter, wo du aufgehört hast.'),
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.white.withValues(alpha: 0.82), fontSize: 14.5, height: 1.4),
-                    ),
-                    const SizedBox(height: 22),
-                    if (reg) ...[
-                      field(c: _usernameCtrl, hint: t('Kullanıcı adı', 'Username', 'Benutzername'), icon: Icons.person_outline_rounded),
-                      const SizedBox(height: 12),
-                      field(
-                          c: _emailCtrl,
-                          hint: t('E-posta adresi', 'Email address', 'E-Mail-Adresse'),
-                          icon: Icons.mail_outline_rounded,
-                          type: TextInputType.emailAddress),
-                    ] else
-                      field(
-                          c: _usernameCtrl,
-                          hint: t('E-posta adresi veya kullanıcı adı', 'Email or username', 'E-Mail oder Benutzername'),
-                          icon: Icons.mail_outline_rounded,
-                          type: TextInputType.emailAddress),
-                    const SizedBox(height: 12),
-                    field(
-                      c: _passwordCtrl,
-                      hint: t('Şifre', 'Password', 'Passwort'),
-                      icon: Icons.lock_outline_rounded,
-                      obscure: _obscurePassword,
-                      suffix: IconButton(
-                        padding: const EdgeInsets.only(right: 14),
-                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                        icon: Icon(_obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: Colors.white),
-                      ),
-                    ),
-                    if (!reg) ...[
-                      const SizedBox(height: 12),
-                      Row(children: [
-                        GestureDetector(
-                          onTap: () => setState(() => _rememberMe = !_rememberMe),
-                          child: Row(children: [
-                            Container(
-                              width: 24,
-                              height: 24,
-                              decoration: BoxDecoration(
-                                color: _rememberMe ? lime : Colors.transparent,
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: lime, width: 1.6),
-                              ),
-                              child: _rememberMe ? const Icon(Icons.check_rounded, size: 18, color: Color(0xFF111113)) : null,
-                            ),
-                            const SizedBox(width: 10),
-                            Text(t('Beni hatırla', 'Remember me', 'Angemeldet bleiben'),
-                                style: const TextStyle(color: Colors.white, fontSize: 14.5, fontWeight: FontWeight.w500)),
-                          ]),
-                        ),
-                        const Spacer(),
-                        GestureDetector(
-                          onTap: _forgotPassword,
-                          child: Text(t('Şifremi unuttum?', 'Forgot password?', 'Passwort vergessen?'),
-                              style: const TextStyle(color: lime, fontSize: 14.5, fontWeight: FontWeight.w800)),
-                        ),
-                      ]),
-                    ],
-                    if (_errorText != null) ...[
-                      const SizedBox(height: 12),
-                      Text(_errorText!, textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFFFF6B6B), fontWeight: FontWeight.w600)),
-                    ],
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 58,
-                      child: ElevatedButton(
-                        onPressed: _isLoading
-                            ? null
-                            : () {
-                                if (reg) {
-                                  // tasarımda şifre tekrarı ve ad alanı yok: ad = kullanıcı adı
-                                  _confirmPasswordCtrl.text = _passwordCtrl.text;
-                                  if (_fullNameCtrl.text.trim().isEmpty) {
-                                    _fullNameCtrl.text = _usernameCtrl.text.trim().replaceAll('@', '');
-                                  }
-                                }
-                                _submitAuth();
-                              },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: lime,
-                          disabledBackgroundColor: lime.withValues(alpha: 0.6),
-                          foregroundColor: const Color(0xFF111113),
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-                        ),
-                        child: _isLoading
-                            ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.4, color: Color(0xFF111113)))
-                            : Row(mainAxisSize: MainAxisSize.min, children: [
-                                const Icon(Icons.arrow_forward_rounded, size: 24),
-                                const SizedBox(width: 12),
-                                Text(reg ? t('Kayıt Ol', 'Sign Up', 'Registrieren') : t('Giriş Yap', 'Sign In', 'Anmelden'),
-                                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
-                              ]),
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    Row(children: [
-                      Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.18), indent: 28)),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 14),
-                        child: Text(t('veya', 'or', 'oder'), style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 14)),
-                      ),
-                      Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.18), endIndent: 28)),
-                    ]),
-                    const SizedBox(height: 14),
-                    Row(mainAxisAlignment: MainAxisAlignment.center, children: [social('google'), social('apple'), social('github')]),
-                    const SizedBox(height: 18),
-                    Wrap(
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        Text(reg ? t('Zaten hesabın var mı? ', 'Already have an account? ', 'Schon ein Konto? ') : t('Hesabın yok mu? ', "Don't have an account? ", 'Noch kein Konto? '),
-                            style: const TextStyle(color: Colors.white, fontSize: 14.5)),
-                        GestureDetector(
-                          onTap: () => setState(() {
-                            _isRegisterMode = !_isRegisterMode;
-                            _errorText = null;
-                          }),
-                          child: Text(reg ? t('Giriş Yap', 'Sign In', 'Anmelden') : t('Hesap Oluştur', 'Create Account', 'Konto erstellen'),
-                              style: const TextStyle(color: lime, fontSize: 14.5, fontWeight: FontWeight.w800)),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
+    // Kartın içeriği (tasarım ölçüleri; küçük ekranlarda bütünüyle orantılı küçülür → kaydırma yok)
+    final cardColumn = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(999)),
+          child: Text(reg ? t('Hesap Oluştur', 'Create Account', 'Konto erstellen') : t('Giriş Yap', 'Sign In', 'Anmelden'),
+              style: const TextStyle(color: Color(0xFF111113), fontWeight: FontWeight.w800, fontSize: 13)),
+        ),
+        const SizedBox(height: 12),
+        JuzzioMarkedTitle(
+          prefix: title,
+          mark: titleMark,
+          suffix: reg ? '' : ' 👋',
+          scribbleColor: lime,
+          style: TextStyle(
+              fontFamily: JuzzioConfig.fontRegularBold,
+              fontFamilyFallback: kJuzzioEmojiFallback,
+              color: Colors.white,
+              fontSize: 30,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.6),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          reg
+              ? t('Arkadaşlarınla bağlan, dünyanın her yerinden\ninsanlarla sohbet et.',
+                  'Connect with friends and chat with\npeople all over the world.', 'Verbinde dich mit Freunden und\nchatte weltweit.')
+              : t('Juzzio hesabına giriş yap, arkadaşlarınla\nkaldığın yerden devam et.',
+                  'Sign in to Juzzio and pick up where\nyou left off with your friends.', 'Melde dich bei Juzzio an und mach\nweiter, wo du aufgehört hast.'),
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 14.5, height: 1.4),
+        ),
+        const SizedBox(height: 18),
+        if (reg) ...[
+          field(c: _usernameCtrl, hint: t('Kullanıcı adı', 'Username', 'Benutzername'), icon: Icons.person_outline_rounded),
+          const SizedBox(height: 10),
+          field(c: _emailCtrl, hint: t('E-posta adresi', 'Email address', 'E-Mail-Adresse'), icon: Icons.mail_outline_rounded, type: TextInputType.emailAddress),
+        ] else
+          field(
+              c: _usernameCtrl,
+              hint: t('E-posta adresi veya kullanıcı adı', 'Email or username', 'E-Mail oder Benutzername'),
+              icon: Icons.mail_outline_rounded,
+              type: TextInputType.emailAddress),
+        const SizedBox(height: 10),
+        field(
+          c: _passwordCtrl,
+          hint: t('Şifre', 'Password', 'Passwort'),
+          icon: Icons.lock_outline_rounded,
+          obscure: _obscurePassword,
+          suffix: IconButton(
+            padding: const EdgeInsets.only(right: 14),
+            onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+            icon: Icon(_obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: Colors.white),
           ),
         ),
+        if (!reg) ...[
+          const SizedBox(height: 12),
+          Row(children: [
+            GestureDetector(
+              onTap: () => setState(() => _rememberMe = !_rememberMe),
+              child: Row(children: [
+                Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: _rememberMe ? lime : Colors.transparent,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: lime, width: 1.6),
+                  ),
+                  child: _rememberMe ? const Icon(Icons.check_rounded, size: 18, color: Color(0xFF111113)) : null,
+                ),
+                const SizedBox(width: 10),
+                Text(t('Beni hatırla', 'Remember me', 'Angemeldet bleiben'),
+                    style: const TextStyle(color: Colors.white, fontSize: 14.5, fontWeight: FontWeight.w500)),
+              ]),
+            ),
+            const Spacer(),
+            GestureDetector(
+              onTap: _forgotPassword,
+              child: Text(t('Şifremi unuttum?', 'Forgot password?', 'Passwort vergessen?'),
+                  style: const TextStyle(color: lime, fontSize: 14.5, fontWeight: FontWeight.w800)),
+            ),
+          ]),
+        ],
+        if (_errorText != null) ...[
+          const SizedBox(height: 10),
+          Text(_errorText!, textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFFFF6B6B), fontWeight: FontWeight.w600)),
+        ],
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          height: 56,
+          child: ElevatedButton(
+            onPressed: _isLoading
+                ? null
+                : () {
+                    if (reg) {
+                      // tasarımda şifre tekrarı ve ad alanı yok: ad = kullanıcı adı
+                      _confirmPasswordCtrl.text = _passwordCtrl.text;
+                      if (_fullNameCtrl.text.trim().isEmpty) {
+                        _fullNameCtrl.text = _usernameCtrl.text.trim().replaceAll('@', '');
+                      }
+                    }
+                    _submitAuth();
+                  },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: lime,
+              disabledBackgroundColor: lime.withValues(alpha: 0.6),
+              foregroundColor: const Color(0xFF111113),
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+            ),
+            child: _isLoading
+                ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.4, color: Color(0xFF111113)))
+                : Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.arrow_forward_rounded, size: 24),
+                    const SizedBox(width: 12),
+                    Text(reg ? t('Kayıt Ol', 'Sign Up', 'Registrieren') : t('Giriş Yap', 'Sign In', 'Anmelden'),
+                        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
+                  ]),
+          ),
+        ),
+        const SizedBox(height: 14),
+        Row(children: [
+          Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.18), indent: 28)),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: Text(t('veya', 'or', 'oder'), style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 14)),
+          ),
+          Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.18), endIndent: 28)),
+        ]),
+        const SizedBox(height: 12),
+        Row(mainAxisAlignment: MainAxisAlignment.center, children: [social('google'), social('apple'), social('github')]),
+        const SizedBox(height: 14),
+        Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text(reg ? t('Zaten hesabın var mı? ', 'Already have an account? ', 'Schon ein Konto? ') : t('Hesabın yok mu? ', "Don't have an account? ", 'Noch kein Konto? '),
+                style: const TextStyle(color: Colors.white, fontSize: 14.5)),
+            GestureDetector(
+              onTap: () => setState(() {
+                _isRegisterMode = !_isRegisterMode;
+                _errorText = null;
+              }),
+              child: Text(reg ? t('Giriş Yap', 'Sign In', 'Anmelden') : t('Hesap Oluştur', 'Create Account', 'Konto erstellen'),
+                  style: const TextStyle(color: lime, fontSize: 14.5, fontWeight: FontWeight.w800)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        Text(
+          '© ${DateTime.now().year} Juzzio · ${t('Tüm hakları saklıdır.', 'All rights reserved.', 'Alle Rechte vorbehalten.')}',
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 11.5, fontWeight: FontWeight.w600),
+        ),
+      ],
+    );
+
+    final cardDecoration = BoxDecoration(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(44)),
+      // buzlu cam: arkadaki sahne hafifçe görünür (BackdropFilter ile bulanık)
+      gradient: LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [const Color(0xFF2B3A1C).withValues(alpha: 0.72), const Color(0xFF17191A).withValues(alpha: 0.86), const Color(0xFF0E0F10).withValues(alpha: 0.94)],
       ),
+      border: Border.all(color: lime.withValues(alpha: 0.8), width: 1.4),
+      boxShadow: [BoxShadow(color: lime.withValues(alpha: 0.45), blurRadius: 30, offset: const Offset(0, -4))],
+    );
+
+    Widget topRow() => SizedBox(
+          height: 58,
+          child: Stack(children: [
+            Positioned(
+              left: 18,
+              top: 6,
+              child: GestureDetector(
+                onTap: () {
+                  if (reg) {
+                    setState(() {
+                      _isRegisterMode = false;
+                      _errorText = null;
+                    });
+                  } else {
+                    setState(() => _step = 1);
+                  }
+                },
+                child: Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.black.withValues(alpha: 0.22)),
+                  child: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 24),
+                ),
+              ),
+            ),
+            const Positioned(top: 8, left: 0, right: 0, child: Center(child: JuzzioWordmark(size: 30, color: Colors.white))),
+          ]),
+        );
+
+    return LayoutBuilder(
+      key: const ValueKey('auth_screen'),
+      builder: (context, box) {
+        // Klavye açıkken alanlar görünür kalsın diye doğal boyutta kaydırılabilir düzen
+        if (MediaQuery.viewInsetsOf(context).bottom > 0) {
+          return SingleChildScrollView(
+            child: Column(children: [
+              topRow(),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(24, 18, 24, 18),
+                decoration: cardDecoration,
+                child: cardColumn,
+              ),
+            ]),
+          );
+        }
+        // Tek ekran (kaydırmasız): üstte görseldeki sahne, altta kart — her ekran boyutunda sığar
+        final heroH = box.maxHeight * 0.40;
+        return Stack(
+          children: [
+            // Tasarım görselindeki sahne (kadın, emojiler, ses hapı) — genişliğe oturur, alttan karta girer
+            // görseldeki limon zemin rengi (görselin kenarlarıyla birebir)
+            Positioned(left: 0, right: 0, top: 0, height: heroH + 30, child: const ColoredBox(color: Color(0xFFAFD939))),
+            Positioned(
+              left: 0,
+              right: 0,
+              top: 58,
+              height: heroH - 58 + 30,
+              child: ClipRect(child: Image.asset(
+                'assets/images/auth_hero.jpg',
+                fit: BoxFit.fitWidth,
+                alignment: Alignment.bottomCenter,
+                filterQuality: FilterQuality.high,
+              )),
+            ),
+            // canlı limonu yumuşatan hafif koyu örtü (üstte ve karta doğru)
+            Positioned(
+              left: 0,
+              right: 0,
+              top: 0,
+              height: heroH + 30,
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Colors.black.withValues(alpha: 0.22), Colors.black.withValues(alpha: 0.08), Colors.black.withValues(alpha: 0.30)],
+                      stops: const [0, 0.45, 1],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(left: 0, right: 0, top: 0, child: topRow()),
+            Positioned(
+              left: 0,
+              right: 0,
+              top: heroH,
+              bottom: 0,
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(44)),
+                child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                child: Container(
+                decoration: cardDecoration,
+                padding: const EdgeInsets.fromLTRB(24, 16, 24, 10),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.topCenter,
+                  child: SizedBox(width: (box.maxWidth - 48).clamp(260.0, 520.0), child: cardColumn),
+                ),
+              ),
+              ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

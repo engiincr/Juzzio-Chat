@@ -46,22 +46,12 @@ class JuzzioNeonCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final glow = JuzzioGlassTokens.glow;
+    // v2.1: Liquid Glass — bulanık arka plan, üst ışık parıltısı, ince parlak kenar
     final r = BorderRadius.circular(radius);
-    final solid = opaque ?? (ModalRoute.of(context) is PopupRoute);
-    final box = Container(
-      margin: margin,
-      decoration: BoxDecoration(
-        color: solid ? solidColor() : JuzzioGlassTokens.spaceCard,
-        borderRadius: r,
-        border: Border.all(
-          color: highlighted ? glow.withValues(alpha: 0.75) : JuzzioGlassTokens.spaceCardBorder,
-          width: highlighted ? 1.4 : 1,
-        ),
-        boxShadow: highlighted
-            ? [BoxShadow(color: glow.withValues(alpha: 0.22), blurRadius: 18, spreadRadius: -4)]
-            : (solid ? [BoxShadow(color: Colors.black.withValues(alpha: 0.45), blurRadius: 30, offset: const Offset(0, 12))] : null),
-      ),
+    final card = JuzzioLiquidGlass(
+      radius: radius,
+      glowBorder: highlighted,
+      blur: opaque == true ? 0 : 18,
       child: Material(
         type: MaterialType.transparency,
         child: InkWell(
@@ -71,7 +61,7 @@ class JuzzioNeonCard extends StatelessWidget {
         ),
       ),
     );
-    return box;
+    return margin == null ? card : Padding(padding: margin!, child: card);
   }
 }
 
@@ -143,19 +133,9 @@ class JuzzioLimeButton extends StatelessWidget {
         ),
       ],
     );
-    return Opacity(
-      opacity: enabled || busy ? 1 : 0.5,
-      child: Container(
-        height: height,
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: r,
-          border: Border.all(color: border, width: 1.3),
-          boxShadow: style == JuzzioLimeButtonStyle.filled && enabled
-              ? [BoxShadow(color: glow.withValues(alpha: 0.35), blurRadius: 18, spreadRadius: -6, offset: const Offset(0, 6))]
-              : null,
-        ),
-        child: Material(
+    // v2.1 Liquid Glass: dolu düğme parlak sıvı (üstte ışık), diğerleri buzlu cam
+    final filled = style == JuzzioLimeButtonStyle.filled;
+    final ink = Material(
           type: MaterialType.transparency,
           child: InkWell(
             borderRadius: r,
@@ -167,7 +147,35 @@ class JuzzioLimeButton extends StatelessWidget {
                 : null,
             child: Padding(padding: const EdgeInsets.symmetric(horizontal: 18), child: content),
           ),
-        ),
+        );
+    return Opacity(
+      opacity: enabled || busy ? 1 : 0.5,
+      child: SizedBox(
+        height: height,
+        child: filled
+            ? DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: r,
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Color.lerp(bg, Colors.white, 0.28)!, bg, Color.lerp(bg, Colors.black, 0.08)!],
+                    stops: const [0, 0.55, 1],
+                  ),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.40), width: 1),
+                  boxShadow: enabled
+                      ? [BoxShadow(color: glow.withValues(alpha: 0.40), blurRadius: 20, spreadRadius: -6, offset: const Offset(0, 8))]
+                      : null,
+                ),
+                child: ink,
+              )
+            : JuzzioLiquidGlass(
+                radius: height / 2,
+                tint: border,
+                glowBorder: style != JuzzioLimeButtonStyle.ghost,
+                blur: 14,
+                child: SizedBox(height: height, child: ink),
+              ),
       ),
     );
   }

@@ -137,13 +137,50 @@ class _JuzzioAuthHeroState extends State<JuzzioAuthHero> with SingleTickerProvid
 
 /// v2.1 (tasarım: Giriş/Kayıt) — başlık altındaki limon el çizimi vurgu (kodla çizilir)
 class JuzzioTitleScribble extends StatelessWidget {
-  const JuzzioTitleScribble({super.key, this.width = 96});
+  const JuzzioTitleScribble({super.key, this.width = 96, this.color});
   final double width;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) => IgnorePointer(
-        child: CustomPaint(size: Size(width, 10), painter: _ScribblePainter(JuzzioGlassTokens.glow)),
+        child: CustomPaint(size: Size(width, 10), painter: _ScribblePainter(color ?? JuzzioGlassTokens.glow)),
       );
+}
+
+/// v2.1 (tasarım): tek satır başlık; [mark] kelimesinin tam altına el çizimi vurgu.
+/// Genişlik ölçülür, dar ekranda satır bütünüyle orantılı küçülür (kırılmaz, kaymaz).
+class JuzzioMarkedTitle extends StatelessWidget {
+  const JuzzioMarkedTitle({super.key, required this.prefix, required this.mark, this.suffix = '', required this.style, required this.scribbleColor});
+  final String prefix;
+  final String mark;
+  final String suffix;
+  final TextStyle style;
+  final Color scribbleColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final scaler = MediaQuery.textScalerOf(context);
+    double w(String t) {
+      final tp = TextPainter(text: TextSpan(text: t, style: style), textDirection: TextDirection.ltr, textScaler: scaler)..layout();
+      return tp.width;
+    }
+
+    final tpAll = TextPainter(text: TextSpan(text: '$prefix$mark$suffix', style: style), textDirection: TextDirection.ltr, textScaler: scaler)
+      ..layout();
+    final left = w(prefix);
+    final markW = w(mark);
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: SizedBox(
+        width: tpAll.width,
+        height: tpAll.height + 8,
+        child: Stack(clipBehavior: Clip.none, children: [
+          Text('$prefix$mark$suffix', style: style, maxLines: 1, softWrap: false),
+          Positioned(left: left, top: tpAll.height - 4, child: JuzzioTitleScribble(width: markW, color: scribbleColor)),
+        ]),
+      ),
+    );
+  }
 }
 
 class _ScribblePainter extends CustomPainter {

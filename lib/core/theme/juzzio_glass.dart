@@ -1231,3 +1231,99 @@ ThemeData buildJuzzioDarkTheme({required String fontFamily, required PageTransit
     ),
   );
 }
+
+// =============================================================================
+// v2.1 — Liquid Glass yüzeyi (tüm uygulamada ortak)
+//  Arkasını bulanıklaştıran (BackdropFilter), üstten süzülen ışık parıltısı (specular), ince
+//  parlak kenar ve temanın vurgu rengiyle hafif tonlanmış yarı saydam dolgu. Performans modunda
+//  (reducedEffects) bulanıklık kapatılır, görünüm aynı kalır. Açılır pencerede opak olur.
+// =============================================================================
+BoxDecoration juzzioLiquidDecoration({
+  required BorderRadius radius,
+  Color? tint,
+  bool strong = false,
+  bool solid = false,
+  bool glowBorder = false,
+}) {
+  final dark = JuzzioGlassTokens.isDarkResolver();
+  final g = tint ?? JuzzioGlassTokens.glow;
+  final sp = JuzzioGlassTokens.space;
+  final base = solid ? (dark ? sp.depth[sp.depth.length > 1 ? 1 : 0] : sp.depthLight.last) : null;
+  final top = dark ? Colors.white.withValues(alpha: strong ? 0.16 : 0.11) : Colors.white.withValues(alpha: strong ? 0.82 : 0.66);
+  final bottom = dark ? Colors.white.withValues(alpha: strong ? 0.06 : 0.035) : Colors.white.withValues(alpha: strong ? 0.55 : 0.40);
+  Color mix(Color c) => base == null ? Color.alphaBlend(g.withValues(alpha: dark ? 0.035 : 0.05), c) : Color.alphaBlend(c, base);
+  return BoxDecoration(
+    borderRadius: radius,
+    gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [mix(top), mix(bottom)]),
+    border: Border.all(
+      color: glowBorder ? g.withValues(alpha: 0.75) : (dark ? Colors.white.withValues(alpha: 0.16) : Colors.white.withValues(alpha: 0.85)),
+      width: glowBorder ? 1.4 : 1,
+    ),
+    boxShadow: [
+      BoxShadow(color: Colors.black.withValues(alpha: dark ? 0.28 : 0.08), blurRadius: 24, offset: const Offset(0, 10), spreadRadius: -8),
+      if (glowBorder) BoxShadow(color: g.withValues(alpha: 0.22), blurRadius: 18, spreadRadius: -4),
+    ],
+  );
+}
+
+class JuzzioLiquidGlass extends StatelessWidget {
+  const JuzzioLiquidGlass({
+    super.key,
+    required this.child,
+    this.radius = 22,
+    this.padding,
+    this.tint,
+    this.strong = false,
+    this.glowBorder = false,
+    this.blur = 18,
+    this.shape = BoxShape.rectangle,
+  });
+
+  final Widget child;
+  final double radius;
+  final EdgeInsetsGeometry? padding;
+  final Color? tint;
+  final bool strong;
+  final bool glowBorder;
+  final double blur;
+  final BoxShape shape;
+
+  @override
+  Widget build(BuildContext context) {
+    final inPopup = ModalRoute.of(context) is PopupRoute;
+    final r = BorderRadius.circular(shape == BoxShape.circle ? 999 : radius);
+    final deco = juzzioLiquidDecoration(radius: r, tint: tint, strong: strong, solid: inPopup, glowBorder: glowBorder);
+    final dark = JuzzioGlassTokens.isDarkResolver();
+    Widget body = DecoratedBox(
+      decoration: deco,
+      child: Stack(
+        children: [
+          // üstten süzülen ışık (liquid glass parıltısı)
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            height: 22,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.vertical(top: r.topLeft),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.white.withValues(alpha: dark ? 0.10 : 0.35), Colors.white.withValues(alpha: 0)],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Padding(padding: padding ?? EdgeInsets.zero, child: child),
+        ],
+      ),
+    );
+    if (!inPopup && !JuzzioGlassTokens.reducedEffects && blur > 0) {
+      body = BackdropFilter(filter: ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur), child: body);
+    }
+    return ClipRRect(borderRadius: r, child: body);
+  }
+}

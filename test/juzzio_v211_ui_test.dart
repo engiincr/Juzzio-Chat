@@ -1,7 +1,9 @@
 // v2.1 — yeni arama arayüzü, ses çıkışı, Sinema Parti, yönetici paneli, güncelleme anahtarı
 import 'dart:io';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:juzzio/widgets/juzzio_auth_hero.dart';
 import 'package:juzzio/services/juzzio_audio_route.dart';
 import 'package:juzzio/widgets/juzzio_call_kit21.dart';
 
@@ -85,7 +87,7 @@ void main() {
   });
 
   test('diyaloglar açılır pencerede opak (alttaki sayfa okunmaz olmaz)', () {
-    expect(_src('lib/widgets/juzzio_neon_kit.dart').contains('ModalRoute.of(context) is PopupRoute'), isTrue);
+    expect(_src('lib/widgets/juzzio_neon_kit.dart').contains('JuzzioLiquidGlass('), isTrue);
     expect(_src('lib/core/theme/juzzio_glass.dart').contains('ModalRoute.of(context) is PopupRoute'), isTrue);
     expect(_src('lib/screens/settings/juzzio_settings_v21.dart').contains('class JuzzioMfaCodePage'), isTrue);
   });
@@ -121,5 +123,29 @@ void main() {
 
   test('sohbetler üst kısayol kutuları kaldırıldı', () {
     expect(_src('lib/screens/chat_screen.dart').contains('_buildFeatureShortcutsRow'), isFalse);
+  });
+
+  testWidgets('giriş başlığı tek satır, vurgu çizgisi kelimenin altında; dar ekranda taşmaz', (tester) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(const MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: SizedBox(
+            width: 260,
+            child: JuzzioMarkedTitle(
+              prefix: 'Tekrar Hoş ',
+              mark: 'Geldin!',
+              suffix: ' 👋',
+              scribbleColor: Color(0xFFC6F135),
+              style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800),
+            ),
+          ),
+        ),
+      ),
+    ));
+    expect(tester.takeException(), isNull);
+    expect(find.byType(JuzzioTitleScribble), findsOneWidget);
   });
 }

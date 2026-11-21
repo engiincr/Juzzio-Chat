@@ -129,7 +129,7 @@ void main() {
       // v2.1.1: tasarım şablonu birebir — limon sahne, "Juzzio'ya Katıl" / "Tekrar Hoş Geldin!" + vurgu çizgisi
       expect(m.contains("t('Katıl', 'Juzzio', 'Juzzio')"), isTrue);
       expect(m.contains("t('Geldin!', 'back!', 'zurück!')"), isTrue);
-      expect(m.contains('const JuzzioTitleScribble(width: 90)'), isTrue);
+      expect(m.contains('JuzzioMarkedTitle('), isTrue);
       expect(m.contains("social('google'), social('apple'), social('github')"), isTrue);
       expect(m.contains('Future<void> _forgotPassword()'), isTrue);
       expect(m.contains('resetPasswordForEmail(email)'), isTrue);

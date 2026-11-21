@@ -180,13 +180,17 @@ class JuzzioHeaderCircleButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final btn = Material(
-      color: JuzzioGlassTokens.spaceCard,
-      shape: CircleBorder(side: BorderSide(color: JuzzioGlassTokens.spaceCardBorder)),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
-        child: SizedBox(width: size, height: size, child: Icon(icon, size: size * 0.5, color: JuzzioGlassTokens.textPrimary)),
+    // v2.1 Liquid Glass daire düğme
+    final btn = JuzzioLiquidGlass(
+      shape: BoxShape.circle,
+      blur: 14,
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: SizedBox(width: size, height: size, child: Icon(icon, size: size * 0.5, color: JuzzioGlassTokens.textPrimary)),
+        ),
       ),
     );
     return tooltip == null ? btn : Tooltip(message: tooltip!, child: btn);
