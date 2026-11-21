@@ -12,6 +12,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/app_theme_and_locale.dart';
 import '../core/theme/juzzio_glass.dart';
+import '../services/juzzio_features_service.dart';
 import '../widgets/juzzio_brand.dart';
 import '../widgets/juzzio_neon_kit.dart';
 
@@ -392,6 +393,146 @@ class _JuzzioAdminModuleStatsPageState extends State<JuzzioAdminModuleStatsPage>
                 for (final e in d.entries)
                   if (e.value is Map || e.value is List) _section(e.key, e.value),
               ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// v2.1 — Yönetici panel şifresini değiştirme. [forced]: varsayılan şifreyle girildi, değiştirmeden
+/// panel açılmaz (sunucu da tüm yönetici işlemlerini kilitli tutar). Başarılıysa true döner.
+class JuzzioAdminChangePasswordPage extends StatefulWidget {
+  const JuzzioAdminChangePasswordPage({super.key, required this.token, this.forced = false, this.initialOld = ''});
+  final String token;
+  final bool forced;
+  final String initialOld;
+
+  @override
+  State<JuzzioAdminChangePasswordPage> createState() => _JuzzioAdminChangePasswordPageState();
+}
+
+/// Yeni yönetici şifresi kuralı (sunucuyla aynı): en az 8 karakter, harf ve rakam (saf; test edilir)
+bool juzzioAdminPasswordOk(String p) => p.length >= 8 && RegExp('[A-Za-z]').hasMatch(p) && RegExp('[0-9]').hasMatch(p);
+
+class _JuzzioAdminChangePasswordPageState extends State<JuzzioAdminChangePasswordPage> {
+  late final TextEditingController _old = TextEditingController(text: widget.initialOld);
+  final _new = TextEditingController();
+  final _again = TextEditingController();
+  bool _busy = false;
+  bool _obscure = true;
+  String? _error;
+
+  @override
+  void dispose() {
+    _old.dispose();
+    _new.dispose();
+    _again.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final app = JuzzioAppController.instance;
+    final n = _new.text;
+    if (!juzzioAdminPasswordOk(n)) {
+      setState(() => _error = app.trEn('Yeni şifre en az 8 karakter olmalı ve harf ile rakam içermeli.',
+          'The new password must be at least 8 characters and contain letters and numbers.', 'Mind. 8 Zeichen mit Buchstaben und Ziffern.'));
+      return;
+    }
+    if (n != _again.text) {
+      setState(() => _error = app.trEn('Yeni şifreler aynı değil.', 'The new passwords do not match.', 'Die Passwörter stimmen nicht überein.'));
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await JuzzioFeaturesService.instance.adminChangePassword(token: widget.token, oldPassword: _old.text, newPassword: n);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(app.trEn('Yönetici şifren değiştirildi.', 'Your admin password was changed.', 'Admin-Passwort geändert.'))));
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      final m = e.toString();
+      if (!mounted) return;
+      setState(() => _error = m == 'wrong_password'
+          ? app.trEn('Mevcut şifre hatalı.', 'The current password is wrong.', 'Aktuelles Passwort falsch.')
+          : m == 'password_same'
+              ? app.trEn('Yeni şifre eskisiyle aynı olamaz.', 'The new password must differ from the old one.', 'Neues Passwort muss sich unterscheiden.')
+              : m == 'password_too_weak'
+                  ? app.trEn('Yeni şifre çok zayıf.', 'The new password is too weak.', 'Neues Passwort zu schwach.')
+                  : m);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Widget _field(TextEditingController c, String label) => Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: TextField(
+          controller: c,
+          obscureText: _obscure,
+          autocorrect: false,
+          enableSuggestions: false,
+          style: TextStyle(color: JuzzioGlassTokens.heading),
+          decoration: InputDecoration(
+            labelText: label,
+            prefixIcon: const Icon(Icons.lock_outline_rounded),
+            suffixIcon: IconButton(
+              icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+              onPressed: () => setState(() => _obscure = !_obscure),
+            ),
+          ),
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final app = JuzzioAppController.instance;
+    return PopScope(
+      canPop: !widget.forced || !_busy,
+      child: Scaffold(
+        backgroundColor: JuzzioGlassTokens.space.depth.last,
+        body: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
+            children: [
+              JuzzioScreenHeader(
+                title: app.trEn('Yönetici şifresini değiştir', 'Change admin password', 'Admin-Passwort ändern'),
+                subtitle: widget.forced
+                    ? app.trEn('İlk girişte varsayılan şifreyi değiştirmen gerekiyor. Değiştirmeden panel açılmaz.',
+                        'You must change the default password on first sign-in. The panel stays locked until you do.',
+                        'Beim ersten Login muss das Standardpasswort geändert werden.')
+                    : app.trEn('Bu şifre yalnız yönetici paneline giriş içindir.', 'This password is only for the admin panel.',
+                        'Nur für das Admin-Panel.'),
+              ),
+              JuzzioNeonCard(
+                padding: const EdgeInsets.all(16),
+                child: Column(children: [
+                  _field(_old, app.trEn('Mevcut şifre', 'Current password', 'Aktuelles Passwort')),
+                  _field(_new, app.trEn('Yeni şifre', 'New password', 'Neues Passwort')),
+                  _field(_again, app.trEn('Yeni şifre (tekrar)', 'New password (again)', 'Neues Passwort (wiederholen)')),
+                  Text(
+                    app.trEn('En az 8 karakter; harf ve rakam içermeli.', 'At least 8 characters; must contain letters and numbers.',
+                        'Mind. 8 Zeichen; Buchstaben und Ziffern.'),
+                    style: TextStyle(color: JuzzioGlassTokens.textSecondary, fontSize: 12.5),
+                  ),
+                  if (_error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 10),
+                      child: Text(_error!, style: const TextStyle(color: Color(0xFFFF5A6A))),
+                    ),
+                  const SizedBox(height: 14),
+                  JuzzioLimeButton(
+                    label: app.trEn('Şifreyi değiştir', 'Change password', 'Passwort ändern'),
+                    icon: Icons.key_rounded,
+                    busy: _busy,
+                    onPressed: _busy ? null : _save,
+                  ),
+                ]),
+              ),
             ],
           ),
         ),

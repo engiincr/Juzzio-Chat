@@ -797,19 +797,24 @@ class _JuzzioAdminGodTabState extends State<JuzzioAdminGodTab> {
       final ips = juzzioCollectIps(bundle);
       final isp = await juzzioLookupIsps(ips);
       final ts = await juzzioRequestTimestamp(jsonDigest.bytes);
-      final pdf = await juzzioBuildLegalPdf(JuzzioLegalPdfInput(
-        bundle: bundle,
-        info: info,
-        jsonSha256: jsonDigest.toString(),
-        isp: isp,
-        timestamp: ts,
-        ispLookupTried: true,
-      ));
+      // v2.1: rapor dili yöneticinin uygulama dilidir (@ari İngilizce, @tugkancr Türkçe görür)
+      final english = JuzzioAppController.instance.uiLang != 'tr';
+      final pdf = await juzzioBuildLegalPdf(
+        JuzzioLegalPdfInput(
+          bundle: bundle,
+          info: info,
+          jsonSha256: jsonDigest.toString(),
+          isp: isp,
+          timestamp: ts,
+          ispLookupTried: true,
+        ),
+        english: english,
+      );
       final files = <String, List<int>>{
         'juzzio_rapor.pdf': pdf,
         'juzzio_veri.json': jsonBytes,
         if (ts != null) 'zaman_damgasi.tsr': ts.token,
-        'DOGRULAMA.txt': utf8.encode(juzzioVerificationReadme(hasTimestamp: ts != null, tsaHost: ts?.authority ?? '')),
+        'DOGRULAMA.txt': utf8.encode(juzzioVerificationReadme(hasTimestamp: ts != null, tsaHost: ts?.authority ?? '', english: english)),
       };
       files['SHA256SUMS.txt'] = utf8.encode(juzzioSha256Sums(files));
       final password = juzzioLegalPassword();

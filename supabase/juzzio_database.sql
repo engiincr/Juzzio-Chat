@@ -18841,3 +18841,158 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION public.admin_module_stats(TEXT, TEXT) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.admin_module_stats(TEXT, TEXT) TO authenticated;
+
+-- =============================================================================
+-- 10.48 (v2.1) — İkinci süper yönetici: @ari (hesaba bağlı, kullanıcı adına değil)
+--   • Yetki kullanıcı adına değil HESAP KİMLİĞİNE bağlanır: @ari adını değiştirse de yetki
+--     kalır; başka biri sonradan "ari" adını alsa bile yönetici OLMAZ.
+--   • Her ek yöneticinin KENDİ panel şifresi vardır (bcrypt). İlk şifre varsayılandır ve
+--     must_change = true: şifre değiştirilmeden HİÇBİR yönetici işlemi çalışmaz
+--     (admin_check_token false döner); yalnız admin_change_my_password açıktır.
+--   • Dosyada şifrenin kendisi YOKTUR; yalnız bcrypt özeti vardır.
+--   • @tugkancr (kurucu) mevcut ortak şifreyle girmeye devam eder; kurucu korumaları değişmez.
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS public.admin_user_secrets (
+    user_id UUID PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE,
+    password_hash TEXT NOT NULL,
+    must_change BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+ALTER TABLE public.admin_user_secrets ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.admin_user_secrets FROM PUBLIC, anon, authenticated;
+DROP POLICY IF EXISTS admin_user_secrets_deny ON public.admin_user_secrets;
+CREATE POLICY admin_user_secrets_deny ON public.admin_user_secrets FOR ALL TO authenticated USING (false) WITH CHECK (false);
+
+-- @ari hesabını (bugünkü sahibini) bağla; varsa dokunma (şifresini değiştirdiyse ezilmez)
+INSERT INTO public.admin_user_secrets (user_id, password_hash, must_change)
+SELECT id, '$2a$12$/UEUaSPXnH83F5wmX7Zag.NgeGchNkslNsVfuHBHXbFdCkoWvoTLa', true
+  FROM public.profiles WHERE lower(username) = 'ari' ORDER BY created_at LIMIT 1
+ON CONFLICT (user_id) DO NOTHING;
+
+CREATE OR REPLACE FUNCTION public.is_juzzio_admin(p_user UUID DEFAULT auth.uid())
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT EXISTS (SELECT 1 FROM public.profiles WHERE id = p_user AND LOWER(username) = 'tugkancr')
+        OR EXISTS (SELECT 1 FROM public.admin_user_secrets WHERE user_id = p_user);
+$$;
+GRANT EXECUTE ON FUNCTION public.is_juzzio_admin(UUID) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.admin_unlock(p_password TEXT, p_device_id TEXT, p_remember BOOLEAN DEFAULT false)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+DECLARE
+    v_uid UUID := auth.uid();
+    v_hash TEXT;
+    v_must BOOLEAN := false;
+    v_token TEXT;
+    v_fails INTEGER;
+    v_exp TIMESTAMPTZ;
+BEGIN
+    IF NOT public.is_juzzio_admin(v_uid) THEN RAISE EXCEPTION 'not_allowed'; END IF;
+    SELECT COUNT(*) INTO v_fails FROM public.admin_login_attempts
+    WHERE user_id = v_uid AND NOT success AND created_at > NOW() - INTERVAL '15 minutes';
+    IF v_fails >= 5 THEN RAISE EXCEPTION 'too_many_attempts'; END IF;
+
+    -- Ek yöneticinin kendi şifresi; yoksa kurucunun ortak panel şifresi
+    SELECT password_hash, must_change INTO v_hash, v_must FROM public.admin_user_secrets WHERE user_id = v_uid;
+    IF v_hash IS NULL THEN
+        SELECT password_hash INTO v_hash FROM public.admin_secret WHERE id = 1;
+        v_must := false;
+    END IF;
+    IF v_hash IS NULL THEN RAISE EXCEPTION 'admin_password_not_set'; END IF;
+    IF crypt(COALESCE(p_password, ''), v_hash) <> v_hash THEN
+        INSERT INTO public.admin_login_attempts (user_id, device_id, success) VALUES (v_uid, LEFT(COALESCE(p_device_id, ''), 128), false);
+        RETURN jsonb_build_object('ok', false, 'remaining', GREATEST(0, 4 - v_fails));
+    END IF;
+
+    INSERT INTO public.admin_login_attempts (user_id, device_id, success) VALUES (v_uid, LEFT(COALESCE(p_device_id, ''), 128), true);
+    v_token := encode(gen_random_bytes(32), 'hex');
+    -- şifre değiştirilmesi gerekiyorsa oturum kısa (30 dk) ve yalnız şifre değiştirmeye yarar
+    v_exp := NOW() + CASE WHEN v_must THEN INTERVAL '30 minutes' WHEN p_remember THEN INTERVAL '30 days' ELSE INTERVAL '12 hours' END;
+    INSERT INTO public.admin_sessions (token_hash, user_id, device_id, expires_at)
+    VALUES (encode(digest(v_token, 'sha256'), 'hex'), v_uid, LEFT(COALESCE(p_device_id, ''), 128), v_exp);
+    DELETE FROM public.admin_sessions WHERE expires_at < NOW();
+    RETURN jsonb_build_object('ok', true, 'token', v_token, 'expires_at', v_exp, 'must_change', v_must);
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.admin_unlock(TEXT, TEXT, BOOLEAN) TO authenticated;
+
+-- Şifre değişmeden hiçbir yönetici işlemi çalışmaz
+CREATE OR REPLACE FUNCTION public.admin_check_token(p_token TEXT)
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+    SELECT public.is_juzzio_admin(auth.uid())
+       AND NOT EXISTS (SELECT 1 FROM public.admin_user_secrets u WHERE u.user_id = auth.uid() AND u.must_change)
+       AND EXISTS (
+        SELECT 1 FROM public.admin_sessions s
+        WHERE s.token_hash = encode(digest(COALESCE(p_token, ''), 'sha256'), 'hex')
+          AND s.user_id = auth.uid() AND s.expires_at > NOW()
+    );
+$$;
+GRANT EXECUTE ON FUNCTION public.admin_check_token(TEXT) TO authenticated;
+
+-- Yöneticinin kendi panel şifresini değiştirmesi (ilk girişte zorunlu).
+-- Kurucu (@tugkancr) için ortak panel şifresi değişir. Eski şifre doğrulanır; en az 8 karakter;
+-- harf ve rakam içermeli; eskisiyle aynı olamaz. Başarılıysa bu yöneticinin DİĞER oturumları kapanır.
+CREATE OR REPLACE FUNCTION public.admin_change_my_password(p_token TEXT, p_old TEXT, p_new TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+DECLARE
+    v_uid UUID := auth.uid();
+    v_hash TEXT;
+    v_own BOOLEAN := false;
+    v_tok TEXT := encode(digest(COALESCE(p_token, ''), 'sha256'), 'hex');
+BEGIN
+    IF NOT public.is_juzzio_admin(v_uid) THEN RAISE EXCEPTION 'not_allowed'; END IF;
+    IF NOT EXISTS (SELECT 1 FROM public.admin_sessions WHERE token_hash = v_tok AND user_id = v_uid AND expires_at > NOW()) THEN
+        RAISE EXCEPTION 'admin_session_invalid';
+    END IF;
+    IF NOT public.juzzio_rate_check(v_uid, 'admin_pw_change', 5, 3600) THEN RAISE EXCEPTION 'rate_limited'; END IF;
+    SELECT password_hash INTO v_hash FROM public.admin_user_secrets WHERE user_id = v_uid;
+    v_own := v_hash IS NOT NULL;
+    IF NOT v_own THEN SELECT password_hash INTO v_hash FROM public.admin_secret WHERE id = 1; END IF;
+    IF v_hash IS NULL OR crypt(COALESCE(p_old, ''), v_hash) <> v_hash THEN RAISE EXCEPTION 'wrong_password'; END IF;
+    IF LENGTH(COALESCE(p_new, '')) < 8 OR p_new !~ '[A-Za-z]' OR p_new !~ '[0-9]' THEN RAISE EXCEPTION 'password_too_weak'; END IF;
+    IF crypt(p_new, v_hash) = v_hash THEN RAISE EXCEPTION 'password_same'; END IF;
+    IF v_own THEN
+        UPDATE public.admin_user_secrets SET password_hash = crypt(p_new, gen_salt('bf', 12)), must_change = false, updated_at = NOW()
+         WHERE user_id = v_uid;
+        DELETE FROM public.admin_sessions WHERE user_id = v_uid AND token_hash <> v_tok;
+    ELSE
+        UPDATE public.admin_secret SET password_hash = crypt(p_new, gen_salt('bf', 12)), updated_at = NOW() WHERE id = 1;
+        DELETE FROM public.admin_sessions WHERE token_hash <> v_tok AND user_id = v_uid;
+    END IF;
+    -- değiştikten sonra bu oturum normal süreye (12 saat) uzar
+    UPDATE public.admin_sessions SET expires_at = GREATEST(expires_at, NOW() + INTERVAL '12 hours') WHERE token_hash = v_tok;
+    INSERT INTO public.admin_audit_log (admin_id, action, target, details) VALUES (v_uid, 'admin_password_changed', '', '{}'::jsonb);
+    RETURN jsonb_build_object('ok', true);
+END;
+$$;
+REVOKE ALL ON FUNCTION public.admin_change_my_password(TEXT, TEXT, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_change_my_password(TEXT, TEXT, TEXT) TO authenticated;
+
+-- Yönetici kimliği (panel başlığı için): kurucu mu, ek yönetici mi
+CREATE OR REPLACE FUNCTION public.admin_whoami()
+RETURNS JSONB LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+    SELECT jsonb_build_object(
+        'admin', public.is_juzzio_admin(auth.uid()),
+        'founder', COALESCE(auth.uid() = public.juzzio_founder_id(), false),
+        'must_change', EXISTS (SELECT 1 FROM public.admin_user_secrets WHERE user_id = auth.uid() AND must_change));
+$$;
+REVOKE ALL ON FUNCTION public.admin_whoami() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_whoami() TO authenticated;

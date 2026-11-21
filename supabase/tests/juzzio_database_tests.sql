@@ -2972,4 +2972,35 @@ END $$;
 RESET ROLE;
 DELETE FROM admin_sessions WHERE user_id = :'A';
 UPDATE profiles SET username = (SELECT username FROM _u47) WHERE id = :'A';
+
+-- 10.48 İkinci süper yönetici (hesaba bağlı, ilk girişte şifre değişimi zorunlu)
+RESET ROLE;
+SET search_path = public, extensions;
+DELETE FROM admin_user_secrets WHERE user_id = :'C';
+INSERT INTO admin_user_secrets (user_id, password_hash, must_change) VALUES (:'C', crypt('Varsayilan1', gen_salt('bf', 4)), true);
+DELETE FROM admin_login_attempts WHERE user_id = :'C';
+SELECT pg_temp.check('ek yönetici hesaba bağlı', is_juzzio_admin(:'C'));
+CREATE TEMP TABLE _b48 AS SELECT username FROM profiles WHERE id = :'B';
+UPDATE profiles SET username = 'ari' WHERE id = :'B';
+SELECT pg_temp.check('"ari" adını alan başkası yönetici olmaz', NOT is_juzzio_admin(:'B'));
+UPDATE profiles SET username = (SELECT username FROM _b48) WHERE id = :'B';
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'C');
+SELECT (admin_unlock('Varsayilan1', 'dev-c-0001', false)) AS u48 \gset
+SELECT pg_temp.check('varsayılan şifreyle giriş: değiştirme zorunlu', (:'u48'::jsonb->>'must_change')::boolean = true);
+SELECT pg_temp.check('şifre değişmeden yönetici işlemi yok', NOT admin_check_token(:'u48'::jsonb->>'token'));
+DO $$ DECLARE v_hit BOOLEAN := false; BEGIN
+  BEGIN PERFORM public.admin_change_my_password(current_setting('juzzio.t48', true), 'Varsayilan1', 'kisa'); EXCEPTION WHEN OTHERS THEN v_hit := true; END;
+  PERFORM pg_temp.check('zayıf/oturumsuz şifre değişimi reddedilir', v_hit);
+END $$;
+SELECT pg_temp.check('şifre değişti', (admin_change_my_password(:'u48'::jsonb->>'token', 'Varsayilan1', 'YeniSifre2026')->>'ok')::boolean);
+SELECT pg_temp.check('değişimden sonra panel açık', admin_check_token(:'u48'::jsonb->>'token'));
+SELECT pg_temp.check('eski şifre artık geçmez', (admin_unlock('Varsayilan1', 'dev-c-0001', false)->>'ok')::boolean = false);
+SELECT pg_temp.check('yeni şifreyle giriş, değişim gerekmez', (admin_unlock('YeniSifre2026', 'dev-c-0001', false)->>'must_change')::boolean = false);
+SELECT pg_temp.check('ek yönetici kurucu değildir', (admin_whoami()->>'founder')::boolean = false);
+RESET ROLE;
+SELECT pg_temp.check('ek yönetici şifre tablosu istemciye kapalı', NOT has_table_privilege('authenticated', 'public.admin_user_secrets', 'SELECT'));
+DELETE FROM admin_sessions WHERE user_id = :'C';
+DELETE FROM admin_login_attempts WHERE user_id = :'C';
+DELETE FROM admin_user_secrets WHERE user_id = :'C';
 SELECT 'TÜM v2.1 TESTLERİ GEÇTİ';

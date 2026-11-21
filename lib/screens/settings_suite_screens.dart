@@ -127,6 +127,13 @@ class _JuzzioSettingsMainPageState extends State<JuzzioSettingsMainPage> {
 
   void _push(Widget page) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
 
+  // v2.1: yönetici satırı bir kez hesaplanır (her yeniden çizimde sunucuya gidilmez)
+  late final Future<bool> _adminVisible = () async {
+    if (await JuzzioFeaturesService.instance.isAdmin()) return true;
+    final perms = await JuzzioFeaturesService.instance.myPermissionsCached();
+    return JuzzioFeaturesService.permissionSet(perms).isNotEmpty;
+  }();
+
   // v2.1 (Faz 7.1) — tasarımdaki Ayarlar ana sayfası: J Juzzio başlığı,
   // limon halkalı profil kartı, ikonlu satır grupları ve kırmızı Çıkış Yap.
   @override
@@ -308,11 +315,11 @@ class _JuzzioSettingsMainPageState extends State<JuzzioSettingsMainPage> {
                   ),
                   // YÖNETİCİ PANELİ: süper yönetici (@tugkancr) ve personel rolleri (RBAC).
                   // Görünürlük yalnızca kolaylıktır; yetki sunucuda denetlenir.
-                  FutureBuilder<Map<String, dynamic>>(
-                    future: JuzzioFeaturesService.instance.myPermissionsCached(),
+                  // v2.1: süper yöneticiler (@tugkancr, @ari — sunucuda hesaba bağlı) ve personel
+                  FutureBuilder<bool>(
+                    future: _adminVisible,
                     builder: (context, snap) {
-                      final staff = JuzzioFeaturesService.permissionSet(snap.data ?? const <String, dynamic>{}).isNotEmpty;
-                      if (uname.toLowerCase() != 'tugkancr' && !staff) return const SizedBox.shrink();
+                      if (uname.toLowerCase() != 'tugkancr' && snap.data != true) return const SizedBox.shrink();
                       return JuzzioNeonRow(
                         icon: Icons.admin_panel_settings_outlined,
                         title: appCtrl.t('admin_title'),
@@ -6906,8 +6913,8 @@ class JuzzioBatteryOptimizationPage extends StatelessWidget {
                       title: Text(appCtrl.trEn('Düşük Veri Modu', 'Data Saver', 'Datensparmodus'),
                           style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w800)),
                       subtitle: Text(
-                        appCtrl.trEn('Görüntülü aramada ≈360p/15 fps, sessizken ses gönderilmez; sohbete gönderilen fotoğraflar küçültülür.',
-                            'Video calls at ≈360p/15 fps, no audio packets in silence; photos you send are downscaled.', 'Videoanrufe mit ≈360p/15 fps; gesendete Fotos verkleinert.'),
+                        appCtrl.trEn('Görüntülü aramada 480p · 60 fps (akıcılık korunur), sessizken ses gönderilmez; sohbete gönderilen fotoğraflar küçültülür.',
+                            'Video calls at 480p · 60 fps (stays smooth), no audio packets in silence; photos you send are downscaled.', 'Videoanrufe mit 480p · 60 fps; gesendete Fotos verkleinert.'),
                         style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textSecondary, fontSize: 12),
                       ),
                       value: appCtrl.dataSaverEnabled,

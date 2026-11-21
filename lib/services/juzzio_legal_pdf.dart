@@ -48,6 +48,25 @@ const String kJuzzioPdfDeliveryNote =
     'kayıtlardan otomatik olarak derlenmiştir. Belge ve ekindeki ham veri dosyasının bütünlüğü SHA-256 özetiyle '
     'korunmaktadır; tek bir karakterin değişmesi hâlinde özet değeri tutmaz.';
 
+// v2.1: İngilizce sürümler (yönetici uygulaması İngilizce ise PDF İngilizce üretilir)
+const String kJuzzioPdfFooterNoteEn =
+    'This document was generated automatically by Juzzio Systems at the request of the competent authorities.';
+const String kJuzzioPdfE2eeStatementEn =
+    'Because of end-to-end encryption, one-to-one chat contents are not stored on the server and cannot be read. '
+    'One-to-one chat and voice/video call contents in this report are end-to-end encrypted under the Juzzio protocol; '
+    'they do not exist in plain text on the servers and cannot be read or decrypted by anyone, including system '
+    'administrators. The server holds only connection metadata (time, IP, device, room ID).';
+const String kJuzzioPdfDeviceStatementEn =
+    'Under Android/iOS security policies, third-party apps cannot access the IMEI; this report therefore provides an '
+    'app-specific device ID (device_id), the device model and network IP information instead. City/GPS location is not '
+    'collected; the subscriber and approximate location of an IP address can be requested from the internet service '
+    'provider named in this report by official letter.';
+const String kJuzzioPdfDeliveryNoteEn =
+    'This digital report was compiled automatically from records in the Juzzio server infrastructure for submission to '
+    'the requesting competent authority, within the framework of applicable law (in Türkiye: Law No. 5651, Code of '
+    'Criminal Procedure No. 5271 and Personal Data Protection Law No. 6698). The integrity of this document and the '
+    'attached raw data file is protected by a SHA-256 digest; changing a single character invalidates the digest.';
+
 const PdfColor _ink = PdfColor.fromInt(0xFF0B0F24);
 const PdfColor _muted = PdfColor.fromInt(0xFF5B6275);
 const PdfColor _line = PdfColor.fromInt(0xFFCBD0DC);
@@ -113,7 +132,9 @@ Future<Uint8List> juzzioBuildLegalPdf(
   Uint8List? logoBytes,
   ByteData? fontRegular,
   ByteData? fontBold,
+  bool english = false,
 }) async {
+  String L(String tr, String en) => english ? en : tr;
   final regular = pw.Font.ttf(fontRegular ?? await rootBundle.load(kJuzzioPdfFontRegular));
   final bold = pw.Font.ttf(fontBold ?? await rootBundle.load(kJuzzioPdfFontBold));
   Uint8List? logo = logoBytes;
@@ -179,11 +200,11 @@ Future<Uint8List> juzzioBuildLegalPdf(
           pw.SizedBox(width: 16),
           pw.Expanded(
             child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-              pw.Text('YASAL BİLGİ TALEBİ RAPORU', style: st(size: 11, isBold: true)),
+              pw.Text(L('YASAL BİLGİ TALEBİ RAPORU', 'LEGAL DATA REQUEST REPORT'), style: st(size: 11, isBold: true)),
               pw.SizedBox(height: 2),
-              pw.Text(_t('Talep Eden Kurum / Makam: ${info.authority.trim()}'), style: st(size: 8.5)),
-              pw.Text(_t('Dosya / Esas No: ${info.caseNo.trim()}'), style: st(size: 8.5)),
-              pw.Text(_t('Talep Sebebi: ${info.purpose.trim()}'), style: st(size: 8.5)),
+              pw.Text(_t('${L('Talep Eden Kurum / Makam', 'Requesting Authority')}: ${info.authority.trim()}'), style: st(size: 8.5)),
+              pw.Text(_t('${L('Dosya / Esas No', 'Case / File No')}: ${info.caseNo.trim()}'), style: st(size: 8.5)),
+              pw.Text(_t('${L('Talep Sebebi', 'Purpose of Request')}: ${info.purpose.trim()}'), style: st(size: 8.5)),
             ]),
           ),
         ]),
@@ -194,108 +215,124 @@ Future<Uint8List> juzzioBuildLegalPdf(
         padding: const pw.EdgeInsets.only(top: 5),
         decoration: const pw.BoxDecoration(border: pw.Border(top: pw.BorderSide(color: _line, width: 0.8))),
         child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-          pw.Text(kJuzzioPdfFooterNote, style: st(size: 7.5, color: _muted)),
+          pw.Text(english ? kJuzzioPdfFooterNoteEn : kJuzzioPdfFooterNote, style: st(size: 7.5, color: _muted)),
           pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
             pw.Expanded(
-              child: pw.Text(_t('$archiveId · SHA-256 $shortHash… · GİZLİ — yalnız talep eden makam içindir'), style: st(size: 7, color: _muted)),
+              child: pw.Text(_t('$archiveId · SHA-256 $shortHash… · ${L('GİZLİ — yalnız talep eden makam içindir', 'CONFIDENTIAL — for the requesting authority only')}'), style: st(size: 7, color: _muted)),
             ),
             pw.SizedBox(width: 8),
-            pw.Text('Sayfa ${ctx.pageNumber} / ${ctx.pagesCount}', style: st(size: 7, color: _muted)),
+            pw.Text('${L('Sayfa', 'Page')} ${ctx.pageNumber} / ${ctx.pagesCount}', style: st(size: 7, color: _muted)),
           ]),
         ]),
       );
 
-  final sections = juzzioLegalSections(b, isp: input.isp);
+  final sections = juzzioLegalSections(b, isp: input.isp, english: english);
   final ts = input.timestamp;
   final ipCount = juzzioCollectIps(b).length;
 
   final content = <pw.Widget>[
-    title('1. TALEP VE RAPOR BİLGİLERİ'),
+    title(L('1. TALEP VE RAPOR BİLGİLERİ', '1. REQUEST AND REPORT DETAILS')),
     kvTable([
-      MapEntry('Talep eden kurum / makam', info.authority.trim()),
-      MapEntry('Dosya / esas numarası', info.caseNo.trim()),
-      MapEntry('Talep sebebi', info.purpose.trim()),
-      MapEntry('Arşiv / işlem no', '$archiveId (kayıt ${_v(b['request_id'])})'),
-      MapEntry('Rapor zamanı (sunucu, UTC)', generated),
-      MapEntry('Veri biçimi', _v(b['format'])),
-      MapEntry('Ham veri dosyası', 'juzzio_veri.json (bu PDF ile aynı şifreli pakette)'),
+      MapEntry(L('Talep eden kurum / makam', 'Requesting authority'), info.authority.trim()),
+      MapEntry(L('Dosya / esas numarası', 'Case / file number'), info.caseNo.trim()),
+      MapEntry(L('Talep sebebi', 'Purpose of request'), info.purpose.trim()),
+      MapEntry(L('Arşiv / işlem no', 'Archive / transaction no'), '$archiveId (${L('kayıt', 'record')} ${_v(b['request_id'])})'),
+      MapEntry(L('Rapor zamanı (sunucu, UTC)', 'Report time (server, UTC)'), generated),
+      MapEntry(L('Veri biçimi', 'Data format'), _v(b['format'])),
+      MapEntry(L('Ham veri dosyası', 'Raw data file'), L('juzzio_veri.json (bu PDF ile aynı şifreli pakette)', 'juzzio_veri.json (in the same encrypted package as this PDF)')),
     ]),
-    title('2. DELİL ÖZET TABLOSU'),
-    kvTable(juzzioLegalSummary(b), keyWidth: 170),
-    title('3. TEKNİK İMKÂNSIZLIK BEYANI VE SINIRLAR'),
-    boxed('Uçtan uca şifreleme (E2EE) beyanı', kJuzzioPdfE2eeStatement),
-    boxed('Donanım ve yazılım kısıtları beyanı', kJuzzioPdfDeviceStatement),
-    boxed('Ayrıntılı açıklama', juzzioTechnicalImpossibilityStatement),
+    title(L('2. DELİL ÖZET TABLOSU', '2. EVIDENCE SUMMARY')),
+    kvTable(juzzioLegalSummary(b, english: english), keyWidth: 170),
+    title(L('3. TEKNİK İMKÂNSIZLIK BEYANI VE SINIRLAR', '3. STATEMENT OF TECHNICAL IMPOSSIBILITY AND LIMITATIONS')),
+    boxed(L('Uçtan uca şifreleme (E2EE) beyanı', 'End-to-end encryption (E2EE) statement'), english ? kJuzzioPdfE2eeStatementEn : kJuzzioPdfE2eeStatement),
+    boxed(L('Donanım ve yazılım kısıtları beyanı', 'Hardware and software limitations'), english ? kJuzzioPdfDeviceStatementEn : kJuzzioPdfDeviceStatement),
+    boxed(L('Ayrıntılı açıklama', 'Detailed explanation'), english ? juzzioTechnicalImpossibilityStatementEn : juzzioTechnicalImpossibilityStatement),
     pw.SizedBox(height: 4),
     pw.Text(
       _t(input.isp.isNotEmpty
-          ? 'IP adreslerinin yanındaki servis sağlayıcı (AS numarası ve kurum adı) bilgisi, rapor üretilirken RIPE NCC '
-              'RIPEstat açık kayıtlarından alınmıştır ($ipCount adresten ${input.isp.length} tanesi eşleşti). Abone bilgisi '
-              'ilgili sağlayıcıdan resmî yazıyla istenmelidir.'
+          ? L(
+              'IP adreslerinin yanındaki servis sağlayıcı (AS numarası ve kurum adı) bilgisi, rapor üretilirken RIPE NCC '
+                  'RIPEstat açık kayıtlarından alınmıştır ($ipCount adresten ${input.isp.length} tanesi eşleşti). Abone bilgisi '
+                  'ilgili sağlayıcıdan resmî yazıyla istenmelidir.',
+              'The service provider (AS number and organisation) shown next to IP addresses was taken from RIPE NCC '
+                  'RIPEstat public records when the report was generated (${input.isp.length} of $ipCount addresses matched). '
+                  'Subscriber details must be requested from the provider by official letter.')
           : input.ispLookupTried
-              ? 'Servis sağlayıcı (AS numarası) sorgusu yapılamadı veya eşleşme bulunamadı; IP adresleri sağlayıcı bilgisi olmadan listelenmiştir.'
-              : 'Bu raporda servis sağlayıcı (AS numarası) sorgusu yapılmamıştır.'),
+              ? L('Servis sağlayıcı (AS numarası) sorgusu yapılamadı veya eşleşme bulunamadı; IP adresleri sağlayıcı bilgisi olmadan listelenmiştir.',
+                  'The service provider (AS number) lookup failed or found no match; IP addresses are listed without provider details.')
+              : L('Bu raporda servis sağlayıcı (AS numarası) sorgusu yapılmamıştır.', 'No service provider (AS number) lookup was made for this report.')),
       style: st(size: 8, color: _muted),
     ),
-    title('4. AYRINTILI KAYITLAR'),
+    title(L('4. AYRINTILI KAYITLAR', '4. DETAILED RECORDS')),
   ];
 
   for (final s in sections) {
     if (s.title.isEmpty) continue; // genel başlık bilgileri zaten 1. bölümde
-    if (s.title.startsWith('TEKNİK İMKÂNSIZLIK') || s.title.startsWith('ÖNEMLİ TEKNİK')) continue; // 3. bölümde
+    if (s.title.startsWith('TEKNİK İMKÂNSIZLIK') || s.title.startsWith('ÖNEMLİ TEKNİK') ||
+        s.title.startsWith('STATEMENT OF TECHNICAL') || s.title.startsWith('IMPORTANT TECHNICAL')) {
+      continue; // 3. bölümde
+    }
     content.add(pw.Container(
       margin: const pw.EdgeInsets.only(top: 9, bottom: 3),
       child: pw.Text(_t(s.title), style: st(size: 9.5, isBold: true, color: _accent)),
     ));
-    if (s.lines.isEmpty) content.add(pw.Text('Kayıt yok.', style: st(size: 8, color: _muted)));
+    if (s.lines.isEmpty) content.add(pw.Text(L('Kayıt yok.', 'No records.'), style: st(size: 8, color: _muted)));
     for (final l in s.lines) {
       // her satır ayrı ve doğrudan Text: sayfa sonunda bölünebilir (çok uzun satır 6000 karakterde kesilir)
-      content.add(pw.Text(_t(l.length > 6000 ? '${l.substring(0, 6000)} …[kısaltıldı; tamamı juzzio_veri.json içinde]' : l), style: st(size: 8)));
+      content.add(pw.Text(_t(l.length > 6000 ? '${l.substring(0, 6000)} …[${L('kısaltıldı; tamamı juzzio_veri.json içinde', 'truncated; full text in juzzio_veri.json')}]' : l), style: st(size: 8)));
     }
   }
 
   content.addAll([
-    title('5. BÜTÜNLÜK MÜHRÜ VE YÖNETİCİ İMZA BLOĞU'),
+    title(L('5. BÜTÜNLÜK MÜHRÜ VE YÖNETİCİ İMZA BLOĞU', '5. INTEGRITY SEAL AND ADMINISTRATOR SIGNATURE BLOCK')),
     pw.Container(
       padding: const pw.EdgeInsets.all(10),
       decoration: pw.BoxDecoration(border: pw.Border.all(color: _ink, width: 1.6)),
       child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
         pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
-          pw.Text('BÜTÜNLÜK MÜHRÜ — SHA-256', style: st(size: 10.5, isBold: true)),
+          pw.Text(L('BÜTÜNLÜK MÜHRÜ — SHA-256', 'INTEGRITY SEAL — SHA-256'), style: st(size: 10.5, isBold: true)),
           pw.Text('JUZZIO · $archiveId', style: st(size: 8.5, isBold: true, color: _accent)),
         ]),
         pw.SizedBox(height: 6),
         kvTable([
-          MapEntry('Ham veri (juzzio_veri.json) SHA-256', input.jsonSha256),
-          MapEntry('Sunucu paket özeti (integrity_sha256)', _v(b['integrity_sha256'])),
+          MapEntry(L('Ham veri (juzzio_veri.json) SHA-256', 'Raw data (juzzio_veri.json) SHA-256'), input.jsonSha256),
+          MapEntry(L('Sunucu paket özeti (integrity_sha256)', 'Server package digest (integrity_sha256)'), _v(b['integrity_sha256'])),
           MapEntry(
-              'Zaman damgası (RFC 3161)',
+              L('Zaman damgası (RFC 3161)', 'Timestamp (RFC 3161)'),
               ts == null
-                  ? 'Alınamadı (zaman damgası sunucularına ulaşılamadı). Rapor zamanı sunucu saatidir (UTC): $generated'
-                  : 'ALINDI · sağlayıcı: ${ts.authority} · istek zamanı (UTC): ${ts.requestedAtUtc.toIso8601String()} · '
-                      'belirteç pakette: zaman_damgasi.tsr (${ts.token.length} bayt, ham verinin SHA-256 özeti üzerine)'),
-          MapEntry('İşlem kimliği', '$archiveId · yasal talep kaydı no ${_v(b['request_id'])}'),
-          MapEntry('Dışa aktaran', '@${_v(b['exported_by'])} · Süper Yönetici (kurucu) · kullanıcı kimliği ${_v(b['exported_by_id'])}'),
-          const MapEntry('Aktarım', 'Yönetici oturumu doğrulanarak, TLS ile şifreli bağlantı üzerinden; işlem değiştirilemez denetim kaydına yazılmıştır.'),
-          const MapEntry('Paket', 'Bu PDF ve ham veri, her talebe özel rastgele şifreyle AES-256 şifreli ZIP içinde teslim edilir. '
-              'PDF dosyasının kendi özeti paketteki SHA256SUMS.txt dosyasındadır.'),
+                  ? L('Alınamadı (zaman damgası sunucularına ulaşılamadı). Rapor zamanı sunucu saatidir (UTC): $generated',
+                      'Not obtained (timestamp servers unreachable). Report time is server time (UTC): $generated')
+                  : L('ALINDI · sağlayıcı: ${ts.authority} · istek zamanı (UTC): ${ts.requestedAtUtc.toIso8601String()} · '
+                          'belirteç pakette: zaman_damgasi.tsr (${ts.token.length} bayt, ham verinin SHA-256 özeti üzerine)',
+                      'OBTAINED · authority: ${ts.authority} · request time (UTC): ${ts.requestedAtUtc.toIso8601String()} · '
+                          'token in package: zaman_damgasi.tsr (${ts.token.length} bytes, over the SHA-256 of the raw data)')),
+          MapEntry(L('İşlem kimliği', 'Transaction ID'), '$archiveId · ${L('yasal talep kaydı no', 'legal request record no')} ${_v(b['request_id'])}'),
+          MapEntry(L('Dışa aktaran', 'Exported by'), '@${_v(b['exported_by'])} · ${L('Süper Yönetici', 'Super Administrator')} · ${L('kullanıcı kimliği', 'user ID')} ${_v(b['exported_by_id'])}'),
+          MapEntry(L('Aktarım', 'Transfer'), L('Yönetici oturumu doğrulanarak, TLS ile şifreli bağlantı üzerinden; işlem değiştirilemez denetim kaydına yazılmıştır.',
+              'Over a TLS-encrypted connection after verifying the administrator session; the action is written to the immutable audit log.')),
+          MapEntry(L('Paket', 'Package'), L('Bu PDF ve ham veri, her talebe özel rastgele şifreyle AES-256 şifreli ZIP içinde teslim edilir. '
+              'PDF dosyasının kendi özeti paketteki SHA256SUMS.txt dosyasındadır.',
+              'This PDF and the raw data are delivered in an AES-256 encrypted ZIP with a random password unique to each request. '
+              'The digest of the PDF itself is in SHA256SUMS.txt in the package.')),
         ], keyWidth: 170),
       ]),
     ),
     pw.SizedBox(height: 8),
-    pw.Text(_t(kJuzzioPdfDeliveryNote), style: st(size: 8.5)),
+    pw.Text(_t(english ? kJuzzioPdfDeliveryNoteEn : kJuzzioPdfDeliveryNote), style: st(size: 8.5)),
     pw.SizedBox(height: 6),
     pw.Text(
-      _t('Bu rapor, Juzzio sistem kuralları gereği yalnız Süper Yönetici yetkisine sahip @${_v(b['exported_by'])} kullanıcısının '
-          'doğrulanmış oturumu üzerinden dışa aktarılmıştır. İşlem kimliği: $archiveId.'),
+      _t(L('Bu rapor, Juzzio sistem kuralları gereği yalnız Süper Yönetici yetkisine sahip @${_v(b['exported_by'])} kullanıcısının '
+              'doğrulanmış oturumu üzerinden dışa aktarılmıştır. İşlem kimliği: $archiveId.',
+          'Under Juzzio system rules, this report was exported only through the verified session of @${_v(b['exported_by'])}, '
+              'who holds Super Administrator rights. Transaction ID: $archiveId.')),
       style: st(size: 8.5, isBold: true),
     ),
   ]);
 
   final doc = pw.Document(
     theme: theme,
-    title: 'Juzzio Yasal Bilgi Talebi Raporu — $archiveId',
-    author: 'Juzzio Sistemleri',
+    title: L('Juzzio Yasal Bilgi Talebi Raporu — $archiveId', 'Juzzio Legal Data Request Report — $archiveId'),
+    author: L('Juzzio Sistemleri', 'Juzzio Systems'),
     creator: 'Juzzio',
     subject: juzzioPdfSafeText('${info.authority.trim()} · ${info.caseNo.trim()}'),
   );

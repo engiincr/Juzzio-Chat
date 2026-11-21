@@ -107,6 +107,23 @@ class _AdminUnlockDialogState extends State<_AdminUnlockDialog> {
     try {
       final res = await JuzzioFeaturesService.instance.adminUnlock(password: _pw.text, remember: _remember);
       if (!mounted) return;
+      if (res.token != null && res.mustChange) {
+        // v2.1: varsayılan şifreyle girildi → önce şifre değiştirme ekranı (değiştirmeden panel açılmaz)
+        final changed = await Navigator.of(context).push<bool>(MaterialPageRoute(
+          fullscreenDialog: true,
+          builder: (_) => JuzzioAdminChangePasswordPage(token: res.token!, forced: true, initialOld: _pw.text),
+        ));
+        if (!mounted) return;
+        if (changed == true) {
+          if (_remember) await JuzzioFeaturesService.instance.rememberAdminToken(res.token!);
+          if (!mounted) return;
+          Navigator.of(context).pop(res.token);
+        } else {
+          setState(() => _error = app.trEn('Panele girmek için şifreni değiştirmelisin.', 'You must change your password to open the panel.',
+              'Zum Öffnen musst du dein Passwort ändern.'));
+        }
+        return;
+      }
       if (res.token != null) {
         Navigator.of(context).pop(res.token);
         return;
@@ -175,8 +192,8 @@ class _AdminUnlockDialogState extends State<_AdminUnlockDialog> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      Text(app.trEn('Hoşgeldin! ${(_me?.displayName ?? '').trim().isEmpty ? 'Engin ÇIRPAN' : _me!.displayName.trim()}',
-                          'Welcome! ${(_me?.displayName ?? '').trim().isEmpty ? 'Engin ÇIRPAN' : _me!.displayName.trim()}'),
+                      Text(app.trEn('Hoşgeldin! ${(_me?.displayName ?? '').trim().isEmpty ? '@${_me?.username ?? ''}' : _me!.displayName.trim()}',
+                          'Welcome! ${(_me?.displayName ?? '').trim().isEmpty ? '@${_me?.username ?? ''}' : _me!.displayName.trim()}'),
                           textAlign: TextAlign.center,
                           style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: t, fontSize: 26, fontWeight: FontWeight.w900, letterSpacing: -0.3)),
                       const SizedBox(height: 6),
@@ -187,7 +204,7 @@ class _AdminUnlockDialogState extends State<_AdminUnlockDialog> {
                           const SizedBox(width: 6),
                           Flexible(
                             child: Text(
-                              '@${(_me?.username ?? '').trim().isEmpty ? 'tugkancr' : _me!.username.trim()} · ${app.trEn('Kurucu · Yönetici', 'Founder · Administrator', 'Gründer · Administrator')}',
+                              '@${(_me?.username ?? '').trim()} · ${(_me?.username ?? '').trim().toLowerCase() == 'tugkancr' ? app.trEn('Kurucu · Yönetici', 'Founder · Administrator', 'Gründer · Administrator') : app.trEn('Süper Yönetici', 'Super Administrator', 'Super-Administrator')}',
                               textAlign: TextAlign.center,
                               style: TextStyle(color: t2, fontWeight: FontWeight.w700, fontSize: 13),
                             ),
@@ -1112,6 +1129,18 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> with Si
             )),
           ),
           const SizedBox(width: 8),
+          // v2.1: yöneticinin kendi panel şifresini değiştirmesi
+          if (widget.token.isNotEmpty) ...[
+            JuzzioSpaceIconButton(
+              icon: Icons.key_rounded,
+              size: 42,
+              tooltip: _al('Yönetici şifresini değiştir', 'Change admin password', 'Admin-Passwort ändern'),
+              onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => JuzzioAdminChangePasswordPage(token: widget.token),
+              )),
+            ),
+            const SizedBox(width: 8),
+          ],
           JuzzioSpaceIconButton(icon: Icons.refresh_rounded, size: 42, tooltip: app.t('common_refresh'), onTap: _reloadAll),
           const SizedBox(width: 8),
           JuzzioSpaceIconButton(

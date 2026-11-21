@@ -6,7 +6,7 @@
 // * [showJuzzioMfaCodeDialog]  — girişte/açılışta 6 haneli kod
 //
 // Buradaki her anahtar uygulamada gerçekten kullanılan bir tercihe bağlıdır
-// (veri tasarrufu → 360p kamera, gürültü engelleme → mikrofon işleme, vb.).
+// (veri tasarrufu → 480p·60 fps kamera, gürültü engelleme → mikrofon işleme, vb.).
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -32,8 +32,8 @@ class JuzzioCallSettingsPage extends StatelessWidget {
       listenable: app,
       builder: (context, _) {
         final quality = app.dataSaverEnabled
-            ? app.trEn('Düşük veri · 360p', 'Low data · 360p', 'Datensparen · 360p')
-            : app.trEn('Yüksek · 720p', 'High · 720p', 'Hoch · 720p');
+            ? app.trEn('Düşük veri · 480p · 60 fps', 'Low data · 480p · 60 fps', 'Datensparen · 480p · 60 fps')
+            : app.trEn('En yüksek · 1080p · 60 fps', 'Highest · 1080p · 60 fps', 'Höchste · 1080p · 60 fps');
         return Scaffold(
           backgroundColor: JuzzioGlassTokens.space.depth.last,
           body: SafeArea(
@@ -56,8 +56,8 @@ class JuzzioCallSettingsPage extends StatelessWidget {
                   JuzzioNeonRow.toggle(
                     icon: Icons.data_saver_on_outlined,
                     title: app.trEn('Düşük veri kullanımı', 'Low data usage', 'Wenig Daten'),
-                    subtitle: app.trEn('Kamera 360p gönderilir, mobil veriden tasarruf edilir',
-                        'Camera is sent at 360p to save mobile data', 'Kamera mit 360p, spart mobile Daten'),
+                    subtitle: app.trEn('Kamera 480p · 60 fps gönderilir (akıcılık korunur), mobil veriden tasarruf edilir',
+                        'Camera is sent at 480p · 60 fps (stays smooth) to save mobile data', 'Kamera mit 480p · 60 fps, spart mobile Daten'),
                     value: app.dataSaverEnabled,
                     onChanged: app.setDataSaverEnabled,
                   ),
@@ -1095,8 +1095,8 @@ class JuzzioChatQuickCard extends StatelessWidget {
           JuzzioNeonRow.toggle(
             icon: Icons.data_saver_on_outlined,
             title: app.trEn('Mobil veride tasarruf', 'Save mobile data', 'Mobile Daten sparen'),
-            subtitle: app.trEn('Görüntülü aramada 360p ve daha az arka plan verisi', '360p in video calls and less background data',
-                '360p im Videoanruf, weniger Hintergrunddaten'),
+            subtitle: app.trEn('Görüntülü aramada 480p · 60 fps ve daha az arka plan verisi', '480p · 60 fps in video calls and less background data',
+                '480p · 60 fps im Videoanruf, weniger Hintergrunddaten'),
             value: app.dataSaverEnabled,
             onChanged: app.setDataSaverEnabled,
           ),

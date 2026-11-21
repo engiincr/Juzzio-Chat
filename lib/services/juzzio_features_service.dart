@@ -650,7 +650,9 @@ class JuzzioFeaturesService {
   }
 
   /// Başarılıysa belirteç döner; yanlış şifrede null (kalan deneme hakkı ile).
-  Future<({String? token, int remaining})> adminUnlock({required String password, required bool remember}) async {
+  /// v2.1: [mustChange] true → varsayılan şifreyle girildi; şifre değişmeden panel açılmaz ve
+  /// belirteç cihaza kaydedilmez (değişimden sonra [rememberAdminToken] ile kaydedilir).
+  Future<({String? token, int remaining, bool mustChange})> adminUnlock({required String password, required bool remember}) async {
     try {
       final res = _asMap(await _svc.client.rpc('admin_unlock', params: {
         'p_password': password,
@@ -658,17 +660,42 @@ class JuzzioFeaturesService {
         'p_remember': remember,
       }));
       if (res['ok'] != true) {
-        return (token: null, remaining: (res['remaining'] as num?)?.toInt() ?? 0);
+        return (token: null, remaining: (res['remaining'] as num?)?.toInt() ?? 0, mustChange: false);
       }
       final token = (res['token'] ?? '').toString();
-      if (remember) {
-        try {
-          await _secure.write(key: _adminTokenKey, value: token);
-        } catch (_) {}
-      }
-      return (token: token, remaining: 5);
+      final mustChange = res['must_change'] == true;
+      if (remember && !mustChange) await rememberAdminToken(token);
+      return (token: token, remaining: 5, mustChange: mustChange);
     } catch (e) {
       _fail(e);
+    }
+  }
+
+  Future<void> rememberAdminToken(String token) async {
+    try {
+      await _secure.write(key: _adminTokenKey, value: token);
+    } catch (_) {}
+  }
+
+  /// v2.1: yöneticinin kendi panel şifresini değiştirmesi (ilk girişte zorunlu)
+  Future<void> adminChangePassword({required String token, required String oldPassword, required String newPassword}) async {
+    try {
+      await _svc.client.rpc('admin_change_my_password', params: {'p_token': token, 'p_old': oldPassword, 'p_new': newPassword});
+    } catch (e) {
+      final m = e.toString();
+      if (m.contains('wrong_password')) throw const JuzzioServiceException('wrong_password');
+      if (m.contains('password_too_weak')) throw const JuzzioServiceException('password_too_weak');
+      if (m.contains('password_same')) throw const JuzzioServiceException('password_same');
+      _fail(e);
+    }
+  }
+
+  /// v2.1: {admin, founder, must_change}
+  Future<Map<String, dynamic>> adminWhoami() async {
+    try {
+      return _asMap(await _svc.client.rpc('admin_whoami'));
+    } catch (_) {
+      return const <String, dynamic>{};
     }
   }
 

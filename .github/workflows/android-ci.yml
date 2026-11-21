@@ -358,7 +358,7 @@ jobs:
   # ---------------------------------------------------------------------------
   build-apple:
     name: "🍎 iOS IPA + macOS DMG"
-    runs-on: macos-14
+    runs-on: macos-latest
     timeout-minutes: 90
     if: github.event_name != 'pull_request'
     steps:

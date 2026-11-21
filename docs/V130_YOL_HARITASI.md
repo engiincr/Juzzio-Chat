@@ -65,6 +65,13 @@ Kurallar
 - [x] 6B.4 Parallaks bulutlar (bulutluluğa göre), rüzgârlı iki katmanlı yağmur + sıçramalar, kar, sis
 - [x] 6B.5 Yeni şimşek: bulut içi parlama + dallanan çakım + ardıl ışıma
 
+## Ek — Yönetici erişimi ve dil (2.1)
+- [x] E.1 @ari ikinci süper yönetici (hesap kimliğine bağlı; başkası "ari" adını alsa da yönetici olmaz)
+- [x] E.2 Ek yönetici için kendi panel şifresi; varsayılan şifreyle girişte şifre değiştirme zorunlu (sunucu da kilitli tutar)
+- [x] E.3 Panelde "yönetici şifresini değiştir" düğmesi (kurucu dahil)
+- [x] E.4 Yasal rapor PDF'i, özet tablo ve doğrulama kılavuzu İngilizce (yöneticinin uygulama diline göre)
+- [x] E.5 Yönetici paneli zaten TR/EN/DE; ek yönetici başlığı "Süper Yönetici"
+
 ## Faz 7 — Ayarlar I
 - [x] 7.1 Ayarlar ana sayfası (profil kartı + ikonlu satırlar + Çıkış Yap)
 - [x] 7.2 Hesap ve Profil (merkez sayfa: profil, kullanıcı adı, e-posta, şifre, 2FA, verilerim, onaylar, hesabı sil)

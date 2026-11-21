@@ -637,12 +637,14 @@ class DeepgramLiveKitController extends ChangeNotifier {
     final denoise = app.callNoiseFilterEnabled;
     _room = Room(
       roomOptions: RoomOptions(
-        adaptiveStream: true,
+        // v2.1 (kullanıcı isteği: donma/kasma YOK, her zaman en yüksek kalite):
+        //  • adaptiveStream KAPALI: görüntü boyutu/görünürlük değişince katman değiştirilmez,
+        //    duraklatılıp yeniden abone olunmaz (kamera/görünüm değişiminde "geç yenilenme" bitti).
+        //  • dynacast AÇIK: yalnız kimsenin izlemediği yedek katman durur; izlenen katmana dokunmaz.
+        //  • Kamera 1080p · 60 fps yakalar; Veri tasarrufunda bile en düşük 480p · 60 fps.
+        adaptiveStream: false,
         dynacast: true,
-        // v1.3.0 (kullanıcı isteği: en iyi kalite): kamera 720p / 30 fps yakalar
-        defaultCameraCaptureOptions: saver
-            ? const CameraCaptureOptions(params: VideoParametersPresets.h360_169)
-            : const CameraCaptureOptions(params: VideoParametersPresets.h720_169),
+        defaultCameraCaptureOptions: CameraCaptureOptions(params: saver ? kJuzzioVideoMin : kJuzzioVideoMax),
         defaultAudioCaptureOptions: Platform.isWindows || Platform.isLinux || Platform.isMacOS
             ? AudioCaptureOptions(
                 echoCancellation: true,
@@ -662,17 +664,14 @@ class DeepgramLiveKitController extends ChangeNotifier {
         ),
         defaultVideoPublishOptions: VideoPublishOptions(
           name: 'juzzio_video_track',
+          // v2.1: telefonda donanım kodlayıcı (H.264) → 1080p60'ta işlemci tıkanmaz, kare atlanmaz
+          videoCodec: !kIsWeb && (Platform.isAndroid || Platform.isIOS) ? 'h264' : 'vp8',
           simulcast: !saver,
-          // v1.3.0 (kullanıcı isteği: internet yavaşlasa da görüntü bozulmasın, en iyi kalite):
-          //  • 720p / 30 fps, 2,5 Mbps üst sınır
-          //  • kodlayıcı çözünürlüğü KORUR (bant daralırsa önce kare hızı düşer)
-          //  • simulcast yedek katmanı 360p/180p yerine 540p → görüntü 540p'nin altına inmez
-          //    (katman tamamen kapatılmaz: grup aramasında zayıf ağlı katılımcıda görüntü tümden durur)
-          videoEncoding: saver
-              ? const VideoEncoding(maxBitrate: 350 * 1000, maxFramerate: 15)
-              : const VideoEncoding(maxBitrate: 2500 * 1000, maxFramerate: 30),
-          videoSimulcastLayers: saver ? const [] : const [VideoParametersPresets.h540_169],
-          degradationPreference: saver ? DegradationPreference.maintainFramerate : DegradationPreference.maintainResolution,
+          // 1080p60 ana katman + 480p60 yedek katman (480p'nin altında katman YOK, 30 fps YOK)
+          videoEncoding: saver ? kJuzzioVideoMin.encoding! : kJuzzioVideoMax.encoding!,
+          videoSimulcastLayers: saver ? const [] : const [kJuzzioVideoMin],
+          // Bant daralırsa kare hızı KORUNUR (akıcı 60 fps); gerekirse çözünürlük düşer — donma olmaz
+          degradationPreference: DegradationPreference.maintainFramerate,
         ),
       ),
     );
@@ -1689,12 +1688,16 @@ class DeepgramLiveKitController extends ChangeNotifier {
   //  kararlılık beklenip normal profile dönülür (sürekli gidip gelme → yeniden ısınma yok).
   //  Bu, kullanıcı ayarı olan Veri Koruma modundan bağımsız, geçici bir uyarlamadır.
   // ---------------------------------------------------------------------------
-  static const VideoParameters kLowPowerVideo = VideoParameters(
-    dimensions: VideoDimensionsPresets.h360_169,
-    encoding: VideoEncoding(maxBitrate: 350 * 1000, maxFramerate: 15),
+  // v2.1 görüntü profili: en düşük 480p · 60 fps, en yüksek 1080p · 60 fps (30 fps kullanılmaz)
+  static const VideoParameters kJuzzioVideoMax = VideoParameters(
+    dimensions: VideoDimensionsPresets.h1080_169,
+    encoding: VideoEncoding(maxBitrate: 6000 * 1000, maxFramerate: 60),
+  );
+  static const VideoParameters kJuzzioVideoMin = VideoParameters(
+    dimensions: VideoDimensions(854, 480),
+    encoding: VideoEncoding(maxBitrate: 1600 * 1000, maxFramerate: 60),
   );
   bool _lowPower = false;
-  bool _cameraLowApplied = false;
   bool get lowPowerActive => _lowPower;
 
   /// v1.2.9: bir kişinin görüntü katmanını uygular (HIGH ≈720p, MEDIUM ≈480p, LOW ≈360p)
@@ -1709,7 +1712,7 @@ class DeepgramLiveKitController extends ChangeNotifier {
   /// Arayüzde görüntünün üstündeki kalite rozeti ('' → tam kalite)
   String videoTierLabelFor(String sid) {
     final t = localNetworkWeak ? 'LOW' : (remoteVideoTier[sid] ?? 'HIGH');
-    return t == 'LOW' ? '360p' : (t == 'MEDIUM' ? '480p' : '');
+    return t == 'LOW' ? '480p' : (t == 'MEDIUM' ? '720p' : '');
   }
 
   /// Karşı tarafa ağ durumu bildirimi (yeniden bağlandım)
@@ -1739,39 +1742,20 @@ class DeepgramLiveKitController extends ChangeNotifier {
   }
 
   Future<void> _applyPowerProfile(bool low) async {
+    // v2.1 (kullanıcı isteği): görüntü kalitesi ve kare hızı HİÇBİR durumda düşürülmez.
+    // Eskiden arka plan/PiP/zayıf ağda uzak görüntü LOW + 15 fps'e çekiliyor, yerel kamera
+    // KAPATILIP 360p'de yeniden açılıyordu — bu, kamera açılınca ve görünüm değişince donmaya
+    // yol açıyordu. Artık kamera yeniden başlatılmaz; uzak görüntü hep en yüksek katmanda kalır.
     if (_lowPower == low) return;
     _lowPower = low;
     final room = _room;
     if (room == null) return;
-    // v1.3.0 (kullanıcı isteği: görüntü kalitesi düşmesin): yalnız internet zayıf diye gelen
-    // görüntü artık DÜŞÜK kaliteye çekilmez; yalnız uygulama arka plandayken / PiP'te düşer.
-    final viewLow = low && _lowPowerReasons.any((r) => r != 'network');
     for (final p in room.remoteParticipants.values) {
       for (final pub in p.videoTrackPublications) {
         try {
-          await pub.setVideoQuality(viewLow ? VideoQuality.LOW : VideoQuality.HIGH);
-          await pub.setVideoFPS(viewLow ? 15 : 30);
+          await pub.setVideoQuality(VideoQuality.HIGH);
         } catch (_) {}
       }
-    }
-    final lp = room.localParticipant;
-    // v1.2.9: yalnız ağ zayıfsa kamera yeniden başlatılmaz (görüntü donmaz) — simulcast/dynacast
-    // gönderimi zaten düşürür, karşı taraf düşük katmanı alır. Kamera yalnız arka plan/PiP'te küçülür.
-    final cameraReasons = _lowPowerReasons.where((r) => r != 'network').isNotEmpty;
-    if (low && !cameraReasons && !_cameraLowApplied) {
-      notifyListeners();
-      return;
-    }
-    _cameraLowApplied = low;
-    // Veri Koruma zaten 360p kodluyorsa kamerayı yeniden başlatmaya gerek yok
-    if (lp != null && isCameraEnabled && !JuzzioAppController.instance.dataSaverEnabled) {
-      try {
-        await lp.setCameraEnabled(false);
-        await lp.setCameraEnabled(true,
-            cameraCaptureOptions: low ? const CameraCaptureOptions(params: kLowPowerVideo) : const CameraCaptureOptions(params: VideoParametersPresets.h720_169));
-        // v1.2.9: kamera yeniden başlayınca yeni ize güzelleştirme yeniden bağlanır (yük koruması sıfırlanır)
-        await _applyBeautyFilter();
-      } catch (_) {}
     }
     notifyListeners();
   }
@@ -1783,7 +1767,7 @@ class DeepgramLiveKitController extends ChangeNotifier {
     if (isCameraEnabled) {
       try {
         await lp.setCameraEnabled(false);
-        await lp.setCameraEnabled(true, cameraCaptureOptions: const CameraCaptureOptions(params: VideoParametersPresets.h360_169));
+        await lp.setCameraEnabled(true, cameraCaptureOptions: const CameraCaptureOptions(params: kJuzzioVideoMin));
         await _applyBeautyFilter();
       } catch (_) {}
     }
@@ -1844,6 +1828,26 @@ class DeepgramLiveKitController extends ChangeNotifier {
       notifyListeners();
       return false;
     }
+  }
+
+  /// v2.1: kamerayı ANINDA çevirir (iz yeniden başlatılmaz, yeniden pazarlık yok → donma yok).
+  /// Telefonda flutter_webrtc Helper.switchCamera; olmazsa false döner (çağıran eski yola düşer).
+  Future<bool> switchCameraFast() async {
+    if (kIsWeb || !(Platform.isAndroid || Platform.isIOS)) return false;
+    final lp = _room?.localParticipant;
+    if (lp == null) return false;
+    for (final pub in lp.videoTrackPublications) {
+      final track = pub.track;
+      if (track != null && pub.source == TrackSource.camera) {
+        try {
+          await webrtc.Helper.switchCamera(track.mediaStreamTrack);
+          return true;
+        } catch (_) {
+          return false;
+        }
+      }
+    }
+    return false;
   }
 
   Future<void> toggleCamera() async {

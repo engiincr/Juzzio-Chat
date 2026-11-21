@@ -79,7 +79,8 @@ object JuzzioBeautyProcessor : LocalVideoTrack.ExternalVideoFrameProcessing {
     // (2) çıkış tamponları havuzdan yeniden kullanılır, (3) iç döngülerde sınır kontrolü yok,
     // (4) süre bütçesi aşılırsa önce çözünürlük düşer, yine aşılırsa güzelleştirme bu arama için
     // kendiliğinden devre dışı kalır — görüntü akıcılığı her zaman önceliklidir.
-    private const val BUDGET_NS = 14_000_000L
+    // v2.1: 60 fps için kare bütçesi 16,6 ms; işleme 9 ms'yi aşarsa önce çözünürlük düşer, sonra filtre kapanır
+    private const val BUDGET_NS = 9_000_000L
     @Volatile private var maxWidth = 960
     @Volatile var overloaded = false
         private set

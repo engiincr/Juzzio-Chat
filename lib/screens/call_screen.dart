@@ -1292,7 +1292,10 @@ class _CallScreenState extends State<CallScreen> {
           _cameraPosition = _cameraPosition == CameraPosition.front
               ? CameraPosition.back
               : CameraPosition.front;
-          await track.setCameraPosition(_cameraPosition);
+          // v2.1: önce anında çevir (iz yeniden başlamaz → donma yok); olmazsa eski yol
+          if (!await _controller.switchCameraFast()) {
+            await track.setCameraPosition(_cameraPosition);
+          }
           setState(() {});
           break;
         }
@@ -2125,6 +2128,8 @@ class _CallScreenState extends State<CallScreen> {
               key: ValueKey('vt_${slot.videoTrack!.sid}'),
               slot.videoTrack!,
               fit: VideoViewFit.cover,
+              // v2.1: kendi ön kameram ayna, arka kamera ve karşı taraf düz
+              mirrorMode: slot.isLocal && _cameraPosition == CameraPosition.front ? VideoViewMirrorMode.mirror : VideoViewMirrorMode.off,
             ),
           )
         else
@@ -2291,6 +2296,8 @@ class _CallScreenState extends State<CallScreen> {
                       key: ValueKey('vt_${pipSlot.videoTrack!.sid}'),
                       pipSlot.videoTrack!,
                       fit: VideoViewFit.cover,
+                      // v2.1: kendi ön kameram ayna, arka kamera ve karşı taraf düz
+                      mirrorMode: pipSlot.isLocal && _cameraPosition == CameraPosition.front ? VideoViewMirrorMode.mirror : VideoViewMirrorMode.off,
                     ),
                   )
                 else

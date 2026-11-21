@@ -17,6 +17,8 @@ import 'package:juzzio/services/juzzio_data_export.dart';
 import 'package:juzzio/services/social_service.dart' show juzzioStorageCategory;
 import 'package:juzzio/widgets/juzzio_a11y_filter.dart';
 import 'package:juzzio/screens/admin_modules_v21.dart';
+import 'package:juzzio/screens/admin_legal_report.dart';
+import 'package:juzzio/services/juzzio_legal_package.dart' show juzzioLegalSummary, juzzioVerificationReadme;
 import 'package:juzzio/core/app_theme_and_locale.dart' show JuzzioAppController;
 
 String _src(String p) => File(p).readAsStringSync();
@@ -385,6 +387,64 @@ void main() {
       expect(rows.any((r) => r[0] == 'b.c' && r[1] == 'x,y'), isTrue);
       expect(rows.any((r) => r[0] == 'l[1]' && r[1] == '2'), isTrue);
       expect(juzzioCsvEncode([['k', 'x,y']]), 'k,"x,y"');
+    });
+  });
+
+  group('Görüntülü arama kalitesi — 1080p60 / en düşük 480p60, donma yok', () {
+    test('profil 1080p·60 ve 480p·60; 30 fps ve 360p yok', () {
+      final d = _src('lib/services/deepgram_livekit_service.dart');
+      expect(d.contains('dimensions: VideoDimensionsPresets.h1080_169'), isTrue);
+      expect(d.contains('dimensions: VideoDimensions(854, 480)'), isTrue);
+      expect(RegExp(r'maxFramerate: 60').allMatches(d).length, greaterThanOrEqualTo(2));
+      expect(d.contains('maxFramerate: 30'), isFalse);
+      expect(d.contains('maxFramerate: 15'), isFalse);
+      expect(d.contains('h360_169'), isFalse);
+      expect(d.contains('setVideoFPS'), isFalse);
+    });
+    test('donmaya yol açan uyarlamalar kapalı', () {
+      final d = _src('lib/services/deepgram_livekit_service.dart');
+      expect(d.contains('adaptiveStream: false'), isTrue);
+      expect(d.contains('degradationPreference: DegradationPreference.maintainFramerate'), isTrue);
+      final i = d.indexOf('Future<void> _applyPowerProfile(bool low)');
+      final body = d.substring(i, d.indexOf('/// v0.9.6', i));
+      expect(body.contains('setCameraEnabled'), isFalse);
+      expect(body.contains('VideoQuality.LOW'), isFalse);
+    });
+    test('kamera anında çevrilir; ayna yalnız kendi ön kameramda', () {
+      expect(_src('lib/services/deepgram_livekit_service.dart').contains('webrtc.Helper.switchCamera'), isTrue);
+      final c = _src('lib/screens/call_screen.dart');
+      expect(c.contains('_controller.switchCameraFast()'), isTrue);
+      expect(c.contains('VideoViewMirrorMode.mirror'), isTrue);
+    });
+  });
+
+  group('İkinci süper yönetici (@ari) ve İngilizce yasal paket', () {
+    test('ek yönetici hesaba bağlı; şifre dosyada yok, yalnız bcrypt özeti', () {
+      final sql = _src('supabase/juzzio_database.sql');
+      expect(sql.contains('CREATE TABLE IF NOT EXISTS public.admin_user_secrets'), isTrue);
+      expect(sql.contains("FROM public.profiles WHERE lower(username) = 'ari' ORDER BY created_at LIMIT 1"), isTrue);
+      expect(sql.contains('660876'), isFalse);
+      expect(sql.contains('AND NOT EXISTS (SELECT 1 FROM public.admin_user_secrets u WHERE u.user_id = auth.uid() AND u.must_change)'), isTrue);
+      expect(sql.contains('CREATE OR REPLACE FUNCTION public.admin_change_my_password(p_token TEXT, p_old TEXT, p_new TEXT)'), isTrue);
+    });
+    test('ilk girişte şifre değiştirme ekranı', () {
+      final a = _src('lib/screens/admin_panel_screen.dart');
+      expect(a.contains('JuzzioAdminChangePasswordPage(token: res.token!, forced: true'), isTrue);
+      expect(juzzioAdminPasswordOk('YeniSifre2026'), isTrue);
+      expect(juzzioAdminPasswordOk('kisa1'), isFalse);
+      expect(juzzioAdminPasswordOk('sadeceharf'), isFalse);
+    });
+    test('yasal rapor, özet ve doğrulama kılavuzu İngilizce üretilebilir', () {
+      final b = <String, dynamic>{'profile': {'username': 'x', 'id': 'u1'}, 'account': {}, 'messages': []};
+      final en = juzzioLegalReportText(b, english: true);
+      expect(en, contains('USER'));
+      expect(en, contains('STATEMENT OF TECHNICAL IMPOSSIBILITY'));
+      expect(en, contains(juzzioTechnicalImpossibilityStatementEn));
+      expect(en.contains('KULLANICI'), isFalse);
+      expect(juzzioLegalReportText(b), contains('KULLANICI'));
+      expect(juzzioLegalSummary(b, english: true).first.key, 'Account examined');
+      expect(juzzioVerificationReadme(hasTimestamp: false, tsaHost: '', english: true), contains('VERIFICATION GUIDE'));
+      expect(_src('lib/screens/admin_god_tab.dart').contains("english: english,"), isTrue);
     });
   });
 }

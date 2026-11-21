@@ -101,7 +101,8 @@ List<String> juzzioCollectIps(Map<String, dynamic> b) {
 }
 
 /// Özet tablo satırları (savcı/hâkim için tek bakışta). Saf; test edilir.
-List<MapEntry<String, String>> juzzioLegalSummary(Map<String, dynamic> b, {DateTime? now}) {
+List<MapEntry<String, String>> juzzioLegalSummary(Map<String, dynamic> b, {DateTime? now, bool english = false}) {
+  String L(String tr, String en) => english ? en : tr;
   String s(Object? v) {
     final t = (v ?? '').toString().trim();
     return t.isEmpty ? '-' : t;
@@ -112,24 +113,28 @@ List<MapEntry<String, String>> juzzioLegalSummary(Map<String, dynamic> b, {DateT
   final msgs = _maps(b['messages']);
   final enc = msgs.where((m) => m['encrypted'] == true).length;
   final created = DateTime.tryParse(s(account['created_at']));
-  final days = created == null ? '-' : '${(now ?? DateTime.now()).toUtc().difference(created.toUtc()).inDays} gün';
+  final days = created == null ? '-' : '${(now ?? DateTime.now()).toUtc().difference(created.toUtc()).inDays} ${L('gün', 'days')}';
   final hold = b['legal_hold'];
   return <MapEntry<String, String>>[
-    MapEntry('İncelenen hesap', '@${s(profile['username'])}'),
-    MapEntry('Kullanıcı kimliği (UUID)', s(profile['id'])),
-    MapEntry('E-posta / telefon', '${s(account['email'])} / ${s(account['phone'])}'),
-    MapEntry('Kayıt tarihi · hesap yaşı', '${s(account['created_at'])} · $days'),
-    MapEntry('Son giriş', s(account['last_sign_in_at'])),
-    MapEntry('Benzersiz IP adresi sayısı', '${juzzioCollectIps(b).length}'),
-    MapEntry('Giriş kaydı sayısı', '${_maps(b['login_events']).length}'),
-    MapEntry('Kayıtlı cihaz sayısı', '${_maps(b['devices']).length}'),
-    MapEntry('Sohbet / grup sayısı', '${_maps(b['rooms']).length} / ${_maps(b['groups']).length}'),
-    MapEntry('Mesaj kaydı (üst veri)', '${msgs.length} (bunların $enc tanesi uçtan uca şifreli)'),
-    MapEntry('Arama kaydı sayısı', '${_maps(b['call_traffic']).isNotEmpty ? _maps(b['call_traffic']).length : _maps(b['call_logs']).length}'),
-    MapEntry('Hesap hareketi (çıkış, silme vb.)', '${_maps(b['lifecycle']).length}'),
-    MapEntry('Veri dondurma', hold is Map ? 'ETKİN · ${s(hold['since'])} → ${s(hold['until'])}' : 'Yok'),
-    const MapEntry('Kritik uyarı', 'Birebir sohbet ve arama İÇERİKLERİ uçtan uca şifrelidir ve sunucuda bulunmaz. '
-        'Bağlantı/trafik kayıtları (zaman, IP, cihaz, oda) eksiksizdir.'),
+    MapEntry(L('İncelenen hesap', 'Account examined'), '@${s(profile['username'])}'),
+    MapEntry(L('Kullanıcı kimliği (UUID)', 'User ID (UUID)'), s(profile['id'])),
+    MapEntry(L('E-posta / telefon', 'E-mail / phone'), '${s(account['email'])} / ${s(account['phone'])}'),
+    MapEntry(L('Kayıt tarihi · hesap yaşı', 'Registered · account age'), '${s(account['created_at'])} · $days'),
+    MapEntry(L('Son giriş', 'Last sign-in'), s(account['last_sign_in_at'])),
+    MapEntry(L('Benzersiz IP adresi sayısı', 'Unique IP addresses'), '${juzzioCollectIps(b).length}'),
+    MapEntry(L('Giriş kaydı sayısı', 'Sign-in records'), '${_maps(b['login_events']).length}'),
+    MapEntry(L('Kayıtlı cihaz sayısı', 'Registered devices'), '${_maps(b['devices']).length}'),
+    MapEntry(L('Sohbet / grup sayısı', 'Chats / groups'), '${_maps(b['rooms']).length} / ${_maps(b['groups']).length}'),
+    MapEntry(L('Mesaj kaydı (üst veri)', 'Message records (metadata)'), L('${msgs.length} (bunların $enc tanesi uçtan uca şifreli)', '${msgs.length} ($enc of them end-to-end encrypted)')),
+    MapEntry(L('Arama kaydı sayısı', 'Call records'), '${_maps(b['call_traffic']).isNotEmpty ? _maps(b['call_traffic']).length : _maps(b['call_logs']).length}'),
+    MapEntry(L('Hesap hareketi (çıkış, silme vb.)', 'Account events (sign-out, deletion, etc.)'), '${_maps(b['lifecycle']).length}'),
+    MapEntry(L('Veri dondurma', 'Legal hold'), hold is Map ? '${L('ETKİN', 'ACTIVE')} · ${s(hold['since'])} → ${s(hold['until'])}' : L('Yok', 'None')),
+    MapEntry(
+        L('Kritik uyarı', 'Critical notice'),
+        L('Birebir sohbet ve arama İÇERİKLERİ uçtan uca şifrelidir ve sunucuda bulunmaz. '
+                'Bağlantı/trafik kayıtları (zaman, IP, cihaz, oda) eksiksizdir.',
+            'One-to-one chat and call CONTENTS are end-to-end encrypted and are not on the server. '
+                'Connection/traffic records (time, IP, device, room) are complete.')),
   ];
 }
 
@@ -269,7 +274,35 @@ String juzzioSha256Sums(Map<String, List<int>> files) =>
     files.entries.map((e) => '${juzzioSha256Hex(e.value)}  ${e.key}').join('\n') + '\n';
 
 /// DOGRULAMA.txt — özet ve zaman damgasının doğrulanması
-String juzzioVerificationReadme({required bool hasTimestamp, required String tsaHost}) => [
+String juzzioVerificationReadme({required bool hasTimestamp, required String tsaHost, bool english = false}) => english
+    ? [
+        'JUZZIO — LEGAL DELIVERY PACKAGE VERIFICATION GUIDE',
+        '',
+        '1) File integrity',
+        '   sha256sum -c SHA256SUMS.txt        (Linux / macOS)',
+        '   certutil -hashfile juzzio_veri.json SHA256    (Windows)',
+        '   The digests must match SHA256SUMS.txt and the "Integrity Seal" in the PDF.',
+        '',
+        if (hasTimestamp) ...[
+          '2) Timestamp (RFC 3161) — authority: $tsaHost',
+          '   zaman_damgasi.tsr was obtained over the SHA-256 digest of juzzio_veri.json.',
+          '   openssl ts -reply -in zaman_damgasi.tsr -text',
+          '   openssl ts -verify -data juzzio_veri.json -in zaman_damgasi.tsr -CAfile <authority_root_certificate.pem>',
+          '   The root certificate is downloaded from the authority\'s own website.',
+          '   Note: this is an international timestamp service, not a "qualified" timestamp under Turkish Law No. 5070.',
+        ] else ...[
+          '2) Timestamp',
+          '   Timestamp servers were unreachable when the report was generated; the package has no zaman_damgasi.tsr.',
+          '   Times in the report are Juzzio server time (UTC).',
+        ],
+        '',
+        '3) Server package digest',
+        '   "integrity_sha256" inside juzzio_veri.json is the digest computed by the server when producing the data and',
+        '   is stored with the same value in the legal request record (legal_requests) in the Juzzio database.',
+        '',
+      ].join('\n')
+    : [
+
       'JUZZIO — YASAL TESLİM PAKETİ DOĞRULAMA KILAVUZU',
       '',
       '1) Dosya bütünlüğü',
@@ -295,4 +328,4 @@ String juzzioVerificationReadme({required bool hasTimestamp, required String tsa
       '   juzzio_veri.json içindeki "integrity_sha256", sunucunun veriyi üretirken hesapladığı özettir ve',
       '   Juzzio veritabanındaki yasal talep kaydında (legal_requests) aynı değerle saklanır.',
       '',
-    ].join('\n');
+      ].join('\n');
