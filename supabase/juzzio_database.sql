@@ -19295,3 +19295,76 @@ GRANT EXECUTE ON FUNCTION public.admin_unlock(TEXT, TEXT, BOOLEAN) TO authentica
 -- Önceki sürümde açılmış kısa (30 dk) oturumlar normal süreye uzatılır
 UPDATE public.admin_sessions SET expires_at = GREATEST(expires_at, created_at + INTERVAL '12 hours')
  WHERE expires_at > NOW();
+
+-- =============================================================================
+-- 10.53 (v2.1) — Varsayılan tema: Grafit Limon (tasarım şablonlarındaki Neon Lime)
+--  Yönetici varsayılan teması listesine forest_mint ve graphite_lime eklendi; sunucu varsayılanı
+--  graphite_lime yapıldı (eski varsayılan ocean mavi görünüm veriyordu).
+-- =============================================================================
+CREATE OR REPLACE FUNCTION public.admin_set_setting(p_token TEXT, p_key TEXT, p_value JSONB)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_num NUMERIC;
+BEGIN
+    PERFORM public._staff_require(p_token, 'settings');
+    IF p_key IN ('maintenance_message', 'announcement_banner') THEN
+        IF jsonb_typeof(p_value) <> 'string' THEN RAISE EXCEPTION 'invalid_setting'; END IF;
+        p_value := to_jsonb(LEFT(p_value #>> '{}', 500));
+    ELSIF p_key = 'default_glass_palette' THEN
+        IF jsonb_typeof(p_value) <> 'string'
+           OR (p_value #>> '{}') NOT IN ('juzzio_liquid', 'ocean', 'glass_white', 'amethyst', 'emerald', 'lagoon', 'chrome',
+                                        'obsidian_oled', 'lavender_mist', 'rose_quartz', 'cyber_neon', 'high_contrast',
+                                        'aurora_borealis', 'frosted_pearl', 'midnight_sapphire', 'nordic_frost',
+                                        'forest_mint', 'graphite_lime') THEN
+            RAISE EXCEPTION 'invalid_setting';
+        END IF;
+    ELSIF p_key IN ('call_moderation_interval_sec', 'voice_max_seconds', 'audio_bitrate_kbps', 'video_max_seconds',
+                    'min_supported_build', 'ai_daily_quota_per_user', 'admin_bruteforce_max_fails', 'admin_bruteforce_window_min',
+                    'media_cache_max_mb', 'media_cache_max_age_days') THEN
+        IF jsonb_typeof(p_value) <> 'number' THEN RAISE EXCEPTION 'invalid_setting'; END IF;
+        v_num := (p_value #>> '{}')::numeric;
+        IF v_num <> trunc(v_num) OR NOT (
+               (p_key = 'call_moderation_interval_sec' AND v_num BETWEEN 3 AND 60)
+            OR (p_key = 'voice_max_seconds' AND v_num BETWEEN 15 AND 900)
+            OR (p_key = 'audio_bitrate_kbps' AND v_num BETWEEN 16 AND 256)
+            OR (p_key = 'video_max_seconds' AND v_num BETWEEN 10 AND 600)
+            OR (p_key = 'min_supported_build' AND v_num BETWEEN 0 AND 100000)
+            OR (p_key = 'ai_daily_quota_per_user' AND v_num BETWEEN 0 AND 100000)
+            OR (p_key = 'admin_bruteforce_max_fails' AND v_num BETWEEN 3 AND 20)
+            OR (p_key = 'admin_bruteforce_window_min' AND v_num BETWEEN 5 AND 1440)
+            OR (p_key = 'media_cache_max_mb' AND v_num BETWEEN 50 AND 4096)
+            OR (p_key = 'media_cache_max_age_days' AND v_num BETWEEN 0 AND 365)) THEN
+            RAISE EXCEPTION 'invalid_setting';
+        END IF;
+        IF p_key IN ('min_supported_build', 'admin_bruteforce_max_fails', 'admin_bruteforce_window_min')
+           AND NOT public.admin_check_token(p_token) THEN
+            RAISE EXCEPTION 'super_admin_required';
+        END IF;
+    ELSIF p_key IN ('maintenance_mode', 'signups_enabled', 'live_translation_enabled', 'chick_game_enabled',
+                    'stories_enabled', 'beauty_filter_enabled', 'call_moderation_enabled',
+                    'speech_moderation_enabled', 'avatar_moderation_enabled', 'posts_enabled', 'calls_enabled',
+                    'group_creation_enabled', 'global_feed_enabled', 'error_reporting_enabled',
+                    'itunes_previews_enabled', 'github_updates_enabled') THEN
+        IF jsonb_typeof(p_value) <> 'boolean' THEN RAISE EXCEPTION 'invalid_setting'; END IF;
+        IF p_key IN ('maintenance_mode', 'github_updates_enabled') AND NOT public.admin_check_token(p_token) THEN
+            RAISE EXCEPTION 'super_admin_required';
+        END IF;
+    ELSE
+        RAISE EXCEPTION 'invalid_setting';
+    END IF;
+    INSERT INTO public.app_settings (key, value, updated_at) VALUES (p_key, p_value, NOW())
+    ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW();
+    INSERT INTO public.admin_audit_log (admin_id, action, target, details)
+    VALUES (auth.uid(), 'set_setting', p_key, jsonb_build_object('value', p_value));
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.admin_set_setting(TEXT, TEXT, JSONB) TO authenticated;
+
+UPDATE public.app_settings SET value = '"graphite_lime"'::jsonb, updated_at = NOW()
+ WHERE key = 'default_glass_palette' AND value IN ('"ocean"'::jsonb, '"juzzio_liquid"'::jsonb);
+INSERT INTO public.app_settings (key, value) VALUES ('default_glass_palette', '"graphite_lime"'::jsonb)
+ON CONFLICT (key) DO NOTHING;

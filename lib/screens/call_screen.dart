@@ -1002,7 +1002,14 @@ class _CallScreenState extends State<CallScreen> {
   /// arama kapsülü görünür; dokununca aramaya geri dönülür.
   void _syncCallIsland() {
     final route = ModalRoute.of(context);
-    final covered = route != null && !route.isCurrent && _controller.isConnected;
+    // v2.1: yalnız arama ekranının üstüne TAM sayfa açılınca kapsül görünür; arama ekranındaki
+    // alt sayfa / pencere (ses çıkışı, kalite, diğer…) açıkken kapsül ekranın üstüne binmez.
+    Route<dynamic>? top;
+    Navigator.of(context).popUntil((r) {
+      top = r;
+      return true;
+    });
+    final covered = route != null && !route.isCurrent && top is! PopupRoute && _controller.isConnected;
     if (covered == _islandShown) return;
     _islandShown = covered;
     if (!covered) {
@@ -2010,8 +2017,13 @@ class _CallScreenState extends State<CallScreen> {
             tooltip: _app.loc('Aramayı küçült', 'Minimize call', 'Anruf minimieren'),
             onTap: _minimizeCall,
           ),
-          if (video) const SizedBox(width: 92),
-          const Expanded(child: Center(child: JuzzioCallBrand(size: 19))),
+          // Tasarım: görüntülüde logo geri düğmesinin yanında (solda), sesli aramada ortada
+          if (video) ...[
+            const SizedBox(width: 12),
+            const JuzzioCallBrand(size: 19),
+            const Spacer(),
+          ] else
+            const Expanded(child: Center(child: JuzzioCallBrand(size: 19))),
           if (video) ...[
             JuzzioCallCircleButton(
               icon: Icons.person_add_alt_1_rounded,

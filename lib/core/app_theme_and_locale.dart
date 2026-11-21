@@ -465,6 +465,7 @@ class JuzzioAppController extends ChangeNotifier {
   // v0.6 Glassmorphism: seçili aurora cam teması (boşsa yöneticinin varsayılanı / ilk palet)
   // v2.0.0: Obsidian Lime (graphite_lime) varsayılan tema
   String _glassPaletteId = 'graphite_lime';
+  bool _paletteV21Migrated = false;
   bool _reducedEffects = false;
   // v1.2.1: hava durumuna göre tema ambiyansı (varsayılan AÇIK)
   bool _weatherThemeEnabled = true;
@@ -1168,6 +1169,14 @@ class JuzzioAppController extends ChangeNotifier {
       _selectedChatThemeIndex = ((raw['selectedChatThemeIndex'] as num?)?.toInt() ?? _selectedChatThemeIndex).clamp(0, kJuzzioChatThemes.length - 1);
       _chatThemeIntensity = ((raw['chatThemeIntensity'] as num?)?.toDouble() ?? _chatThemeIntensity).clamp(0.6, 1.4);
       _glassPaletteId = (raw['glassPalette'] ?? '').toString();
+      // v2.1: tasarım şablonlarındaki Neon Lime görünüm. Eski varsayılan (ocean / boş) ile kalmış
+      // hesaplar bir kez Grafit Limon'a taşınır; kullanıcı sonra istediği temayı seçebilir.
+      if (raw['paletteV21'] != true) {
+        if (_glassPaletteId.isEmpty || _glassPaletteId == 'ocean' || _glassPaletteId == 'juzzio_liquid') {
+          _glassPaletteId = 'graphite_lime';
+        }
+      }
+      _paletteV21Migrated = true;
       final cp = (raw['chatPalette'] ?? '').toString();
       _chatPaletteId = kJuzzioAuroraPalettes.any((p) => p.id == cp) ? cp : '';
       _reducedEffects = raw['reducedEffects'] == true;
@@ -1349,6 +1358,7 @@ class JuzzioAppController extends ChangeNotifier {
         'selectedChatThemeIndex': _selectedChatThemeIndex,
         'chatThemeIntensity': _chatThemeIntensity,
         'glassPalette': _glassPaletteId,
+        'paletteV21': _paletteV21Migrated,
         'chatPalette': _chatPaletteId,
         'reducedEffects': _reducedEffects,
         'weatherTheme': _weatherThemeEnabled,

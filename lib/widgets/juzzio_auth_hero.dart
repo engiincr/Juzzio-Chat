@@ -134,3 +134,42 @@ class _JuzzioAuthHeroState extends State<JuzzioAuthHero> with SingleTickerProvid
     );
   }
 }
+
+/// v2.1 (tasarım: Giriş/Kayıt) — başlık altındaki limon el çizimi vurgu (kodla çizilir)
+class JuzzioTitleScribble extends StatelessWidget {
+  const JuzzioTitleScribble({super.key, this.width = 96});
+  final double width;
+
+  @override
+  Widget build(BuildContext context) => IgnorePointer(
+        child: CustomPaint(size: Size(width, 10), painter: _ScribblePainter(JuzzioGlassTokens.glow)),
+      );
+}
+
+class _ScribblePainter extends CustomPainter {
+  _ScribblePainter(this.color);
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.6
+      ..strokeCap = StrokeCap.round;
+    final w = size.width;
+    final h = size.height;
+    final path = Path()
+      ..moveTo(0, h * 0.70)
+      ..quadraticBezierTo(w * 0.35, h * 0.30, w * 0.70, h * 0.50)
+      ..quadraticBezierTo(w * 0.85, h * 0.60, w, h * 0.25);
+    canvas.drawPath(path, paint);
+    final path2 = Path()
+      ..moveTo(w * 0.10, h * 0.95)
+      ..quadraticBezierTo(w * 0.45, h * 0.62, w * 0.82, h * 0.78);
+    canvas.drawPath(path2, paint..strokeWidth = 1.8);
+  }
+
+  @override
+  bool shouldRepaint(covariant _ScribblePainter old) => old.color != color;
+}

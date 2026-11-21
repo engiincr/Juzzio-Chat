@@ -1340,6 +1340,11 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
                             height: 1.15,
                           ),
                         ),
+                        // v2.1 (tasarım): başlığın son kelimesinin altında limon el çizimi vurgu
+                        const Padding(
+                          padding: EdgeInsets.only(left: 70),
+                          child: JuzzioTitleScribble(width: 96),
+                        ),
                       ],
                       ),
                     );
@@ -1360,16 +1365,6 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
                   ),
                 ),
                 const SizedBox(height: 18),
-                Text(
-                  _isRegisterMode ? s.t('username_label') : s.t('username_or_email_label'),
-                  style: TextStyle(
-                    fontFamily: JuzzioConfig.fontRegularBold,
-                    color: p.textPrimary,
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 8),
                 TextField(
                   controller: _usernameCtrl,
                   // Kullanıcı adı: otomatik düzeltme / büyük harf / öneri kapalı
@@ -1389,12 +1384,16 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
                     filled: true,
                     fillColor: p.inputBg,
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(18),
+                      borderRadius: BorderRadius.circular(999),
                       borderSide: BorderSide(color: p.glassBorder),
                     ),
                     enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(18),
+                      borderRadius: BorderRadius.circular(999),
                       borderSide: BorderSide(color: p.glassBorder),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(999),
+                      borderSide: BorderSide(color: JuzzioGlassTokens.glow, width: 1.6),
                     ),
                   ),
                 ),
@@ -1427,11 +1426,11 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
                       filled: true,
                       fillColor: p.inputBg,
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(18),
+                        borderRadius: BorderRadius.circular(999),
                         borderSide: BorderSide(color: p.glassBorder),
                       ),
                       enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(18),
+                        borderRadius: BorderRadius.circular(999),
                         borderSide: BorderSide(color: p.glassBorder),
                       ),
                     ),
@@ -1508,27 +1507,17 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
                       filled: true,
                       fillColor: p.inputBg,
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(18),
+                        borderRadius: BorderRadius.circular(999),
                         borderSide: BorderSide(color: p.glassBorder),
                       ),
                       enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(18),
+                        borderRadius: BorderRadius.circular(999),
                         borderSide: BorderSide(color: p.glassBorder),
                       ),
                     ),
                   ),
                 ],
                 const SizedBox(height: 16),
-                Text(
-                  s.t('password_label'),
-                  style: TextStyle(
-                    fontFamily: JuzzioConfig.fontRegularBold,
-                    color: p.textPrimary,
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 8),
                 TextField(
                   controller: _passwordCtrl,
                   obscureText: _obscurePassword,
@@ -1552,12 +1541,16 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
                     filled: true,
                     fillColor: p.inputBg,
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(18),
+                      borderRadius: BorderRadius.circular(999),
                       borderSide: BorderSide(color: p.glassBorder),
                     ),
                     enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(18),
+                      borderRadius: BorderRadius.circular(999),
                       borderSide: BorderSide(color: p.glassBorder),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(999),
+                      borderSide: BorderSide(color: JuzzioGlassTokens.glow, width: 1.6),
                     ),
                   ),
                 ),
@@ -1635,11 +1628,11 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
                       filled: true,
                       fillColor: p.inputBg,
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(18),
+                        borderRadius: BorderRadius.circular(999),
                         borderSide: BorderSide(color: p.glassBorder),
                       ),
                       enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(18),
+                        borderRadius: BorderRadius.circular(999),
                         borderSide: BorderSide(color: p.glassBorder),
                       ),
                     ),

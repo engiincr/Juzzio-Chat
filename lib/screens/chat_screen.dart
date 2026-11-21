@@ -7772,10 +7772,20 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     final hasMedia = (msg.imageUrl ?? '').isNotEmpty || (msg.videoUrl ?? '').isNotEmpty;
     final pinned = _pinnedMessages.any((m) => m.id == msg.id);
 
-    showJuzzioGlassSheet<void>(
+    // v2.1 (tasarım): iOS tarzı bağlam menüsü — bulanık arka plan, üstte tepki çubuğu, mesaj önizlemesi,
+    // altında cam menü (simgeler solda). Temanın vurgu rengiyle tonlanır.
+    var expanded = false;
+    showGeneralDialog<void>(
       context: context,
-      builder: (ctx) {
-        var expanded = false;
+      barrierDismissible: true,
+      barrierLabel: app.trEn('Kapat', 'Close', 'Schließen'),
+      barrierColor: Colors.transparent,
+      transitionDuration: const Duration(milliseconds: 220),
+      transitionBuilder: (_, anim, __, child) {
+        final c = CurvedAnimation(parent: anim, curve: Curves.easeOutCubic);
+        return FadeTransition(opacity: c, child: ScaleTransition(scale: Tween(begin: 0.96, end: 1.0).animate(c), child: child));
+      },
+      pageBuilder: (ctx, _, __) {
         return StatefulBuilder(builder: (ctx, setMenu) {
           Widget row(IconData icon, String label, VoidCallback onTap, {Color? color, bool keepOpen = false}) {
             final c = color ?? JuzzioGlassTokens.textPrimary;
@@ -7785,17 +7795,17 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                 onTap();
               },
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 13),
                 child: Row(
                   children: [
+                    Icon(icon, color: c, size: 22),
+                    const SizedBox(width: 16),
                     Expanded(
                       child: Text(label,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: c, fontWeight: FontWeight.w600, fontSize: 15.5)),
+                          style: TextStyle(color: c, fontWeight: FontWeight.w500, fontSize: 16.5)),
                     ),
-                    const SizedBox(width: 12),
-                    Icon(icon, color: c, size: 21),
                   ],
                 ),
               ),
@@ -7879,73 +7889,139 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
               row(Icons.delete_outline_rounded, app.trEn('Sil', 'Delete', 'Löschen'), () => _confirmDeleteMessage(msg, isMe), color: JuzzioColors.red500),
           ];
 
-          return SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+          final glow = JuzzioGlassTokens.glow;
+          final dark = JuzzioGlassTokens.isDarkResolver();
+          final menuW = (MediaQuery.sizeOf(ctx).width * 0.78).clamp(240.0, 340.0);
+          final preview = msg.isDeleted
+              ? app.trEn('Bu mesaj silindi', 'This message was deleted', 'Nachricht gelöscht')
+              : isText
+                  ? text
+                  : hasMedia
+                      ? ((msg.videoUrl ?? '').isNotEmpty ? '🎬 ${app.trEn('Video', 'Video', 'Video')}' : '📷 ${app.trEn('Fotoğraf', 'Photo', 'Foto')}')
+                      : app.trEn('Mesaj', 'Message', 'Nachricht');
+          return Material(
+            type: MaterialType.transparency,
+            child: Stack(
+              fit: StackFit.expand,
               children: [
-                // v1.2.6: Juzzio Community'de tepki yok (resmî duyuru kanalı)
-                if (!msg.isDeleted && !_inCommunity)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
-                    // v1.2.9 düzeltme: iç yüzeyler düz (çerçevesiz) — dış cam çerçeveyle çift kenar/yarıçap uyumsuzluğu olmaz
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.07), borderRadius: BorderRadius.circular(22)),
-                      child: Row(
+                // bulanık, hafif koyu arka plan — dokununca kapanır
+                GestureDetector(
+                  onTap: () => Navigator.of(ctx).pop(),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+                    child: ColoredBox(color: Colors.black.withValues(alpha: dark ? 0.35 : 0.15)),
+                  ),
+                ),
+                SafeArea(
+                  child: Align(
+                    alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
                         children: [
-                          for (final emoji in _reactionEmojis)
-                            Expanded(
-                              child: GestureDetector(
-                                onTap: () {
-                                  Navigator.of(ctx).pop();
-                                  _quickReact(msg, emoji, burst: true);
-                                },
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 150),
-                                  padding: const EdgeInsets.symmetric(vertical: 6),
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: myCurrentEmoji == emoji ? Colors.white.withValues(alpha: 0.22) : Colors.transparent,
+                          // Tepki çubuğu (v1.2.6: Juzzio Community'de tepki yok)
+                          if (!msg.isDeleted && !_inCommunity)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: dark ? Colors.white.withValues(alpha: 0.16) : Colors.white.withValues(alpha: 0.75),
+                                borderRadius: BorderRadius.circular(40),
+                                border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+                                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.18), blurRadius: 18)],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  for (final emoji in _reactionEmojis)
+                                    GestureDetector(
+                                      onTap: () {
+                                        Navigator.of(ctx).pop();
+                                        _quickReact(msg, emoji, burst: true);
+                                      },
+                                      child: Container(
+                                        width: 44,
+                                        height: 44,
+                                        alignment: Alignment.center,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: myCurrentEmoji == emoji ? glow.withValues(alpha: 0.30) : Colors.transparent,
+                                        ),
+                                        child: Text(emoji, style: juzzioEmojiStyle(30), textScaler: TextScaler.noScaling),
+                                      ),
+                                    ),
+                                  const SizedBox(width: 4),
+                                  GestureDetector(
+                                    onTap: () async {
+                                      Navigator.of(ctx).pop();
+                                      final picked = await _pickAnyEmoji();
+                                      if (picked != null && picked.isNotEmpty) _quickReact(msg, picked, burst: true);
+                                    },
+                                    child: Container(
+                                      width: 40,
+                                      height: 40,
+                                      decoration: BoxDecoration(shape: BoxShape.circle, color: glow.withValues(alpha: 0.85)),
+                                      child: Icon(Icons.keyboard_arrow_down_rounded, color: JuzzioGlassTokens.onGlow, size: 26),
+                                    ),
                                   ),
-                                  child: FittedBox(fit: BoxFit.scaleDown, child: Text(emoji, style: juzzioEmojiStyle(28))),
-                                ),
+                                ],
                               ),
                             ),
-                          GestureDetector(
-                            onTap: () async {
-                              Navigator.of(ctx).pop();
-                              final picked = await _pickAnyEmoji();
-                              if (picked != null && picked.isNotEmpty) _quickReact(msg, picked, burst: true);
-                            },
+                          const SizedBox(height: 10),
+                          // Mesaj önizlemesi
+                          ConstrainedBox(
+                            constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(ctx).width * 0.78),
                             child: Container(
-                              width: 38,
-                              height: 38,
+                              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                               decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: Colors.white.withValues(alpha: 0.10),
-                                border: Border.all(color: JuzzioGlassTokens.border),
+                                color: isMe ? glow.withValues(alpha: dark ? 0.22 : 0.35) : (dark ? const Color(0xF0202226) : Colors.white),
+                                borderRadius: BorderRadius.circular(22),
+                                border: Border.all(color: isMe ? glow.withValues(alpha: 0.6) : Colors.white.withValues(alpha: 0.12)),
                               ),
-                              child: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white, size: 24),
+                              child: Text(
+                                preview,
+                                maxLines: 6,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(color: dark ? Colors.white : const Color(0xFF111113), fontSize: 16.5, height: 1.3),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          // Cam menü
+                          Container(
+                            width: menuW,
+                            clipBehavior: Clip.antiAlias,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(34),
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: dark
+                                    ? [const Color(0xF2262829), Color.alphaBlend(glow.withValues(alpha: 0.10), const Color(0xF21B1D20))]
+                                    : [Colors.white.withValues(alpha: 0.92), Color.alphaBlend(glow.withValues(alpha: 0.18), Colors.white)],
+                              ),
+                              border: Border.all(color: Colors.white.withValues(alpha: dark ? 0.10 : 0.6)),
+                              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 30, offset: const Offset(0, 10))],
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const SizedBox(height: 6),
+                                ...rows,
+                                if (danger.isNotEmpty) ...[
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 4),
+                                    child: divider(),
+                                  ),
+                                  ...danger,
+                                ],
+                                const SizedBox(height: 6),
+                              ],
                             ),
                           ),
                         ],
                       ),
-                    ),
-                  ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                  child: Container(
-                    clipBehavior: Clip.antiAlias,
-                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.07), borderRadius: BorderRadius.circular(22)),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        for (var i = 0; i < rows.length; i++) ...[if (i > 0) divider(), rows[i]],
-                        if (danger.isNotEmpty) ...[
-                          Container(height: 6, color: Colors.black.withValues(alpha: 0.18)),
-                          for (var i = 0; i < danger.length; i++) ...[if (i > 0) divider(), danger[i]],
-                        ],
-                      ],
                     ),
                   ),
                 ),
