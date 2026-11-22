@@ -316,7 +316,11 @@ class JuzzioSettingsSearchField extends StatelessWidget {
               cursorColor: JuzzioGlassTokens.glowText,
               decoration: InputDecoration(
                 isDense: true,
+                filled: false,
+                contentPadding: EdgeInsets.zero,
                 border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
                 hintText: hint,
                 hintStyle: TextStyle(color: JuzzioGlassTokens.textMuted, fontSize: 15),
               ),

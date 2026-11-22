@@ -88,13 +88,13 @@ List<JuzzioDoodleSlot> juzzioDoodleLayout(List<JuzzioDoodleKind> kinds, {double 
     final size = switch (k) {
       JuzzioDoodleKind.cloud => 30 + r.nextDouble() * 26,
       JuzzioDoodleKind.sun => 30 + r.nextDouble() * 10,
-      JuzzioDoodleKind.moon => 34,
+      JuzzioDoodleKind.moon => 34.0,
       JuzzioDoodleKind.star => 8 + r.nextDouble() * 6,
       JuzzioDoodleKind.drop => 16 + r.nextDouble() * 8,
       JuzzioDoodleKind.snowflake => 14 + r.nextDouble() * 8,
       JuzzioDoodleKind.bolt => 18 + r.nextDouble() * 6,
     };
-    out.add(JuzzioDoodleSlot(k, x.clamp(0.06, 0.94), y.clamp(top, bottom), size));
+    out.add(JuzzioDoodleSlot(k, x.clamp(0.06, 0.94).toDouble(), y.clamp(top, bottom).toDouble(), size));
   }
   return out;
 }

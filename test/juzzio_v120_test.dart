@@ -178,7 +178,7 @@ void main() {
     expect(ap.contains('JuzzioChatThemeGallery()'), isTrue);
     expect(ap.contains('setFontSizeOption'), isTrue);
     expect(ap.contains('JuzzioChatsSettingsPage()'), isFalse); // yazı boyutu artık sohbetlere atmıyor
-    expect(st.contains("appCtrl.trEn('Hesap ve Profil'"), isTrue);
+    expect(st.contains("app.trEn('Hesap ve Profil'"), isTrue); // v2.2.0: ana sayfada 'Hesap'
   });
 
   test('sohbet içi arama ve kilitli sohbetler sayfası', () {

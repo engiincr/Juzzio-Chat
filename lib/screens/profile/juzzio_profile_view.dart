@@ -50,6 +50,9 @@ class JuzzioProfileView extends StatefulWidget {
   final VoidCallback? onOpenSettings;
   final VoidCallback? onCreate;
   final VoidCallback? onOpenNotifications;
+
+  /// v2.2.0: kişi-ekle düğmesi Arkadaşlar sayfasının "Ekle" sekmesini açar (verilmişse)
+  final VoidCallback? onAddFriends;
   final Future<JuzzioUserProfile?> Function()? onEditProfile;
   final Future<void> Function()? onChangeAvatar;
   final ValueChanged<JuzzioUserProfile>? onStartChat;
@@ -67,6 +70,7 @@ class JuzzioProfileView extends StatefulWidget {
     this.onOpenSettings,
     this.onCreate,
     this.onOpenNotifications,
+    this.onAddFriends,
     this.onEditProfile,
     this.onChangeAvatar,
     this.onStartChat,
@@ -1074,7 +1078,7 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
               padding: EdgeInsets.zero,
               tooltip: _l('Arkadaşlar', 'Friends', 'Freunde'),
               icon: Icon(Icons.person_add_alt_1_rounded, size: 18, color: fg),
-              onPressed: _openFriends,
+              onPressed: widget.onAddFriends ?? _openFriends,
             ),
           ),
         ],

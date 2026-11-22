@@ -59,7 +59,6 @@ import '../widgets/juzzio_rich_text.dart';
 import '../widgets/juzzio_copy_feedback.dart';
 import '../widgets/juzzio_gif_stickers.dart';
 import '../widgets/juzzio_weather_ambience.dart';
-import '../widgets/juzzio_moon_phase.dart';
 import '../widgets/juzzio_chat_music.dart';
 import '../core/juzzio_duration_format.dart';
 import '../widgets/juzzio_event_widgets.dart';
@@ -4669,10 +4668,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                                 final isNewer = _newestRenderedAt == null || newestAt.isAfter(_newestRenderedAt!);
                                 _newestRenderedId = newestId;
                                 if (isNewer) _newestRenderedAt = newestAt;
-                                if (!firstLoad && newestId != null && isNewer) {
+                                if (!firstLoad && isNewer) {
                                   _scrollMessagesToBottom(force: messages.last.senderId == myUid);
                                 }
-                                if (newestId != null && !_isAppInBackground) {
+                                if (!_isAppInBackground) {
                                   SupabaseService.instance.markRoomRead(targetStreamRoomId);
                                 }
                               }
@@ -9309,6 +9308,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       refreshToken: _profileRefreshToken,
       onCreate: _openPlusCreateMenu,
       onOpenNotifications: _openNotificationsScreen,
+      // v2.2.0: kişi-ekle düğmesi tek Arkadaşlar sayfasının "Ekle" sekmesini açar
+      onAddFriends: () => _openFriendRequestsPage(tab: 0),
       onOpenSettings: _openFullSettingsSuite,
       onEditProfile: _openEditProfilePage,
       onChangeAvatar: () async {

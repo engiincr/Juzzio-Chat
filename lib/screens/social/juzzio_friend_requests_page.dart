@@ -292,7 +292,11 @@ class _JuzzioFriendRequestsPageState extends State<JuzzioFriendRequestsPage> {
                     cursorColor: JuzzioGlassTokens.glowText,
                     decoration: InputDecoration(
                       isDense: true,
+                      filled: false,
+                      contentPadding: EdgeInsets.zero,
                       border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
                       hintText: _app.trEn('kullaniciadi yazarak ara…', 'Search by username…', 'Nach Benutzername suchen…'),
                       hintStyle: TextStyle(color: JuzzioGlassTokens.textMuted, fontSize: 15),
                     ),

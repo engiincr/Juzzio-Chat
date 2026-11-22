@@ -14,14 +14,18 @@ String _read(String path) => File(path).readAsStringSync();
 
 void main() {
   group('v2.2.0 (KR-012) varsayılan tema lime', () {
-    test('palet listesinin ilki ve bilinmeyen kimlik graphite_lime (Grafit Limon)', () {
+    test(
+        'palet listesinin ilki ve bilinmeyen kimlik graphite_lime (Grafit Limon)',
+        () {
       expect(kJuzzioAuroraPalettes.first.id, 'graphite_lime');
       expect(juzzioAuroraPaletteById('yok').id, 'graphite_lime');
       expect(juzzioAuroraPaletteById('').id, 'graphite_lime');
       expect(juzzioAuroraPaletteById('ocean').id, 'ocean');
     });
 
-    test('ilk açılış lime; v2.2.0 göçü herkesi bir kez lime yapar, sonra seçim serbest', () {
+    test(
+        'ilk açılış lime; v2.2.0 göçü herkesi bir kez lime yapar, sonra seçim serbest',
+        () {
       final src = _read('lib/core/app_theme_and_locale.dart');
       expect(src, contains("String _glassPaletteId = 'graphite_lime';"));
       expect(src, contains("raw['paletteV220'] != true"));
@@ -90,7 +94,7 @@ void main() {
 
     test('sunucu varsayılan teması graphite_lime (dosyanın son sözü)', () {
       final last = sql.lastIndexOf("'default_glass_palette', '\"");
-      expect(sql.substring(last, last + 40), contains('"graphite_lime"'));
+      expect(sql.substring(last, last + 60), contains('"graphite_lime"'));
     });
   });
 
@@ -109,7 +113,9 @@ void main() {
       expect(kJuzzioAmbienceContentAlpha, lessThan(0.7));
     });
 
-    test('v2.2.0: ay/güneş başlıkta değil, içeriğin arkasındaki gökyüzü katmanında', () {
+    test(
+        'v2.2.0: ay/güneş başlıkta değil, içeriğin arkasındaki gökyüzü katmanında',
+        () {
       final amb = _read('lib/widgets/juzzio_weather_ambience.dart');
       expect(amb, contains('JuzzioDoodleSkyPainter('));
       final chat = _read('lib/screens/chat_screen.dart');
