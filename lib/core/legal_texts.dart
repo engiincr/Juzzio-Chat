@@ -129,7 +129,7 @@ Bu metin, Trawave mobil uygulamasının hangi kişisel verileri hangi amaçla i�
 
 ## 5. Verilerin aktarıldığı hizmet sağlayıcılar
 
-Trawave'nun çalışması için aşağıdaki hizmetler kullanılır. Bunların bir kısmı yurt dışında bulunduğundan veriler yurt dışına aktarılır; aktarım KVKK m.9 kapsamında uygun güvencelere (standart sözleşme) dayanır.
+Trawave'in çalışması için aşağıdaki hizmetler kullanılır. Bunların bir kısmı yurt dışında bulunduğundan veriler yurt dışına aktarılır; aktarım KVKK m.9 kapsamında uygun güvencelere (standart sözleşme) dayanır.
 
 - **Supabase** (veritabanı, dosya depolama, kimlik doğrulama): hesap, mesaj ve medya verileri.
 - **LiveKit Cloud** (sesli/görüntülü arama sunucusu): arama sırasında ses ve görüntü akışı. Kayıt yapılmaz.
@@ -190,7 +190,7 @@ Kişisel verilerinizin işlenip işlenmediğini öğrenme, işlenmişse buna ili
 
 ## 10. Çocuklar
 
-Trawave 15 yaşından küçükler için tasarlanmamıştır. Kayıt sırasında 15 yaşından büyük olduğunuzu beyan edersiniz; yaş doğrulaması yapılmaz, beyanınız esas alınır. 18 yaşından küçükseniz Trawave'yu veli veya vasinizin bilgisi dahilinde kullanmalısınız. 15 yaşından küçük olduğu anlaşılan hesaplar kapatılır ve verileri silinir; bunu bildirmek için engiincr@pm.me adresine yazabilirsiniz.
+Trawave 15 yaşından küçükler için tasarlanmamıştır. Kayıt sırasında 15 yaşından büyük olduğunuzu beyan edersiniz; yaş doğrulaması yapılmaz, beyanınız esas alınır. 18 yaşından küçükseniz Trawave'i veli veya vasinizin bilgisi dahilinde kullanmalısınız. 15 yaşından küçük olduğu anlaşılan hesaplar kapatılır ve verileri silinir; bunu bildirmek için engiincr@pm.me adresine yazabilirsiniz.
 
 ## 11. Değişiklikler
 
@@ -207,7 +207,7 @@ Kayıt ve giriş ekranındaki zorunlu kutuyu işaretleyerek bu koşulları kabul
 
 ## 2. Hesap
 
-- Trawave'yu kullanmak için **en az 15 yaşında** olmalısınız; kayıt sırasında bunu beyan edersiniz. 18 yaşından küçükseniz Trawave'yu veli veya vasinizin bilgisi dahilinde kullanmalısınız.
+- Trawave'i kullanmak için **en az 15 yaşında** olmalısınız; kayıt sırasında bunu beyan edersiniz. 18 yaşından küçükseniz Trawave'i veli veya vasinizin bilgisi dahilinde kullanmalısınız.
 - Kayıt olurken doğru bilgi vermelisiniz; hesabınızın güvenliğinden siz sorumlusunuz.
 - Uygunsuz kullanıcı adı, ad veya profil fotoğrafı kullanılamaz; sahte veya trol hesap açmak yasaktır.
 
@@ -236,7 +236,7 @@ Hizmet "olduğu gibi" sunulur. Kesintisiz veya hatasız çalışacağı garanti 
 
 ## 7. Fikri mülkiyet
 
-Trawave'nun kaynak kodu, tasarımı, adı ve logosu telif hakkıyla korunur. Kopyalanması, çoğaltılması, dağıtılması, satılması ve türev uygulama yapılması yazılı izin olmadan yasaktır. Ayrıntılar: `LICENSE`.
+Trawave'in kaynak kodu, tasarımı, adı ve logosu telif hakkıyla korunur. Kopyalanması, çoğaltılması, dağıtılması, satılması ve türev uygulama yapılması yazılı izin olmadan yasaktır. Ayrıntılar: `LICENSE`.
 
 ## 8. Güvenlik ihlalleri, saldırılar ve izinsiz erişim
 

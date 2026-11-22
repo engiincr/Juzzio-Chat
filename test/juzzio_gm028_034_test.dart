@@ -186,4 +186,10 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   });
+
+  test('GM-036: Windows ProductName Juzzio kalır (veri klasörü = oturum + anahtarlar)', () {
+    final rc = File('windows/runner/Runner.rc').readAsStringSync();
+    expect(rc.contains('VALUE "ProductName", "Juzzio"'), isTrue);
+    expect(rc.contains('VALUE "CompanyName", "Engin CIRPAN"'), isTrue);
+  });
 }

@@ -28,7 +28,7 @@ const String kJuzzioLogoAvatar = 'asset:assets/logo/juzzio_logo.png';
 /// Oda adı Juzzio Topluluğu mu? (sunucu bu adı yalnız topluluk kanalına verir)
 bool juzzioIsCommunityTitle(String? raw) {
   final t = (raw ?? '').trim().toLowerCase();
-  return t == 'juzzio community' || t == 'juzzio topluluğu';
+  return t == 'trawave community' || t == 'trawave topluluğu' || t == 'juzzio community' || t == 'juzzio topluluğu';
 }
 
 /// Uygulama diline göre topluluk adı

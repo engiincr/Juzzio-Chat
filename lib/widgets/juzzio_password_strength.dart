@@ -19,7 +19,7 @@ int juzzioPasswordScore(String pw) {
       .length;
   if (classes >= 2) score++;
   if (classes >= 3) score++;
-  const common = ['123456', 'password', 'qwerty', 'sifre', 'şifre', '111111', 'juzzio', 'abc123'];
+  const common = ['123456', 'password', 'qwerty', 'sifre', 'şifre', '111111', 'juzzio', 'trawave', 'abc123'];
   final low = pw.toLowerCase();
   if (common.any(low.contains) || RegExp(r'^(.)\1+$').hasMatch(pw)) score = score > 1 ? 1 : score;
   if (pw.length < 6) score = score > 1 ? 1 : score;

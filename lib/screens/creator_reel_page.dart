@@ -1,6 +1,6 @@
 // =============================================================================
 // JUZZIO v1.2.4 — Yapımcı Tanıtım İçeriği (Portfolyo videosu)
-//  "Hello" ile başlayan, Engin ÇIRPAN'ı ve Trawave'yu anlatan 26 sn'lik tanıtım videosu.
+//  "Hello" ile başlayan, Engin ÇIRPAN'ı ve Trawave'i anlatan 26 sn'lik tanıtım videosu.
 //  Video uygulamaya gömülüdür (assets/creator/juzzio_creator_reel.mp4) → internet gerekmez.
 //  Dokun: duraklat/oynat · alttaki çubuk: ilerleme · bitince "Tekrar izle".
 //  Kaynak: tools/creator_reel/reel.py (kareler kodla çizilir, ffmpeg ile kodlanır).

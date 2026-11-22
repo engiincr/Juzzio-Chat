@@ -611,7 +611,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
         features: [
           "✨ Yeni cam bağlam menüsü: 7 hızlı tepki + tüm emojiler; Yanıtla, Kopyala, Çevir, Bağlantıyı kopyala, İlet, Adı gizleyerek ilet, Buluta kaydet, Bildir, Seç ve Yazardan seç",
           "☑️ Çoklu seçim: birden çok mesajı seç, kopyala, ilet veya sil (geri tuşu seçimi kapatır)",
-          "🎞️ 42 komik, sözsüz hareketli GIF (uykulu, kahkaha, dans, utanç…) — Trawave'nun kendi çizimi; kendi dilinde aranır. Emoji panelinde yeni \"GIF\" sekmesi",
+          "🎞️ 42 komik, sözsüz hareketli GIF (uykulu, kahkaha, dans, utanç…) — Trawave'in kendi çizimi; kendi dilinde aranır. Emoji panelinde yeni \"GIF\" sekmesi",
           "✉️ Mesaj istekleri: arkadaşın olmayan biri sen yanıtlayana kadar en fazla 3 mesaj atabilir (\"2 mesaj hakkınız kaldı\"); sende İstek Kutusu ve Spam kutusu; kabul edince karşı tarafa \"beklemedeki mesajınızı kabul etti\" bildirimi. Gizli hesaba önce arkadaşlık isteği gerekir",
           "⚠️ Tanımadığın birinden gelen dosyayı indirmeden önce açık risk uyarısı",
           "🔎 Kullanıcı adıyla ara ve profili eklemeden görüntüle",
@@ -655,7 +655,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
           "Kimlik avı bağlantı uyarısı: kısaltılmış, IP adresli, harf benzetmeli veya çalıştırılabilir dosya indiren bağlantılar açılmadan önce uyarılır",
           "Yorum, biyografi ve açıklamalarda betik kalıpları sunucuda temizlenir (XSS)",
           "Yönetici güvenliği: tek kurucu yönetici kilidi, değiştirilemez (zincirleme özetli) denetim kaydı ve toplu yıkıcı işlemlere otomatik fren",
-          "Telif denetimi: tüm müzik ve videolar Trawave'nun kendi üretimi; üçüncü taraf atıfları ve açık kaynak lisansları Yasal sayfasında",
+          "Telif denetimi: tüm müzik ve videolar Trawave'in kendi üretimi; üçüncü taraf atıfları ve açık kaynak lisansları Yasal sayfasında",
           "Hata raporları yalnız kurucu yöneticiye bildirilir",
         ],
       ),
@@ -879,7 +879,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
     publishedAt: DateTime(2026, 11, 10),
     sections: const {
       'tr': JuzzioReleaseSection(
-        reason: "Uygulamayı ilk kez açanlar Trawave'yu tanıyamıyordu; doğum günü kutlaması düz ve kısa kalıyordu; mesaj gönderirken uçan metnin altında sarı çizgi çıkıyordu; aşağı çekip yenilemede el ancak ikinci denemede sayfayı tutuyordu. Bu güncelleme hepsini düzeltir ve hava durumu temasına saate göre minik simgeler ekler.",
+        reason: "Uygulamayı ilk kez açanlar Trawave'i tanıyamıyordu; doğum günü kutlaması düz ve kısa kalıyordu; mesaj gönderirken uçan metnin altında sarı çizgi çıkıyordu; aşağı çekip yenilemede el ancak ikinci denemede sayfayı tutuyordu. Bu güncelleme hepsini düzeltir ve hava durumu temasına saate göre minik simgeler ekler.",
         features: [
           "🎬 20 saniyelik tanıtım videosu (müzikli): uygulamayı ilk kez açanlara ve yeni hesap açanlara bir kez gösterilir; bu güncellemede herkes bir kez görür. \"Atla\" ile geçilebilir, Yapımcı sayfasındaki \"Uygulama Tanıtımı\" düğmesiyle istediğin zaman yeniden izlenir (Türkçe ve İngilizce)",
           "🎂 Doğum günü kutlaması 3 boyutlu: patlatıcı eller perspektifle döner, konfeti 3B uzayda döner ve ışığa göre parlar, kurdeleler bükülür, parlak küreler ve yıldızlar saçılır; iki patlama, toplam 7 saniye",
@@ -2233,7 +2233,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
           "Temaları JSON ile içe/dışa aktar, çoğalt, yeniden adlandır, varsayılana dön",
           "Zamanlı gece/gündüz modu",
           "Bildirimden hızlı yanıt: uygulamayı açmadan, uçtan uca şifreli",
-          "Trawave'nun önerdiği tema (yönetici yayını; tema seçmeyenler için, kapatılabilir)",
+          "Trawave'in önerdiği tema (yönetici yayını; tema seçmeyenler için, kapatılabilir)",
           "5 yeni tema: Obsidyen OLED, Lavanta Sisi, Gül Kuvars, Siber Neon, Yüksek Kontrast",
           "Cam yoğunluğu ve performans modu",
         ],
@@ -2350,7 +2350,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
         reason: "Kullanıcı geri bildirimlerindeki tüm sorunları tek pakette çözmek, gizliliği güçlendirmek (uçtan uca şifreleme) ve uygulamadaki her şeyi açıkça anlatmak için getirildi.",
         features: [
           "1'e 1 yazılı mesajlarda uçtan uca şifreleme (🔒)",
-          "Zil sesleri ve uyarı tonları: Trawave'ya özel sesler, varsayılan ve kişiye özel zil sesi/bildirim tonu",
+          "Zil sesleri ve uyarı tonları: Trawave'e özel sesler, varsayılan ve kişiye özel zil sesi/bildirim tonu",
           "Kişi bilgisi sayfası: profil, arama, süreli mesajlar, sessize al, özel tonlar, engelle",
           "Arama ayrıntısı sayfası (başlangıç/cevap/bitiş saati, süre, ilk kim kapattı) ve arama filtreleri; arama kayıtları sohbette görünür",
           "Müzik: YouTube kaldırıldı; isimle arama, tek dokunuşla ekleme, profilde oynat/durdur, hikâyede otomatik çalma",

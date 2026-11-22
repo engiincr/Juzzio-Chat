@@ -1576,7 +1576,7 @@ class JuzzioAppController extends ChangeNotifier {
   JuzzioCustomTheme? get globalTheme => _globalTheme;
   int get globalThemeVersion => _globalThemeVersion;
 
-  /// "Trawave'nun önerdiği temayı kullan" (kullanıcı seçimi; kalıcı)
+  /// "Trawave'in önerdiği temayı kullan" (kullanıcı seçimi; kalıcı)
   void setFollowGlobalTheme(bool v) {
     _followGlobalTheme = v;
     if (v) {

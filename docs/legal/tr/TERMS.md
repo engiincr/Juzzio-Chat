@@ -8,7 +8,7 @@ Kayıt ve giriş ekranındaki zorunlu kutuyu işaretleyerek bu koşulları kabul
 
 ## 2. Hesap
 
-- Trawave'yu kullanmak için **en az 15 yaşında** olmalısınız; kayıt sırasında bunu beyan edersiniz. 18 yaşından küçükseniz Trawave'yu veli veya vasinizin bilgisi dahilinde kullanmalısınız.
+- Trawave'i kullanmak için **en az 15 yaşında** olmalısınız; kayıt sırasında bunu beyan edersiniz. 18 yaşından küçükseniz Trawave'i veli veya vasinizin bilgisi dahilinde kullanmalısınız.
 - Kayıt olurken doğru bilgi vermelisiniz; hesabınızın güvenliğinden siz sorumlusunuz.
 - Uygunsuz kullanıcı adı, ad veya profil fotoğrafı kullanılamaz; sahte veya trol hesap açmak yasaktır.
 
@@ -37,7 +37,7 @@ Hizmet "olduğu gibi" sunulur. Kesintisiz veya hatasız çalışacağı garanti 
 
 ## 7. Fikri mülkiyet
 
-Trawave'nun kaynak kodu, tasarımı, adı ve logosu telif hakkıyla korunur. Kopyalanması, çoğaltılması, dağıtılması, satılması ve türev uygulama yapılması yazılı izin olmadan yasaktır. Ayrıntılar: `LICENSE`.
+Trawave'in kaynak kodu, tasarımı, adı ve logosu telif hakkıyla korunur. Kopyalanması, çoğaltılması, dağıtılması, satılması ve türev uygulama yapılması yazılı izin olmadan yasaktır. Ayrıntılar: `LICENSE`.
 
 ## 8. Güvenlik ihlalleri, saldırılar ve izinsiz erişim
 

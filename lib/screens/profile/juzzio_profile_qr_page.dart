@@ -67,7 +67,7 @@ class _JuzzioProfileQrPageState extends State<JuzzioProfileQrPage> {
 
   Future<void> _share() async {
     final ok = await JuzzioNative.shareText(
-      _app.trEn("Trawave'da beni ekle: $_link", 'Add me on Trawave: $_link', 'Füge mich auf Trawave hinzu: $_link'),
+      _app.trEn("Trawave'de beni ekle: $_link", 'Add me on Trawave: $_link', 'Füge mich auf Trawave hinzu: $_link'),
       title: _app.trEn('Profili paylaş', 'Share profile', 'Profil teilen'),
     );
     if (!ok) await _copy();
@@ -171,7 +171,7 @@ class _JuzzioProfileQrPageState extends State<JuzzioProfileQrPage> {
           children: [
             JuzzioScreenHeader(
               title: _app.trEn('Profil Karekodum', 'My Profile QR', 'Mein Profil-QR'),
-              subtitle: _app.trEn("Beni Trawave'da eklemek için karekodu tara.", 'Scan the code to add me on Trawave.',
+              subtitle: _app.trEn("Beni Trawave'de eklemek için karekodu tara.", 'Scan the code to add me on Trawave.',
                   'Scanne den Code, um mich auf Trawave hinzuzufügen.'),
             ),
             Padding(

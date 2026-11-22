@@ -205,7 +205,7 @@ void main() {
       expect(juzzioPasswordScore(''), 0);
       expect(juzzioPasswordScore('123456'), 1);
       expect(juzzioPasswordScore('abcdefgh'), lessThanOrEqualTo(2));
-      expect(juzzioPasswordScore('Trawave-Kuantum-2026!'), lessThanOrEqualTo(1)); // "juzzio" içerir
+      expect(juzzioPasswordScore('Trawave-Kuantum-2026!'), lessThanOrEqualTo(1)); // "trawave" içerir
       expect(juzzioPasswordScore('Kar!Tanesi-Mavi9'), 4);
     });
 
@@ -250,9 +250,9 @@ void main() {
     expect(core.contains('/releases/download/v\$_otaRemoteVersion/version.json'), isTrue);
     expect(core.contains('_waitForOtaVerification()'), isTrue);
     final ci = _src('.github/workflows/android-ci.yml');
-    expect(ci.indexOf('Trawave Topluluğu sürüm duyurusu'), greaterThan(ci.indexOf('Tüm kullanıcılara anında güncelleme bildirimi')));
+    expect(ci.indexOf('Juzzio Topluluğu sürüm duyurusu'), greaterThan(ci.indexOf('Tüm kullanıcılara anında güncelleme bildirimi')));
     // sha256 ve version.json her ikisi de release ASSETS'te olmalı (format multi-line olabilir)
-    expect(ci.contains('Trawave-latest.apk.sha256'), isTrue);
+    expect(ci.contains('Juzzio-latest.apk.sha256'), isTrue);
     expect(ci.contains('version.json'), isTrue);
     expect(_src('scripts/release_meta.py').contains('sec["build"] = int(data["build"])'), isTrue);
     final n = kJuzzioBundledReleaseNotes.firstWhere((r) => r.versionName == '1.2.5');

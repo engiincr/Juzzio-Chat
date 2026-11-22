@@ -134,6 +134,7 @@ void main() {
   test('Trawave Topluluğu adı ve logo', () {
     expect(juzzioIsCommunityTitle('Trawave Community'), isTrue);
     expect(juzzioIsCommunityTitle('Trawave Topluluğu'), isTrue);
+    expect(juzzioIsCommunityTitle('Juzzio Community'), isTrue);
     expect(juzzioIsCommunityTitle('Benim grubum'), isFalse);
     expect(juzzioCommunityDisplayTitle('tr'), 'Trawave Topluluğu');
     expect(juzzioCommunityDisplayTitle('en'), 'Trawave Community');
