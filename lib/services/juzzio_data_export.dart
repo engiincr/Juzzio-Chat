@@ -14,6 +14,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/app_theme_and_locale.dart';
 import '../core/native_bridge.dart';
+import '../core/juzzio_temp_dir.dart';
 
 /// Dosya adı: Juzzio_verilerim_2026-11-21.json (saf; test edilir)
 String juzzioExportFileName(DateTime now) =>
@@ -36,7 +37,7 @@ Future<void> juzzioExportMyData(BuildContext context) async {
     var ok = false;
     String? savedTo;
     if (Platform.isAndroid) {
-      final dir = await getTemporaryDirectory();
+      final dir = await juzzioTempDir();
       final f = File('${dir.path}/$name');
       await f.writeAsBytes(bytes, flush: true);
       ok = await JuzzioNative.saveToGallery(path: f.path, mime: 'application/json', name: name, kind: 'document');

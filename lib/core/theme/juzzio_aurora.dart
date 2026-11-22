@@ -166,12 +166,32 @@ class JuzzioSpaceSpec {
 
 Color _mix(Color a, Color b, double t) => Color.lerp(a, b, t)!;
 
-JuzzioSpaceSpec _autoSpec(JuzzioAuroraPalette p, Color glow, {Color? glowLight}) => JuzzioSpaceSpec(
-      glow: glow,
-      glowLight: glowLight ?? _mix(glow, const Color(0xFF000000), 0.45),
-      depth: [_mix(p.base, p.swatchA, 0.16), _mix(p.base, p.swatchB, 0.10), p.base],
-      depthLight: [_mix(p.baseLight, p.swatchA, 0.10), p.baseLight, _mix(p.baseLight, p.swatchB, 0.08)],
-    );
+JuzzioSpaceSpec _autoSpec(JuzzioAuroraPalette p, Color glow, {Color? glowLight}) {
+  final depthLight = [_mix(p.baseLight, p.swatchA, 0.10), p.baseLight, _mix(p.baseLight, p.swatchB, 0.08)];
+  return JuzzioSpaceSpec(
+    glow: glow,
+    glowLight: glowLight ?? juzzioReadableAccentOn(glow, depthLight),
+    depth: [_mix(p.base, p.swatchA, 0.16), _mix(p.base, p.swatchB, 0.10), p.base],
+    depthLight: depthLight,
+  );
+}
+
+/// GM-014 (KR-010): gündüz modunda vurgu rengindeki yazı/ikon, açık zeminin tamamında
+/// en az 4.5:1 kontrast verene kadar aynı tonda koyulaştırılır (en az %45, en çok %90).
+Color juzzioReadableAccentOn(Color glow, List<Color> backgrounds, {double minRatio = 4.5}) {
+  double ratio(Color a, Color b) {
+    final la = a.computeLuminance(), lb = b.computeLuminance();
+    return ((la > lb ? la : lb) + 0.05) / ((la > lb ? lb : la) + 0.05);
+  }
+
+  var t = 0.45;
+  var c = _mix(glow, const Color(0xFF000000), t);
+  while (t < 0.9 && backgrounds.any((b) => ratio(c, b) < minRatio)) {
+    t += 0.05;
+    c = _mix(glow, const Color(0xFF000000), t);
+  }
+  return c;
+}
 
 /// Temaya özel parlak vurgular. Zümrüt (Figma referansı) zemini birebir örneklenmiştir.
 const Map<String, Color> kJuzzioSpaceGlow = {
@@ -209,7 +229,7 @@ extension JuzzioAuroraPaletteSpace on JuzzioAuroraPalette {
     if (id == 'forest_mint') {
       return const JuzzioSpaceSpec(
         glow: Color(0xFF4ADE80),
-        glowLight: Color(0xFF15803D),
+        glowLight: Color(0xFF166534), // GM-014: açık zeminde ≥ 4.5:1 (önce 15803D, 4.2:1)
         depth: [Color(0xFF0C2219), Color(0xFF081A13), Color(0xFF04100B)],
         depthLight: [Color(0xFFE6F4EA), Color(0xFFF1F8F3), Color(0xFFE2EFE6)],
       );
@@ -241,8 +261,30 @@ extension JuzzioAuroraPaletteCharacter on JuzzioAuroraPalette {
   JuzzioGlassCharacter get character => kJuzzioGlassCharacters[id] ?? JuzzioGlassCharacter.standard;
 }
 
-/// Cam temaları. İlk öğe varsayılandır.
+/// Cam temaları. İlk öğe varsayılandır (GM-014: Gece Mavisi).
 const List<JuzzioAuroraPalette> kJuzzioAuroraPalettes = [
+  // GM-014 (KR-011): varsayılan tema mavi — Gece Mavisi
+  JuzzioAuroraPalette(
+    id: 'ocean',
+    nameTr: 'Gece Mavisi',
+    nameEn: 'Midnight Blue',
+    nameDe: 'Nachtblau',
+    base: Color(0xFF03060F),
+    baseLight: Color(0xFFEAF0FA),
+    swatchA: Color(0xFF1D4ED8),
+    swatchB: Color(0xFF0EA5E9),
+    orbs: [
+      JuzzioAuroraOrb(Alignment(-0.9, -0.75), 0.95, Color(0xB31D4ED8)),
+      JuzzioAuroraOrb(Alignment(1.0, -0.1), 0.80, Color(0x800EA5E9)),
+      JuzzioAuroraOrb(Alignment(-0.4, 0.95), 0.90, Color(0x993730A3)),
+      JuzzioAuroraOrb(Alignment(0.7, 0.85), 0.55, Color(0x661E40AF)),
+    ],
+    orbsLight: [
+      JuzzioAuroraOrb(Alignment(-0.9, -0.75), 0.95, Color(0x6693C5FD)),
+      JuzzioAuroraOrb(Alignment(1.0, -0.1), 0.80, Color(0x5567E8F9)),
+      JuzzioAuroraOrb(Alignment(-0.4, 0.95), 0.90, Color(0x55A5B4FC)),
+    ],
+  ),
   // v2.0.0 Figma 2.0 varsayılan: Grafit Limon (Obsidian Lime) — siyah-grafit zemin, neon limon vurgu.
   // Yeni kullanıcılar bu temayla başlar; tercih kayıtlı kullanıcılar kendi seçimleriyle devam eder.
   JuzzioAuroraPalette(
@@ -285,27 +327,6 @@ const List<JuzzioAuroraPalette> kJuzzioAuroraPalettes = [
       JuzzioAuroraOrb(Alignment(1.05, -0.05), 0.80, Color(0x40397BFF)),
       JuzzioAuroraOrb(Alignment(-0.6, 1.05), 0.85, Color(0x406BDDF0)),
       JuzzioAuroraOrb(Alignment(0.85, 0.95), 0.45, Color(0x26925CFF)),
-    ],
-  ),
-  JuzzioAuroraPalette(
-    id: 'ocean',
-    nameTr: 'Gece Mavisi',
-    nameEn: 'Midnight Blue',
-    nameDe: 'Nachtblau',
-    base: Color(0xFF03060F),
-    baseLight: Color(0xFFEAF0FA),
-    swatchA: Color(0xFF1D4ED8),
-    swatchB: Color(0xFF0EA5E9),
-    orbs: [
-      JuzzioAuroraOrb(Alignment(-0.9, -0.75), 0.95, Color(0xB31D4ED8)),
-      JuzzioAuroraOrb(Alignment(1.0, -0.1), 0.80, Color(0x800EA5E9)),
-      JuzzioAuroraOrb(Alignment(-0.4, 0.95), 0.90, Color(0x993730A3)),
-      JuzzioAuroraOrb(Alignment(0.7, 0.85), 0.55, Color(0x661E40AF)),
-    ],
-    orbsLight: [
-      JuzzioAuroraOrb(Alignment(-0.9, -0.75), 0.95, Color(0x6693C5FD)),
-      JuzzioAuroraOrb(Alignment(1.0, -0.1), 0.80, Color(0x5567E8F9)),
-      JuzzioAuroraOrb(Alignment(-0.4, 0.95), 0.90, Color(0x55A5B4FC)),
     ],
   ),
   // v0.7.0: Glass White — ultra modern, saydam beyaz buzlu cam (iOS/visionOS esintili).

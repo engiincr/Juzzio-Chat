@@ -6,16 +6,20 @@
 //  koyu zemin kullanır (görüntü ve okunurluk için); vurgu, halka ve dalgalar temaya uyar.
 // =============================================================================
 
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart' as webrtc;
 
 import '../core/app_theme_and_locale.dart';
 import '../core/config.dart';
 import '../core/theme/juzzio_glass.dart';
 import '../services/juzzio_audio_route.dart';
+import '../services/juzzio_desktop_audio.dart';
 import 'juzzio_brand.dart';
+import 'juzzio_call_gm9276.dart';
 
 /// Arama ekranlarının renkleri (temadan)
 class JuzzioCallColors {
@@ -313,32 +317,6 @@ class _JuzzioCallGlowAvatarState extends State<JuzzioCallGlowAvatar> with Single
   }
 }
 
-/// Köşe rozeti: vurgu dolgulu daire içinde simge veya J logosu
-class JuzzioCallBadge extends StatelessWidget {
-  const JuzzioCallBadge({super.key, this.icon, this.logo = false, this.size = 34});
-  final IconData? icon;
-  final bool logo;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: logo ? JuzzioBrandColors.ink : JuzzioCallColors.accent,
-        border: Border.all(color: logo ? JuzzioCallColors.accent : JuzzioCallColors.depth.last, width: 2.4),
-        boxShadow: [BoxShadow(color: JuzzioCallColors.accent.withValues(alpha: 0.4), blurRadius: 12)],
-      ),
-      alignment: Alignment.center,
-      child: logo
-          ? JuzzioLogoGlyph(size: size * 0.56)
-          : Icon(icon ?? Icons.graphic_eq_rounded, size: size * 0.55, color: JuzzioCallColors.onAccent),
-    );
-  }
-}
-
 /// Hareketli ses dalgası çubukları
 class JuzzioCallWaveBars extends StatefulWidget {
   const JuzzioCallWaveBars({super.key, this.bars = 9, this.height = 22, this.active = true, this.color, this.barWidth = 3});
@@ -399,204 +377,6 @@ class _JuzzioCallWaveBarsState extends State<JuzzioCallWaveBars> with SingleTick
   }
 }
 
-/// Alt kısımdaki parçacık dalgası (sesli arama tasarımı)
-class JuzzioCallParticleWave extends StatefulWidget {
-  const JuzzioCallParticleWave({super.key, this.height = 120});
-  final double height;
-
-  @override
-  State<JuzzioCallParticleWave> createState() => _JuzzioCallParticleWaveState();
-}
-
-class _JuzzioCallParticleWaveState extends State<JuzzioCallParticleWave> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(seconds: 6));
-
-  @override
-  void initState() {
-    super.initState();
-    if (!_reduceMotion) _c.repeat();
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: SizedBox(
-        height: widget.height,
-        width: double.infinity,
-        child: RepaintBoundary(
-          child: AnimatedBuilder(
-            animation: _c,
-            builder: (_, __) => CustomPaint(painter: _ParticleWavePainter(_c.value, JuzzioCallColors.accent)),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ParticleWavePainter extends CustomPainter {
-  _ParticleWavePainter(this.t, this.color);
-  final double t;
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()..style = PaintingStyle.fill;
-    const rows = 7;
-    final cols = (size.width / 7).floor();
-    for (var r = 0; r < rows; r++) {
-      final rowT = r / (rows - 1);
-      for (var c = 0; c < cols; c++) {
-        final x = c / cols * size.width;
-        final wave = math.sin((x / size.width * 2.4 * math.pi) + t * 2 * math.pi + r * 0.35) * (size.height * 0.18) +
-            math.sin((x / size.width * 5.1 * math.pi) - t * 2 * math.pi) * (size.height * 0.05);
-        final y = size.height * (0.30 + rowT * 0.55) + wave * (1 - rowT * 0.4);
-        final edge = math.sin(c / cols * math.pi); // kenarlarda söner
-        final a = (0.12 + 0.55 * (1 - rowT)) * edge;
-        paint.color = color.withValues(alpha: a.clamp(0.0, 1.0));
-        canvas.drawCircle(Offset(x, y), 1.1 + (1 - rowT) * 0.9, paint);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _ParticleWavePainter old) => old.t != t || old.color != color;
-}
-
-/// Sesli arama kare düğmesi (Sessize Al / Hoparlör). [onArrow] verilirse sağda ses çıkışı oku çıkar.
-class JuzzioCallSquareButton extends StatelessWidget {
-  const JuzzioCallSquareButton({
-    super.key,
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    this.active = false,
-    this.onArrow,
-    this.arrowTooltip,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  final bool active;
-  final VoidCallback? onArrow;
-  final String? arrowTooltip;
-
-  @override
-  Widget build(BuildContext context) {
-    final accent = JuzzioCallColors.accent;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Semantics(
-              button: true,
-              toggled: active,
-              label: label,
-              child: GestureDetector(
-                onTap: onTap,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  width: 74,
-                  height: 74,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(24),
-                    color: active ? accent.withValues(alpha: 0.16) : JuzzioCallColors.glass,
-                    border: Border.all(color: active ? accent : JuzzioCallColors.glassBorder, width: active ? 1.8 : 1),
-                    boxShadow: active ? [BoxShadow(color: accent.withValues(alpha: 0.30), blurRadius: 18)] : const [],
-                  ),
-                  child: Icon(icon, size: 30, color: active ? accent : JuzzioCallColors.text),
-                ),
-              ),
-            ),
-            if (onArrow != null) ...[
-              const SizedBox(width: 6),
-              Tooltip(
-                message: arrowTooltip ?? '',
-                child: GestureDetector(
-                  onTap: onArrow,
-                  child: Container(
-                    width: 30,
-                    height: 74,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(14),
-                      color: JuzzioCallColors.glass,
-                      border: Border.all(color: JuzzioCallColors.glassBorder),
-                    ),
-                    child: const Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.keyboard_arrow_up_rounded, size: 20, color: JuzzioCallColors.text),
-                        Icon(Icons.keyboard_arrow_down_rounded, size: 20, color: JuzzioCallColors.text),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-        const SizedBox(height: 10),
-        Text(
-          label,
-          style: TextStyle(
-            fontFamily: JuzzioConfig.fontRegularBold,
-            color: active ? accent : JuzzioCallColors.textDim,
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// Süre hapı (sesli aramada iki yanında dalga)
-class JuzzioCallTimerPill extends StatelessWidget {
-  const JuzzioCallTimerPill({super.key, required this.text, this.leading});
-  final String text;
-  final IconData? leading;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-      decoration: BoxDecoration(
-        color: JuzzioCallColors.glass,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: JuzzioCallColors.glassBorder),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (leading != null) ...[
-            Icon(leading, size: 15, color: JuzzioCallColors.accent),
-            const SizedBox(width: 6),
-          ],
-          Text(
-            text,
-            style: const TextStyle(
-              fontFamily: JuzzioConfig.fontRegularBold,
-              color: JuzzioCallColors.text,
-              fontSize: 14,
-              fontWeight: FontWeight.w800,
-              fontFeatures: [FontFeature.tabularFigures()],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 String _routeLabel(JuzzioAudioOutput o, String? btName) {
   final app = JuzzioAppController.instance;
   return switch (o) {
@@ -620,6 +400,8 @@ Future<void> showJuzzioAudioOutputSheet(
   BuildContext context, {
   required Future<void> Function(JuzzioAudioOutput) onSelect,
 }) async {
+  // GM-003: masaüstünde gerçek ses aygıtları (hoparlör/kulaklık/mikrofon) listelenir
+  if (JuzzioDesktopAudio.instance.supported) return showJuzzioDesktopAudioSheet(context);
   final app = JuzzioAppController.instance;
   final route = JuzzioAudioRouteController.instance;
   await showModalBottomSheet<void>(
@@ -761,13 +543,13 @@ class JuzzioCallActionButton extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
         Text(
           label,
           style: const TextStyle(
             fontFamily: JuzzioConfig.fontRegularBold,
             color: JuzzioCallColors.text,
-            fontSize: 14,
+            fontSize: 17,
             fontWeight: FontWeight.w800,
           ),
         ),
@@ -776,7 +558,10 @@ class JuzzioCallActionButton extends StatelessWidget {
   }
 }
 
-/// v2.1 — Tam ekran gelen arama (tasarım 4)
+/// GM-9276 — Tam ekran gelen arama (design/references/gm9276_gelen_arama.png):
+/// "J Juzzio · sesli arama", eş merkezli halkalı vurgu kenarlı avatar, ad, "seni arıyor…",
+/// "Canlı çeviri hazır" + "EN → TR" cam hapları, "Mesajla yanıtla" / "Sonra hatırlat",
+/// kırmızı Reddet / vurgu Yanıtla. Zemin temanın aurora sahnesi, yüzeyler Liquid Glass (KR-009).
 class JuzzioIncomingCallView extends StatelessWidget {
   const JuzzioIncomingCallView({
     super.key,
@@ -789,6 +574,11 @@ class JuzzioIncomingCallView extends StatelessWidget {
     this.groupTitle,
     this.verified = false,
     this.participants = const [],
+    this.fromLang,
+    this.toLang,
+    this.translationReady = true,
+    this.onMessageReply,
+    this.onRemindLater,
   });
 
   final String callerName;
@@ -800,113 +590,120 @@ class JuzzioIncomingCallView extends StatelessWidget {
   final List<String> participants;
   final VoidCallback onAccept;
   final VoidCallback onDecline;
+  /// Arayanın dili ve benim dilim ("EN → TR")
+  final String? fromLang;
+  final String? toLang;
+  /// Canlı çeviri özelliği açık mı?
+  final bool translationReady;
+  final VoidCallback? onMessageReply;
+  final VoidCallback? onRemindLater;
 
   @override
   Widget build(BuildContext context) {
     final app = JuzzioAppController.instance;
     final size = MediaQuery.sizeOf(context);
-    final avatarSize = math.min(size.width * 0.42, 172.0);
+    final compact = size.height < 700;
+    final avatarSize = math.min(math.min(size.width * 0.40, 160.0), compact ? 108.0 : 160.0);
     final title = isGroup && (groupTitle ?? '').trim().isNotEmpty ? groupTitle!.trim() : callerName;
+    final caption = isGroup
+        ? app.trEn('grup araması', 'group call', 'Gruppenanruf')
+        : (isVideo ? app.trEn('görüntülü arama', 'video call', 'Videoanruf') : app.trEn('sesli arama', 'voice call', 'Sprachanruf'));
+    final pair = juzzioLangPairLabel(fromLang, toLang);
+    final status = isGroup
+        ? (participants.isEmpty ? callerName : participants.join(', '))
+        : app.trEn('seni arıyor…', 'is calling you…', 'ruft dich an…');
     return Material(
       color: Colors.transparent,
-      child: DecoratedBox(
-        decoration: JuzzioCallColors.backdrop(),
-        child: Stack(
-          children: [
-            // Üstte ve altta hafif vurgu ışığı
-            Positioned.fill(
-              child: IgnorePointer(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: RadialGradient(
-                      center: const Alignment(0, -0.15),
-                      radius: 0.85,
-                      colors: [JuzzioCallColors.accent.withValues(alpha: 0.10), Colors.transparent],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            SafeArea(
-              child: Column(
+      child: JuzzioCallStage(
+        child: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520),
+              // GM-014: çok kısa ekranda (≤ 640) taşma yerine kaydırılabilir; normalde boşluklar Spacer ile dağılır
+              child: LayoutBuilder(
+                builder: (context, box) => SingleChildScrollView(
+                  physics: const ClampingScrollPhysics(),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minHeight: box.maxHeight),
+                    child: IntrinsicHeight(
+                      child: Column(
                 children: [
-                  const SizedBox(height: 18),
-                  JuzzioCallBrand(
-                    size: 22,
-                    caption: app.trEn('CANLI ÇEVİRİ • GÖRÜNTÜLÜ • SESLİ', 'LIVE TRANSLATION • VIDEO • VOICE', 'LIVE-ÜBERSETZUNG • VIDEO • SPRACHE'),
-                  ),
+                  SizedBox(height: compact ? 12 : 40),
+                  JuzzioCallTitleBrand(caption: caption, size: 22),
                   const Spacer(flex: 2),
-                  JuzzioCallGlowAvatar(
+                  JuzzioRingedAvatar(
                     size: avatarSize,
-                    rings: 3,
                     pulse: true,
-                    badge: const JuzzioCallBadge(logo: true, size: 40),
                     avatar: isGroup
                         ? Container(
+                            width: avatarSize,
+                            height: avatarSize,
                             color: JuzzioCallColors.glass,
                             child: Icon(Icons.groups_rounded, color: JuzzioCallColors.text, size: avatarSize * 0.45),
                           )
-                        : JuzzioGlassAvatar(imageUrl: avatarUrl, name: callerName, radius: avatarSize / 2),
+                        : JuzzioGlassAvatar(imageUrl: avatarUrl, name: callerName, radius: avatarSize / 2, ringWidth: 0),
                   ),
-                  const SizedBox(height: 22),
+                  SizedBox(height: compact ? 14 : 26),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: JuzzioCallName(name: title, verified: verified && !isGroup, size: 28),
+                    child: JuzzioCallName(name: title, verified: verified && !isGroup, size: compact ? 28 : 34),
                   ),
-                  if (isGroup) ...[
-                    const SizedBox(height: 4),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 28),
-                      child: Text(
-                        participants.isEmpty ? callerName : participants.join(', '),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: JuzzioCallColors.textDim, fontSize: 13),
-                      ),
-                    ),
-                  ],
                   const SizedBox(height: 8),
-                  Text(
-                    app.trEn('Gelen Arama...', 'Incoming call...', 'Eingehender Anruf...'),
-                    style: const TextStyle(color: JuzzioCallColors.textDim, fontSize: 15, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 14),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: JuzzioCallColors.accent.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: JuzzioCallColors.accent.withValues(alpha: 0.55)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 28),
+                    child: Text(
+                      status,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: JuzzioCallColors.textDim, fontSize: 17, fontWeight: FontWeight.w500),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
+                  ),
+                  if (translationReady || pair.isNotEmpty) ...[
+                    SizedBox(height: compact ? 14 : 24),
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 12,
+                      runSpacing: 10,
                       children: [
-                        Icon(isVideo ? Icons.videocam_rounded : Icons.call_rounded, size: 18, color: JuzzioCallColors.accent),
-                        const SizedBox(width: 8),
-                        Text(
-                          isGroup
-                              ? (isVideo
-                                  ? app.trEn('Görüntülü Konferans', 'Video Conference', 'Videokonferenz')
-                                  : app.trEn('Sesli Konferans', 'Voice Conference', 'Sprachkonferenz'))
-                              : (isVideo
-                                  ? app.trEn('Görüntülü Arama', 'Video Call', 'Videoanruf')
-                                  : app.trEn('Sesli Arama', 'Voice Call', 'Sprachanruf')),
-                          style: TextStyle(
-                            fontFamily: JuzzioConfig.fontRegularBold,
-                            color: JuzzioCallColors.accent,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
+                        if (translationReady)
+                          JuzzioCallPill(
+                            icon: Icons.translate_rounded,
+                            label: app.trEn('Canlı çeviri hazır', 'Live translation ready', 'Live-Übersetzung bereit'),
+                            accent: true,
                           ),
-                        ),
+                        if (pair.isNotEmpty) JuzzioCallPill(label: pair),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 22),
-                  const JuzzioCallWaveBars(bars: 21, height: 30),
+                  ],
                   const Spacer(flex: 3),
+                  if (onMessageReply != null || onRemindLater != null)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (onMessageReply != null)
+                          SizedBox(
+                            width: 170,
+                            child: JuzzioCallRoundAction(
+                              icon: Icons.chat_bubble_outline_rounded,
+                              label: app.trEn('Mesajla yanıtla', 'Reply with message', 'Mit Nachricht antworten'),
+                              onTap: onMessageReply!,
+                            ),
+                          ),
+                        if (onRemindLater != null)
+                          SizedBox(
+                            width: 170,
+                            child: JuzzioCallRoundAction(
+                              icon: Icons.schedule_rounded,
+                              label: app.trEn('Sonra hatırlat', 'Remind me later', 'Später erinnern'),
+                              onTap: onRemindLater!,
+                            ),
+                          ),
+                      ],
+                    ),
+                  SizedBox(height: compact ? 20 : 40),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 48),
+                    padding: const EdgeInsets.symmetric(horizontal: 40),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -914,21 +711,27 @@ class JuzzioIncomingCallView extends StatelessWidget {
                           icon: Icons.call_end_rounded,
                           label: app.trEn('Reddet', 'Decline', 'Ablehnen'),
                           onTap: onDecline,
+                          size: 76,
                         ),
                         JuzzioCallActionButton(
                           icon: isVideo ? Icons.videocam_rounded : Icons.call_rounded,
-                          label: app.trEn('Kabul Et', 'Accept', 'Annehmen'),
+                          label: app.trEn('Yanıtla', 'Answer', 'Annehmen'),
                           onTap: onAccept,
                           accept: true,
+                          size: 76,
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 36),
+                  SizedBox(height: compact ? 14 : 36),
                 ],
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -963,4 +766,293 @@ String juzzioCallWhenLabel(DateTime when, {DateTime? now, String? lang}) {
   if (diff == 0) return '${l == 'tr' ? 'Bugün' : (l == 'de' ? 'Heute' : 'Today')} $hm';
   if (diff == 1) return '${l == 'tr' ? 'Dün' : (l == 'de' ? 'Gestern' : 'Yesterday')} $hm';
   return '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')} $hm';
+}
+
+
+/// GM-003 — Masaüstü ses aygıtı seçici: çıkış (hoparlör/kulaklık) ve mikrofon.
+/// Seçim cihazda saklanır, sonraki aramalarda da uygulanır.
+Future<void> showJuzzioDesktopAudioSheet(BuildContext context) async {
+  final app = JuzzioAppController.instance;
+  final audio = JuzzioDesktopAudio.instance;
+  unawaited(audio.refresh());
+  await showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: Colors.transparent,
+    isScrollControlled: true,
+    builder: (ctx) => ListenableBuilder(
+      listenable: audio,
+      builder: (ctx, _) {
+        final accent = JuzzioGlassTokens.glow;
+        Widget title(String t) => Padding(
+              padding: const EdgeInsets.only(top: 8, bottom: 8, left: 4),
+              child: Text(t.toUpperCase(),
+                  style: TextStyle(
+                      fontFamily: JuzzioConfig.fontRegularBold,
+                      color: JuzzioGlassTokens.textMuted,
+                      fontSize: 12,
+                      letterSpacing: 0.4,
+                      fontWeight: FontWeight.w700)),
+            );
+        // GM-006: satırlar uygulamanın Liquid Glass bileşeniyle; seçili satır temanın vurgu kenarıyla
+        Widget row(MediaDeviceLike d, bool selected, IconData icon, Future<void> Function() onTap) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: JuzzioLiquidGlass(
+                radius: 18,
+                glowBorder: selected,
+                strong: selected,
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(18),
+                    onTap: onTap,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(minHeight: 52),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        child: Row(children: [
+                          Icon(icon, color: selected ? accent : JuzzioGlassTokens.textSecondary, size: 21),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(d.label.isEmpty ? d.id : d.label,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                    fontFamily: JuzzioConfig.fontRegularBold,
+                                    color: JuzzioGlassTokens.textPrimary,
+                                    fontSize: 14.5,
+                                    fontWeight: FontWeight.w700)),
+                          ),
+                          if (selected) Icon(Icons.check_circle_rounded, color: accent, size: 21),
+                        ]),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+        return SafeArea(
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(ctx).height * 0.82, maxWidth: 520),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                child: JuzzioLiquidGlass(
+                  radius: 28,
+                  strong: true,
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Center(
+                          child: Container(
+                            width: 40,
+                            height: 4,
+                            decoration: BoxDecoration(color: JuzzioGlassTokens.borderStrong, borderRadius: BorderRadius.circular(9)),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Text(app.trEn('Ses aygıtları', 'Audio devices', 'Audiogeräte'),
+                            style: TextStyle(
+                                fontFamily: JuzzioConfig.fontRegularBold,
+                                color: JuzzioGlassTokens.heading,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800)),
+                        const SizedBox(height: 4),
+                        Text(
+                          app.trEn(
+                            'Karşı tarafın sesi seçtiğin çıkıştan gelir. Seçimin sonraki aramalarda da kullanılır.',
+                            'You hear the other person through the output you pick. Your choice is kept for future calls.',
+                            'Du hörst die andere Person über die gewählte Ausgabe. Die Auswahl bleibt für weitere Anrufe.',
+                          ),
+                          style: TextStyle(color: JuzzioGlassTokens.textSecondary, fontSize: 12.5, height: 1.35),
+                        ),
+                        if (audio.lastError != null) ...[
+                          const SizedBox(height: 8),
+                          Text(audio.lastError!, style: const TextStyle(color: JuzzioCallColors.danger, fontSize: 12.5, height: 1.3)),
+                        ],
+                        const SizedBox(height: 6),
+                        title(app.trEn('Ses çıkışı', 'Output', 'Ausgabe')),
+                        if (audio.outputs.isEmpty)
+                          Text(app.trEn('Çıkış aygıtı bulunamadı.', 'No output device found.', 'Kein Ausgabegerät gefunden.'),
+                              style: TextStyle(color: JuzzioGlassTokens.textSecondary, fontSize: 13)),
+                        for (final d in audio.outputs)
+                          row(MediaDeviceLike(d.deviceId, d.label), audio.selectedOutput?.deviceId == d.deviceId,
+                              Icons.volume_up_rounded, () => audio.selectOutput(d)),
+                        title(app.trEn('Mikrofon', 'Microphone', 'Mikrofon')),
+                        for (final d in audio.inputs)
+                          row(MediaDeviceLike(d.deviceId, d.label), audio.selectedInput?.deviceId == d.deviceId, Icons.mic_rounded,
+                              () => audio.selectInput(d)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    ),
+  );
+}
+
+/// Sayfa içi kullanım için aygıt kimliği + adı (livekit MediaDevice'a bağımlılığı arayüzde sınırlar)
+class MediaDeviceLike {
+  const MediaDeviceLike(this.id, this.label);
+  final String id;
+  final String label;
+}
+
+
+/// GM-007 — Masaüstü ekran paylaşımı kaynak seçici (ekranlar + pencereler, önizlemeli).
+/// Seçilen kaynağın kimliğini döner; vazgeçilirse null. Liquid Glass (KR-009).
+Future<String?> showJuzzioScreenSourcePicker(
+  BuildContext context,
+  Future<List<webrtc.DesktopCapturerSource>> Function() load,
+) {
+  final app = JuzzioAppController.instance;
+  final future = load();
+  return showModalBottomSheet<String>(
+    context: context,
+    backgroundColor: Colors.transparent,
+    isScrollControlled: true,
+    builder: (ctx) {
+      final accent = JuzzioGlassTokens.glow;
+      Widget tile(webrtc.DesktopCapturerSource src) => JuzzioLiquidGlass(
+            radius: 18,
+            child: Material(
+              type: MaterialType.transparency,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(18),
+                onTap: () => Navigator.of(ctx).pop(src.id),
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      AspectRatio(
+                        aspectRatio: 16 / 9,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: ColoredBox(
+                            color: Colors.black.withValues(alpha: 0.35),
+                            child: src.thumbnail != null && src.thumbnail!.isNotEmpty
+                                ? Image.memory(src.thumbnail!, fit: BoxFit.contain, gaplessPlayback: true)
+                                : Icon(src.type == webrtc.SourceType.Screen ? Icons.desktop_windows_rounded : Icons.web_asset_rounded,
+                                    color: JuzzioGlassTokens.textMuted, size: 32),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(src.name.isEmpty ? app.trEn('Ekran', 'Screen', 'Bildschirm') : src.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontFamily: JuzzioConfig.fontRegularBold,
+                              color: JuzzioGlassTokens.textPrimary,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+      Widget section(String t, List<webrtc.DesktopCapturerSource> list) => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 10, bottom: 8, left: 4),
+                child: Text(t.toUpperCase(),
+                    style: TextStyle(
+                        fontFamily: JuzzioConfig.fontRegularBold,
+                        color: JuzzioGlassTokens.textMuted,
+                        fontSize: 12,
+                        letterSpacing: 0.4,
+                        fontWeight: FontWeight.w700)),
+              ),
+              GridView.count(
+                crossAxisCount: 2,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                mainAxisSpacing: 10,
+                crossAxisSpacing: 10,
+                childAspectRatio: 1.32,
+                children: [for (final s in list) tile(s)],
+              ),
+            ],
+          );
+      return SafeArea(
+        child: Align(
+          alignment: Alignment.bottomCenter,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(ctx).height * 0.86, maxWidth: 560),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              child: JuzzioLiquidGlass(
+                radius: 28,
+                strong: true,
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+                child: FutureBuilder<List<webrtc.DesktopCapturerSource>>(
+                  future: future,
+                  builder: (ctx, snap) {
+                    final header = <Widget>[
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(color: JuzzioGlassTokens.borderStrong, borderRadius: BorderRadius.circular(9)),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Row(children: [
+                        Icon(Icons.screen_share_rounded, color: accent),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(app.trEn('Neyi paylaşmak istiyorsun?', 'What do you want to share?', 'Was möchtest du teilen?'),
+                              style: TextStyle(
+                                  fontFamily: JuzzioConfig.fontRegularBold,
+                                  color: JuzzioGlassTokens.heading,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800)),
+                        ),
+                      ]),
+                    ];
+                    if (snap.connectionState != ConnectionState.done) {
+                      return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                        ...header,
+                        const SizedBox(height: 28),
+                        Center(child: CircularProgressIndicator(color: accent)),
+                        const SizedBox(height: 28),
+                      ]);
+                    }
+                    final all = snap.data ?? const <webrtc.DesktopCapturerSource>[];
+                    final screens = all.where((x) => x.type == webrtc.SourceType.Screen).toList();
+                    final windows = all.where((x) => x.type == webrtc.SourceType.Window).toList();
+                    return SingleChildScrollView(
+                      child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                        ...header,
+                        if (snap.hasError || all.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 18),
+                            child: Text(
+                              app.trEn('Paylaşılabilecek ekran bulunamadı.', 'No screen available to share.', 'Kein Bildschirm zum Teilen gefunden.'),
+                              style: TextStyle(color: JuzzioGlassTokens.textSecondary, fontSize: 13.5),
+                            ),
+                          ),
+                        if (screens.isNotEmpty) section(app.trEn('Ekranlar', 'Screens', 'Bildschirme'), screens),
+                        if (windows.isNotEmpty) section(app.trEn('Pencereler', 'Windows', 'Fenster'), windows),
+                      ]),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    },
+  );
 }

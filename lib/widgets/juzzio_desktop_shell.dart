@@ -21,6 +21,7 @@ import 'package:flutter/services.dart';
 
 import '../core/theme/juzzio_glass.dart';
 import '../core/app_theme_and_locale.dart';
+import '../core/config.dart';
 import 'juzzio_brand.dart';
 
 // ---------------------------------------------------------------------------
@@ -128,9 +129,9 @@ class _DesktopThreePanelLayout extends StatelessWidget {
   Widget build(BuildContext context) {
     final border = JuzzioGlassTokens.spaceCardBorder;
     final size = MediaQuery.sizeOf(context);
-    // Sağ panelin genişliği: kalan alanın ~%45'i, en az 300, en fazla 540 px.
-    final rightWidth = ((size.width - kJuzzioNavRailWidth - kJuzzioCenterPanelMinWidth) * 0.65)
-        .clamp(300.0, 540.0);
+    // GM-9276 (gm9276_masaustu_sohbetler.png): sohbet listesi sabit genişlikte (~%30, 320–420 px),
+    // açık sohbet kalan alanın tamamını kullanır.
+    final listWidth = juzzioDesktopListWidth(size.width);
 
     return Row(
       children: [
@@ -139,27 +140,28 @@ class _DesktopThreePanelLayout extends StatelessWidget {
           width: kJuzzioNavRailWidth,
           child: navRail,
         ),
-        // Orta/merkez panel
-        Expanded(
-          child: Container(
-            decoration: BoxDecoration(
-              border: Border(
-                left: BorderSide(color: border),
-                right: BorderSide(color: border),
-              ),
+        // Sohbet listesi (cam panel)
+        SizedBox(
+          width: listWidth,
+          child: JuzzioLiquidGlass(
+            radius: 0,
+            blur: 20,
+            child: DecoratedBox(
+              decoration: BoxDecoration(border: Border(right: BorderSide(color: border))),
+              child: center,
             ),
-            child: center,
           ),
         ),
-        // Sağ panel
-        SizedBox(
-          width: rightWidth,
-          child: right,
-        ),
+        // Açık sohbet
+        Expanded(child: right),
       ],
     );
   }
 }
+
+/// GM-9276: masaüstü sohbet listesi genişliği (saf, test edilir)
+double juzzioDesktopListWidth(double windowWidth) =>
+    ((windowWidth - kJuzzioNavRailWidth) * 0.34).clamp(kJuzzioCenterPanelMinWidth, 420.0).toDouble();
 
 // ---------------------------------------------------------------------------
 // JuzzioDesktopNavRail  (sol kenar çubuğu)
@@ -172,95 +174,115 @@ class JuzzioDesktopNavRail extends StatelessWidget {
     required this.onDestinationSelected,
     required this.onNewChat,
     this.unreadBadge = 0,
+    this.alertBadge = 0,
+    this.userName = '',
+    this.userAvatarUrl,
+    this.onProfileTap,
   });
 
   final int selectedIndex;
   final void Function(int) onDestinationSelected;
+  /// Ctrl+N ve liste başlığındaki kalem düğmesiyle aynı eylem (rayda ayrı düğme yok)
   final VoidCallback onNewChat;
   final int unreadBadge;
+  final int alertBadge;
+  final String userName;
+  final String? userAvatarUrl;
+  final VoidCallback? onProfileTap;
 
+  /// GM-9276: J logosu, cam ikon sütunu (seçili: vurgu kenarlı yuvarlak kare), altta kullanıcı.
   @override
   Widget build(BuildContext context) {
     final glow = JuzzioGlassTokens.glow;
-    final depthColors = JuzzioGlassTokens.space.depth;
-    final bg = depthColors[0];
     final app = JuzzioAppController.instance;
-
-    final destinations = [
-      NavigationRailDestination(
-        icon: Badge(
-          isLabelVisible: unreadBadge > 0,
-          label: Text('$unreadBadge', style: const TextStyle(fontSize: 10)),
-          child: const Icon(Icons.chat_bubble_outline_rounded),
-        ),
-        selectedIcon: const Icon(Icons.chat_bubble_rounded),
-        label: Text(app.trEn('Sohbet', 'Chats', 'Chats')),
-      ),
-      NavigationRailDestination(
-        icon: const Icon(Icons.explore_outlined),
-        selectedIcon: const Icon(Icons.explore_rounded),
-        label: Text(app.trEn('Keşfet', 'Explore', 'Erkunden')),
-      ),
-      NavigationRailDestination(
-        icon: const Icon(Icons.call_outlined),
-        selectedIcon: const Icon(Icons.call_rounded),
-        label: Text(app.trEn('Aramalar', 'Calls', 'Anrufe')),
-      ),
-      NavigationRailDestination(
-        icon: const Icon(Icons.notifications_none_rounded),
-        selectedIcon: const Icon(Icons.notifications_rounded),
-        label: Text(app.trEn('Bildirim', 'Alerts', 'Infos')),
-      ),
-      NavigationRailDestination(
-        icon: const Icon(Icons.person_outline_rounded),
-        selectedIcon: const Icon(Icons.person_rounded),
-        label: Text(app.trEn('Profil', 'Profile', 'Profil')),
-      ),
+    final items = <(IconData, IconData, String, int)>[
+      (Icons.chat_bubble_outline_rounded, Icons.chat_bubble_rounded, app.trEn('Sohbetler', 'Chats', 'Chats'), unreadBadge),
+      (Icons.explore_outlined, Icons.explore_rounded, app.trEn('Keşfet', 'Explore', 'Erkunden'), 0),
+      (Icons.call_outlined, Icons.call_rounded, app.trEn('Aramalar', 'Calls', 'Anrufe'), 0),
+      (Icons.notifications_none_rounded, Icons.notifications_rounded, app.trEn('Bildirimler', 'Notifications', 'Benachrichtigungen'), alertBadge),
+      (Icons.person_outline_rounded, Icons.person_rounded, app.trEn('Profil', 'Profile', 'Profil'), 0),
     ];
 
-    return Container(
-      color: bg,
-      child: Column(
-        children: [
-          // Logo
-          Padding(
-            padding: const EdgeInsets.only(top: 20, bottom: 8),
-            child: JuzzioLogoMark(size: 40, glowColor: glow),
-          ),
-          // Yeni sohbet butonu
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            child: Tooltip(
-              message: app.trEn('Yeni Sohbet (Ctrl+N)', 'New Chat (Ctrl+N)', 'Neuer Chat (Ctrl+N)'),
-              child: InkWell(
-                onTap: onNewChat,
-                borderRadius: BorderRadius.circular(10),
-                child: Container(
-                  width: 36, height: 36,
-                  decoration: BoxDecoration(
-                    color: glow.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: glow.withValues(alpha: 0.3)),
-                  ),
-                  child: Icon(Icons.edit_rounded, color: glow, size: 18),
-                ),
+    Widget item(int i) {
+      final it = items[i];
+      final sel = selectedIndex == i;
+      final icon = Icon(it.$1, color: sel ? glow : JuzzioGlassTokens.textSecondary, size: 25);
+      final box = sel
+          ? JuzzioLiquidGlass(
+              radius: 16,
+              glowBorder: true,
+              tint: glow,
+              blur: 0,
+              child: SizedBox(width: 50, height: 50, child: Center(child: icon)),
+            )
+          : SizedBox(width: 50, height: 50, child: Center(child: icon));
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 7),
+        child: Tooltip(
+          message: it.$3,
+          waitDuration: const Duration(milliseconds: 400),
+          child: Semantics(
+            button: true,
+            selected: sel,
+            label: it.$3,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: () => onDestinationSelected(i),
+              child: Badge(
+                isLabelVisible: it.$4 > 0,
+                backgroundColor: glow,
+                textColor: JuzzioGlassTokens.onGlow,
+                label: Text(it.$4 > 99 ? '99+' : '${it.$4}', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800)),
+                child: box,
               ),
             ),
           ),
-          const SizedBox(height: 4),
-          // Nav rail
-          Expanded(
-            child: NavigationRail(
-              selectedIndex: selectedIndex,
-              onDestinationSelected: onDestinationSelected,
-              labelType: NavigationRailLabelType.none,
-              backgroundColor: Colors.transparent,
-              indicatorColor: glow.withValues(alpha: 0.18),
-              selectedIconTheme: IconThemeData(color: glow, size: 24),
-              unselectedIconTheme: IconThemeData(color: glow.withValues(alpha: 0.5), size: 22),
-              destinations: destinations,
+        ),
+      );
+    }
+
+    final initial = userName.trim().isEmpty ? '?' : String.fromCharCode(userName.trim().runes.first).toUpperCase();
+    return JuzzioLiquidGlass(
+      radius: 0,
+      blur: 20,
+      child: Column(
+        children: [
+          const SizedBox(height: 22),
+          Tooltip(
+            message: app.trEn('Yeni sohbet (Ctrl+N)', 'New chat (Ctrl+N)', 'Neuer Chat (Strg+N)'),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: onNewChat,
+              child: const Padding(padding: EdgeInsets.all(4), child: JuzzioLogoGlyph(size: 40)),
             ),
           ),
+          const SizedBox(height: 26),
+          for (var i = 0; i < items.length; i++) item(i),
+          const Spacer(),
+          Tooltip(
+            message: userName.isEmpty ? app.trEn('Profil', 'Profile', 'Profil') : userName,
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: onProfileTap ?? () => onDestinationSelected(4),
+              child: SizedBox(
+                width: 46,
+                height: 46,
+                child: (userAvatarUrl ?? '').trim().isNotEmpty
+                    ? JuzzioGlassAvatar(imageUrl: userAvatarUrl, name: userName, radius: 23)
+                    : JuzzioLiquidGlass(
+                        shape: BoxShape.circle,
+                        blur: 0,
+                        child: Center(
+                          child: Text(
+                            initial,
+                            style: TextStyle(color: JuzzioGlassTokens.textPrimary, fontSize: 18, fontWeight: FontWeight.w800),
+                          ),
+                        ),
+                      ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 22),
         ],
       ),
     );
@@ -278,76 +300,64 @@ class JuzzioDesktopRightPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final glow = JuzzioGlassTokens.glow;
+    // GM-014 (KR-010): sabit koyu zemin ve sabit renkler kaldırıldı — açık temada da
+    // sayfanın tema zemini (aurora) görünür; yazı ve düğme renkleri tema belirteçlerinden.
     final app = JuzzioAppController.instance;
-    final bg = JuzzioGlassTokens.space.depth;
-
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [bg[0], bg[1]],
-        ),
-      ),
-      child: Center(
+    final glow = JuzzioGlassTokens.glow;
+    final glowText = JuzzioGlassTokens.glowText;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 80, height: 80,
+              width: 80,
+              height: 80,
               decoration: BoxDecoration(
-                color: glow.withValues(alpha: 0.1),
+                color: glow.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
-                border: Border.all(color: glow.withValues(alpha: 0.25), width: 1.5),
+                border: Border.all(color: glow.withValues(alpha: 0.35), width: 1.5),
               ),
-              child: Icon(Icons.chat_bubble_outline_rounded, color: glow, size: 36),
+              child: Icon(Icons.chat_bubble_outline_rounded, color: glowText, size: 36),
             ),
             const SizedBox(height: 20),
             Text(
-              app.trEn('Juzzio 2.0', 'Juzzio 2.0', 'Juzzio 2.0'),
+              'Juzzio',
               style: TextStyle(
-                color: glow,
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.5,
+                fontFamily: JuzzioConfig.fontRegularBold,
+                color: JuzzioGlassTokens.heading,
+                fontSize: 24,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.4,
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              app.trEn(
-                'Bir sohbet seçerek başlayın',
-                'Select a chat to start',
-                'Wähle einen Chat aus',
-              ),
-              style: TextStyle(
-                color: JuzzioGlassTokens.textSecondary,
-                fontSize: 14,
-              ),
+              app.trEn('Bir sohbet seçerek başlayın', 'Select a chat to start', 'Wähle einen Chat aus'),
+              textAlign: TextAlign.center,
+              style: TextStyle(color: JuzzioGlassTokens.textSecondary, fontSize: 14),
             ),
             const SizedBox(height: 24),
-            GestureDetector(
-              onTap: onNewChat,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                decoration: BoxDecoration(
-                  color: glow,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.edit_rounded, color: Color(0xFF080A0F), size: 18),
-                    const SizedBox(width: 8),
-                    Text(
-                      app.trEn('Yeni Sohbet', 'New Chat', 'Neuer Chat'),
-                      style: const TextStyle(
-                        color: Color(0xFF080A0F),
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
+            Material(
+              color: glow,
+              borderRadius: BorderRadius.circular(14),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(14),
+                onTap: onNewChat,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.edit_rounded, color: JuzzioGlassTokens.onGlow, size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        app.trEn('Yeni Sohbet', 'New Chat', 'Neuer Chat'),
+                        style: TextStyle(color: JuzzioGlassTokens.onGlow, fontWeight: FontWeight.w800, fontSize: 14),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -358,10 +368,7 @@ class JuzzioDesktopRightPlaceholder extends StatelessWidget {
                 'Ctrl+K: Quick search • Ctrl+N: New chat',
                 'Ctrl+K: Schnellsuche • Ctrl+N: Neuer Chat',
               ),
-              style: TextStyle(
-                color: JuzzioGlassTokens.textSecondary.withValues(alpha: 0.6),
-                fontSize: 11,
-              ),
+              style: TextStyle(color: JuzzioGlassTokens.textMuted, fontSize: 12),
             ),
           ],
         ),

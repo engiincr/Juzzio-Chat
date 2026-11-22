@@ -13,7 +13,6 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:open_filex/open_filex.dart';
-import 'package:path_provider/path_provider.dart';
 
 import '../core/app_theme_and_locale.dart';
 import '../core/theme/juzzio_glass.dart';
@@ -23,6 +22,7 @@ import '../services/juzzio_media_cache.dart';
 import '../services/supabase_service.dart';
 import 'juzzio_encrypted_image.dart';
 import 'juzzio_motion.dart';
+import '../core/juzzio_temp_dir.dart';
 
 class _AttachItem {
   final String id;
@@ -286,7 +286,7 @@ class _JuzzioDocumentBubbleState extends State<JuzzioDocumentBubble> {
         }
         return;
       }
-      final dir = await getTemporaryDirectory();
+      final dir = await juzzioTempDir();
       final folder = Directory('${dir.path}/juzzio_docs/${m.id}');
       if (!folder.existsSync()) folder.createSync(recursive: true);
       final f = File('${folder.path}/${juzzioCleanFileName(juzzioSafeFileName(_name))}');

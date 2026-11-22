@@ -46,13 +46,13 @@ void main() {
 
   group('Arama ekranları (tasarım şablonları)', () {
     final c = _src('lib/screens/call_screen.dart');
-    test('sesli arama: tuş takımı yok, Sessize Al + Hoparlör + ses çıkışı oku', () {
+    test('sesli arama: tuş takımı yok, Sessize al + Hoparlör (basılı tut: ses çıkışı) — GM-9276 tasarımı', () {
       expect(c.contains('Widget _buildVoiceCallView('), isTrue);
       expect(c.toLowerCase().contains('dialpad'), isFalse);
       expect(c.contains("'Tuş Takımı'"), isFalse);
-      expect(c.contains("_app.loc('Sessize Al', 'Mute', 'Stumm')"), isTrue);
-      expect(c.contains('onArrow: _openAudioOutputPicker'), isTrue);
-      expect(c.contains('JuzzioCallParticleWave('), isTrue);
+      expect(c.contains("_app.loc('Sessize al', 'Mute', 'Stumm')"), isTrue);
+      expect(c.contains('onLongPress: _openAudioOutputPicker'), isTrue);
+      expect(c.contains('JuzzioRingedAvatar('), isTrue);
     });
     test('görüntülü arama: HD hapı, PiP çevirme, ekran paylaşımı, tutamaçlı raf', () {
       expect(c.contains('Future<void> _openQualitySheet()'), isTrue);

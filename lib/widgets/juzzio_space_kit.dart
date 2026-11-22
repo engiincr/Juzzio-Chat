@@ -12,7 +12,7 @@
 //   JuzzioSpaceStoryAvatar (hikâye halkası, kesikli "durumum" halkası, çevrimiçi nokta)
 //   JuzzioSpaceSectionHeader (INBOX / Messages / ⋯)
 //   JuzzioSpaceFilterPill (sayaç rozetli)
-//   JuzzioSpaceCard · JuzzioSpaceSquircleAvatar · JuzzioSpaceCountBadge
+//   JuzzioSpaceSquircleAvatar · JuzzioSpaceCountBadge
 //   JuzzioSpaceBottomNav (yüzen cam alt menü)
 //   JuzzioSpacePageHeader (alt sayfalar için geri + başlık)
 // =============================================================================
@@ -708,65 +708,6 @@ class JuzzioSpaceFilterPill extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Kart, avatar, rozet
-// ---------------------------------------------------------------------------
-class JuzzioSpaceCard extends StatelessWidget {
-  const JuzzioSpaceCard({
-    super.key,
-    required this.child,
-    this.padding = const EdgeInsets.fromLTRB(14, 14, 16, 14),
-    this.margin = const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-    this.radius = JuzzioSpaceMetrics.cardRadius,
-    this.onTap,
-    this.onLongPress,
-    this.highlighted = false,
-    this.blur = false,
-    this.color,
-  });
-
-  final Widget child;
-  final EdgeInsetsGeometry padding;
-  final EdgeInsetsGeometry margin;
-  final double radius;
-  final VoidCallback? onTap;
-  final VoidCallback? onLongPress;
-  final bool highlighted;
-  final bool blur;
-  final Color? color;
-
-  @override
-  Widget build(BuildContext context) {
-    final r = BorderRadius.circular(radius);
-    Widget body = Container(
-      padding: padding,
-      // v2.1 Liquid Glass kart (özel renk verilmişse o renk korunur)
-      decoration: color != null
-          ? BoxDecoration(borderRadius: r, color: color, border: Border.all(color: JuzzioGlassTokens.spaceCardBorder, width: 1.2))
-          : juzzioLiquidDecoration(radius: r, glowBorder: highlighted),
-      // Sol üstten hafif cam ışığı (dolgu rengini EZMEMESİ için ayrı katmanda)
-      foregroundDecoration: BoxDecoration(
-        borderRadius: r,
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Colors.white.withValues(alpha: _dark ? 0.08 : 0.30), Colors.white.withValues(alpha: 0)],
-        ),
-      ),
-      child: child,
-    );
-    if (onTap != null || onLongPress != null) {
-      body = Material(
-        color: Colors.transparent,
-        borderRadius: r,
-        child: InkWell(borderRadius: r, onTap: onTap, onLongPress: onLongPress, child: body),
-      );
-    }
-    if (blur) body = _Frost(radius: r, sigma: 16, child: body);
-    return Padding(padding: margin, child: body);
   }
 }
 

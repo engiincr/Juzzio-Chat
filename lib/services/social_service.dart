@@ -18,6 +18,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/social_models.dart';
 import 'supabase_service.dart';
 import '../core/app_theme_and_locale.dart';
+import '../core/juzzio_temp_dir.dart';
 
 String _tx(String tr, String en, String de) => JuzzioAppController.instance.trEn(tr, en, de);
 
@@ -1482,7 +1483,7 @@ class JuzzioSocialService {
     }
 
     try {
-      final tempDir = await getTemporaryDirectory();
+      final tempDir = await juzzioTempDir();
       tempBytes = await folderBytes(tempDir);
     } catch (_) {}
 
@@ -1528,7 +1529,7 @@ class JuzzioSocialService {
     }
 
     try {
-      await scan(await getTemporaryDirectory());
+      await scan(await juzzioTempDir());
     } catch (_) {}
     try {
       await scan(await getApplicationSupportDirectory());
@@ -1542,7 +1543,7 @@ class JuzzioSocialService {
       freed += await JuzzioMediaDiskCache.instance.clear();
     } catch (_) {}
     try {
-      final tempDir = await getTemporaryDirectory();
+      final tempDir = await juzzioTempDir();
       if (tempDir.existsSync()) {
         for (final entity in tempDir.listSync(recursive: false, followLinks: false)) {
           try {

@@ -19,6 +19,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../../core/app_theme_and_locale.dart';
 import '../../core/native_bridge.dart';
 import '../../core/theme/juzzio_glass.dart';
+import '../../core/theme/juzzio_aurora.dart';
 import '../../services/supabase_service.dart';
 import '../../widgets/juzzio_brand.dart';
 import '../../widgets/juzzio_neon_kit.dart';
@@ -162,8 +163,8 @@ class _JuzzioProfileQrPageState extends State<JuzzioProfileQrPage> {
     final p = widget.profile;
     final glow = JuzzioGlassTokens.glow;
     final name = p.displayName.trim().isEmpty ? p.username : p.displayName.trim();
-    return Scaffold(
-      backgroundColor: JuzzioGlassTokens.space.depth.last,
+    return JuzzioAuroraPage(child: Scaffold(
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.only(bottom: 24),
@@ -268,7 +269,7 @@ class _JuzzioProfileQrPageState extends State<JuzzioProfileQrPage> {
           ],
         ),
       ),
-    );
+    ));
   }
 
   Widget _circle(IconData icon, String label, VoidCallback? onTap) {

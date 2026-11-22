@@ -11,7 +11,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
-import 'package:path_provider/path_provider.dart';
+import '../core/juzzio_temp_dir.dart';
 
 /// Yoğunluk → işlem parametreleri (Kotlin tarafıyla birebir aynı formül).
 class JuzzioBeautyParams {
@@ -113,7 +113,7 @@ Future<File> juzzioBeautifyImageFile(File source, int level, {int maxSide = 2160
     final bytes = await source.readAsBytes();
     final out = await compute(_beautifyJpegIsolate, <String, Object>{'bytes': bytes, 'level': level, 'maxSide': maxSide});
     if (out == null) return source;
-    final dir = await getTemporaryDirectory();
+    final dir = await juzzioTempDir();
     final f = File('${dir.path}/juzzio_beauty_${DateTime.now().microsecondsSinceEpoch}_$level.jpg');
     await f.writeAsBytes(out, flush: true);
     return f;
@@ -140,7 +140,7 @@ Future<File> juzzioCompressImageForUpload(File source, {int maxSide = 1600, int 
     final bytes = await source.readAsBytes();
     final out = await compute(_compressJpegIsolate, <String, Object>{'bytes': bytes, 'maxSide': maxSide, 'quality': quality});
     if (out == null) return source;
-    final dir = await getTemporaryDirectory();
+    final dir = await juzzioTempDir();
     final f = File('${dir.path}/juzzio_up_${DateTime.now().microsecondsSinceEpoch}.jpg');
     await f.writeAsBytes(out, flush: true);
     return f;

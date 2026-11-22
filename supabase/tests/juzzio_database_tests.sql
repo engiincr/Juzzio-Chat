@@ -1809,6 +1809,18 @@ SELECT pg_temp.check('istemci is_official=true yazamaz',
   NOT EXISTS (SELECT 1 FROM stories WHERE user_id = :'B' AND is_official));
 UPDATE stories SET is_official = true WHERE user_id = :'B';
 SELECT pg_temp.check('güncellemeyle de resmi yapılamaz', NOT EXISTS (SELECT 1 FROM stories WHERE user_id = :'B' AND is_official));
+-- GM-014: panel şifresiyle açılmış yönetici oturumu şart
+RESET ROLE;
+DELETE FROM admin_sessions WHERE user_id = :'A';
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+DO $$ BEGIN PERFORM admin_post_official_story('image', 'https://x.test/nosession.jpg'); RAISE NOTICE 'FAIL GM-014 resmi hikâye panel oturumu olmadan yapıldı';
+EXCEPTION WHEN insufficient_privilege THEN RAISE NOTICE 'PASS GM-014 resmi hikâye panel oturumu ister'; END $$;
+RESET ROLE;
+INSERT INTO admin_sessions (token_hash, user_id, expires_at)
+VALUES (encode(digest('test-admin-token-gm014', 'sha256'), 'hex'), :'A', NOW() + INTERVAL '1 hour')
+ON CONFLICT DO NOTHING;
+SET ROLE authenticated;
 SELECT pg_temp.as_user(:'A');
 SELECT admin_post_official_story('video', 'https://x.test/teaser.mp4', 'Juzzio geliyor', 20, 48) AS off1 \gset
 DO $$ BEGIN PERFORM admin_post_official_story('image', 'javascript:alert(1)'); RAISE NOTICE 'FAIL geçersiz adres';
@@ -2212,6 +2224,18 @@ SET ROLE authenticated;
 SELECT pg_temp.as_user(:'B');
 DO $$ BEGIN PERFORM admin_community_post('sahte duyuru'); RAISE NOTICE 'FAIL üye yönetici paylaşımı yaptı';
 EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'PASS yönetici paylaşımı yalnız yönetici'; END $$;
+-- GM-014: panel şifresiyle açılmış yönetici oturumu şart
+RESET ROLE;
+DELETE FROM admin_sessions WHERE user_id = :'A';
+SET ROLE authenticated;
+SELECT pg_temp.as_user(:'A');
+DO $$ BEGIN PERFORM admin_community_post('oturumsuz duyuru'); RAISE NOTICE 'FAIL GM-014 topluluk gönderisi panel oturumu olmadan yapıldı';
+EXCEPTION WHEN insufficient_privilege THEN RAISE NOTICE 'PASS GM-014 topluluk gönderisi panel oturumu ister'; END $$;
+RESET ROLE;
+INSERT INTO admin_sessions (token_hash, user_id, expires_at)
+VALUES (encode(digest('test-admin-token-gm014', 'sha256'), 'hex'), :'A', NOW() + INTERVAL '1 hour')
+ON CONFLICT DO NOTHING;
+SET ROLE authenticated;
 SELECT pg_temp.as_user(:'A');
 SELECT admin_community_post('Merhaba Juzzio!', 'text') AS cpost1 \gset
 SELECT pg_temp.check('yönetici duyurusu kanala düştü', EXISTS (SELECT 1 FROM messages WHERE id = :'cpost1' AND room_id = :'comm' AND sender_name = 'Juzzio Official'));

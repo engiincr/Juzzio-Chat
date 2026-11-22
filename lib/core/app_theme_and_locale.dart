@@ -29,6 +29,7 @@ import '../l10n/juzzio_strings_v030.dart';
 import '../services/juzzio_desktop_notify.dart';
 import '../widgets/juzzio_desktop_frame.dart' show juzzioIsDesktop;
 import '../widgets/juzzio_motion.dart';
+import 'juzzio_temp_dir.dart';
 
 class JuzzioLanguageOption {
   final String code;
@@ -463,9 +464,11 @@ class JuzzioAppController extends ChangeNotifier {
   String _themeSelectionMode = 'dark'; // 'system' | 'light' | 'dark'
   int _selectedChatThemeIndex = 0;
   // v0.6 Glassmorphism: seçili aurora cam teması (boşsa yöneticinin varsayılanı / ilk palet)
-  // v2.0.0: Obsidian Lime (graphite_lime) varsayılan tema
-  String _glassPaletteId = 'graphite_lime';
+  // GM-014 (KR-011): varsayılan tema mavi — Gece Mavisi (ocean)
+  String _glassPaletteId = 'ocean';
   bool _paletteV21Migrated = false;
+  /// GM-014: kullanıcı temayı kendisi seçti mi (varsayılan göçü seçimini ezmez)
+  bool _paletteUserPicked = false;
   bool _reducedEffects = false;
   // v1.2.1: hava durumuna göre tema ambiyansı (varsayılan AÇIK)
   bool _weatherThemeEnabled = true;
@@ -1171,12 +1174,15 @@ class JuzzioAppController extends ChangeNotifier {
       _glassPaletteId = (raw['glassPalette'] ?? '').toString();
       // v2.1: tasarım şablonlarındaki Neon Lime görünüm. Eski varsayılan (ocean / boş) ile kalmış
       // hesaplar bir kez Grafit Limon'a taşınır; kullanıcı sonra istediği temayı seçebilir.
-      if (raw['paletteV21'] != true) {
-        if (_glassPaletteId.isEmpty || _glassPaletteId == 'ocean' || _glassPaletteId == 'juzzio_liquid') {
-          _glassPaletteId = 'graphite_lime';
+      // GM-014 (KR-011): varsayılan yeniden mavi. v2.1 göçüyle Grafit Limon'a taşınmış ya da hiç seçim
+      // yapmamış hesaplar bir kez Gece Mavisi'ne alınır; sonra kullanıcı istediği temayı seçer.
+      if (raw['paletteV22'] != true) {
+        if (_glassPaletteId.isEmpty || (raw['paletteV21'] == true && _glassPaletteId == 'graphite_lime' && raw['paletteUserPicked'] != true)) {
+          _glassPaletteId = 'ocean';
         }
       }
       _paletteV21Migrated = true;
+      _paletteUserPicked = raw['paletteUserPicked'] == true;
       final cp = (raw['chatPalette'] ?? '').toString();
       _chatPaletteId = kJuzzioAuroraPalettes.any((p) => p.id == cp) ? cp : '';
       _reducedEffects = raw['reducedEffects'] == true;
@@ -1359,6 +1365,8 @@ class JuzzioAppController extends ChangeNotifier {
         'chatThemeIntensity': _chatThemeIntensity,
         'glassPalette': _glassPaletteId,
         'paletteV21': _paletteV21Migrated,
+        'paletteV22': true,
+        'paletteUserPicked': _paletteUserPicked,
         'chatPalette': _chatPaletteId,
         'reducedEffects': _reducedEffects,
         'weatherTheme': _weatherThemeEnabled,
@@ -1746,6 +1754,7 @@ class JuzzioAppController extends ChangeNotifier {
     _previewTheme = null;
     _syncCustomTokens();
     _glassPaletteId = juzzioAuroraPaletteById(id).id;
+    _paletteUserPicked = true;
     _persistUserPreferences();
     notifyListeners();
   }
@@ -2959,7 +2968,7 @@ class JuzzioAppController extends ChangeNotifier {
     File? apkFile;
     final client = http.Client();
     try {
-      final dir = await getTemporaryDirectory();
+      final dir = await juzzioTempDir();
       final otaDir = Directory('${dir.path}/ota');
       if (!otaDir.existsSync()) otaDir.createSync(recursive: true);
       for (final old in otaDir.listSync()) {
@@ -3914,7 +3923,7 @@ class _JuzzioImageCropperModalState extends State<JuzzioImageCropperModal> {
         return;
       }
       final Uint8List pngBytes = byteData.buffer.asUint8List();
-      final tempDir = await getTemporaryDirectory();
+      final tempDir = await juzzioTempDir();
       final outPath = '${tempDir.path}/juzzio_studio_${DateTime.now().millisecondsSinceEpoch}.png';
       final outFile = File(outPath);
       await outFile.writeAsBytes(pngBytes, flush: true);

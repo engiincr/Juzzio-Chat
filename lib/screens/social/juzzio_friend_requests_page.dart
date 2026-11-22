@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/app_theme_and_locale.dart';
 import '../../core/theme/juzzio_glass.dart';
+import '../../core/theme/juzzio_aurora.dart';
 import '../../services/supabase_service.dart';
 import '../../widgets/juzzio_brand.dart';
 import '../../widgets/juzzio_neon_kit.dart';
@@ -128,8 +129,8 @@ class _JuzzioFriendRequestsPageState extends State<JuzzioFriendRequestsPage> {
     final incoming = _incoming;
     final outgoing = _outgoing;
     final list = _tab == 0 ? incoming : outgoing;
-    return Scaffold(
-      backgroundColor: JuzzioGlassTokens.space.depth.last,
+    return JuzzioAuroraPage(child: Scaffold(
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Column(
           children: [
@@ -201,7 +202,7 @@ class _JuzzioFriendRequestsPageState extends State<JuzzioFriendRequestsPage> {
           ],
         ),
       ),
-    );
+    ));
   }
 
   Widget _empty() {

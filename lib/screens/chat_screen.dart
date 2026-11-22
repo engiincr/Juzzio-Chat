@@ -18,6 +18,7 @@
 // =============================================================================
 
 import '../services/juzzio_call_session.dart';
+import '../services/juzzio_desktop_notify.dart';
 import '../services/juzzio_notification_preview.dart';
 import '../services/juzzio_media_cache.dart';
 import 'dart:async';
@@ -42,7 +43,7 @@ import '../models/social_models.dart';
 import '../services/fcm_push_service.dart';
 import '../services/social_service.dart';
 import '../services/supabase_service.dart';
-import '../widgets/juzzio_desktop_frame.dart' show juzzioIsDesktop;
+import '../widgets/juzzio_desktop_frame.dart' show juzzioIsDesktop, JuzzioDesktopFrameObserver;
 import '../widgets/juzzio_desktop_shell.dart'
     show JuzzioDesktopShell, JuzzioDesktopNavRail, JuzzioDesktopRightPlaceholder,
          JuzzioDesktopAction, showJuzzioCommandCenter, kJuzzioDesktopThreePanelMin;
@@ -52,6 +53,7 @@ import '../services/juzzio_feature_flags.dart';
 import '../widgets/juzzio_space_kit.dart';
 import '../widgets/juzzio_brand.dart';
 import '../widgets/juzzio_call_kit21.dart';
+import '../widgets/juzzio_call_gm9276.dart';
 import '../widgets/juzzio_neon_kit.dart';
 import '../widgets/juzzio_rich_text.dart';
 import '../widgets/juzzio_copy_feedback.dart';
@@ -124,10 +126,12 @@ import '../widgets/juzzio_notification_stack.dart';
 import 'backup_page.dart';
 import '../services/juzzio_story_seen.dart';
 import '../widgets/juzzio_motion.dart';
+import '../widgets/juzzio_notification_prompt.dart';
 import '../core/juzzio_text_safety.dart';
 import '../core/juzzio_audio_guard.dart';
 import 'social/juzzio_friend_requests_page.dart';
 import 'social/juzzio_discover_view.dart';
+import '../core/juzzio_temp_dir.dart';
 
 class ChatScreen extends StatefulWidget {
   final String myDisplayName;
@@ -445,6 +449,11 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     // v2.1 (Faz 15.4): özellik bayrakları / A/B atamaları önbelleğe alınır
     unawaited(JuzzioFeatureFlags.instance.refresh());
     WidgetsBinding.instance.addObserver(this);
+    // GM-006: masaüstünde bu ekran kendi 3 panel düzenini kurar; çerçeve pencereyi daraltmasın
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      JuzzioDesktopFrameObserver.instance.registerFullWindowRoute(ModalRoute.of(context));
+    });
     JuzzioAppController.instance.ensureBackgroundNotificationReady();
     unawaited(SupabaseService.instance.touchDailyStreak());
     // v0.9.0 §4.1/§4.3: Ana Sayfa görev özeti ve kayıtlı mesaj işaretleri (hata sessiz; ekranlar kendi hata durumunu gösterir)
@@ -583,6 +592,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) unawaited(SupabaseService.instance.touchDailyStreak());
     if (state != AppLifecycleState.resumed) {
       JuzzioChatActivityService.instance.setLocal(JuzzioActivityState.idle);
+      // GM-014: arama çalarken arka plana geçildiyse sistem bildirimi şimdi çıkar
+      final ringingCall = _incomingCall;
+      if (ringingCall != null && !_isInCall) _notifyIncomingCallSystem(ringingCall);
       // v0.9.0 §4.6: arka plana geçince kilitli sohbetler yeniden kilitlenir
       if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
         final lock = JuzzioChatLock.instance;
@@ -721,6 +733,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     try {
       await JuzzioFcmPushService.instance.initializeAndSync();
     } catch (_) {}
+    // GM-002 (K2): bildirim izni girişten sonra, açıklamayla ve yalnız bir kez sorulur
+    Future<void>.delayed(const Duration(milliseconds: 1200), () {
+      if (mounted) unawaited(JuzzioNotificationPrompt.maybeAsk(context));
+    });
     _fcmTapSub?.cancel();
     _fcmForegroundSub?.cancel();
     _fcmTapSub = JuzzioFcmPushService.instance.onNotificationTap.listen((payload) {
@@ -1030,6 +1046,25 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     return true;
   }
 
+  /// GM-014: gelen aramanın sistem bildirimi (yalnız uygulama arka plandayken).
+  String? _incomingCallNotifiedId;
+  void _notifyIncomingCallSystem(JuzzioCallLog call) {
+    if (_incomingCallNotifiedId == call.id) return;
+    _incomingCallNotifiedId = call.id;
+    final app = JuzzioAppController.instance;
+    unawaited(app.triggerSystemNotification(
+      title: call.isGroup
+          ? app.trEn(
+              '${call.callerName}, ${call.groupTitle} grubunda ${call.isVideo ? "görüntülü" : "sesli"} konferans başlattı',
+              '${call.callerName} started a ${call.isVideo ? "video" : "voice"} conference in ${call.groupTitle}', '${call.callerName} hat in ${call.groupTitle} eine ${call.isVideo ? "Video" : "Sprach"}konferenz gestartet',
+            )
+          : app.trEn('${call.callerName} seni arıyor...', '${call.callerName} is calling you...', '${call.callerName} ruft dich an...'),
+      body: app.trEn('Aramaya katılmak veya reddetmek için dokunun.', 'Tap to join or decline.', 'Tippe zum Beitreten oder Ablehnen.'),
+      isCall: true,
+      channelId: JuzzioSounds.instance.callChannelFor(call.callerId),
+    ));
+  }
+
   void _handleIncomingCalls(List<JuzzioCallLog> ringing) {
     if (!mounted) return;
     final current = _incomingCall;
@@ -1055,17 +1090,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       SupabaseService.instance.updateCallStatus(callId: call.id, status: 'busy_silent');
       return;
     }
-    app.triggerSystemNotification(
-      title: call.isGroup
-          ? app.trEn(
-              '${call.callerName}, ${call.groupTitle} grubunda ${call.isVideo ? "görüntülü" : "sesli"} konferans başlattı',
-              '${call.callerName} started a ${call.isVideo ? "video" : "voice"} conference in ${call.groupTitle}', '${call.callerName} hat in ${call.groupTitle} eine ${call.isVideo ? "Video" : "Sprach"}konferenz gestartet',
-            )
-          : app.trEn('${call.callerName} seni arıyor...', '${call.callerName} is calling you...', '${call.callerName} ruft dich an...'),
-      body: app.trEn('Aramaya katılmak veya reddetmek için dokunun.', 'Tap to join or decline.', 'Tippe zum Beitreten oder Ablehnen.'),
-      isCall: true,
-      channelId: JuzzioSounds.instance.callChannelFor(call.callerId),
-    );
+    // GM-014: uygulama öndeyken üstten düşen sistem bildirimi YOK — gelen arama yalnız uygulama
+    // içi (temaya/gece-gündüze uyumlu) arama ekranıyla gösterilir. Arka plandaysa veya sonradan
+    // arka plana geçilirse sistem bildirimi çıkar (bkz. didChangeAppLifecycleState).
+    if (_isAppInBackground) _notifyIncomingCallSystem(call);
     // v1.2.9: arama gelince açık hikâye ve tüm müzikler (hikâye/profil/sohbet) hemen durur
     JuzzioAudioGuard.instance.interrupt('call');
     // v0.7.0: uygulama açıkken seçilen (kişiye özel veya varsayılan) zil sesi döngüde çalar
@@ -1085,6 +1113,12 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    for (final t in _callReminders.values) {
+      t.cancel();
+    }
+    _callReminders.clear();
+    // GM-006: masaüstü çerçevesi tekrar ortalanmış panele döner
+    JuzzioDesktopFrameObserver.instance.registerFullWindowRoute(null);
     JuzzioAmbienceRouteObserver.instance.hold(_ambienceKey, false);
     JuzzioBirthdayFxHost.stop();
     _dmReqPoll?.cancel();
@@ -1933,7 +1967,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         return;
       }
 
-      final tempDir = await getTemporaryDirectory();
+      final tempDir = await juzzioTempDir();
       final outPath = '${tempDir.path}/juzzio_vn_${DateTime.now().millisecondsSinceEpoch}.m4a';
 
       _livePeaks.clear();
@@ -2121,7 +2155,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       if (encrypted) {
         final bytes = await JuzzioEncryptedMedia.load(msg.id, msg.audioUrl!, keepInMemory: false);
         if (bytes == null) throw Exception('decrypt_failed');
-        final dir = await getTemporaryDirectory();
+        final dir = await juzzioTempDir();
         final f = File('${dir.path}/jvn_${msg.id}.m4a');
         if (!f.existsSync()) await f.writeAsBytes(bytes, flush: true);
         await _audioPlayer.setFilePath(f.path);
@@ -3465,7 +3499,80 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       verified: !call.isGroup && _isUserVerified(call.callerId),
       onAccept: _acceptIncomingCall,
       onDecline: _declineIncomingCall,
+      // GM-9276: "EN → TR" (arayanın dili → benim dilim), "Canlı çeviri hazır"
+      fromLang: call.isGroup ? null : _resolvePartnerLanguage(call.callerId, call.callerName),
+      toLang: appCtrl.subtitleLang,
+      translationReady: JuzzioFeaturesService.instance.lastAppConfig.liveTranslationEnabled,
+      onMessageReply: (call.roomId ?? '').isEmpty ? null : _replyIncomingWithMessage,
+      onRemindLater: call.isGroup ? null : _remindIncomingLater,
     );
+  }
+
+  /// GM-9276: "Mesajla yanıtla" — hazır yanıt seçilir, arama reddedilir, mesaj sohbete gider.
+  Future<void> _replyIncomingWithMessage() async {
+    final call = _incomingCall;
+    if (call == null) return;
+    final text = await showJuzzioQuickReplySheet(context, callerName: call.isGroup ? call.groupTitle : call.callerName);
+    if (text == null || text.trim().isEmpty || !mounted) return;
+    // Seçim sırasında arama başka biçimde sona erdiyse yine de mesaj gönderilir
+    if (identical(_incomingCall, call)) await _declineIncomingCall();
+    final app = JuzzioAppController.instance;
+    final roomId = call.roomId;
+    if (roomId == null || roomId.isEmpty) return;
+    try {
+      final me = _myProfile?.displayName ?? widget.myDisplayName;
+      if (call.isGroup) {
+        await SupabaseService.instance.sendGroupTextMessage(roomId: roomId, text: text, senderName: me);
+      } else {
+        await SupabaseService.instance.sendTextMessage(
+          text: text,
+          sourceLang: app.subtitleLang,
+          senderName: me,
+          targetRoomId: roomId,
+          clientMsgId: SupabaseService.newClientMsgId(),
+        );
+      }
+      if (mounted) _showSnack(app.trEn('Mesaj gönderildi', 'Message sent', 'Nachricht gesendet'));
+    } catch (e) {
+      if (mounted) _showSnack(SupabaseService.instance.friendlyError(e), isError: true);
+    }
+  }
+
+  final Map<String, Timer> _callReminders = {};
+
+  /// GM-9276: "Sonra hatırlat" — arama reddedilir; seçilen süre sonunda "Geri ara" hatırlatması.
+  /// Hatırlatma uygulama açıkken gösterilir (masaüstünde sistem bildirimi de çıkar).
+  Future<void> _remindIncomingLater() async {
+    final call = _incomingCall;
+    if (call == null) return;
+    final minutes = await showJuzzioRemindLaterSheet(context);
+    if (minutes == null || !mounted) return;
+    if (identical(_incomingCall, call)) await _declineIncomingCall();
+    final app = JuzzioAppController.instance;
+    _callReminders.remove(call.callerId)?.cancel();
+    _callReminders[call.callerId] = Timer(Duration(minutes: minutes), () {
+      _callReminders.remove(call.callerId);
+      if (!mounted) return;
+      void callBack() => _launchCall(
+            enableVideo: call.isVideo,
+            targetPartnerName: call.callerName,
+            targetPartnerId: call.callerId,
+            targetPartnerAvatar: call.callerAvatar,
+            targetPartnerLang: _resolvePartnerLanguage(call.callerId, call.callerName),
+          );
+      unawaited(JuzzioDesktopNotify.instance.show(
+        key: 'remind_${call.callerId}',
+        title: app.trEn('Geri arama hatırlatması', 'Call back reminder', 'Rückruf-Erinnerung'),
+        body: app.trEn('${call.callerName} seni aramıştı.', '${call.callerName} called you.', '${call.callerName} hat dich angerufen.'),
+        onTap: callBack,
+      ));
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(
+        duration: const Duration(seconds: 12),
+        content: Text(app.trEn('${call.callerName} seni aramıştı.', '${call.callerName} called you.', '${call.callerName} hat dich angerufen.')),
+        action: SnackBarAction(label: app.trEn('Geri ara', 'Call back', 'Zurückrufen'), onPressed: callBack),
+      ));
+    });
+    _showSnack(app.trEn('$minutes dk sonra hatırlatacağım', "I'll remind you in $minutes min", 'Erinnerung in $minutes Min.'));
   }
 
   Widget _buildIncomingFriendRequestBanner(JuzzioPalette p, JuzzioStrings s) {
@@ -3543,7 +3650,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildChatsHomeTab(JuzzioPalette p, JuzzioStrings s, JuzzioAppController appCtrl) {
+  /// [desktop]: GM-9276 masaüstü listesi (gm9276_masaustu_sohbetler.png) — "Sohbetler" başlığı + kalem,
+  /// arama, sabit filtre hapları, düz satırlar (açık sohbet cam vurguyla). Hikâye şeridi mobilde kalır.
+  Widget _buildChatsHomeTab(JuzzioPalette p, JuzzioStrings s, JuzzioAppController appCtrl, {bool desktop = false}) {
     final stories24h = _visibleFriendStories24h;
     final myDisplay = _myProfile?.displayName ?? widget.myDisplayName;
     final myUid = SupabaseService.instance.currentUserId;
@@ -3576,13 +3685,37 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
     final totalUnread = _conversations.fold<int>(0, (sum, c) => sum + (c.isMuted ? 0 : c.unreadCount));
     final anyFriendOnline = realFriends.any((f) => f.isEffectivelyOnline);
+    // GM-9276: Tümü · Okunmamış (sayı) · Gruplar · Sabitlenenler · Kişiler · Arkadaşlar
     final filters = <(String, IconData?, int)>[
       (appCtrl.trEn('Tümü', 'All', 'Alle'), null, 0),
+      (appCtrl.trEn('Okunmamış', 'Unread', 'Ungelesen'), null, 4),
+      (appCtrl.trEn('Gruplar', 'Groups', 'Gruppen'), null, 2),
+      (appCtrl.trEn('Sabitlenenler', 'Pinned', 'Angeheftet'), null, 5),
       (appCtrl.trEn('Kişiler', 'Contacts', 'Kontakte'), null, 1),
-      (appCtrl.trEn('Gruplar', 'Groups', 'Gruppen'), Icons.group_outlined, 2),
       // Figma: "Arkadaşlar" çipi (önceden yalnız ⋯ menüsünden açılıyordu)
       (appCtrl.trEn('Arkadaşlar', 'Friends', 'Freunde'), Icons.people_alt_outlined, 3),
     ];
+    Widget filterRow() => SizedBox(
+          height: JuzzioSpaceMetrics.pillHeight + 6,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: EdgeInsets.symmetric(horizontal: desktop ? 20 : 16),
+            itemCount: filters.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (context, i) {
+              final f = filters[i];
+              return Center(
+                child: JuzzioSpaceFilterPill(
+                  label: f.$1,
+                  icon: f.$2,
+                  count: f.$3 == 4 ? totalUnread : 0,
+                  selected: _selectedFilterIndex == f.$3,
+                  onTap: () => setState(() => _selectedFilterIndex = f.$3),
+                ),
+              );
+            },
+          ),
+        );
     final chatCount = _conversations
         .where((c) => !c.isMessageRequest && (c.isGroup || c.lastMessageAt != null) && !_deletedConversationIds.contains(c.roomId))
         .length;
@@ -3595,6 +3728,50 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (desktop) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 22, 16, 14),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    appCtrl.trEn('Sohbetler', 'Chats', 'Chats'),
+                    style: TextStyle(
+                      fontFamily: JuzzioConfig.fontRegularBold,
+                      color: JuzzioGlassTokens.heading,
+                      fontSize: 34,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.6,
+                    ),
+                  ),
+                ),
+                // GM-014: masaüstünde de gerçek ay evresi / güneş başlıkta sabit yerinde
+                const JuzzioSkyIcon(size: 28),
+                const SizedBox(width: 10),
+                JuzzioSpaceIconButton(
+                  icon: Icons.more_horiz_rounded,
+                  tooltip: appCtrl.trEn('Diğer seçenekler', 'More options', 'Weitere Optionen'),
+                  onTap: () => _showInboxMoreMenu(p, s, appCtrl, _conversations.where((c) => JuzzioChatLock.instance.isLocked(c.roomId)).length),
+                ),
+                const SizedBox(width: 8),
+                JuzzioSpaceComposeButton(
+                  tooltip: appCtrl.trEn('Yeni mesaj (Ctrl+N)', 'New message (Ctrl+N)', 'Neue Nachricht (Strg+N)'),
+                  onTap: _openNewMessageScreen,
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+            child: JuzzioSpaceSearchBar(
+              hint: appCtrl.trEn('Sohbetlerde ara', 'Search conversations', 'Unterhaltungen durchsuchen'),
+              onChanged: (v) => setState(() => _searchQuery = v),
+              onShortcutTap: _openMessageSearch,
+            ),
+          ),
+          filterRow(),
+          const SizedBox(height: 10),
+        ] else ...[
         JuzzioSpaceHeader(
           eyebrow: _greetingEyebrow(appCtrl),
           // v1.2.9: Juzzio yazısının yanında gece gerçek Ay evresi, gündüz Güneş (kişinin yerel saatine göre)
@@ -3637,13 +3814,15 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           ),
         ),
         const JuzzioSpaceDivider(),
+        ],
         Expanded(
           child: !_conversationsLoaded
               ? const JuzzioConversationListSkeleton()
               : Builder(
                   builder: (context) {
-                              final showPeople = _selectedFilterIndex == 0 || _selectedFilterIndex == 1;
-                              final showGroups = _selectedFilterIndex == 0 || _selectedFilterIndex == 2;
+                              final fi = _selectedFilterIndex;
+                              final showPeople = fi == 0 || fi == 1 || fi == 4 || fi == 5;
+                              final showGroups = fi == 0 || fi == 2 || fi == 4 || fi == 5;
                               // v0.9.0 §4.6: kilitli sohbetler listede gizli; "Kilitli sohbetler" görünümünde yalnız onlar
                               final lockSvc = JuzzioChatLock.instance;
                               final lockedCount = _conversations.where((c) => lockSvc.isLocked(c.roomId)).length;
@@ -3651,12 +3830,15 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                                   .where((c) => c.isGroup ? showGroups : showPeople)
                                   .where((c) => !_deletedConversationIds.contains(c.roomId))
                                   .where((c) => _showLockedChats ? lockSvc.isLocked(c.roomId) : !lockSvc.isLocked(c.roomId))
+                                  // GM-9276: Okunmamış / Sabitlenenler
+                                  .where((c) => fi != 4 || c.unreadCount > 0)
+                                  .where((c) => fi != 5 || (_pinOverride[c.roomId] ?? c.isPinned))
                                   .toList();
                               final dmPartnerIds = _conversations
                                   .where((c) => !c.isGroup && c.lastMessageAt != null)
                                   .map((c) => c.partnerId)
                                   .toSet();
-                              final friendsWithoutChat = showPeople
+                              final friendsWithoutChat = (fi == 0 || fi == 1)
                                   ? realFriends.where((f) => !dmPartnerIds.contains(f.id)).toList()
                                   : <JuzzioUserProfile>[];
                               final requestConvs = convs.where((c) => c.isMessageRequest).toList();
@@ -3666,8 +3848,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
                     return ListView(
                         physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.fromLTRB(0, 18, 0, 28),
+                        padding: EdgeInsets.fromLTRB(0, desktop ? 4 : 18, 0, 28),
                         children: [
+                          if (!desktop) ...[
                           SizedBox(
                             height: JuzzioSpaceMetrics.storyAvatar + 34,
                             child: ListView(
@@ -3732,28 +3915,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                             onMore: () => _showInboxMoreMenu(p, s, appCtrl, lockedCount),
                             moreOpen: _inboxMenuOpen,
                           ),
-                          SizedBox(
-                            height: JuzzioSpaceMetrics.pillHeight + 6,
-                            child: ListView.separated(
-                              scrollDirection: Axis.horizontal,
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              itemCount: filters.length,
-                              separatorBuilder: (_, __) => const SizedBox(width: 10),
-                              itemBuilder: (context, i) {
-                                final f = filters[i];
-                                return Center(
-                                  child: JuzzioSpaceFilterPill(
-                                    label: f.$1,
-                                    icon: f.$2,
-                                    count: f.$3 == 0 ? totalUnread : 0,
-                                    selected: _selectedFilterIndex == f.$3,
-                                    onTap: () => setState(() => _selectedFilterIndex = f.$3),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
+                          filterRow(),
                           const SizedBox(height: 14),
+                          ],
                           if (lockedCount > 0 || _showLockedChats)
                             ListTile(
                               leading: Icon(_showLockedChats ? Icons.lock_open_rounded : Icons.lock_rounded, color: p.textPrimary),
@@ -3789,6 +3953,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                               isMutedRemote: c.isMuted,
                               // v1.2.6: Juzzio Community resmî kanal → onay rozeti
                               isVerified: (!c.isGroup && c.partnerIsVerified) || c.isCommunity,
+                              desktop: desktop,
+                              selected: desktop && _isInsideConversation && _activeConversationRoomId == c.roomId,
                               onVoiceCallTap: () => c.isGroup
                                   ? _launchGroupConferenceCall(group: c.toGroupRoom(), isVideo: false)
                                   : _launchCall(
@@ -3837,6 +4003,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                                 isOnline: f.isEffectivelyOnline,
                                 isGroup2x2: false,
                                 groupMemberNames: const [],
+                                desktop: desktop,
                                 onVoiceCallTap: () => _launchCall(
                                   enableVideo: false,
                                   targetPartnerName: f.displayName,
@@ -4000,6 +4167,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     VoidCallback? onVoiceCallTap,
     VoidCallback? onVideoCallTap,
     required VoidCallback onTap,
+    // GM-9276: masaüstü listesi — düz satır, yuvarlak avatar, açık sohbet cam vurgulu
+    bool desktop = false,
+    bool selected = false,
   }) {
     if (_searchQuery.trim().isNotEmpty &&
         !title.toLowerCase().contains(_searchQuery.toLowerCase()) &&
@@ -4079,16 +4249,46 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         transform: Matrix4.translationValues(pinPull + (_peekingKey == convKey ? -34 : 0), 0, 0),
         // v0.7.0: tüm temalarda aynı cam kart dili — eşit radius, ince kristal kenar, eşit aralık
         // v1.0.0 Juzzio Space: buzlu cam kart, vurgu tonlu ince kenar, büyük köşe
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-        padding: const EdgeInsets.fromLTRB(14, 14, 16, 14),
-        decoration: BoxDecoration(
-          color: isSwipedLeft ? JuzzioGlassTokens.surfaceStrong : JuzzioGlassTokens.spaceCard,
-          borderRadius: BorderRadius.circular(JuzzioSpaceMetrics.cardRadius),
-          border: Border.all(color: JuzzioGlassTokens.spaceCardBorder, width: 1.2),
-        ),
+        margin: desktop ? const EdgeInsets.symmetric(horizontal: 10, vertical: 2) : const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+        padding: desktop ? const EdgeInsets.fromLTRB(12, 12, 14, 12) : const EdgeInsets.fromLTRB(14, 14, 16, 14),
+        decoration: desktop
+            ? (selected || isSwipedLeft
+                ? juzzioLiquidDecoration(radius: BorderRadius.circular(24), strong: true)
+                : BoxDecoration(borderRadius: BorderRadius.circular(24)))
+            : BoxDecoration(
+                color: isSwipedLeft ? JuzzioGlassTokens.surfaceStrong : JuzzioGlassTokens.spaceCard,
+                borderRadius: BorderRadius.circular(JuzzioSpaceMetrics.cardRadius),
+                border: Border.all(color: JuzzioGlassTokens.spaceCardBorder, width: 1.2),
+              ),
         child: Row(
           children: [
-            if (!isSwipedLeft) ...[
+            if (!isSwipedLeft && desktop) ...[
+              SizedBox(
+                width: 54,
+                height: 54,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    JuzzioGlassAvatar(imageUrl: avatarUrl, name: title, radius: 27, ringWidth: 0),
+                    if (isOnline && !isGroup2x2)
+                      Positioned(
+                        right: -1,
+                        bottom: -1,
+                        child: Container(
+                          width: 16,
+                          height: 16,
+                          decoration: BoxDecoration(
+                            color: JuzzioGlassTokens.glow,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: JuzzioGlassTokens.space.depth.first, width: 2.5),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 14),
+            ] else if (!isSwipedLeft) ...[
               JuzzioSpaceSquircleAvatar(
                 online: isOnline && !isGroup2x2,
                 badgeIcon: isGroup2x2 ? Icons.group_outlined : null,
@@ -4259,9 +4459,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                     timeText,
                     style: TextStyle(
                       fontFamily: JuzzioConfig.fontRegularBold,
-                      color: p.textSecondary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w400,
+                      // GM-9276: masaüstünde okunmamış sohbetin saati vurgu renginde
+                      color: desktop && unreadCount > 0 && !isMuted ? JuzzioGlassTokens.glowText : p.textSecondary,
+                      fontSize: desktop ? 13 : 12,
+                      fontWeight: desktop && unreadCount > 0 ? FontWeight.w700 : FontWeight.w400,
                     ),
                   ),
                   const SizedBox(height: 9),
@@ -9894,6 +10095,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
               }),
               onNewChat: _startNewMessageDesktop,
               unreadBadge: unread,
+              alertBadge: _unreadNotificationsCount,
+              userName: _myProfile?.displayName ?? widget.myDisplayName,
+              userAvatarUrl: _myProfile?.avatarUrl,
             ),
             child: Column(
               children: [
@@ -9916,7 +10120,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                         : _selectedBottomTab == 0
                             ? (_selectedFilterIndex == 3
                                 ? _buildFriendsAndGroupsTab(p, s, appCtrl)
-                                : _buildChatsHomeTab(p, s, appCtrl))
+                                : _buildChatsHomeTab(p, s, appCtrl, desktop: true))
                             : _selectedBottomTab == 1
                                 ? _buildCallsTab(p, s)
                                 : _selectedBottomTab == 2
@@ -10433,7 +10637,7 @@ class _JuzzioStoryViewerModalState extends State<JuzzioStoryViewerModal> {
     if (!_storyRecording) {
       if (!await _storyRecorder.hasPermission()) return;
       _setPaused(true);
-      final dir = await getTemporaryDirectory();
+      final dir = await juzzioTempDir();
       await _storyRecorder.start(const RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 96000, sampleRate: 44100),
           path: '${dir.path}/story_reply_${DateTime.now().millisecondsSinceEpoch}.m4a');
       HapticFeedback.mediumImpact();
@@ -10580,8 +10784,8 @@ class _JuzzioStoryViewerModalState extends State<JuzzioStoryViewerModal> {
       if (real > 0) return real.clamp(3000, 60000);
       return (st.videoDurationSec.clamp(3, 60)) * 1000;
     }
-    // v0.9.3: fotoğraf/metin durumları 30 sn gösterilir (önce 7 sn); dokunarak geçilebilir
-    return JuzzioConfig.storyImageDisplayMs;
+    // v0.9.3: fotoğraf/metin durumları 30 sn gösterilir; GM-014: paylaşan "Süre"den 5/10/20 sn seçebilir
+    return juzzioStoryPhotoDisplayMs(st.videoDurationSec, defaultMs: JuzzioConfig.storyImageDisplayMs);
   }
 
   void _startProgressTimer() {

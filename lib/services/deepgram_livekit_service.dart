@@ -22,6 +22,7 @@ import 'package:web_socket_channel/io.dart';
 import '../core/app_theme_and_locale.dart';
 import '../core/config.dart';
 import 'juzzio_audio_route.dart';
+import 'juzzio_desktop_audio.dart';
 import 'juzzio_features_service.dart';
 import 'juzzio_speech_gate.dart';
 import 'supabase_service.dart';
@@ -749,6 +750,12 @@ class DeepgramLiveKitController extends ChangeNotifier {
       route.addListener(_onAudioRouteChanged);
       await route.start(preferSpeaker: isCameraEnabled);
       isSpeakerphoneOn = route.isSpeaker;
+    } else {
+      // GM-003: masaüstünde karşı tarafın sesi Windows "iletişim aygıtı"na gitmesin; kayıtlı ya da
+      // normal varsayılan çıkış aygıtı açıkça seçilir (aygıt seçimi arama ekranından değiştirilebilir)
+      try {
+        await JuzzioDesktopAudio.instance.attach(_room!);
+      } catch (_) {}
     }
     isConnected = true;
     _syncParticipantLanguages();
@@ -1038,6 +1045,10 @@ class DeepgramLiveKitController extends ChangeNotifier {
         notifyListeners();
       })
       ..on<TrackSubscribedEvent>((event) {
+        // GM-003: masaüstünde karşı tarafın ses izi gelince seçili çıkış aygıtı yeniden uygulanır
+        if (event.track is RemoteAudioTrack && JuzzioDesktopAudio.instance.supported) {
+          unawaited(JuzzioDesktopAudio.instance.reapply());
+        }
         // v1.2.9: yeni abone olunan görüntüye o kişinin güncel kalite kademesi uygulanır
         final tier = localNetworkWeak ? 'LOW' : (remoteVideoTier[event.participant.sid] ?? 'HIGH');
         unawaited(_applyTier(event.participant, tier));
@@ -1806,10 +1817,25 @@ class DeepgramLiveKitController extends ChangeNotifier {
   bool isScreenSharing = false;
   static const MethodChannel _screenNative = MethodChannel('juzzio/notifications');
 
-  Future<bool> setScreenShare(bool on) async {
+  /// GM-007: son ekran paylaşımı hatasının kısa nedeni ('permission', 'no_source' ya da teknik metin)
+  String? lastScreenShareError;
+
+  /// GM-007: masaüstünde paylaşılabilecek ekranlar/pencereler (önizlemeli). Bu liste çekilmeden
+  /// flutter_webrtc Windows'ta kaynağı bulamaz ("source not found!").
+  Future<List<webrtc.DesktopCapturerSource>> desktopShareSources({bool windows = true}) async {
+    if (kIsWeb || !(Platform.isWindows || Platform.isMacOS || Platform.isLinux)) return const [];
+    return webrtc.desktopCapturer.getSources(
+      types: [webrtc.SourceType.Screen, if (windows) webrtc.SourceType.Window],
+      thumbnailSize: webrtc.ThumbnailSize(320, 180),
+    );
+  }
+
+  /// [sourceId]: masaüstünde paylaşılacak ekran/pencere (null → ilk ekran).
+  Future<bool> setScreenShare(bool on, {String? sourceId}) async {
     final lp = _room?.localParticipant;
     if (lp == null || on == isScreenSharing) return on == isScreenSharing;
     final android = !kIsWeb && Platform.isAndroid;
+    final desktop = !kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux);
     if (!on) {
       try {
         await lp.setScreenShareEnabled(false);
@@ -1823,20 +1849,41 @@ class DeepgramLiveKitController extends ChangeNotifier {
       notifyListeners();
       return true;
     }
-    if (kIsWeb || !(android || Platform.isWindows || Platform.isMacOS || Platform.isLinux)) return false;
+    if (kIsWeb || !(android || desktop)) return false;
+    lastScreenShareError = null;
     try {
       if (android) {
         final granted = await webrtc.Helper.requestCapturePermission();
-        if (!granted) return false;
+        if (!granted) {
+          lastScreenShareError = 'permission';
+          return false;
+        }
         await _screenNative.invokeMethod('setScreenShareForeground', {'on': true, 'title': 'Juzzio'});
         // servis türü güncellensin diye kısa bekleme (aksi hâlde Android 14 yansıtmayı reddeder)
         await Future<void>.delayed(const Duration(milliseconds: 350));
+        await lp.setScreenShareEnabled(true);
+      } else {
+        // GM-007: masaüstünde kaynak AÇIKÇA verilir; liste önce çekilir (yoksa Windows'ta "source not found!")
+        var id = sourceId;
+        final sources = await desktopShareSources(windows: id != null);
+        if (id == null || !sources.any((s) => s.id == id)) {
+          final screens = sources.where((s) => s.type == webrtc.SourceType.Screen).toList();
+          if (screens.isEmpty) {
+            lastScreenShareError = 'no_source';
+            return false;
+          }
+          id = screens.first.id;
+        }
+        await lp.setScreenShareEnabled(
+          true,
+          screenShareCaptureOptions: ScreenShareCaptureOptions(sourceId: id, maxFrameRate: 15.0),
+        );
       }
-      await lp.setScreenShareEnabled(true);
       isScreenSharing = true;
       notifyListeners();
       return true;
-    } catch (_) {
+    } catch (e) {
+      lastScreenShareError = e.toString();
       if (android) {
         try {
           await _screenNative.invokeMethod('setScreenShareForeground', {'on': false, 'title': 'Juzzio'});
@@ -1953,6 +2000,7 @@ class DeepgramLiveKitController extends ChangeNotifier {
     _isDisconnecting = true;
     JuzzioAudioRouteController.instance.removeListener(_onAudioRouteChanged);
     unawaited(JuzzioAudioRouteController.instance.stop());
+    unawaited(JuzzioDesktopAudio.instance.detach());
     if (isScreenSharing) {
       isScreenSharing = false;
       try {

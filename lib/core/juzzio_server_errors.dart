@@ -28,6 +28,7 @@ const List<String> kJuzzioServerErrorCodes = [
   'poll_options_duplicate',
   'schedule_e2ee_required',
   'admin_session_invalid',
+  'admin_session_required',
   'community_roles_fixed',
   'community_unavailable',
   'confirmation_required',
@@ -228,6 +229,9 @@ String _text(String code) {
       return app.trEn('Bu sohbette zamanlanmış mesaj şifreli olmalı.', 'Scheduled messages must be encrypted in this chat.');
     case 'admin_session_invalid':
       return app.trEn('Yönetici oturumunun süresi doldu. Yeniden giriş yap.', 'Your admin session expired. Sign in again.');
+    // GM-014: panel şifresiyle açılmış oturum olmadan yönetici paylaşımı yapılamaz
+    case 'admin_session_required':
+      return app.trEn('Önce yönetici panelinin kilidini aç.', 'Unlock the admin panel first.');
     case 'community_roles_fixed':
       return app.trEn('Topluluk rolleri değiştirilemez.', 'Community roles cannot be changed.');
     case 'community_unavailable':

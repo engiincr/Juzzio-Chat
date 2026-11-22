@@ -25,7 +25,7 @@ void main() {
         expect(isOrange(o.color.withValues(alpha: 1)), isFalse, reason: '${p.id} orb');
       }
     }
-    expect(juzzioAuroraPaletteById('yok').id, 'graphite_lime'); // v2.0.0: varsayılan değişti
+    expect(juzzioAuroraPaletteById('yok').id, 'ocean'); // GM-014: varsayılan mavi
     expect(juzzioAuroraPaletteById('emerald').id, 'emerald');
   });
 

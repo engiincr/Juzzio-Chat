@@ -19368,3 +19368,137 @@ UPDATE public.app_settings SET value = '"graphite_lime"'::jsonb, updated_at = NO
  WHERE key = 'default_glass_palette' AND value IN ('"ocean"'::jsonb, '"juzzio_liquid"'::jsonb);
 INSERT INTO public.app_settings (key, value) VALUES ('default_glass_palette', '"graphite_lime"'::jsonb)
 ON CONFLICT (key) DO NOTHING;
+
+-- =============================================================================
+-- 10.46 (GM-014) — Güvenlik sıkılaştırma + varsayılan tema mavi
+--  A) Panel şifresiyle (admin_unlock) açılmış GEÇERLİ yönetici oturumu olmadan resmî hikâye
+--     paylaşma/silme ve topluluk gönderisi YAPILAMAZ. Çalınmış bir yönetici JWT'si tek başına
+--     yetmez (diğer admin_* işlevleri zaten panel jetonu ister).
+--  B) Herkese açık profil satırındaki eski JSON listeler (blocked_users/muted_users) boş tutulur;
+--     engelleme/sessize alma yalnız RLS'li kendi tablolarında yaşar.
+--  C) Sunucu varsayılan teması "ocean" (Gece Mavisi) — KR-011. Yalnız YENİ kullanıcıyı etkiler.
+--  Bu dosya canlı veritabanına yalnız Engin tarafından uygulanır.
+-- =============================================================================
+
+CREATE OR REPLACE FUNCTION public.juzzio_admin_unlocked(p_uid UUID)
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT p_uid IS NOT NULL AND EXISTS (
+        SELECT 1 FROM public.admin_sessions s WHERE s.user_id = p_uid AND s.expires_at > NOW()
+    );
+$$;
+REVOKE ALL ON FUNCTION public.juzzio_admin_unlocked(UUID) FROM PUBLIC, anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.admin_post_official_story(
+    p_media_type TEXT, p_media_url TEXT, p_caption TEXT DEFAULT '', p_video_duration_sec INTEGER DEFAULT 15,
+    p_hours INTEGER DEFAULT 24)
+RETURNS UUID LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+    v_uid UUID := auth.uid();
+    v_id UUID;
+    v_p RECORD;
+BEGIN
+    IF v_uid IS NULL OR NOT public.is_juzzio_admin(v_uid) THEN RAISE EXCEPTION 'not_allowed' USING ERRCODE = '42501'; END IF;
+    IF NOT public.juzzio_admin_unlocked(v_uid) THEN RAISE EXCEPTION 'admin_session_required' USING ERRCODE = '42501'; END IF;
+    IF p_media_type NOT IN ('image', 'video') THEN RAISE EXCEPTION 'invalid_media_type' USING ERRCODE = '22023'; END IF;
+    IF COALESCE(BTRIM(p_media_url), '') = '' OR p_media_url !~* '^https://' THEN RAISE EXCEPTION 'invalid_media_url' USING ERRCODE = '22023'; END IF;
+    SELECT username, avatar_url INTO v_p FROM public.profiles WHERE id = v_uid;
+    PERFORM set_config('juzzio.official_story', '1', true);
+    PERFORM set_config('juzzio.official_expires', (NOW() + make_interval(hours => LEAST(GREATEST(COALESCE(p_hours, 24), 1), 168)))::text, true);
+    INSERT INTO public.stories (user_id, username, display_name, user_avatar, media_type, media_url, caption_original,
+                                video_duration_sec, visibility, is_official, expires_at)
+    VALUES (v_uid, COALESCE(v_p.username, 'tugkancr'), 'Juzzio Official', v_p.avatar_url, p_media_type, BTRIM(p_media_url),
+            LEFT(COALESCE(p_caption, ''), 500), LEAST(GREATEST(COALESCE(p_video_duration_sec, 15), 3), 60), 'everyone', true,
+            NOW() + make_interval(hours => LEAST(GREATEST(COALESCE(p_hours, 24), 1), 168)))
+    RETURNING id INTO v_id;
+    PERFORM set_config('juzzio.official_story', '', true);
+    PERFORM set_config('juzzio.official_expires', '', true);
+    RETURN v_id;
+END $$;
+
+CREATE OR REPLACE FUNCTION public.admin_community_post(
+    p_text TEXT,
+    p_kind TEXT DEFAULT 'text',
+    p_media_url TEXT DEFAULT NULL,
+    p_file_name TEXT DEFAULT NULL,
+    p_file_size INTEGER DEFAULT NULL)
+RETURNS UUID LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+    v_uid UUID := auth.uid();
+    v_room UUID;
+    v_id UUID;
+    v_kind TEXT := COALESCE(NULLIF(p_kind, ''), 'text');
+    v_text TEXT := LEFT(BTRIM(COALESCE(p_text, '')), 4000);
+BEGIN
+    IF v_uid IS NULL OR NOT public.is_juzzio_admin(v_uid) THEN RAISE EXCEPTION 'not_allowed' USING ERRCODE = '42501'; END IF;
+    IF NOT public.juzzio_admin_unlocked(v_uid) THEN RAISE EXCEPTION 'admin_session_required' USING ERRCODE = '42501'; END IF;
+    IF v_kind NOT IN ('text', 'image', 'video', 'audio', 'document') THEN RAISE EXCEPTION 'invalid_kind' USING ERRCODE = '22023'; END IF;
+    IF v_kind <> 'text' AND (COALESCE(BTRIM(p_media_url), '') = '' OR p_media_url !~* '^https://') THEN
+        RAISE EXCEPTION 'invalid_media_url' USING ERRCODE = '22023';
+    END IF;
+    IF v_kind = 'text' AND v_text = '' THEN RAISE EXCEPTION 'empty_post' USING ERRCODE = '22023'; END IF;
+    v_room := public.juzzio_ensure_community();
+    IF v_room IS NULL THEN RAISE EXCEPTION 'community_unavailable'; END IF;
+    INSERT INTO public.room_participants (room_id, user_id, role) VALUES (v_room, v_uid, 'owner')
+    ON CONFLICT (room_id, user_id) DO UPDATE SET role = 'owner', left_at = NULL;
+    INSERT INTO public.messages (room_id, sender_id, sender_name, message_type, source_lang, target_lang,
+                                 original_text, translated_text, image_url, video_url, document_url, document_name,
+                                 document_size, metadata)
+    VALUES (v_room, v_uid, 'Juzzio Official',
+            CASE v_kind WHEN 'image' THEN 'image' WHEN 'video' THEN 'video' WHEN 'text' THEN 'text' ELSE 'document' END,
+            'auto', 'tr', v_text, '',
+            CASE WHEN v_kind = 'image' THEN BTRIM(p_media_url) END,
+            CASE WHEN v_kind = 'video' THEN BTRIM(p_media_url) END,
+            CASE WHEN v_kind IN ('audio', 'document') THEN BTRIM(p_media_url) END,
+            CASE WHEN v_kind IN ('audio', 'document') THEN LEFT(COALESCE(NULLIF(BTRIM(p_file_name), ''), 'dosya'), 120) END,
+            CASE WHEN v_kind IN ('audio', 'document') THEN p_file_size END,
+            jsonb_build_object('community', jsonb_build_object('kind', v_kind)))
+    RETURNING id INTO v_id;
+    INSERT INTO public.admin_audit_log (admin_id, action, target, details)
+    VALUES (v_uid, 'community_post', v_id::text, jsonb_build_object('kind', v_kind));
+    RETURN v_id;
+END $$;
+
+CREATE OR REPLACE FUNCTION public.admin_delete_official_story(p_story UUID)
+RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+    IF auth.uid() IS NULL OR NOT public.is_juzzio_admin(auth.uid()) THEN RAISE EXCEPTION 'not_allowed' USING ERRCODE = '42501'; END IF;
+    IF NOT public.juzzio_admin_unlocked(auth.uid()) THEN RAISE EXCEPTION 'admin_session_required' USING ERRCODE = '42501'; END IF;
+    DELETE FROM public.stories WHERE id = p_story AND is_official;
+    RETURN FOUND;
+END $$;
+
+-- B) eski JSON listeler herkese açık satırda tutulmaz
+DO $$
+BEGIN
+    UPDATE public.profiles SET blocked_users = '[]'::jsonb WHERE blocked_users IS DISTINCT FROM '[]'::jsonb;
+    UPDATE public.profiles SET muted_users = '[]'::jsonb WHERE muted_users IS DISTINCT FROM '[]'::jsonb;
+EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE '10.46 B atlandı: %', SQLERRM;
+END $$;
+
+CREATE OR REPLACE FUNCTION public.juzzio_profile_hide_legacy()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+BEGIN
+    NEW.blocked_users := '[]'::jsonb;
+    NEW.muted_users := '[]'::jsonb;
+    RETURN NEW;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.juzzio_profile_hide_legacy() FROM PUBLIC, anon, authenticated;
+DROP TRIGGER IF EXISTS trg_profile_hide_legacy ON public.profiles;
+CREATE TRIGGER trg_profile_hide_legacy BEFORE INSERT OR UPDATE OF blocked_users, muted_users ON public.profiles
+    FOR EACH ROW EXECUTE FUNCTION public.juzzio_profile_hide_legacy();
+
+-- C) varsayılan tema Gece Mavisi (ocean); yönetici panelden yine değiştirebilir
+UPDATE public.app_settings SET value = '"ocean"'::jsonb, updated_at = NOW()
+ WHERE key = 'default_glass_palette' AND value IN ('"graphite_lime"'::jsonb, '"juzzio_liquid"'::jsonb);
+INSERT INTO public.app_settings (key, value) VALUES ('default_glass_palette', '"ocean"'::jsonb)
+ON CONFLICT (key) DO NOTHING;

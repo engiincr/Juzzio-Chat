@@ -167,7 +167,13 @@ class JuzzioAppThemeGallery extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // GM-014: sayfada `const` kullanıldığı için tema/gece-gündüz değişince yeniden çizilmiyordu
+    // (koyu modda açık önizlemeler, eski seçim işareti). Artık denetleyiciyi dinler.
     final app = JuzzioAppController.instance;
+    return ListenableBuilder(listenable: app, builder: (context, _) => _build(context, app));
+  }
+
+  Widget _build(BuildContext context, JuzzioAppController app) {
     return SizedBox(
       height: 168,
       child: ListView.builder(
@@ -205,7 +211,12 @@ class JuzzioChatThemeGallery extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // GM-014: tema/gece-gündüz değişince yeniden çizilir (const kullanımda donuyordu)
     final app = JuzzioAppController.instance;
+    return ListenableBuilder(listenable: app, builder: (context, _) => _build(context, app));
+  }
+
+  Widget _build(BuildContext context, JuzzioAppController app) {
     final presets = kJuzzioChatThemes;
     return SizedBox(
       height: 168,

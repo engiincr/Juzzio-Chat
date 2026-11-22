@@ -21,9 +21,11 @@ import '../core/app_theme_and_locale.dart';
 import '../core/native_bridge.dart';
 import '../services/juzzio_legal_pdf.dart' show kJuzzioPdfFontRegular, kJuzzioPdfFontBold, juzzioPdfSafeText;
 import '../core/theme/juzzio_glass.dart';
+import '../core/theme/juzzio_aurora.dart';
 import '../services/juzzio_features_service.dart';
 import '../widgets/juzzio_brand.dart';
 import '../widgets/juzzio_neon_kit.dart';
+import '../core/juzzio_temp_dir.dart';
 
 /// Bir yönetici modülü: [tab] mevcut sekme kimliği, [stats] sunucu modülü, [info] yalnız bilgi
 class JuzzioAdminModule {
@@ -150,7 +152,7 @@ Future<Uint8List> juzzioAdminModulePdf({
 Future<String?> juzzioSaveAdminPdf(String name, Uint8List bytes) async {
   if (kIsWeb) return null;
   if (Platform.isAndroid) {
-    final dir = await getTemporaryDirectory();
+    final dir = await juzzioTempDir();
     final f = File('${dir.path}/$name');
     await f.writeAsBytes(bytes, flush: true);
     final ok = await JuzzioNative.saveToGallery(path: f.path, mime: 'application/pdf', name: name, kind: 'document');
@@ -414,8 +416,8 @@ class _JuzzioAdminModuleStatsPageState extends State<JuzzioAdminModuleStatsPage>
     final app = JuzzioAppController.instance;
     final m = widget.module;
     final d = _data;
-    return Scaffold(
-      backgroundColor: JuzzioGlassTokens.space.depth.last,
+    return JuzzioAuroraPage(child: Scaffold(
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _load,
@@ -496,7 +498,7 @@ class _JuzzioAdminModuleStatsPageState extends State<JuzzioAdminModuleStatsPage>
           ),
         ),
       ),
-    );
+    ));
   }
 }
 
@@ -592,8 +594,8 @@ class _JuzzioAdminChangePasswordPageState extends State<JuzzioAdminChangePasswor
     final app = JuzzioAppController.instance;
     return PopScope(
       canPop: !widget.forced || !_busy,
-      child: Scaffold(
-        backgroundColor: JuzzioGlassTokens.space.depth.last,
+      child: JuzzioAuroraPage(child: Scaffold(
+        backgroundColor: Colors.transparent,
         body: SafeArea(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
@@ -643,7 +645,7 @@ class _JuzzioAdminChangePasswordPageState extends State<JuzzioAdminChangePasswor
             ],
           ),
         ),
-      ),
+      )),
     );
   }
 }
@@ -715,8 +717,8 @@ class _JuzzioAdminVerificationPageState extends State<JuzzioAdminVerificationPag
     final app = JuzzioAppController.instance;
     final rows = _rows;
     const statuses = ['pending', 'approved', 'rejected', 'all'];
-    return Scaffold(
-      backgroundColor: JuzzioGlassTokens.space.depth.last,
+    return JuzzioAuroraPage(child: Scaffold(
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _load,
@@ -794,7 +796,7 @@ class _JuzzioAdminVerificationPageState extends State<JuzzioAdminVerificationPag
           ),
         ),
       ),
-    );
+    ));
   }
 }
 
@@ -922,8 +924,8 @@ class _JuzzioAdminFlagsPageState extends State<JuzzioAdminFlagsPage> {
   Widget build(BuildContext context) {
     final app = JuzzioAppController.instance;
     final rows = _rows;
-    return Scaffold(
-      backgroundColor: JuzzioGlassTokens.space.depth.last,
+    return JuzzioAuroraPage(child: Scaffold(
+      backgroundColor: Colors.transparent,
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: JuzzioGlassTokens.glowText,
         foregroundColor: const Color(0xFF111113),
@@ -978,7 +980,7 @@ class _JuzzioAdminFlagsPageState extends State<JuzzioAdminFlagsPage> {
           ),
         ),
       ),
-    );
+    ));
   }
 }
 

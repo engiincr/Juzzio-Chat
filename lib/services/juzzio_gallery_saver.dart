@@ -14,7 +14,6 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
 
 import '../core/app_theme_and_locale.dart';
 import '../core/native_bridge.dart';
@@ -22,6 +21,7 @@ import '../widgets/juzzio_encrypted_image.dart' show JuzzioEncryptedMedia;
 import 'juzzio_media_cache.dart';
 import 'juzzio_file_guard.dart';
 import 'supabase_service.dart';
+import '../core/juzzio_temp_dir.dart';
 
 /// Mesajdaki kaydedilebilir medya (saf; test edilir). Kaydedilecek bir şey yoksa null.
 ({String url, String kind, String mime, String name})? juzzioGalleryTarget(JuzzioMessage m) {
@@ -112,7 +112,7 @@ class JuzzioGallerySaver {
           bytes = await JuzzioEncryptedMedia.load(m.id, t.url, keepInMemory: false);
         }
         if (bytes == null) return false;
-        final dir = await getTemporaryDirectory();
+        final dir = await juzzioTempDir();
         tmp = File('${dir.path}/jgs_${m.id.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '')}');
         await tmp.writeAsBytes(bytes, flush: true);
         path = tmp.path;
@@ -155,7 +155,7 @@ class JuzzioMediaDownload {
         if (encrypted && messageId != null) {
           final bytes = await JuzzioEncryptedMedia.load(messageId, url, keepInMemory: false);
           if (bytes == null) return false;
-          final dir = await getTemporaryDirectory();
+          final dir = await juzzioTempDir();
           tmp = File('${dir.path}/jdl_${DateTime.now().microsecondsSinceEpoch}');
           await tmp.writeAsBytes(bytes, flush: true);
           path = tmp.path;

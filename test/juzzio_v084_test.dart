@@ -29,7 +29,7 @@ void main() {
         expect(v, inInclusiveRange(0.4, 2.0), reason: p.id);
       }
     }
-    expect(kJuzzioAuroraPalettes.first.id, 'graphite_lime'); // v2.0.0: Figma 2.0 varsayılan
+    expect(kJuzzioAuroraPalettes.first.id, 'ocean'); // GM-014: varsayılan mavi (KR-011)
     expect(juzzioAuroraPaletteById('cyber_neon').character.glow, greaterThan(0));
   });
 

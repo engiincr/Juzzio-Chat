@@ -1244,8 +1244,10 @@ BoxDecoration juzzioLiquidDecoration({
   bool strong = false,
   bool solid = false,
   bool glowBorder = false,
+  // GM-9276: arama ekranları her temada koyu zemin kullanır; cam da koyu çizilir
+  bool? forceDark,
 }) {
-  final dark = JuzzioGlassTokens.isDarkResolver();
+  final dark = forceDark ?? JuzzioGlassTokens.isDarkResolver();
   final g = tint ?? JuzzioGlassTokens.glow;
   final sp = JuzzioGlassTokens.space;
   final base = solid ? (dark ? sp.depth[sp.depth.length > 1 ? 1 : 0] : sp.depthLight.last) : null;
@@ -1277,8 +1279,11 @@ class JuzzioLiquidGlass extends StatelessWidget {
     this.glowBorder = false,
     this.blur = 18,
     this.shape = BoxShape.rectangle,
+    this.forceDark,
   });
 
+  /// GM-9276: true → temadan bağımsız koyu cam (arama ekranları)
+  final bool? forceDark;
   final Widget child;
   final double radius;
   final EdgeInsetsGeometry? padding;
@@ -1292,8 +1297,9 @@ class JuzzioLiquidGlass extends StatelessWidget {
   Widget build(BuildContext context) {
     final inPopup = ModalRoute.of(context) is PopupRoute;
     final r = BorderRadius.circular(shape == BoxShape.circle ? 999 : radius);
-    final deco = juzzioLiquidDecoration(radius: r, tint: tint, strong: strong, solid: inPopup, glowBorder: glowBorder);
-    final dark = JuzzioGlassTokens.isDarkResolver();
+    final deco = juzzioLiquidDecoration(
+        radius: r, tint: tint, strong: strong, solid: inPopup, glowBorder: glowBorder, forceDark: forceDark);
+    final dark = forceDark ?? JuzzioGlassTokens.isDarkResolver();
     Widget body = DecoratedBox(
       decoration: deco,
       child: Stack(

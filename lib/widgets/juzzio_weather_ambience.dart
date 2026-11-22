@@ -284,6 +284,7 @@ class _JuzzioWeatherAmbienceState extends State<JuzzioWeatherAmbience> with Tick
           scene: sc,
           dark: JuzzioAppController.instance.isDark,
           still: !_animate,
+          celestial: false, // GM-014: ay/güneş yalnız başlıktaki JuzzioSkyIcon'da
         ),
       );
 
@@ -311,13 +312,52 @@ class _JuzzioWeatherAmbienceState extends State<JuzzioWeatherAmbience> with Tick
               if (juzzioWeatherHasLightning(cur.kind) && _animate) {
                 children.add(CustomPaint(size: Size.infinite, painter: JuzzioLightning21Painter(t: _bolt, seed: _boltSeed)));
               }
-              return Stack(fit: StackFit.expand, children: children);
+              // GM-014: başlık (logo + düğmeler) ve alt gezinme şeridinin arkası temiz kalır;
+              // bulut/yağmur/kar/sis yalnız içerik bölgesinde, cam kartların arkasında hafifçe görünür.
+              final media = MediaQuery.maybeOf(context);
+              return ShaderMask(
+                blendMode: BlendMode.dstIn,
+                shaderCallback: (r) => juzzioAmbienceSafeMask(
+                  r,
+                  topInset: media?.padding.top ?? 0,
+                  bottomInset: media?.padding.bottom ?? 0,
+                ),
+                child: Stack(fit: StackFit.expand, children: children),
+              );
             },
           ),
         ),
       ),
     );
   }
+}
+
+/// GM-014: hava katmanının "düğmesiz" bölgeleri (saf; test edilir).
+/// Başlık bandı (güvenli alan + [kJuzzioAmbienceHeaderClear]) ve alt şerit
+/// ([kJuzzioAmbienceDockClear]) tamamen temiz; aradaki içerik bölgesinde efektler %55 görünür.
+const double kJuzzioAmbienceHeaderClear = 96;
+const double kJuzzioAmbienceDockClear = 112;
+const double kJuzzioAmbienceContentAlpha = 0.55;
+
+List<double> juzzioAmbienceMaskStops(double height, {double topInset = 0, double bottomInset = 0}) {
+  if (height <= 0) return const [0, 0, 1, 1];
+  final top = ((topInset + kJuzzioAmbienceHeaderClear) / height).clamp(0.0, 0.45);
+  final fadeIn = (top + 48 / height).clamp(top, 0.5);
+  final bottom = (1 - (bottomInset + kJuzzioAmbienceDockClear) / height).clamp(0.55, 1.0);
+  final fadeOut = (bottom - 48 / height).clamp(0.5, bottom);
+  return [top, fadeIn, fadeOut, bottom];
+}
+
+Shader juzzioAmbienceSafeMask(Rect r, {double topInset = 0, double bottomInset = 0}) {
+  final st = juzzioAmbienceMaskStops(r.height, topInset: topInset, bottomInset: bottomInset);
+  final on = Colors.white.withValues(alpha: kJuzzioAmbienceContentAlpha);
+  const off = Color(0x00FFFFFF);
+  return LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [off, off, on, on, off, off],
+    stops: [0, st[0], st[1], st[2], st[3], 1],
+  ).createShader(r);
 }
 
 /// v1.2.9: içindeyken hava katmanını gizler (hikâye görüntüleyici, video oynatıcılar, tam ekran medya)

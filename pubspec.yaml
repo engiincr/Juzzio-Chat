@@ -102,6 +102,11 @@ flutter:
     - assets/images/pdf_logo.png
     # v2.1: giriş/kayıt sahnesi (kullanıcının tasarım görselinden)
     - assets/images/auth_hero.jpg
+    # GM-002: giriş/kayıt katmanları (K5). portrait_temp.png GEÇİCİ — orijinal fotoğraf bekleniyor
+    - assets/auth/portrait_temp.png
+    # Microsoft Fluent Emoji 3D (MIT lisansı, assets/auth/emoji/FluentEmoji-LICENSE-MIT.txt)
+    - assets/auth/emoji/
+    - assets/fonts/inter/Inter-OFL.txt
     # v1.2.9: hava teması ve Ay evresi görselleri (kodla üretildi: tools/weather_sprites.py)
     - assets/weather/moon.png
     - assets/weather/sun.png
@@ -123,6 +128,18 @@ flutter:
   # (lisans: assets/fonts/NotoColorEmoji-OFL.txt). Apple emoji yazı tipi lisans
   # gereği uygulamaya gömülemez; bu set ücretsiz ve yeniden dağıtılabilirdir.
   fonts:
+    # GM-002: Inter (SIL OFL 1.1, assets/fonts/inter/Inter-OFL.txt) — giriş/kayıt tipografisi
+    - family: JuzzioInter
+      fonts:
+        - asset: assets/fonts/inter/Inter-Regular.ttf
+        - asset: assets/fonts/inter/Inter-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/inter/Inter-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/inter/Inter-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/inter/Inter-ExtraBold.ttf
+          weight: 800
     - family: JuzzioEmoji
       fonts:
         - asset: assets/fonts/NotoColorEmoji.ttf

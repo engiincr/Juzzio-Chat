@@ -109,9 +109,10 @@ class JuzzioChickPainter extends CustomPainter {
     final angle = math.sin(wobble * math.pi * 6) * 0.12 * (1 - wobble);
 
     final custom = juzzioParseHexColor(style['color']);
-    final bodyLight = _desat(custom != null ? Color.lerp(custom, Colors.white, 0.55)! : (hen ? const Color(0xFFFFF8EC) : const Color(0xFFFFF3A0)), look.saturation);
-    final bodyMid = _desat(custom ?? (hen ? const Color(0xFFF1D9B5) : const Color(0xFFFFD43B)), look.saturation);
-    final bodyDark = _desat(custom != null ? Color.lerp(custom, Colors.black, 0.3)! : (hen ? const Color(0xFFC79A66) : const Color(0xFFF2A516)), look.saturation);
+    // GM-014: civciv renkleri Engin'in gönderdiği gerçek civciv fotoğrafından (yumuşak sarı tüy)
+    final bodyLight = _desat(custom != null ? Color.lerp(custom, Colors.white, 0.55)! : (hen ? const Color(0xFFFFF8EC) : const Color(0xFFFFF7CF)), look.saturation);
+    final bodyMid = _desat(custom ?? (hen ? const Color(0xFFF1D9B5) : const Color(0xFFFFD23A)), look.saturation);
+    final bodyDark = _desat(custom != null ? Color.lerp(custom, Colors.black, 0.3)! : (hen ? const Color(0xFFC79A66) : const Color(0xFFE8A91E)), look.saturation);
     final beakC = _desat(const Color(0xFFFF8A1F), look.saturation);
     final beakD = _desat(const Color(0xFFD9620A), look.saturation);
 
@@ -163,6 +164,17 @@ class JuzzioChickPainter extends CustomPainter {
       );
     }
 
+    // GM-014: yumuşak tüy halesi + kenarda kabarık tüy kümeleri (çizgi tüy yok)
+    if (!hen) {
+      canvas.drawOval(
+        bodyRect.inflate(r * 0.07),
+        Paint()
+          ..color = bodyLight.withValues(alpha: 0.55)
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.09),
+      );
+      juzzioPaintChickFluffRim(canvas, bodyRect, r, light: bodyLight, mid: bodyMid, dark: bodyDark);
+    }
+
     // Gövde
     final body = Path()..addOval(bodyRect);
     canvas.drawPath(
@@ -187,28 +199,41 @@ class JuzzioChickPainter extends CustomPainter {
           colors: [Colors.white.withValues(alpha: 0.65), Colors.white.withValues(alpha: 0.0)],
         ).createShader(bodyRect),
     );
-    // Tüy dokusu: yumuşak kısa çizgiler
-    final fluff = Paint()
-      ..color = Colors.white.withValues(alpha: 0.28)
-      ..strokeWidth = 1.2
-      ..strokeCap = StrokeCap.round;
-    final rnd = math.Random(7);
-    for (var i = 0; i < 40; i++) {
-      final a = rnd.nextDouble() * math.pi * 2;
-      final d = rnd.nextDouble() * r * 0.85;
-      final p = bodyCenter + Offset(math.cos(a) * d, math.sin(a) * d * 0.95);
-      canvas.drawLine(p, p + Offset(math.cos(a) * 3, math.sin(a) * 3), fluff);
+    // Tüy dokusu: tavukta kısa çizgiler; civcivde göğüste yumuşak açık leke
+    if (hen) {
+      final fluff = Paint()
+        ..color = Colors.white.withValues(alpha: 0.28)
+        ..strokeWidth = 1.2
+        ..strokeCap = StrokeCap.round;
+      final rnd = math.Random(7);
+      for (var i = 0; i < 40; i++) {
+        final a = rnd.nextDouble() * math.pi * 2;
+        final d = rnd.nextDouble() * r * 0.85;
+        final p = bodyCenter + Offset(math.cos(a) * d, math.sin(a) * d * 0.95);
+        canvas.drawLine(p, p + Offset(math.cos(a) * 3, math.sin(a) * 3), fluff);
+      }
+    } else {
+      canvas.drawOval(
+        Rect.fromCenter(center: bodyCenter + Offset(0, r * 0.42), width: r * 1.1, height: r * 0.8),
+        Paint()
+          ..color = bodyLight.withValues(alpha: 0.7)
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.14),
+      );
     }
     // Tepe tüyü (civciv / genç)
     if (!hen) {
-      final tuft = Paint()
-        ..color = bodyMid
-        ..strokeWidth = r * 0.07
-        ..strokeCap = StrokeCap.round
-        ..style = PaintingStyle.stroke;
-      final top = Offset(0, bodyRect.top + r * 0.04);
-      canvas.drawPath(Path()..moveTo(top.dx, top.dy)..quadraticBezierTo(-r * 0.05, top.dy - r * 0.32, -r * 0.2, top.dy - r * 0.3), tuft);
-      canvas.drawPath(Path()..moveTo(top.dx, top.dy)..quadraticBezierTo(r * 0.1, top.dy - r * 0.35, r * 0.18, top.dy - r * 0.22), tuft);
+      // GM-014: tepe tüyü yumuşak kabarık kümeler (çizgi değil)
+      final top = Offset(0, bodyRect.top + r * 0.06);
+      final tuftPaint = Paint()
+        ..shader = RadialGradient(colors: [bodyLight, bodyMid]).createShader(Rect.fromCircle(center: top, radius: r * 0.3))
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.025);
+      for (final t in const [(-0.16, -0.12, -0.35), (0.0, -0.2, 0.0), (0.15, -0.12, 0.4)]) {
+        canvas.save();
+        canvas.translate(top.dx + r * t.$1, top.dy + r * t.$2);
+        canvas.rotate(t.$3);
+        canvas.drawOval(Rect.fromCenter(center: Offset.zero, width: r * 0.16, height: r * 0.28), tuftPaint);
+        canvas.restore();
+      }
     } else {
       // İbik
       final combC = _desat(const Color(0xFFE53935), look.saturation);
@@ -269,7 +294,7 @@ class JuzzioChickPainter extends CustomPainter {
     // Yüz
     final eyeY = bodyCenter.dy - r * 0.22;
     final eyeDx = r * 0.36;
-    final eyeR = r * 0.13;
+    final eyeR = r * (hen ? 0.13 : 0.155); // GM-014: civcivde iri parlak göz
     final open = (look.eyeOpen * (1 - blink)).clamp(0.0, 1.0);
     for (final side in [-1.0, 1.0]) {
       final c = Offset(side * eyeDx, eyeY);
@@ -291,7 +316,15 @@ class JuzzioChickPainter extends CustomPainter {
         canvas.save();
         canvas.translate(c.dx, c.dy);
         canvas.scale(1, open);
-        canvas.drawCircle(Offset.zero, eyeR, Paint()..color = const Color(0xFF1C120A));
+        canvas.drawCircle(Offset.zero, eyeR, Paint()..color = const Color(0xFF120C07));
+        canvas.drawCircle(
+          Offset.zero,
+          eyeR * 0.94,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = eyeR * 0.12
+            ..color = const Color(0xFF5A3A1A).withValues(alpha: 0.55),
+        );
         canvas.drawCircle(Offset(-eyeR * 0.32, -eyeR * 0.35), eyeR * 0.38, Paint()..color = Colors.white);
         canvas.drawCircle(Offset(eyeR * 0.35, eyeR * 0.3), eyeR * 0.15, Paint()..color = Colors.white.withValues(alpha: 0.8));
         canvas.restore();
@@ -311,7 +344,8 @@ class JuzzioChickPainter extends CustomPainter {
         canvas.drawOval(
           Rect.fromCenter(center: Offset(side * (eyeDx + r * 0.1), eyeY + r * 0.24), width: r * 0.26, height: r * 0.14),
           Paint()
-            ..color = const Color(0xFFFF7A9A).withValues(alpha: math.max(look.blush ? 0.45 : 0.0, 0.45 + 0.4 * tw.blush))
+            ..color = (hen ? const Color(0xFFFF7A9A) : const Color(0xFFFF9A7A))
+                .withValues(alpha: math.max(look.blush ? (hen ? 0.45 : 0.38) : 0.0, 0.45 + 0.4 * tw.blush))
             ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.5),
         );
       }
@@ -364,6 +398,38 @@ class JuzzioChickPainter extends CustomPainter {
       old.flap != flap ||
       old.wobble != wobble ||
       !_sameStyle(old.style, style);
+}
+
+/// GM-014: civcivin kenarında kabarık tüy kümeleri (fotoğraftaki pamuk gibi siluet).
+/// Kümeler gövde ovalinin çevresine, hafif dışarı taşacak şekilde dizilir; sabit tohumla titrer.
+List<Offset> juzzioChickFluffPoints(Rect bodyRect, {int count = 34}) {
+  final rnd = math.Random(14);
+  final cx = bodyRect.center.dx, cy = bodyRect.center.dy;
+  final rx = bodyRect.width / 2, ry = bodyRect.height / 2;
+  return [
+    for (var i = 0; i < count; i++)
+      () {
+        final a = (i / count) * math.pi * 2 + rnd.nextDouble() * 0.12;
+        final k = 0.93 + rnd.nextDouble() * 0.06;
+        return Offset(cx + math.cos(a) * rx * k, cy + math.sin(a) * ry * k);
+      }(),
+  ];
+}
+
+void juzzioPaintChickFluffRim(Canvas canvas, Rect bodyRect, double r, {required Color light, required Color mid, required Color dark}) {
+  final rnd = math.Random(21);
+  final pts = juzzioChickFluffPoints(bodyRect);
+  for (final p in pts) {
+    final pr = r * (0.11 + rnd.nextDouble() * 0.05);
+    final up = p.dy < bodyRect.center.dy;
+    canvas.drawCircle(
+      p,
+      pr,
+      Paint()
+        ..shader = RadialGradient(colors: [up ? light : mid, up ? mid : dark]).createShader(Rect.fromCircle(center: p, radius: pr))
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, pr * 0.28),
+    );
+  }
 }
 
 bool _sameStyle(Map<String, String> a, Map<String, String> b) {

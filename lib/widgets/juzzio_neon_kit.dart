@@ -462,36 +462,6 @@ class JuzzioNeonRow extends StatelessWidget {
   }
 }
 
-/// Sosyal giriş düğmesi (Google · Apple · GitHub) — yuvarlak cam düğme
-class JuzzioOAuthButton extends StatelessWidget {
-  const JuzzioOAuthButton({super.key, required this.provider, required this.onTap});
-  final String provider;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final Widget mark = switch (provider) {
-      'google' => const Text('G', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Color(0xFF4285F4))),
-      'apple' => Icon(Icons.apple, size: 26, color: JuzzioGlassTokens.textPrimary),
-      _ => Icon(Icons.code_rounded, size: 24, color: JuzzioGlassTokens.textPrimary),
-    };
-    final label = switch (provider) { 'google' => 'Google', 'apple' => 'Apple', _ => 'GitHub' };
-    return Semantics(
-      button: true,
-      label: label,
-      child: Material(
-        color: JuzzioGlassTokens.spaceCard,
-        shape: CircleBorder(side: BorderSide(color: JuzzioGlassTokens.spaceCardBorder)),
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: onTap,
-          child: SizedBox(width: 52, height: 52, child: Center(child: mark)),
-        ),
-      ),
-    );
-  }
-}
-
 /// v2.1 — Ayar alt sayfalarının üst çubuğu için yuvarlak neon geri düğmesi (tasarımdaki gibi).
 /// Geri gidilemeyen sayfada hiçbir şey çizmez.
 class JuzzioNeonBackButton extends StatelessWidget {

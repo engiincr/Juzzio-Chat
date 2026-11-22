@@ -12,6 +12,7 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
@@ -132,9 +133,18 @@ class JuzzioWeatherService extends ChangeNotifier {
     if (_busy || !JuzzioAppController.instance.weatherThemeEnabled) return;
     _busy = true;
     try {
-      final pos = await _position(askPermission: askPermission);
-      if (pos == null) return;
-      final res = await http.get(juzzioWeatherUri(pos.latitude, pos.longitude)).timeout(const Duration(seconds: 12));
+      Position? pos;
+      try {
+        pos = await _position(askPermission: askPermission);
+      } catch (_) {
+        pos = null; // masaüstünde konum servisi yok / zaman aşımı
+      }
+      // GM-014: konum yoksa (Windows/macOS, izin verilmedi) kişinin ülkesinin başkenti kullanılır;
+      // hava durumu, ay evresi ve gece/gündüz yine o ülkenin saatine göre çalışır.
+      final approx = pos == null ? juzzioApproxCoordsForLocale(_localeName(), DateTime.now().timeZoneOffset) : null;
+      final lat = pos?.latitude ?? approx!.$1;
+      final lon = pos?.longitude ?? approx!.$2;
+      final res = await http.get(juzzioWeatherUri(lat, lon)).timeout(const Duration(seconds: 12));
       if (res.statusCode != 200) return;
       final body = jsonDecode(res.body);
       final cur = body is Map ? body['current'] : null;
@@ -165,6 +175,14 @@ class JuzzioWeatherService extends ChangeNotifier {
       // çevrimdışı / izin yok: son durum korunur
     } finally {
       _busy = false;
+    }
+  }
+
+  static String _localeName() {
+    try {
+      return Platform.localeName;
+    } catch (_) {
+      return '';
     }
   }
 
@@ -200,4 +218,28 @@ String juzzioWeatherLabel(JuzzioWeatherKind k) {
     JuzzioWeatherKind.snow => a.trEn('Karlı', 'Snow', 'Schnee'),
     JuzzioWeatherKind.thunder => a.trEn('Fırtına', 'Thunderstorm', 'Gewitter'),
   };
+}
+
+/// GM-014: konum alınamayınca yaklaşık konum — cihaz dilinin ülkesinin başkenti (ör. tr_TR → Ankara);
+/// ülke bilinmiyorsa saat diliminden boylam (UTC+3 → 45°D). Saf; test edilir.
+const Map<String, (double, double)> kJuzzioCountryCapitals = {
+  'TR': (39.93, 32.86), 'US': (38.90, -77.04), 'GB': (51.51, -0.13), 'DE': (52.52, 13.40), 'FR': (48.86, 2.35),
+  'NL': (52.37, 4.90), 'BE': (50.85, 4.35), 'AT': (48.21, 16.37), 'CH': (46.95, 7.45), 'IT': (41.90, 12.50),
+  'ES': (40.42, -3.70), 'PT': (38.72, -9.14), 'GR': (37.98, 23.73), 'BG': (42.70, 23.32), 'RO': (44.43, 26.10),
+  'RU': (55.76, 37.62), 'UA': (50.45, 30.52), 'PL': (52.23, 21.01), 'SE': (59.33, 18.07), 'NO': (59.91, 10.75),
+  'DK': (55.68, 12.57), 'FI': (60.17, 24.94), 'AZ': (40.41, 49.87), 'GE': (41.72, 44.79), 'IR': (35.69, 51.39),
+  'IQ': (33.31, 44.36), 'SA': (24.71, 46.68), 'AE': (24.45, 54.38), 'EG': (30.04, 31.24), 'IN': (28.61, 77.21),
+  'PK': (33.68, 73.05), 'CN': (39.90, 116.40), 'JP': (35.68, 139.69), 'KR': (37.57, 126.98), 'ID': (-6.21, 106.85),
+  'BR': (-15.79, -47.88), 'MX': (19.43, -99.13), 'CA': (45.42, -75.70), 'AU': (-35.28, 149.13), 'KZ': (51.17, 71.43),
+  'UZ': (41.30, 69.24), 'TM': (37.95, 58.38), 'KG': (42.87, 74.59), 'CY': (35.17, 33.37), 'AL': (41.33, 19.82),
+  'BA': (43.86, 18.41), 'MK': (41.99, 21.43), 'RS': (44.79, 20.45),
+};
+
+(double, double) juzzioApproxCoordsForLocale(String localeName, Duration utcOffset) {
+  final m = RegExp(r'[_-]([A-Za-z]{2})\b').firstMatch(localeName);
+  final cc = m?.group(1)?.toUpperCase();
+  final hit = cc == null ? null : kJuzzioCountryCapitals[cc];
+  if (hit != null) return hit;
+  final lon = (utcOffset.inMinutes / 60.0 * 15.0).clamp(-180.0, 180.0);
+  return (40.0, lon);
 }

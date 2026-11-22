@@ -28,6 +28,7 @@ import 'package:http/io_client.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'juzzio_media_url.dart';
+import '../core/juzzio_temp_dir.dart';
 
 class JuzzioMediaDiskCache {
   JuzzioMediaDiskCache._();
@@ -289,7 +290,7 @@ class JuzzioMediaDiskCache {
   /// Cihazda çözülüp açılan geçici dosyalar (sesli mesaj, belge, video) 1 günden eskiyse silinir.
   Future<void> _pruneTempDecrypted() async {
     try {
-      final tmp = await getTemporaryDirectory();
+      final tmp = await juzzioTempDir();
       final now = DateTime.now();
       for (final e in tmp.listSync(followLinks: false)) {
         final name = e.path.split(Platform.pathSeparator).last;

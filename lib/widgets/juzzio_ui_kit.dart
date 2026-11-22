@@ -2,7 +2,6 @@
 // JUZZIO v0.9.7 — Ortak arayüz kiti
 //  • JuzzioShimmer / JuzzioSkeleton…: boş gri ekran ve çember yerine parıldayan
 //    iskelet yükleyiciler (tema renklerinden üretilir, "Hareketi azalt"a uyar)
-//  • JuzzioUnreadPill: tema vurgu renkli, yaylanarak beliren hap şeklinde okunmamış rozeti
 //  • kJuzzioPreviewPending: sohbet önizlemesi hazırlanıyor işareti (metin değil, iskelet)
 // =============================================================================
 
@@ -205,47 +204,3 @@ class JuzzioListSkeleton extends StatelessWidget {
   }
 }
 
-/// Hap şeklinde okunmamış rozeti: sayı değişince yaylanarak büyür; sessize alınmış
-/// sohbette sönük tonda gösterilir. Sayı 0 iken yer kaplamaz (hizalama bozulmaz).
-class JuzzioUnreadPill extends StatelessWidget {
-  const JuzzioUnreadPill({super.key, required this.count, this.muted = false});
-  final int count;
-  final bool muted;
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = JuzzioAppController.instance.isDark;
-    // v1.0.0 Juzzio Space: okunmamış rozeti temanın parlayan vurgusu
-    final a = muted ? JuzzioGlassTokens.textMuted : JuzzioGlassTokens.glow;
-    final b = muted ? JuzzioGlassTokens.textMuted.withValues(alpha: 0.8) : JuzzioGlassTokens.glow;
-    final fg = muted ? juzzioReadableOn(a) : JuzzioGlassTokens.onGlow;
-    return SizedBox(
-      height: 22,
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 380),
-        switchInCurve: Curves.elasticOut,
-        switchOutCurve: Curves.easeIn,
-        transitionBuilder: (child, anim) => ScaleTransition(scale: anim, child: FadeTransition(opacity: anim, child: child)),
-        child: count <= 0
-            ? const SizedBox(key: ValueKey('none'), width: 22, height: 22)
-            : Container(
-                key: ValueKey('n$count'),
-                constraints: const BoxConstraints(minWidth: 22),
-                height: 22,
-                padding: const EdgeInsets.symmetric(horizontal: 7),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(999),
-                  gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [a, b]),
-                  border: Border.all(color: Colors.white.withValues(alpha: dark ? 0.28 : 0.55), width: 0.8),
-                  boxShadow: muted ? null : [BoxShadow(color: a.withValues(alpha: 0.45), blurRadius: 10, offset: const Offset(0, 3))],
-                ),
-                child: Text(
-                  juzzioUnreadLabel(count),
-                  style: TextStyle(color: fg, fontSize: 11.5, fontWeight: FontWeight.w800, letterSpacing: 0.2, height: 1.0),
-                ),
-              ),
-      ),
-    );
-  }
-}

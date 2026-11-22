@@ -1,7 +1,9 @@
 // =============================================================================
 // JUZZIO 2.1 — Keşfet sekmesi (tasarım: "KEŞFET")
 //  Üst: "Keşfet" başlığı · "Yeni insanlarla tanış, sohbet et, dünyayı keşfet."
-//  Sekmeler: Keşfet (kart) · Eşleşmeler · Beğeniler · Akış (küresel paylaşımlar)
+//  GM-014 (Engin'in gönderdiği KEŞFET görseli esas alındı): üstte "J Juzzio" + filtre · konum ·
+//  mor şimşek düğmeleri; altında 3 sekme: Keşfet · Eşleşmeler · Beğeniler. Küresel Akış şimşek
+//  düğmesiyle açılır (özellik korunur). Filtre: yalnız çevrimiçi / dil. Konum: Keşfet görünürlüğü.
 //  Kart eylemleri: geri al · geç · süper beğeni · beğen · mesaj (profil)
 //  Herkese açık hesaplar varsayılan olarak kartlarda çıkar; Profil Düzenle'den / buradan kapatılabilir.
 // =============================================================================
@@ -14,6 +16,7 @@ import '../../core/config.dart';
 import '../../core/theme/juzzio_glass.dart';
 import '../../services/juzzio_discover_service.dart';
 import '../../widgets/juzzio_neon_kit.dart';
+import '../../widgets/juzzio_space_kit.dart';
 import '../../widgets/social_common_widgets.dart';
 
 class JuzzioExploreHub extends StatefulWidget {
@@ -38,6 +41,25 @@ class _JuzzioExploreHubState extends State<JuzzioExploreHub> {
   List<JuzzioDiscoverCard> _matches = [];
   List<JuzzioDiscoverCard> _likes = [];
   final List<JuzzioDiscoverCard> _history = [];
+  // GM-014: filtre (yalnız çevrimiçi / dil); filtreye uymayan kartlar kaybolmaz, burada bekler
+  bool _onlineOnly = false;
+  String _langFilter = '';
+  final List<JuzzioDiscoverCard> _parked = [];
+
+  bool _passes(JuzzioDiscoverCard c) =>
+      (!_onlineOnly || c.online) && (_langFilter.isEmpty || c.lang.toLowerCase() == _langFilter);
+
+  void _applyFilter() {
+    final all = [..._deck, ..._parked];
+    _deck
+      ..clear()
+      ..addAll(all.where(_passes));
+    _parked
+      ..clear()
+      ..addAll(all.where((c) => !_passes(c)));
+  }
+
+  bool get _filterActive => _onlineOnly || _langFilter.isNotEmpty;
 
   @override
   void initState() {
@@ -57,6 +79,8 @@ class _JuzzioExploreHubState extends State<JuzzioExploreHub> {
       setState(() {
         _enabled = en;
         _deck = List.of(res[0]);
+        _parked.clear();
+        _applyFilter();
         _matches = res[1];
         _likes = res[2];
         _loading = false;
@@ -103,7 +127,11 @@ class _JuzzioExploreHubState extends State<JuzzioExploreHub> {
         final more = await _svc.candidates();
         if (!mounted) return;
         final have = {..._deck.map((e) => e.id), ..._history.map((e) => e.id)};
-        setState(() => _deck.addAll(more.where((m) => !have.contains(m.id))));
+        final have2 = {...have, ..._parked.map((e) => e.id)};
+        setState(() {
+          _deck.addAll(more.where((m) => !have2.contains(m.id) && _passes(m)));
+          _parked.addAll(more.where((m) => !have2.contains(m.id) && !_passes(m)));
+        });
       } catch (_) {}
     }
   }
@@ -139,44 +167,159 @@ class _JuzzioExploreHubState extends State<JuzzioExploreHub> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
-          child: Column(
+  Future<void> _openFilters() async {
+    final langs = <String>{..._deck.map((c) => c.lang.toLowerCase()), ..._parked.map((c) => c.lang.toLowerCase())}
+      ..removeWhere((l) => l.isEmpty);
+    final sorted = langs.toList()..sort();
+    await showJuzzioGlassSheet<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) {
+          void upd(VoidCallback f) {
+            setState(() {
+              f();
+              _applyFilter();
+            });
+            setSheet(() {});
+          }
+
+          return Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(_app.trEn('Keşfet', 'Explore', 'Entdecken'),
-                  style: TextStyle(
-                      fontFamily: JuzzioConfig.fontRegularBold,
-                      color: JuzzioGlassTokens.heading,
-                      fontSize: 30,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -0.6)),
-              const SizedBox(height: 2),
-              Text(
-                _app.trEn('Yeni insanlarla tanış, sohbet et, dünyayı keşfet.', 'Meet new people, chat and explore the world.',
-                    'Lerne neue Leute kennen, chatte und entdecke die Welt.'),
-                style: TextStyle(color: JuzzioGlassTokens.textSecondary, fontSize: 13),
+              Text(_app.trEn('Filtreler', 'Filters', 'Filter'),
+                  style: TextStyle(color: JuzzioGlassTokens.heading, fontSize: 20, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 12),
+              JuzzioNeonRow.toggle(
+                icon: Icons.circle,
+                title: _app.trEn('Yalnız çevrimiçi', 'Online only', 'Nur online'),
+                value: _onlineOnly,
+                onChanged: (v) => upd(() => _onlineOnly = v),
+              ),
+              const SizedBox(height: 12),
+              Text(_app.trEn('Dil', 'Language', 'Sprache'),
+                  style: TextStyle(color: JuzzioGlassTokens.textSecondary, fontSize: 13, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  ChoiceChip(
+                    label: Text(_app.trEn('Tümü', 'All', 'Alle')),
+                    selected: _langFilter.isEmpty,
+                    onSelected: (_) => upd(() => _langFilter = ''),
+                  ),
+                  for (final l in sorted)
+                    ChoiceChip(
+                      label: Text(l.toUpperCase()),
+                      selected: _langFilter == l,
+                      onSelected: (_) => upd(() => _langFilter = l),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _openVisibility() async {
+    await showJuzzioGlassSheet<void>(
+      context: context,
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(_app.trEn('Konum ve görünürlük', 'Location and visibility', 'Standort und Sichtbarkeit'),
+              style: TextStyle(color: JuzzioGlassTokens.heading, fontSize: 20, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 6),
+          Text(
+            _app.trEn('Keşfet kartlarında ülken ve dillerin görünür; tam konumun hiçbir zaman paylaşılmaz.',
+                'Your country and languages show on Explore cards; your exact location is never shared.',
+                'Land und Sprachen erscheinen auf Karten; dein genauer Standort wird nie geteilt.'),
+            style: TextStyle(color: JuzzioGlassTokens.textSecondary, fontSize: 13, height: 1.4),
+          ),
+          const SizedBox(height: 12),
+          const JuzzioDiscoverVisibilityTile(),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+    if (mounted) _reload();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final feedOpen = _tab == 3;
+    return Column(
+      children: [
+        // GM-014: "J Juzzio" + filtre · konum · şimşek (Akış)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 10, 16, 0),
+          child: Row(
+            children: [
+              const Flexible(child: JuzzioSpaceBrand(size: 26)),
+              const Spacer(),
+              JuzzioSpaceIconButton(
+                icon: Icons.tune_rounded,
+                tooltip: _app.trEn('Filtreler', 'Filters', 'Filter'),
+                dotColor: _filterActive ? JuzzioGlassTokens.glow : null,
+                onTap: _openFilters,
+              ),
+              const SizedBox(width: 8),
+              JuzzioSpaceIconButton(
+                icon: Icons.location_on_outlined,
+                tooltip: _app.trEn('Konum ve görünürlük', 'Location and visibility', 'Standort und Sichtbarkeit'),
+                onTap: _openVisibility,
+              ),
+              const SizedBox(width: 8),
+              JuzzioSpaceIconButton(
+                icon: feedOpen ? Icons.close_rounded : Icons.bolt_rounded,
+                iconColor: feedOpen ? null : const Color(0xFFA78BFA),
+                tooltip: feedOpen ? _app.trEn('Kartlara dön', 'Back to cards', 'Zurück') : _app.trEn('Akış', 'Feed', 'Feed'),
+                onTap: () => setState(() => _tab = feedOpen ? 0 : 3),
               ),
             ],
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-          child: JuzzioNeonTabs(
-            tabs: [
-              JuzzioNeonTab(_app.trEn('Keşfet', 'Discover', 'Entdecken'), icon: Icons.explore_outlined),
-              JuzzioNeonTab(_app.trEn('Eşleşmeler', 'Matches', 'Matches'), count: _matches.length),
-              JuzzioNeonTab(_app.trEn('Beğeniler', 'Likes', 'Likes'), count: _likes.length),
-              JuzzioNeonTab(_app.trEn('Akış', 'Feed', 'Feed'), icon: Icons.public_rounded),
-            ],
-            selected: _tab,
-            onChanged: (i) => setState(() => _tab = i),
+        if (!feedOpen) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(_app.trEn('Keşfet', 'Explore', 'Entdecken'),
+                    style: TextStyle(
+                        fontFamily: JuzzioConfig.fontRegularBold,
+                        color: JuzzioGlassTokens.heading,
+                        fontSize: 30,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.6)),
+                const SizedBox(height: 2),
+                Text(
+                  _app.trEn('Yeni insanlarla tanış, sohbet et, dünyayı keşfet.', 'Meet new people, chat and explore the world.',
+                      'Lerne neue Leute kennen, chatte und entdecke die Welt.'),
+                  style: TextStyle(color: JuzzioGlassTokens.textSecondary, fontSize: 13),
+                ),
+              ],
+            ),
           ),
-        ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+            child: JuzzioNeonTabs(
+              tabs: [
+                JuzzioNeonTab(_app.trEn('Keşfet', 'Discover', 'Entdecken'), icon: Icons.explore_outlined),
+                JuzzioNeonTab(_app.trEn('Eşleşmeler', 'Matches', 'Matches'), count: _matches.length),
+                JuzzioNeonTab(_app.trEn('Beğeniler', 'Likes', 'Likes'), count: _likes.length),
+              ],
+              selected: _tab.clamp(0, 2),
+              onChanged: (i) => setState(() => _tab = i),
+            ),
+          ),
+        ] else
+          const SizedBox(height: 8),
         Expanded(
           child: IndexedStack(
             index: _tab,

@@ -60,6 +60,19 @@ String juzzioRatioLabel(double r) {
   return r >= 1 ? '${r.toStringAsFixed(2)}:1' : '1:${(1 / r).toStringAsFixed(2)}';
 }
 
+/// GM-014: fotoğraf/metin hikâyesi süre seçenekleri (sn). 7 ve 15 eski sürümlerin otomatik
+/// yazdığı değerlerdir; izleyici onları "varsayılan" sayar, bu yüzden seçeneklerde yoktur.
+const List<int> kJuzzioStoryPhotoSecs = [5, 10, 20, 30];
+const int kJuzzioStoryPhotoDefaultSec = 30;
+int juzzioNextStoryPhotoSec(int cur) {
+  final i = kJuzzioStoryPhotoSecs.indexOf(cur);
+  return kJuzzioStoryPhotoSecs[(i + 1) % kJuzzioStoryPhotoSecs.length];
+}
+
+/// İzleyici: fotoğraf/metin hikâyesinin gösterim süresi (ms). Eski kayıtlar (7/15/0) → varsayılan.
+int juzzioStoryPhotoDisplayMs(int storedSec, {int defaultMs = 30000}) =>
+    kJuzzioStoryPhotoSecs.contains(storedSec) ? storedSec * 1000 : defaultMs;
+
 class JuzzioStudioMedia {
   final File file;
   final bool isVideo;
@@ -201,6 +214,8 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
     );
   }
   double _speed = 1.0;
+  /// GM-014 (tasarım: Hikâye Oluştur → Süre): fotoğraf/metin hikâyesinin gösterim süresi (sn).
+  int _photoSec = kJuzzioStoryPhotoDefaultSec;
   bool _muted = false;
   JuzzioMusicSelection? _music;
   String _overlayText = '';
@@ -1043,6 +1058,7 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
           caption: caption,
           overlayText: _overlayText,
           bgColorHex: _textBackgroundHex[_textBgIndex % _textBackgroundHex.length],
+          videoDurationSec: _photoSec,
           visibility: _storyAudience,
           musicUrl: music?.url ?? '',
           musicTitle: music?.displayTitle ?? '',
@@ -1063,7 +1079,7 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
             mediaFile: upload,
             caption: caption,
             overlayText: _overlayText,
-            videoDurationSec: m.isVideo ? (m.lengthMs / 1000 / _speed).ceil().clamp(3, 60) : 7,
+            videoDurationSec: m.isVideo ? (m.lengthMs / 1000 / _speed).ceil().clamp(3, 60) : _photoSec,
             filterPreset: _filter,
             visibility: _storyAudience,
             trimStartMs: m.isVideo ? m.startMs : 0,
@@ -1781,6 +1797,14 @@ class _JuzzioCreatorStudioPageState extends State<JuzzioCreatorStudioPage> with 
       ],
       if (cur != null && !cur.isVideo && !_isPost)
         _RailButton(icon: Icons.crop_rotate_rounded, label: _l('Kırp', 'Crop', 'Zuschnitt'), onTap: _cropCurrentPhoto),
+      // GM-014 (tasarım: Hikâye Oluştur): Süre — fotoğraf/metin hikâyesi kaç saniye görünsün
+      if (_isStory && (cur == null || !cur.isVideo))
+        _RailButton(
+          icon: Icons.timer_outlined,
+          label: _photoSec == kJuzzioStoryPhotoDefaultSec ? _l('Süre', 'Duration', 'Dauer') : '$_photoSec sn',
+          active: _photoSec != kJuzzioStoryPhotoDefaultSec,
+          onTap: () => setState(() => _photoSec = juzzioNextStoryPhotoSec(_photoSec)),
+        ),
       if (_media.isNotEmpty)
         _RailButton(icon: Icons.delete_outline_rounded, label: _l('Kaldır', 'Remove', 'Entfernen'), onTap: _removeCurrent),
     ];

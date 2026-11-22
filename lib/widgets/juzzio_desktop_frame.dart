@@ -17,6 +17,8 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import '../core/theme/juzzio_glass.dart';
+import '../services/juzzio_call_session.dart';
+import 'juzzio_desktop_shell.dart' show kJuzzioDesktopThreePanelMin;
 
 /// Bu genişliğin altında uygulama pencereyi tam doldurur.
 const double kJuzzioDesktopFullBleed = 600;
@@ -34,6 +36,70 @@ Size? juzzioDesktopPanelSize(Size window) {
   return Size(w, window.height - vPad * 2);
 }
 
+/// GM-006: Kendi masaüstü düzenini kuran sayfaların (sohbet ana ekranı → 3 panel) rotası.
+/// Bu rota en üstteki TAM SAYFA rota olduğunda çerçeve pencereyi daraltmaz; diyalog/alt menü
+/// (PopupRoute) açıkken karar değişmez, böylece düzen sıçramaz.
+class JuzzioDesktopFrameObserver extends NavigatorObserver {
+  JuzzioDesktopFrameObserver._();
+  static final JuzzioDesktopFrameObserver instance = JuzzioDesktopFrameObserver._();
+
+  /// true → çerçeve devre dışı (sayfa pencerenin tamamını kendisi yönetir)
+  final ValueNotifier<bool> fullWindow = ValueNotifier<bool>(false);
+  final List<Route<dynamic>> _stack = <Route<dynamic>>[];
+  Route<dynamic>? _fullWindowRoute;
+
+  /// Kendi masaüstü düzeni olan sayfa, kendi rotasını bildirir (null → kaydı kaldır).
+  void registerFullWindowRoute(Route<dynamic>? route) {
+    _fullWindowRoute = route;
+    _update();
+  }
+
+  void _update() {
+    Route<dynamic>? topPage;
+    for (final r in _stack.reversed) {
+      if (r is! PopupRoute) {
+        topPage = r;
+        break;
+      }
+    }
+    final v = _fullWindowRoute != null && identical(topPage, _fullWindowRoute);
+    if (fullWindow.value != v) fullWindow.value = v;
+  }
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _stack.add(route);
+    _update();
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _stack.remove(route);
+    _update();
+  }
+
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _stack.remove(route);
+    _update();
+  }
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    final i = oldRoute == null ? -1 : _stack.indexOf(oldRoute);
+    if (newRoute != null) {
+      if (i >= 0) {
+        _stack[i] = newRoute;
+      } else {
+        _stack.add(newRoute);
+      }
+    } else if (i >= 0) {
+      _stack.removeAt(i);
+    }
+    _update();
+  }
+}
+
 class JuzzioDesktopFrame extends StatelessWidget {
   const JuzzioDesktopFrame({super.key, required this.child, this.enabled});
 
@@ -45,6 +111,21 @@ class JuzzioDesktopFrame extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!(enabled ?? juzzioIsDesktop)) return child;
+    // GM-006: sohbet ana ekranı en üstteyken pencerenin tamamı 3 panel düzenine bırakılır
+    final obs = JuzzioDesktopFrameObserver.instance;
+    final call = JuzzioActiveCall.instance;
+    return ListenableBuilder(
+      listenable: Listenable.merge([obs.fullWindow, call]),
+      // 3 panel düzeni ≥ kJuzzioDesktopThreePanelMin genişlikte açılır; daha dar pencerede çerçeve sürer.
+      // GM-9276: tam ekran arama (küçültülmemiş) da pencerenin tamamını kullanır (masaüstü arama düzeni).
+      builder: (context, _) {
+        final full = obs.fullWindow.value || (call.isActive && call.view == JuzzioCallView.full);
+        return full && MediaQuery.sizeOf(context).width >= kJuzzioDesktopThreePanelMin ? child : _framed(context);
+      },
+    );
+  }
+
+  Widget _framed(BuildContext context) {
     final mq = MediaQuery.of(context);
     final panel = juzzioDesktopPanelSize(mq.size);
     if (panel == null) return child;

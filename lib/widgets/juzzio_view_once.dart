@@ -12,7 +12,6 @@ import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:video_player/video_player.dart';
 
 import '../services/juzzio_gallery_saver.dart' show JuzzioDownloadAction;
@@ -23,6 +22,7 @@ import '../services/juzzio_media_url.dart';
 import '../services/supabase_service.dart';
 import 'juzzio_encrypted_image.dart';
 import 'juzzio_motion.dart';
+import '../core/juzzio_temp_dir.dart';
 
 const MethodChannel _kSecureChannel = MethodChannel('juzzio/notifications');
 
@@ -358,7 +358,7 @@ class _JuzzioEncryptedVideoTileState extends State<JuzzioEncryptedVideoTile> {
     try {
       final bytes = await JuzzioEncryptedMedia.load(widget.messageId, widget.url, keepInMemory: false);
       if (bytes == null) throw Exception('decrypt_failed');
-      final dir = await getTemporaryDirectory();
+      final dir = await juzzioTempDir();
       final f = File('${dir.path}/jv_${widget.messageId}.mp4');
       if (!f.existsSync()) await f.writeAsBytes(bytes, flush: true);
       if (!mounted) return;

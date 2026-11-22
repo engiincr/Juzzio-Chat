@@ -201,12 +201,22 @@ class JuzzioSkyScene {
 }
 
 class JuzzioSky21Painter extends CustomPainter {
-  JuzzioSky21Painter({required this.t, required this.scene, required this.dark, required this.still}) : super(repaint: t);
+  JuzzioSky21Painter({
+    required this.t,
+    required this.scene,
+    required this.dark,
+    required this.still,
+    this.celestial = true,
+  }) : super(repaint: t);
 
   final Animation<double> t;
   final JuzzioSkyScene scene;
   final bool dark;
   final bool still;
+
+  /// GM-014: false → güneş/ay arka plana çizilmez (ay evresi başlıktaki sabit simgede durur,
+  /// düğmelerin arkasına/üstüne binmez).
+  final bool celestial;
 
   static final List<Offset> _seeds = List<Offset>.generate(140, (i) {
     final r = math.Random(i * 92821 + 7);
@@ -219,8 +229,8 @@ class JuzzioSky21Painter extends CustomPainter {
     final a = dark ? 1.0 : 0.7; // açık temada daha hafif
     _sky(canvas, size, a);
     _stars(canvas, size, v, a);
-    if (scene.showSun) _sun(canvas, size, v, a);
-    if (scene.showMoon) _moon(canvas, size, a);
+    if (celestial && scene.showSun) _sun(canvas, size, v, a);
+    if (celestial && scene.showMoon) _moon(canvas, size, a);
     final clouds = juzzioCloudCount(scene.kind, scene.cloudCover);
     _clouds(canvas, size, v, a, clouds, far: true);
     switch (scene.kind) {

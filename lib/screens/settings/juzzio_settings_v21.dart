@@ -17,6 +17,7 @@ import '../../core/app_theme_and_locale.dart';
 import '../../core/config.dart';
 import '../../core/theme/juzzio_colors.dart';
 import '../../core/theme/juzzio_glass.dart';
+import '../../core/theme/juzzio_aurora.dart';
 import '../../widgets/juzzio_brand.dart';
 import '../../widgets/juzzio_neon_kit.dart';
 import '../../services/juzzio_mfa_service.dart';
@@ -36,8 +37,8 @@ class JuzzioCallSettingsPage extends StatelessWidget {
         final quality = app.dataSaverEnabled
             ? app.trEn('Düşük veri · 480p · 60 fps', 'Low data · 480p · 60 fps', 'Datensparen · 480p · 60 fps')
             : app.trEn('En yüksek · 1080p · 60 fps', 'Highest · 1080p · 60 fps', 'Höchste · 1080p · 60 fps');
-        return Scaffold(
-          backgroundColor: JuzzioGlassTokens.space.depth.last,
+        return JuzzioAuroraPage(child: Scaffold(
+          backgroundColor: Colors.transparent,
           body: SafeArea(
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
@@ -127,7 +128,7 @@ class JuzzioCallSettingsPage extends StatelessWidget {
               ],
             ),
           ),
-        );
+        ));
       },
     );
   }
@@ -547,8 +548,8 @@ class _JuzzioTwoFactorPageState extends State<JuzzioTwoFactorPage> {
   Widget build(BuildContext context) {
     final app = _app;
     final pending = _pending;
-    return Scaffold(
-      backgroundColor: JuzzioGlassTokens.space.depth.last,
+    return JuzzioAuroraPage(child: Scaffold(
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
@@ -656,7 +657,7 @@ class _JuzzioTwoFactorPageState extends State<JuzzioTwoFactorPage> {
           ],
         ),
       ),
-    );
+    ));
   }
 }
 
@@ -769,11 +770,9 @@ class JuzzioTranslationModeCard extends StatelessWidget {
   }
 }
 
-/// Faz 8.4 — Görünüm: tema kipi + mesaj balonu köşe yuvarlaklığı
+/// Faz 8.4 — Görünüm: mesaj balonu köşe yuvarlaklığı (tema kipi GM-014'te tek kontrole indi)
 class JuzzioAppearanceQuickCard extends StatelessWidget {
   const JuzzioAppearanceQuickCard({super.key});
-
-  static const modes = ['system', 'light', 'dark', 'scheduled'];
 
   @override
   Widget build(BuildContext context) {
@@ -781,27 +780,14 @@ class JuzzioAppearanceQuickCard extends StatelessWidget {
     return ListenableBuilder(
       listenable: app,
       builder: (context, _) {
-        final i = modes.indexOf(app.themeSelectionMode).clamp(0, 3);
         final r = app.bubbleRadius;
         return Padding(
           padding: const EdgeInsets.only(bottom: 18),
           child: JuzzioNeonCard(
             padding: const EdgeInsets.all(16),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(app.trEn('Tema', 'Theme', 'Design'),
-                  style: TextStyle(color: JuzzioGlassTokens.heading, fontSize: 15.5, fontWeight: FontWeight.w800)),
-              const SizedBox(height: 10),
-              JuzzioNeonChips(
-                labels: [
-                  app.trEn('Sistem', 'System', 'System'),
-                  app.trEn('Açık', 'Light', 'Hell'),
-                  app.trEn('Koyu', 'Dark', 'Dunkel'),
-                  app.trEn('Zamanlı', 'Scheduled', 'Geplant'),
-                ],
-                selected: i,
-                onChanged: (k) => app.setThemeSelectionMode(modes[k]),
-              ),
-              const SizedBox(height: 18),
+              // GM-014: Sistem/Açık/Koyu/Zamanlı burada ikinci kez vardı; tek kontrol aşağıdaki
+              // "Gece / Gündüz" (JuzzioThemeModeSelector). Bu kartta yalnız balon köşeleri kalır.
               Row(children: [
                 Expanded(
                   child: Text(app.trEn('Mesaj balonu köşeleri', 'Message bubble corners', 'Ecken der Sprechblasen'),
@@ -1101,8 +1087,8 @@ class _JuzzioConsentCenterPageState extends State<JuzzioConsentCenterPage> {
     final rows = _rows;
     return ListenableBuilder(
       listenable: app,
-      builder: (context, _) => Scaffold(
-        backgroundColor: JuzzioGlassTokens.space.depth.last,
+      builder: (context, _) => JuzzioAuroraPage(child: Scaffold(
+        backgroundColor: Colors.transparent,
         body: SafeArea(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
@@ -1160,7 +1146,7 @@ class _JuzzioConsentCenterPageState extends State<JuzzioConsentCenterPage> {
             ],
           ),
         ),
-      ),
+      )),
     );
   }
 }
@@ -1409,8 +1395,8 @@ class _JuzzioVerificationRequestPageState extends State<JuzzioVerificationReques
     final verified = st?['verified'] == true;
     final req = st?['request'] is Map ? Map<String, dynamic>.from(st!['request'] as Map) : null;
     final pending = req?['status'] == 'pending';
-    return Scaffold(
-      backgroundColor: JuzzioGlassTokens.space.depth.last,
+    return JuzzioAuroraPage(child: Scaffold(
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
@@ -1493,6 +1479,6 @@ class _JuzzioVerificationRequestPageState extends State<JuzzioVerificationReques
           ],
         ),
       ),
-    );
+    ));
   }
 }

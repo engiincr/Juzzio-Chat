@@ -1,4 +1,6 @@
 // =============================================================================
+// GM-002 (21.11.2026): ilk açılış doğrudan Giriş/Kayıt (K2); giriş/kayıt arayüzü
+// widgets/auth/ altındaki ortak bileşenlerle yeniden kuruldu (K1, K4). Aşağıdaki eski başlık tarihseldir.
 // JUZZIO v0.1.0 - Instagram.jpg Beyaz Tema ("Inspired people" / "Cool!" &
 // "Turn on notifications") Onboarding + 139+ Dil Otomatik Cihaz Dili Algılama
 // + R-RegularBold.otf & RBold-İtalic.otf Font Entegrasyonu
@@ -6,14 +8,10 @@
 
 import 'dart:async';
 import 'dart:io';
-import 'dart:math' as math;
-import 'dart:ui' show ImageFilter;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/app_theme_and_locale.dart';
 import 'core/config.dart';
@@ -32,23 +30,19 @@ import 'services/juzzio_call_actions.dart';
 import 'services/supabase_service.dart';
 import 'services/juzzio_features_service.dart';
 import 'screens/banned_screen.dart';
-import 'core/theme/juzzio_colors.dart';
 import 'core/theme/juzzio_aurora.dart';
 import 'core/theme/juzzio_glass.dart';
-import 'widgets/juzzio_motion.dart';
+import 'core/theme/juzzio_design_tokens.dart';
+import 'widgets/juzzio_motion.dart' show JuzzioLiveIsland;
 import 'widgets/juzzio_splash.dart';
 import 'widgets/juzzio_consent.dart';
 import 'widgets/juzzio_weather_ambience.dart';
 import 'widgets/profile_extras.dart' show JuzzioMusicRouteObserver;
 import 'core/juzzio_ui_sync.dart';
-import 'widgets/juzzio_password_strength.dart';
-import 'core/juzzio_text_safety.dart';
 import 'core/juzzio_audio_guard.dart';
-import 'widgets/juzzio_intro_motion.dart';
-import 'widgets/juzzio_auth_hero.dart';
-import 'widgets/juzzio_brand.dart';
-import 'widgets/juzzio_neon_kit.dart';
 import 'widgets/juzzio_a11y_filter.dart';
+import 'widgets/auth/juzzio_auth_kit.dart' show JuzzioAuthBackdrop;
+import 'widgets/auth/juzzio_auth_view.dart';
 import 'services/juzzio_mfa_service.dart';
 import 'screens/settings/juzzio_settings_v21.dart' show showJuzzioMfaCodeDialog;
 
@@ -61,6 +55,13 @@ Future<void> main() async {
     try {
       final ofl = await rootBundle.loadString('assets/fonts/NotoColorEmoji-OFL.txt');
       yield LicenseEntryWithLineBreaks(const ['Noto Color Emoji'], ofl);
+    } catch (_) {}
+    // GM-002: giriş/kayıt yazı tipi ve emoji görselleri
+    try {
+      yield LicenseEntryWithLineBreaks(const ['Inter'], await rootBundle.loadString('assets/fonts/inter/Inter-OFL.txt'));
+    } catch (_) {}
+    try {
+      yield LicenseEntryWithLineBreaks(const ['Fluent Emoji (Microsoft)'], await rootBundle.loadString('assets/auth/emoji/FluentEmoji-LICENSE-MIT.txt'));
     } catch (_) {}
     yield const LicenseEntryWithLineBreaks(['Open-Meteo'], 'Weather data by Open-Meteo.com — Creative Commons Attribution 4.0 International (CC BY 4.0). https://open-meteo.com/');
   });
@@ -287,7 +288,7 @@ class JuzzioApp extends StatelessWidget {
           // v1.3.2 masaüstü: fare/dokunmatik yüzeyle sürükleyerek kaydırma
           scrollBehavior: const JuzzioScrollBehavior(),
           // v1.2.8: hava katmanı yalnız ana ekranda (tam ekran sayfaların üstüne binmez)
-          navigatorObservers: [JuzzioAmbienceRouteObserver.instance, JuzzioMusicRouteObserver.instance],
+          navigatorObservers: [JuzzioAmbienceRouteObserver.instance, JuzzioMusicRouteObserver.instance, JuzzioDesktopFrameObserver.instance],
           debugShowCheckedModeBanner: false,
           themeMode: appCtrl.themeMode,
           // v0.8.1: aydınlık mod da aynı cam bileşen temalarını kullanır
@@ -372,10 +373,6 @@ class JuzzioRootFlow extends StatefulWidget {
 }
 
 class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
-  // 0 = Onboarding 1 (Instagram.jpg Left: Inspired people / Cool!),
-  // 1 = Onboarding 2 (Instagram.jpg Right: Turn on notifications),
-  // 2 = Kayıt Ol / Giriş Yap
-  int _step = 0;
   // Açılışta oturum/tanıtım durumu belirlenene kadar yalnızca logo gösterilir
   // (tanıtım ekranı her açılışta görünmez).
   bool _booting = true;
@@ -392,7 +389,6 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
   final TextEditingController _confirmPasswordCtrl = TextEditingController();
 
   bool _obscurePassword = true;
-  bool _obscureConfirmPassword = true;
   bool _isLoading = false;
   String? _errorText;
 
@@ -404,31 +400,13 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
     _boot();
   }
 
-  static Future<File> _onboardingFlagFile() async {
-    final dir = await getApplicationSupportDirectory();
-    return File('${dir.path}/juzzio_onboarding_done');
-  }
-
-  Future<void> _markOnboardingDone() async {
-    try {
-      final f = await _onboardingFlagFile();
-      if (!f.existsSync()) await f.writeAsString('1');
-    } catch (_) {}
-  }
-
   /// Açılış: oturum varsa doğrudan Mesajlar'a gider (cihaz engeli ChatScreen'de denetlenir);
-  /// oturum yoksa tanıtım yalnızca ilk kurulumda gösterilir, sonrasında giriş ekranı açılır.
+  /// oturum yoksa doğrudan giriş ekranı açılır (GM-002, K2).
   Future<void> _boot() async {
     if (_checkActiveSession()) return;
-    var seen = false;
-    try {
-      seen = (await _onboardingFlagFile()).existsSync();
-    } catch (_) {}
     if (!mounted) return;
-    setState(() {
-      _step = seen ? 2 : 0;
-      _booting = false;
-    });
+    // GM-002 (K2): tanıtım/izin ekranları yok; oturum yoksa doğrudan Giriş Yap / Kayıt Ol
+    setState(() => _booting = false);
     final res = await JuzzioFeaturesService.instance.checkDeviceAccess();
     if (res.banned && mounted) {
       await Navigator.of(context).push<bool>(
@@ -467,7 +445,6 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
             if (!mounted) return;
             setState(() {
               _booting = false;
-              _step = 2;
               _errorText = JuzzioAppController.instance.trEn('İki adımlı doğrulama tamamlanmadı. Tekrar giriş yap.',
                   'Two-step verification was not completed. Please sign in again.', 'Zwei-Schritt-Verifizierung nicht abgeschlossen. Bitte erneut anmelden.');
             });
@@ -499,25 +476,8 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
     super.dispose();
   }
 
-  Future<void> _handleTurnOnNotifications() async {
-    try {
-      await [
-        Permission.notification,
-        Permission.microphone,
-        Permission.camera,
-        Permission.photos,
-        Permission.videos,
-        Permission.ignoreBatteryOptimizations,
-      ].request();
-    } catch (_) {}
-    if (!mounted) return;
-    unawaited(_markOnboardingDone());
-    setState(() => _step = 2);
-  }
-
   // v1.2.3: iki kutu — zorunlu (koşullar + 15 yaş + aydınlatma beyanı) ve isteğe bağlı ticari ileti
   JuzzioConsentState _consent = const JuzzioConsentState();
-  bool _consentError = false;
 
   /// v2.1: şifre sıfırlama bağlantısı. Hesabın var olup olmadığı açıklanmaz (aynı yanıt).
   Future<void> _forgotPassword() async {
@@ -572,13 +532,9 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
   Future<void> _oauthSignIn(String provider) async {
     final appCtrl = JuzzioAppController.instance;
     if (!_consent.requiredAccepted) {
-      setState(() => _consentError = true);
       final ok = await juzzioOpenRequiredConsent(context);
       if (!mounted || !ok) return;
-      setState(() {
-        _consent = _consent.copyWith(termsNotice: true);
-        _consentError = false;
-      });
+      setState(() => _consent = _consent.copyWith(termsNotice: true));
     }
     final p = switch (provider) {
       'google' => OAuthProvider.google,
@@ -610,7 +566,6 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
     // kayıt olunamaz ve giriş yapılamaz. İşaretlenmemişse metin otomatik açılır; sonuna inip
     // "Okudum ve anladım"a basınca işlem kaldığı yerden devam eder.
     if (!_consent.requiredAccepted) {
-      setState(() => _consentError = true);
       final ok = await juzzioOpenRequiredConsent(context);
       if (!mounted) return;
       if (!ok) {
@@ -621,10 +576,7 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
             ));
         return;
       }
-      setState(() {
-        _consent = _consent.copyWith(termsNotice: true);
-        _consentError = false;
-      });
+      setState(() => _consent = _consent.copyWith(termsNotice: true));
     }
 
     final password = _passwordCtrl.text;
@@ -709,166 +661,31 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
   @override
   Widget build(BuildContext context) {
     final appCtrl = JuzzioAppController.instance;
-    // İlk iki karşılama adımı ("Harika!" ve "Bildirimleri aç") kullanıcının
-    // isteğiyle özgün görünümünde kalır; giriş/kayıttan itibaren cam tema.
-    // v1.2.9 düzeltme: karşılama adımları açık zemine ZORLANIYORDU ama yazı renkleri gerçek temadan
-    // geliyordu → koyu temada açık zemin üstünde beyaz yazı (okunmuyordu). Zemin de yazı da artık
-    // aynı kaynaktan (gerçek gece/gündüz modu) gelir.
-    // v1.2.9 düzeltme (2): açık zeminde beyaz yazı / koyu kart sorunu sürüyordu çünkü zemin ile yazı
-    // rengi farklı kaynaklardan gelebiliyordu (gece-gündüz modu, özel tema, hava teması). Artık zemin,
-    // GERÇEKTE kullanılan yazı renginden türetilir ve opaktır: yazı açıksa zemin koyu, yazı koyuysa
-    // zemin açık. Karşılama, bildirim izni ve giriş/kayıt sayfalarında karşıtlık her koşulda sağlanır.
-    final lightText = JuzzioGlassTokens.textPrimary.computeLuminance() > 0.5;
-    final p = JuzzioPalette(lightText);
-    final s = JuzzioStrings(appCtrl.uiLang);
-    final authBg = (!_booting && _step >= 2)
-        // v2.1 (tasarım: Giriş/Kayıt): üst yarı limon, alt yarı koyu
-        ? const [Color(0xFFA5C748), Color(0xFF111213), Color(0xFF111213)]
-        : lightText
-            ? const [Color(0xFF050916), Color(0xFF0A1230), Color(0xFF070B1C)]
-            : const [Color(0xFFF6F8FE), Color(0xFFE9EEFA), Color(0xFFF3F6FD)];
-
+    // GM-002 (K2): ilk açılıştaki 2 tanıtım/izin ekranı kaldırıldı; açılış → (oturum yoksa) doğrudan
+    // Giriş Yap / Kayıt Ol. Zemin: lime hero yalnız bu ekranda (K1); gece/gündüz temasından bağımsızdır.
     return Scaffold(
-      // v2.1: giriş/kayıtta klavye sayfayı küçültmez (sayfa kendisi kaydırır)
-      resizeToAvoidBottomInset: _booting || _step < 2,
-      backgroundColor: authBg.first,
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: authBg)),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // v2.1: giriş/kayıt sayfasında üst çubuk yok (tasarım: sayfanın kendi başlığı var)
-              if (_booting || _step < 2) _buildTopBar(p, s, appCtrl),
-              Expanded(
-                // v1.2.9: karşılama → bildirim → giriş/kayıt arasında akıcı sayfa geçişi
-                // (paylaşılan eksen: yeni sayfa sağdan süzülür + hafif büyür, eskisi sola kayıp söner)
-                // ve arkada adıma göre yer değiştiren yumuşak renk lekeleri
-                child: Stack(
-                  children: [
-                    if (!_booting && _step < 2 && !appCtrl.reduceMotion) Positioned.fill(child: IgnorePointer(child: JuzzioIntroBlobs(step: _step))),
-                    AnimatedSwitcher(
-                      duration: Duration(milliseconds: appCtrl.reduceMotion ? 0 : 560),
-                      reverseDuration: Duration(milliseconds: appCtrl.reduceMotion ? 0 : 380),
-                      switchInCurve: Curves.easeOutCubic,
-                      switchOutCurve: Curves.easeInCubic,
-                      transitionBuilder: juzzioIntroTransition,
-                      child: KeyedSubtree(
-                        key: ValueKey(_booting ? -1 : _step),
-                        child: _booting
-                            ? const JuzzioSplash()
-                            : _step == 0
-                            ? JuzzioStaggerIn(child: _buildOnboardingStep1Cool(p, s))
-                            : _step == 1
-                                ? JuzzioStaggerIn(child: _buildOnboardingStep2Notifications(p, s, appCtrl))
-                                : JuzzioStaggerIn(child: _buildAuthScreen(p, s, appCtrl)),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTopBar(JuzzioPalette p, JuzzioStrings s, JuzzioAppController appCtrl) {
-    final langOpt = appCtrl.getLanguageOption(appCtrl.uiLang);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      child: Row(
+      // Klavye sayfayı küçültmez; JuzzioAuthLayout kendi içinde kaydırır ve odaktaki alanı gösterir.
+      resizeToAvoidBottomInset: false,
+      backgroundColor: JuzzioColorTokens.formDark,
+      body: Stack(
         children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: JuzzioColors.ink,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: p.softCardShadow,
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.asset(
-                'assets/logo/juzzio_logo.png',
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => const Icon(Icons.bolt_rounded, color: Colors.white, size: 22),
-              ),
+          // Açılış (splash) koyu AMOLED zeminde; lime hero yalnız giriş/kayıt görünürken (K1)
+          Positioned.fill(
+            child: AnimatedSwitcher(
+              duration: appCtrl.reduceMotion ? Duration.zero : JuzzioMotion.fadeIn,
+              child: _booting
+                  ? const ColoredBox(key: ValueKey('bg_boot'), color: JuzzioColorTokens.appBackgroundDark, child: SizedBox.expand())
+                  : const JuzzioAuthBackdrop(key: ValueKey('bg_auth')),
             ),
           ),
-          const SizedBox(width: 10),
-          Text(
-            'Juzzio',
-            style: TextStyle(
-              fontFamily: JuzzioConfig.fontRegularBold,
-              color: p.textPrimary,
-              fontSize: 21,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.4,
-            ),
-          ),
-          const Spacer(),
-          // 139+ Dil Hızlı Seçici Kapsülü (Giriş / Kayıt ekranı dahil her yerde dil değiştirilebilir)
-          GestureDetector(
-            onTap: () {
-              JuzzioLanguagePickerSheet.show(
-                context,
-                title: s.t('app_lang_title'),
-                subtitle: s.t('app_lang_sub'),
-                currentCode: appCtrl.uiLang,
-                onSelected: (code) {
-                  juzzioSwitchUiLanguage(context, code, alsoSubtitle: true);
-                },
-              );
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6.5),
-              decoration: BoxDecoration(
-                color: p.pillBg,
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: p.glassBorder),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(langOpt.flag, style: const TextStyle(fontSize: 14)),
-                  const SizedBox(width: 5),
-                  Text(
-                    langOpt.code.toUpperCase(),
-                    style: TextStyle(
-                      fontFamily: JuzzioConfig.fontRegularBold,
-                      color: p.textPrimary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(width: 2),
-                  Icon(Icons.keyboard_arrow_down_rounded, color: p.textSecondary, size: 15),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: appCtrl.toggleThemeMode,
-            child: Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: p.pillBg,
-                shape: BoxShape.circle,
-                border: Border.all(color: p.glassBorder),
-              ),
-              child: JuzzioSymbolSwap(
-                child: Icon(
-                  appCtrl.isDark ? Icons.dark_mode_rounded : Icons.wb_sunny_rounded,
-                  key: ValueKey(appCtrl.isDark),
-                  color: p.textPrimary,
-                  size: 17,
-                ),
-              ),
+          SafeArea(
+            bottom: false,
+            child: AnimatedSwitcher(
+              duration: appCtrl.reduceMotion ? Duration.zero : JuzzioMotion.fadeIn,
+              switchInCurve: Curves.easeOutCubic,
+              child: _booting
+                  ? const KeyedSubtree(key: ValueKey('boot'), child: JuzzioSplash())
+                  : KeyedSubtree(key: const ValueKey('auth'), child: _buildAuthScreen(appCtrl)),
             ),
           ),
         ],
@@ -876,798 +693,69 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
     );
   }
 
-  /// Instagram.jpg Sol Ekran: "Inspired people" + "Cool!" Geniş Siyah Hap Buton
-  Widget _buildOnboardingStep1Cool(JuzzioPalette p, JuzzioStrings s) {
-    // İlk iki karşılama ekranı v0.5.0 cam temasından muaftır: özgün renkler sabit tutulur
-    const orbitColors = [
-      Color(0xFF1F2937),
-      Color(0xFF8E8E93),
-      JuzzioColors.amber500,
-      JuzzioColors.emerald500,
-      Color(0xFF9A9AA0),
-      Color(0xFFC7C7CC),
-      JuzzioColors.red500,
-      JuzzioColors.teal500,
-      Color(0xFF636366),
-      JuzzioColors.amber600,
-    ];
-    const orbitInitials = ['M', 'S', 'V', 'K', 'A', 'L', 'T', 'N', 'R', 'E'];
-
-    return Padding(
-      key: const ValueKey('onb1_cool'),
-      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 10),
-      child: Column(
-        children: [
-          const Spacer(),
-          SizedBox(
-            width: 300,
-            height: 300,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                // Yumuşak eşmerkezli halkalar (Instagram.jpg sol görseldeki gibi)
-                Container(
-                  width: 250,
-                  height: 250,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: p.isDark
-                        ? Colors.white.withValues(alpha: 0.02)
-                        : JuzzioColors.surfaceF5F6FA,
-                  ),
-                ),
-                Container(
-                  width: 175,
-                  height: 175,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: p.isDark
-                        ? Colors.white.withValues(alpha: 0.03)
-                        : JuzzioColors.surfaceECEFF5.withValues(alpha: 0.7),
-                  ),
-                ),
-                // Yörüngedeki yuvarlatılmış kare profil kartları
-                ...List.generate(10, (i) {
-                  final angle = (i * 2 * math.pi / 10) - math.pi / 2;
-                  final radius = i.isEven ? 114.0 : 104.0;
-                  final dx = radius * math.cos(angle);
-                  final dy = radius * math.sin(angle);
-                  final size = i % 3 == 0 ? 48.0 : 42.0;
-                  return Transform.translate(
-                    offset: Offset(dx, dy),
-                    child: Transform.rotate(
-                      angle: (i.isEven ? 0.12 : -0.12),
-                      child: Container(
-                        width: size,
-                        height: size,
-                        decoration: BoxDecoration(
-                          color: orbitColors[i % orbitColors.length],
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: Colors.white, width: 2),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.14),
-                              blurRadius: 14,
-                              offset: const Offset(0, 6),
-                            ),
-                          ],
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          orbitInitials[i],
-                          style: const TextStyle(
-                            fontFamily: JuzzioConfig.fontRegularBold,
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                }),
-                // Merkezdeki büyük yuvarlatılmış kare portre kartı
-                Container(
-                  width: 96,
-                  height: 96,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [JuzzioColors.surface23252C, JuzzioColors.surface141519],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(28),
-                    border: Border.all(color: Colors.white, width: 3),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.18),
-                        blurRadius: 24,
-                        offset: const Offset(0, 12),
-                      ),
-                    ],
-                  ),
-                  child: const Center(
-                    child: Icon(Icons.translate_rounded, color: Colors.white, size: 42),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Spacer(),
-          Text(
-            s.t('onb1_title'),
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: JuzzioConfig.fontRegularBold,
-              color: p.textPrimary,
-              fontSize: 29,
-              height: 1.18,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.6,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              s.t('onb1_sub'),
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: p.textSecondary,
-                fontSize: 14.5,
-                height: 1.45,
-              ),
-            ),
-          ),
-          const SizedBox(height: 32),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: JuzzioCoolPillButton(
-              label: s.t('onb1_cta'),
-              height: 58,
-              onTap: () => setState(() => _step = 1),
-            ),
-          ),
-          const SizedBox(height: 28),
-        ],
-      ),
-    );
+  /// K6: sağlayıcı yalnız (1) Supabase'de açıldığı derleme ayarıyla bildirildiyse (OAUTH_PROVIDERS) ve
+  /// (2) bu platformda OAuth dönüş adresi (com.juzzio.app://login-callback) kayıtlıysa etkindir.
+  /// Şu an dönüş adresi yalnız Android manifestinde kayıtlı; iOS/macOS/Windows için pasif kalır.
+  bool _oauthAvailable(String provider) {
+    if (!JuzzioConfig.oauthProviders.contains(provider)) return false;
+    if (kIsWeb) return false;
+    return Platform.isAndroid;
   }
 
-  /// Instagram.jpg Sağ Ekran: "Lia Maria / Tom Avril" Bildirim Önizlemesi + "Turn on notifications" Siyah Hap Buton
-  Widget _buildOnboardingStep2Notifications(
-    JuzzioPalette p,
-    JuzzioStrings s,
-    JuzzioAppController appCtrl,
-  ) {
-    return Padding(
-      key: const ValueKey('onb2_notif'),
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-      child: Column(
-        children: [
-          const Spacer(),
-          // Instagram.jpg Sağ Görseldeki Pembe-Lavanta Telefon Çerçevesi ve Yüzen Beyaz Bildirim Kartları
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(16, 22, 16, 20),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topRight,
-                end: Alignment.bottomLeft,
-                colors: p.isDark
-                    ? const [JuzzioColors.surface2B1E2E, JuzzioColors.surface181A22]
-                    : const [JuzzioColors.pink50, JuzzioColors.purple50, JuzzioColors.white],
-              ),
-              borderRadius: BorderRadius.circular(36),
-              border: Border.all(
-                color: p.isDark ? Colors.white24 : JuzzioColors.surface3A1D2E,
-                width: 2.2,
-              ),
-              boxShadow: p.softCardShadow,
-            ),
-            child: Column(
-              children: [
-                Container(
-                  width: 92,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    color: JuzzioColors.surface280D1D,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  appCtrl.trEn('Pazartesi, 28 Ekim', 'Monday, October 28', 'Montag, 28. Oktober'),
-                  style: TextStyle(
-                    fontFamily: JuzzioConfig.fontRegularBold,
-                    color: p.isDark ? Colors.white70 : JuzzioColors.surface6B4C62,
-                    fontSize: 12,
-                  ),
-                ),
-                Text(
-                  '9:41',
-                  style: TextStyle(
-                    fontFamily: JuzzioConfig.fontRegularBold,
-                    color: p.isDark ? Colors.white.withValues(alpha: 0.85) : JuzzioColors.surface4A2E40.withValues(alpha: 0.55),
-                    fontSize: 44,
-                    fontWeight: FontWeight.w800,
-                    height: 1.05,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _buildMockNotificationCard(
-                  avatarColor: JuzzioColors.sky400,
-                  badgeIcon: Icons.videocam_rounded,
-                  badgeColor: JuzzioColors.blue600,
-                  name: 'Lia Maria',
-                  body: appCtrl.trEn(
-                    'Görüntülü arama başlattı • Canlı çeviri hazır',
-                    'Started a video call • Live translation ready',
-                    'Hat einen Videoanruf gestartet • Live-Übersetzung',
-                  ),
-                  timeLabel: appCtrl.trEn('şimdi', 'now', 'jetzt'),
-                ),
-                const SizedBox(height: 10),
-                _buildMockNotificationCard(
-                  avatarColor: JuzzioColors.purple400,
-                  badgeIcon: Icons.translate_rounded,
-                  badgeColor: JuzzioColors.emerald500,
-                  name: 'Tom Avril',
-                  body: appCtrl.trEn(
-                    'Yeni sesli mesaj gönderdi (Otomatik çevrildi)',
-                    'Sent a new voice message (auto-translated)',
-                    'Hat eine Sprachnotiz gesendet (Übersetzt)',
-                  ),
-                  timeLabel: appCtrl.trEn('2 dk', '2m', '2 Min.'),
-                ),
-              ],
-            ),
-          ),
-          const Spacer(),
-          Text(
-            s.t('onb2_title'),
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: JuzzioConfig.fontRegularBold,
-              color: p.textPrimary,
-              fontSize: 25,
-              height: 1.22,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.5,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            s.t('onb2_sub'),
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: p.textSecondary,
-              fontSize: 14,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 24),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: JuzzioCoolPillButton(
-              label: s.t('onb2_cta'),
-              height: 56,
-              onTap: _handleTurnOnNotifications,
-            ),
-          ),
-          const SizedBox(height: 10),
-          TextButton(
-            onPressed: () {
-              unawaited(_markOnboardingDone());
-              setState(() => _step = 2);
-            },
-            child: Text(
-              s.t('skip'),
-              style: TextStyle(
-                fontFamily: JuzzioConfig.fontRegularBold,
-                color: p.textSecondary,
-                fontSize: 13.5,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-        ],
-      ),
-    );
+  void _socialUnavailable(String provider) {
+    final appCtrl = JuzzioAppController.instance;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        behavior: SnackBarBehavior.floating,
+        content: Text(appCtrl.trEn(
+          'Bu giriş yöntemi bu cihazda henüz kullanılamıyor.',
+          'This sign-in method isn’t available on this device yet.',
+          'Diese Anmeldeart ist auf diesem Gerät noch nicht verfügbar.',
+        )),
+      ));
   }
 
-  Widget _buildMockNotificationCard({
-    required Color avatarColor,
-    required IconData badgeIcon,
-    required Color badgeColor,
-    required String name,
-    required String body,
-    required String timeLabel,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 18,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              CircleAvatar(
-                radius: 21,
-                backgroundColor: avatarColor.withValues(alpha: 0.25),
-                child: Text(
-                  juzzioInitial(name),
-                  style: const TextStyle(
-                    fontFamily: JuzzioConfig.fontRegularBold,
-                    color: JuzzioColors.ink,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-              Positioned(
-                right: -2,
-                bottom: -2,
-                child: Container(
-                  padding: const EdgeInsets.all(3.5),
-                  decoration: BoxDecoration(
-                    color: badgeColor,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 1.5),
-                  ),
-                  child: Icon(badgeIcon, color: Colors.white, size: 10),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  style: const TextStyle(
-                    fontFamily: JuzzioConfig.fontRegularBold,
-                    color: JuzzioColors.surface141519,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  body,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: JuzzioColors.surface686D78,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Text(
-            timeLabel,
-            style: const TextStyle(
-              color: JuzzioColors.surface9AA0AC,
-              fontSize: 11.5,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ===========================================================================
-  // v2.1 — Giriş Yap / Kayıt Ol (tasarım şablonu birebir)
-  //  Üst yarı limon sahne: geri düğmesi, ortada J Juzzio, yüzen emojiler, ses hapı ve büyük J logosu.
-  //  Alt yarı limon kenarlı cam kart: "Giriş Yap"/"Hesap Oluştur" hapı, limon vurgulu başlık, hap
-  //  alanlar, Beni hatırla / Şifremi unuttum, limon "→" düğmesi, "veya", Google · Apple · GitHub.
-  //  Kullanım Koşulları onayı gönderirken (henüz verilmediyse) metin açılarak alınır.
-  // ===========================================================================
-  Widget _buildAuthScreen(JuzzioPalette p, JuzzioStrings s, JuzzioAppController appCtrl) {
-    const lime = JuzzioBrandColors.lime;
+  Widget _buildAuthScreen(JuzzioAppController appCtrl) {
     final reg = _isRegisterMode;
-    String t(String tr, String en, String de) => appCtrl.trEn(tr, en, de);
-
-    Widget field({
-      required TextEditingController c,
-      required String hint,
-      required IconData icon,
-      bool obscure = false,
-      Widget? suffix,
-      TextInputType? type,
-    }) {
-      // v2.1 Liquid Glass alan: arkası bulanık, yarı saydam
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(999),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-          child: TextField(
-        controller: c,
-        obscureText: obscure,
-        autocorrect: false,
-        enableSuggestions: false,
-        keyboardType: type,
-        textCapitalization: TextCapitalization.none,
-        cursorColor: lime,
-        style: const TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15),
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: Colors.white.withValues(alpha: 0.55), fontSize: 14.5),
-          prefixIcon: Padding(
-            padding: const EdgeInsets.only(left: 18, right: 10),
-            child: Icon(icon, color: Colors.white, size: 22),
-          ),
-          suffixIcon: suffix,
-          filled: true,
-          fillColor: Colors.black.withValues(alpha: 0.30),
-          contentPadding: const EdgeInsets.symmetric(vertical: 17),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(999), borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.20))),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(999), borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.20))),
-          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(999), borderSide: const BorderSide(color: lime, width: 1.8)),
-        ),
-          ),
-        ),
-      );
-    }
-
-    Widget social(String provider) {
-      final Widget mark = switch (provider) {
-        'google' => const JuzzioGoogleMark(size: 26),
-        'apple' => const Icon(Icons.apple, size: 30, color: Colors.white),
-        _ => const JuzzioGithubMark(size: 28),
-      };
-      return GestureDetector(
-        onTap: _isLoading
-            ? null
-            : () {
-                if (JuzzioConfig.oauthProviders.contains(provider)) {
-                  _oauthSignIn(provider);
-                } else {
-                  setState(() => _errorText = t(
-                      '${provider == 'google' ? 'Google' : provider == 'apple' ? 'Apple' : 'GitHub'} ile giriş yakında açılacak. Şimdilik kullanıcı adı ve şifreyle devam et.',
-                      'Sign-in with ${provider == 'google' ? 'Google' : provider == 'apple' ? 'Apple' : 'GitHub'} is coming soon. Use your username and password for now.',
-                      'Anmeldung mit ${provider == 'google' ? 'Google' : provider == 'apple' ? 'Apple' : 'GitHub'} folgt bald.'));
-                }
-              },
-        child: Container(
-          width: 64,
-          height: 64,
-          margin: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.white.withValues(alpha: 0.08),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
-          ),
-          alignment: Alignment.center,
-          child: mark,
-        ),
-      );
-    }
-
-    final title = reg ? t("Juzzio'ya ", 'Join ', 'Willkommen bei ') : t('Tekrar Hoş ', 'Welcome ', 'Willkommen ');
-    final titleMark = reg ? t('Katıl', 'Juzzio', 'Juzzio') : t('Geldin!', 'back!', 'zurück!');
-
-    // Kartın içeriği (tasarım ölçüleri; küçük ekranlarda bütünüyle orantılı küçülür → kaydırma yok)
-    final cardColumn = Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(999)),
-          child: Text(reg ? t('Hesap Oluştur', 'Create Account', 'Konto erstellen') : t('Giriş Yap', 'Sign In', 'Anmelden'),
-              style: const TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: Color(0xFF111113), fontWeight: FontWeight.w800, fontSize: 13)),
-        ),
-        const SizedBox(height: 12),
-        JuzzioMarkedTitle(
-          prefix: title,
-          mark: titleMark,
-          suffix: reg ? '' : ' 👋',
-          scribbleColor: lime,
-          style: const TextStyle(
-              fontFamily: JuzzioConfig.fontRegularBold,
-              fontFamilyFallback: kJuzzioEmojiFallback,
-              color: Colors.white,
-              fontSize: 30,
-              fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 6),
-        ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 320),
-          child: Text(
-          reg
-              ? t('Arkadaşlarınla bağlan, dünyanın her yerinden insanlarla sohbet et.',
-                  'Connect with friends and chat with people all over the world.', 'Verbinde dich mit Freunden und chatte weltweit.')
-              : t('Juzzio hesabına giriş yap, arkadaşlarınla kaldığın yerden devam et.',
-                  'Sign in to Juzzio and pick up where you left off with your friends.', 'Melde dich bei Juzzio an und mach weiter, wo du aufgehört hast.'),
-          textAlign: TextAlign.center,
-          style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: Colors.white.withValues(alpha: 0.85), fontSize: 14.5, height: 1.4),
-        ),
-        ),
-        const SizedBox(height: 18),
-        if (reg) ...[
-          field(c: _usernameCtrl, hint: t('Kullanıcı adı', 'Username', 'Benutzername'), icon: Icons.person_outline_rounded),
-          const SizedBox(height: 10),
-          field(c: _emailCtrl, hint: t('E-posta adresi', 'Email address', 'E-Mail-Adresse'), icon: Icons.mail_outline_rounded, type: TextInputType.emailAddress),
-        ] else
-          field(
-              c: _usernameCtrl,
-              hint: t('E-posta adresi veya kullanıcı adı', 'Email or username', 'E-Mail oder Benutzername'),
-              icon: Icons.mail_outline_rounded,
-              type: TextInputType.emailAddress),
-        const SizedBox(height: 10),
-        field(
-          c: _passwordCtrl,
-          hint: t('Şifre', 'Password', 'Passwort'),
-          icon: Icons.lock_outline_rounded,
-          obscure: _obscurePassword,
-          suffix: IconButton(
-            padding: const EdgeInsets.only(right: 14),
-            onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-            icon: Icon(_obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: Colors.white),
-          ),
-        ),
-        if (!reg) ...[
-          const SizedBox(height: 12),
-          Row(children: [
-            GestureDetector(
-              onTap: () => setState(() => _rememberMe = !_rememberMe),
-              child: Row(children: [
-                Container(
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    color: _rememberMe ? lime : Colors.transparent,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: lime, width: 1.6),
-                  ),
-                  child: _rememberMe ? const Icon(Icons.check_rounded, size: 18, color: Color(0xFF111113)) : null,
-                ),
-                const SizedBox(width: 10),
-                Text(t('Beni hatırla', 'Remember me', 'Angemeldet bleiben'),
-                    style: const TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: Colors.white, fontSize: 14.5, fontWeight: FontWeight.w500)),
-              ]),
-            ),
-            const Spacer(),
-            GestureDetector(
-              onTap: _forgotPassword,
-              child: Text(t('Şifremi unuttum?', 'Forgot password?', 'Passwort vergessen?'),
-                  style: const TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: lime, fontSize: 14.5, fontWeight: FontWeight.w800)),
-            ),
-          ]),
-        ],
-        if (_errorText != null) ...[
-          const SizedBox(height: 10),
-          Text(_errorText!, textAlign: TextAlign.center, style: const TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: Color(0xFFFF6B6B), fontWeight: FontWeight.w600)),
-        ],
-        const SizedBox(height: 16),
-        SizedBox(
-          width: double.infinity,
-          height: 56,
-          child: ElevatedButton(
-            onPressed: _isLoading
-                ? null
-                : () {
-                    if (reg) {
-                      // tasarımda şifre tekrarı ve ad alanı yok: ad = kullanıcı adı
-                      _confirmPasswordCtrl.text = _passwordCtrl.text;
-                      if (_fullNameCtrl.text.trim().isEmpty) {
-                        _fullNameCtrl.text = _usernameCtrl.text.trim().replaceAll('@', '');
-                      }
-                    }
-                    _submitAuth();
-                  },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: lime,
-              disabledBackgroundColor: lime.withValues(alpha: 0.6),
-              foregroundColor: const Color(0xFF111113),
-              elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-            ),
-            child: _isLoading
-                ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.4, color: Color(0xFF111113)))
-                : Row(mainAxisSize: MainAxisSize.min, children: [
-                    const Icon(Icons.arrow_forward_rounded, size: 24),
-                    const SizedBox(width: 12),
-                    Text(reg ? t('Kayıt Ol', 'Sign Up', 'Registrieren') : t('Giriş Yap', 'Sign In', 'Anmelden'),
-                        style: const TextStyle(fontFamily: JuzzioConfig.fontRegularBold, fontSize: 17, fontWeight: FontWeight.w900)),
-                  ]),
-          ),
-        ),
-        const SizedBox(height: 14),
-        Row(children: [
-          Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.18), indent: 28)),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: Text(t('veya', 'or', 'oder'), style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: Colors.white.withValues(alpha: 0.8), fontSize: 14)),
-          ),
-          Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.18), endIndent: 28)),
-        ]),
-        const SizedBox(height: 12),
-        Row(mainAxisAlignment: MainAxisAlignment.center, children: [social('google'), social('apple'), social('github')]),
-        const SizedBox(height: 14),
-        Wrap(
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            Text(reg ? t('Zaten hesabın var mı? ', 'Already have an account? ', 'Schon ein Konto? ') : t('Hesabın yok mu? ', "Don't have an account? ", 'Noch kein Konto? '),
-                style: const TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: Colors.white, fontSize: 14.5)),
-            GestureDetector(
-              onTap: () => setState(() {
-                _isRegisterMode = !_isRegisterMode;
-                _errorText = null;
-              }),
-              child: Text(reg ? t('Giriş Yap', 'Sign In', 'Anmelden') : t('Hesap Oluştur', 'Create Account', 'Konto erstellen'),
-                  style: const TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: lime, fontSize: 14.5, fontWeight: FontWeight.w800)),
-            ),
-          ],
-        ),
-        const SizedBox(height: 14),
-        Text(
-          '© ${DateTime.now().year} Juzzio · ${t('Tüm hakları saklıdır.', 'All rights reserved.', 'Alle Rechte vorbehalten.')}',
-          style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: Colors.white.withValues(alpha: 0.45), fontSize: 11.5, fontWeight: FontWeight.w600),
-        ),
-      ],
-    );
-
-    // v2.1 Liquid Glass kart: üstte açık buzlu cam (arkadaki sahne bulanık görünür), aşağı doğru
-    // derin kömür grisine iner; kenarda limon ışık çizgisi (ayrı ressam) ve dışta limon hale.
-    const cardDecoration = BoxDecoration(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(40)),
-      gradient: LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [Color(0x2EFFFFFF), Color(0x14FFFFFF), Color(0xD91B1D1F), Color(0xF7131415), Color(0xFF111213)],
-        stops: [0, 0.10, 0.34, 0.62, 1],
-      ),
-    );
-
-    return LayoutBuilder(
-      key: const ValueKey('auth_screen'),
-      builder: (context, box) {
-        // Ekran klavyeyle KÜÇÜLMEZ (dış Scaffold yeniden boyutlanmaz); klavye açılınca sayfa olduğu
-        // gibi kalır ve odaktaki alan klavyenin üstüne kaydırılır.
-        final kb = MediaQuery.of(context).viewInsets.bottom;
-        final w = box.maxWidth;
-        final h = box.maxHeight;
-        // Tasarım görseli (üst bar dahil) genişliğe tam oturur → boşluk ve renk kesişimi olmaz
-        // görsel: tasarımın üst bölümü (1192×836) + kartın arkasında bulanık görünen devamı (200 px)
-        final scale = w / 1192;
-        final imgH = 1036 * scale;
-        final sceneH = 836 * scale;
-        const overlap = 40.0;
-        final heroH = (sceneH - overlap).clamp(0.0, h * 0.46); // kartın başladığı yer
-        final page = SizedBox(
-          height: h,
-          child: Stack(
-            children: [
-              Positioned(
-                left: 0,
-                right: 0,
-                top: 0,
-                height: imgH,
-                child: Image.asset(
-                  'assets/images/auth_hero.jpg',
-                  fit: BoxFit.cover,
-                  alignment: Alignment.topCenter,
-                  filterQuality: FilterQuality.high,
-                ),
-              ),
-              // Uygulamanın kendi "J Juzzio" logosu ve yazı tipi (görseldeki logo kaldırıldı)
-              Positioned(
-                left: 0,
-                right: 0,
-                top: sceneH * 0.105 - sceneH * 0.06,
-                child: Center(child: JuzzioWordmark(size: (sceneH * 0.105).clamp(22.0, 44.0), color: Colors.white)),
-              ),
-              // görseldeki geri okunun üstünde dokunma alanı
-              Positioned(
-                left: w * 0.099 - 30,
-                top: sceneH * 0.0915 - 30,
-                width: 60,
-                height: 60,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    if (reg) {
-                      setState(() {
-                        _isRegisterMode = false;
-                        _errorText = null;
-                      });
-                    } else {
-                      setState(() => _step = 1);
-                    }
-                  },
-                  child: Semantics(button: true, label: MaterialLocalizations.of(context).backButtonTooltip),
-                ),
-              ),
-              Positioned(
-                left: 0,
-                right: 0,
-                top: heroH,
-                bottom: 0,
-                child: ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(40)),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 26, sigmaY: 26, tileMode: TileMode.mirror),
-                    child: Container(
-                      foregroundDecoration: const _JuzzioRimLight(),
-                      decoration: cardDecoration,
-                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-                      // Kart içeriği tasarım ölçüsünde; yalnız gerekirse (çok kısa ekran) bütün olarak küçülür
-                      child: MediaQuery(
-                        data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          alignment: Alignment.topCenter,
-                          child: SizedBox(width: (w - 32).clamp(280.0, 520.0), child: cardColumn),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-        return SingleChildScrollView(
-          physics: kb > 0 ? const ClampingScrollPhysics() : const NeverScrollableScrollPhysics(),
-          padding: EdgeInsets.only(bottom: kb),
-          child: page,
-        );
+    return JuzzioAuthView(
+      registerMode: reg,
+      t: appCtrl.trEn,
+      identifierController: _usernameCtrl,
+      emailController: _emailCtrl,
+      passwordController: _passwordCtrl,
+      obscurePassword: _obscurePassword,
+      onToggleObscure: () => setState(() => _obscurePassword = !_obscurePassword),
+      rememberMe: _rememberMe,
+      onRememberChanged: (v) => setState(() => _rememberMe = v),
+      loading: _isLoading,
+      errorText: _errorText,
+      reduceMotion: appCtrl.reduceMotion,
+      onSubmit: () {
+        if (reg) {
+          // v2.1 davranışı korunur: tasarımda şifre tekrarı ve ad alanı yok → ad = kullanıcı adı
+          _confirmPasswordCtrl.text = _passwordCtrl.text;
+          if (_fullNameCtrl.text.trim().isEmpty) {
+            _fullNameCtrl.text = _usernameCtrl.text.trim().replaceAll('@', '');
+          }
+        }
+        _submitAuth();
       },
+      onForgotPassword: _forgotPassword,
+      onToggleMode: () => setState(() {
+        _isRegisterMode = !_isRegisterMode;
+        _errorText = null;
+      }),
+      // Geri düğmesi yalnız gerçek bir geri işlemi olduğunda (kayıt → giriş). Girişte gidilecek yer yok.
+      onBack: reg
+          ? () => setState(() {
+                _isRegisterMode = false;
+                _errorText = null;
+              })
+          : null,
+      socialEnabled: {for (final p in JuzzioAuthView.providers) p: _oauthAvailable(p)},
+      onSocial: _oauthSignIn,
+      onSocialUnavailable: _socialUnavailable,
     );
-  }
-}
-
-/// v2.1 Liquid Glass kenar ışığı: YALNIZ kartın yuvarlak üst kenarında ince beyaz parıltı
-/// (ortada güçlü, köşelere doğru söner). Yanlarda ve altta hiçbir renkli çizgi/hale yoktur —
-/// kart ekranın kenarlarına kadar uzandığı için kenar çizgisi temayı bozuyordu.
-class _JuzzioRimLight extends Decoration {
-  const _JuzzioRimLight();
-  @override
-  BoxPainter createBoxPainter([VoidCallback? onChanged]) => _RimPainter();
-}
-
-class _RimPainter extends BoxPainter {
-  @override
-  void paint(Canvas canvas, Offset offset, ImageConfiguration cfg) {
-    final size = cfg.size;
-    if (size == null) return;
-    final rect = offset & size;
-    const r = 40.0;
-    const inset = 0.8;
-    final l = rect.left + inset, t = rect.top + inset, rgt = rect.right - inset;
-    // açık yol: sol köşe yayı → üst kenar → sağ köşe yayı (yan ve alt kenarlar çizilmez)
-    final path = Path()
-      ..moveTo(l, t + r)
-      ..arcToPoint(Offset(l + r, t), radius: const Radius.circular(r))
-      ..lineTo(rgt - r, t)
-      ..arcToPoint(Offset(rgt, t + r), radius: const Radius.circular(r));
-    final sheen = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2
-      ..strokeCap = StrokeCap.round
-      ..shader = LinearGradient(
-        colors: [
-          Colors.white.withValues(alpha: 0.0),
-          Colors.white.withValues(alpha: 0.42),
-          Colors.white.withValues(alpha: 0.42),
-          Colors.white.withValues(alpha: 0.0),
-        ],
-        stops: const [0, 0.22, 0.78, 1],
-      ).createShader(Rect.fromLTWH(rect.left, rect.top, rect.width, r));
-    canvas.drawPath(path, sheen);
   }
 }
