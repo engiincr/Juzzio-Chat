@@ -4791,191 +4791,8 @@ class JuzzioGlassThemePage extends StatelessWidget {
   }
 }
 
-class JuzzioChatThemeCustomizerPage extends StatelessWidget {
-  const JuzzioChatThemeCustomizerPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final appCtrl = JuzzioAppController.instance;
-    return ListenableBuilder(
-      listenable: appCtrl,
-      builder: (context, _) {
-        final p = JuzzioPalette(appCtrl.isDark);
-        return JuzzioAuroraPage(child: Scaffold(
-          backgroundColor: Colors.transparent,
-          appBar: AppBar(
-            // v2.1 Neon Lime: ortalı başlık + yuvarlak geri düğmesi
-            centerTitle: true,
-            leadingWidth: 64,
-            leading: const JuzzioNeonBackButton(),
-            // v1.2.9: şerit yok — başlık sayfa zeminiyle aynı (açık temada beyaz bant oluşuyordu)
-            backgroundColor: Colors.transparent,
-            surfaceTintColor: Colors.transparent,
-            scrolledUnderElevation: 0,
-            foregroundColor: p.textPrimary,
-            elevation: 0,
-            title: Text(JuzzioAppController.instance.loc('Varsayılan sohbet teması', 'Default chat theme', 'Standard-Chatdesign'), style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, fontWeight: FontWeight.w800)),
-          ),
-          body: ListView(
-            padding: const EdgeInsets.all(20),
-            children: [
-              // Canlı Sohbet Önizleme Kutusu
-              Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: JuzzioGlassTokens.surface,
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: JuzzioGlassTokens.border),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _l3('CANLI SOHBET ÖNİZLEMESİ', 'LIVE CHAT PREVIEW', 'LIVE-CHAT-VORSCHAU'),
-                      style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: JuzzioGlassTokens.glowText, fontSize: 11, fontWeight: FontWeight.w800),
-                    ),
-                    const SizedBox(height: 12),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      // v0.8.0: önizleme balonları sohbetteki gerçek balonla birebir
-                      child: Container(
-                        constraints: const BoxConstraints(maxWidth: 250),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: p.incomingBubble,
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(20), topRight: Radius.circular(20),
-                            bottomLeft: Radius.circular(6), bottomRight: Radius.circular(20)),
-                          border: Border.all(color: p.glassBorder),
-                        ),
-                        child: Text(
-                          _l3('Selam! Bu yeni tema nasıl görünüyor? ✨', 'Hey! How does this new theme look? ✨', 'Hey! Wie sieht das neue Design aus? ✨'),
-                          style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: Container(
-                        constraints: const BoxConstraints(maxWidth: 250),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: p.outgoingBubble,
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(20), topRight: Radius.circular(20),
-                            bottomLeft: Radius.circular(20), bottomRight: Radius.circular(6)),
-                        ),
-                        child: Text(
-                          _l3('Harika görünüyor, renk vurgusu tam istediğim gibi! 🔥', 'Looks great, the accent color is exactly what I wanted! 🔥', 'Sieht super aus, die Akzentfarbe ist genau richtig! 🔥'),
-                          style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
-
-              // Parlaklık ve Vurgu Yoğunluğu Kaydırıcısı
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: JuzzioGlassTokens.spaceCard,
-                  borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          _l3('Tema Vurgu ve Parlaklık Yoğunluğu', 'Theme Accent & Brightness Intensity', 'Design-Akzent & Helligkeit'),
-                          style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w800),
-                        ),
-                        Text(
-                          '${(appCtrl.chatThemeIntensity * 100).round()}%',
-                          style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: JuzzioGlassTokens.glowText, fontWeight: FontWeight.w800),
-                        ),
-                      ],
-                    ),
-                    Slider(
-                      value: appCtrl.chatThemeIntensity,
-                      min: 0.65,
-                      max: 1.35,
-                      activeColor: p.amberGlow,
-                      onChanged: appCtrl.setChatThemeIntensity,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
-
-              Text(
-                _l3('${kJuzzioAuroraPalettes.length} Liquid Glass Tasarım Ailesi', '${kJuzzioAuroraPalettes.length} Liquid Glass Design Family', '${kJuzzioAuroraPalettes.length} Liquid-Glass-Designfamilie'),
-                style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: JuzzioGlassTokens.glowText, fontWeight: FontWeight.w800, fontSize: 14),
-              ),
-              const SizedBox(height: 6),
-              const JuzzioChatThemeGallery(),
-              const SizedBox(height: 18),
-              Text(
-                _l3('${kJuzzioChatThemes.length} Sıvı Cam Sohbet Teması', '${kJuzzioChatThemes.length} Liquid Glass Chat Themes', '${kJuzzioChatThemes.length} Liquid-Glass-Chatdesigns'),
-                style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: JuzzioGlassTokens.glowText, fontWeight: FontWeight.w800, fontSize: 14),
-              ),
-              const SizedBox(height: 10),
-              ...List.generate(kJuzzioChatThemes.length, (idx) {
-                final preset = kJuzzioChatThemes[idx];
-                final selected = appCtrl.chatPaletteId.isEmpty && appCtrl.selectedChatThemeIndex == idx;
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  decoration: BoxDecoration(
-                    color: p.cardBg,
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(
-                      color: selected ? preset.secondaryColor : p.glassBorder,
-                      width: selected ? 2.0 : 1.0,
-                    ),
-                  ),
-                  child: ListTile(
-                    onTap: () => appCtrl.setChatTheme(idx),
-                    leading: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [preset.primaryColor, preset.secondaryColor],
-                        ),
-                        border: Border.all(color: Colors.white.withValues(alpha: selected ? 0.95 : 0.5), width: selected ? 2 : 1),
-                      ),
-                      child: selected ? const Icon(Icons.check_rounded, color: Colors.white, size: 20) : null,
-                    ),
-                    trailing: Container(
-                      width: 46,
-                      height: 22,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(99),
-                        gradient: LinearGradient(colors: [preset.primaryColor, preset.secondaryColor, preset.incomingDarkColor]),
-                      ),
-                    ),
-                    title: Text(
-                      preset.localizedName,
-                      style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w800),
-                    ),
-                  ),
-                );
-              }),
-            ],
-          ),
-        ));
-      },
-    );
-  }
-}
+// GM-033 (v2.2.0): JuzzioChatThemeCustomizerPage ("Tüm sohbet temaları ve önizleme") kaldırıldı;
+// sohbet temaları artık galeride dokun → kaydırmalı önizleme (parlaklık + cam + Uygula) ile seçilir.
 
 // -----------------------------------------------------------------------------
 // 3B. SOHBET YEDEKLEMESİ, AKTARMA VE SOHBET GEÇMİŞİ SAYFALARI
@@ -5325,7 +5142,7 @@ class JuzzioAppearanceSettingsPage extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 14),
-                    Expanded(child: Text('$chatThemeName · ${_l3('parlaklık', 'brightness', 'Helligkeit')}', style: title)),
+                    Expanded(child: Text(juzzioThemeSettingLabel(chatThemeName, _l3('Parlaklık', 'Brightness', 'Helligkeit')), style: title)),
                     Text('${(appCtrl.chatThemeIntensity * 100).round()}%', style: TextStyle(color: p.textSecondary, fontWeight: FontWeight.w800)),
                   ]),
                 ),
@@ -5336,14 +5153,7 @@ class JuzzioAppearanceSettingsPage extends StatelessWidget {
                   divisions: 8,
                   onChanged: appCtrl.setChatThemeIntensity,
                 ),
-                divider,
-                ListTile(
-                  leading: Icon(Icons.tune_rounded, color: JuzzioGlassTokens.glowText),
-                  title: Text(_l3('Tüm sohbet temaları ve önizleme', 'All chat themes & preview', 'Alle Chatdesigns'), style: title),
-                  subtitle: Text(_l3('${kJuzzioChatThemes.length} sıvı cam tema, canlı balon önizlemesi', '${kJuzzioChatThemes.length} liquid glass themes, live bubble preview', '${kJuzzioChatThemes.length} Designs mit Vorschau'), style: sub),
-                  trailing: Icon(Icons.chevron_right_rounded, color: p.textMuted),
-                  onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const JuzzioChatThemeCustomizerPage())),
-                ),
+                // GM-033: ayrı "Tüm sohbet temaları ve önizleme" sayfası kaldırıldı — temaya dokun → önizleme
               ]),
               // ---- 4) YAZI TİPİ BOYUTU (canlı önizleme) ----
               _section(p, _l3('Yazı tipi boyutu', 'Font size', 'Schriftgröße'), Icons.format_size_rounded, [

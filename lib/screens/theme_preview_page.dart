@@ -40,53 +40,146 @@ class JuzzioThemeSwatch extends StatelessWidget {
   }
 }
 
+/// GM-033 (v2.2.0): önizlemedeki tek bir tema (uygulama teması ya da sohbet teması)
+class JuzzioThemePreviewItem {
+  const JuzzioThemePreviewItem({
+    required this.key,
+    required this.palette,
+    required this.isApplied,
+    required this.apply,
+    this.subtitle,
+  });
+  final String key;
+  final JuzzioAuroraPalette palette;
+  final String? subtitle;
+  final bool Function(JuzzioAppController app) isApplied;
+  final void Function(JuzzioAppController app) apply;
+}
+
+/// Uygulama temaları (tüm cam aileleri)
+List<JuzzioThemePreviewItem> juzzioAppThemePreviewItems() => [
+      for (final p in kJuzzioAuroraPalettes)
+        JuzzioThemePreviewItem(
+          key: p.id,
+          palette: p,
+          isApplied: (app) => app.activeCustomTheme == null && app.glassPaletteId == p.id,
+          apply: (app) => app.setGlassPalette(p.id),
+        ),
+    ];
+
+/// GM-033: tema adı + ayar etiketi → "Gece Mavisi | Parlaklık"
+String juzzioThemeSettingLabel(String themeName, String setting) => '$themeName | $setting';
+
+/// GM-033 (v2.2.0): tema önizleme — dokun → önizleme, sağa kaydır → sonraki tema.
+/// Aynı ekranda parlaklık ve cam yoğunluğu ayarlanır; "Uygula" hepsini birlikte uygular.
+/// Uygulama temaları ve sohbet temaları aynı sayfayı kullanır ([chat] = true → sohbet teması).
 class JuzzioThemePreviewPage extends StatefulWidget {
   final String initialId;
-  const JuzzioThemePreviewPage({super.key, required this.initialId});
+  final bool chat;
+  final List<JuzzioThemePreviewItem>? items;
+  const JuzzioThemePreviewPage({super.key, required this.initialId, this.chat = false, this.items});
 
-  static Future<void> open(BuildContext context, String id) => Navigator.of(context)
-      .push(MaterialPageRoute(builder: (_) => JuzzioThemePreviewPage(initialId: id)));
+  static Future<void> open(BuildContext context, String id, {bool chat = false, List<JuzzioThemePreviewItem>? items}) =>
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => JuzzioThemePreviewPage(initialId: id, chat: chat, items: items)));
 
   @override
   State<JuzzioThemePreviewPage> createState() => _JuzzioThemePreviewPageState();
 }
 
 class _JuzzioThemePreviewPageState extends State<JuzzioThemePreviewPage> {
-  late String _id = widget.initialId;
-  late final PageController _pc = PageController(
-    initialPage: kJuzzioAuroraPalettes.indexWhere((p) => p.id == widget.initialId).clamp(0, kJuzzioAuroraPalettes.length - 1),
-    viewportFraction: 1,
-  );
+  final JuzzioAppController _app = JuzzioAppController.instance;
+  late final List<JuzzioThemePreviewItem> _items = widget.items ?? juzzioAppThemePreviewItems();
+  late int _index = _items.indexWhere((e) => e.key == widget.initialId).clamp(0, _items.length - 1);
+  late final PageController _pc = PageController(initialPage: _index);
+  late double _brightness = _app.chatThemeIntensity.clamp(0.6, 1.4).toDouble();
+  late double _glass = _app.glassIntensity;
+  late final double _origGlass = _app.glassIntensity;
+  bool _applied = false;
 
   @override
   void dispose() {
+    // uygulanmadan çıkılırsa canlı önizlemedeki cam yoğunluğu eski hâline döner
+    if (!_applied) JuzzioGlassTokens.intensity = _origGlass;
     _pc.dispose();
     super.dispose();
   }
 
+  JuzzioThemePreviewItem get _item => _items[_index];
+
+  bool get _dirty =>
+      !_item.isApplied(_app) || (_brightness - _app.chatThemeIntensity).abs() > 0.001 || (_glass - _app.glassIntensity).abs() > 0.001;
+
+  void _apply() {
+    HapticFeedback.mediumImpact();
+    _item.apply(_app);
+    _app.setChatThemeIntensity(_brightness);
+    _app.setGlassIntensity(_glass);
+    _applied = true;
+    final n = _item.palette;
+    showGlassToast(
+        context,
+        widget.chat
+            ? _app.trEn('Sohbet teması uygulandı: ${n.label('tr')}', 'Chat theme applied: ${n.label('en')}', 'Chatdesign angewendet: ${n.label('de')}')
+            : _app.trEn('Tema uygulandı: ${n.label('tr')}', 'Theme applied: ${n.label('en')}', 'Design angewendet: ${n.label('de')}'),
+        icon: Icons.check_circle_rounded);
+    setState(() {});
+  }
+
+  Widget _slider({required IconData icon, required String label, required double value, required ValueChanged<double> onChanged, required Key key}) {
+    final t = JuzzioGlassTokens.textPrimary;
+    return Row(children: [
+      Icon(icon, size: 18, color: JuzzioGlassTokens.glowText),
+      const SizedBox(width: 8),
+      SizedBox(
+        width: 150,
+        child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: t, fontWeight: FontWeight.w800, fontSize: 12.5)),
+      ),
+      Expanded(
+        child: Slider(
+          key: key,
+          value: value,
+          min: 0.6,
+          max: 1.4,
+          divisions: 16,
+          activeColor: JuzzioGlassTokens.glow,
+          onChanged: onChanged,
+        ),
+      ),
+      SizedBox(
+        width: 42,
+        child: Text('${(value * 100).round()}%',
+            textAlign: TextAlign.end, style: TextStyle(color: JuzzioGlassTokens.textSecondary, fontWeight: FontWeight.w800, fontSize: 12)),
+      ),
+    ]);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final app = JuzzioAppController.instance;
     return ListenableBuilder(
-      listenable: app,
+      listenable: _app,
       builder: (context, _) {
-        final dark = app.isDark;
+        final dark = _app.isDark;
         final t = JuzzioGlassTokens.textPrimary;
-        final applied = app.glassPaletteId == _id;
-        final pal = juzzioAuroraPaletteById(_id);
+        final pal = _item.palette;
+        final name = pal.label(_app.uiLang);
+        final dirty = _dirty;
         return Scaffold(
           backgroundColor: Colors.transparent,
           body: Stack(
             children: [
               Positioned.fill(
                 child: PageView.builder(
+                  key: const ValueKey('gm033-theme-pager'),
                   controller: _pc,
-                  itemCount: kJuzzioAuroraPalettes.length,
+                  itemCount: _items.length,
                   onPageChanged: (i) {
                     HapticFeedback.selectionClick();
-                    setState(() => _id = kJuzzioAuroraPalettes[i].id);
+                    setState(() => _index = i);
                   },
-                  itemBuilder: (_, i) => JuzzioAuroraBackground(palette: kJuzzioAuroraPalettes[i], dark: dark),
+                  itemBuilder: (_, i) => Opacity(
+                    opacity: ((_brightness - 0.6) / 0.8 * 0.45 + 0.55).clamp(0.55, 1.0),
+                    child: JuzzioAuroraBackground(palette: _items[i].palette, dark: dark),
+                  ),
                 ),
               ),
               SafeArea(
@@ -104,37 +197,34 @@ class _JuzzioThemePreviewPageState extends State<JuzzioThemePreviewPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text(pal.label(app.uiLang),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(color: t, fontSize: 20, fontWeight: FontWeight.w900)),
-                              Text(app.translateUiDynamic(pal.character.tr, enText: pal.character.en, deText: pal.character.de),
+                              Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: t, fontSize: 20, fontWeight: FontWeight.w900)),
+                              Text(
+                                  _item.subtitle ??
+                                      _app.translateUiDynamic(pal.character.tr, enText: pal.character.en, deText: pal.character.de),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(color: JuzzioGlassTokens.textSecondary, fontSize: 12)),
                             ],
                           ),
                         ),
-                        Text(app.trEn('Kaydır →', 'Swipe →', 'Wischen →'),
+                        Text('${_index + 1}/${_items.length}  ${_app.trEn('Kaydır →', 'Swipe →', 'Wischen →')}',
                             style: TextStyle(color: JuzzioGlassTokens.textSecondary, fontSize: 12)),
                       ]),
                     ),
                     const Expanded(child: IgnorePointer(child: JuzzioThemeMockPreview())),
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
                       child: SizedBox(
                         height: 46,
                         child: ListView(
                           scrollDirection: Axis.horizontal,
                           children: [
-                            for (var i = 0; i < kJuzzioAuroraPalettes.length; i++)
+                            for (var i = 0; i < _items.length; i++)
                               Padding(
                                 padding: const EdgeInsets.only(right: 10),
                                 child: GestureDetector(
-                                  onTap: () => _pc.animateToPage(i,
-                                      duration: const Duration(milliseconds: 320), curve: Curves.easeOutCubic),
-                                  child: JuzzioThemeSwatch(
-                                      palette: kJuzzioAuroraPalettes[i], size: 40, selected: kJuzzioAuroraPalettes[i].id == _id),
+                                  onTap: () => _pc.animateToPage(i, duration: const Duration(milliseconds: 320), curve: Curves.easeOutCubic),
+                                  child: JuzzioThemeSwatch(palette: _items[i].palette, size: 40, selected: i == _index),
                                 ),
                               ),
                           ],
@@ -142,28 +232,45 @@ class _JuzzioThemePreviewPageState extends State<JuzzioThemePreviewPage> {
                       ),
                     ),
                     Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                      child: JuzzioLiquidGlass(
+                        radius: 18,
+                        padding: const EdgeInsets.fromLTRB(14, 6, 12, 6),
+                        child: Column(mainAxisSize: MainAxisSize.min, children: [
+                          _slider(
+                            key: const ValueKey('gm033-brightness'),
+                            icon: Icons.brightness_6_rounded,
+                            label: juzzioThemeSettingLabel(name, _app.trEn('Parlaklık', 'Brightness', 'Helligkeit')),
+                            value: _brightness,
+                            onChanged: (v) => setState(() => _brightness = v),
+                          ),
+                          _slider(
+                            key: const ValueKey('gm033-glass'),
+                            icon: Icons.blur_on_rounded,
+                            label: juzzioThemeSettingLabel(name, _app.trEn('Cam yoğunluğu', 'Glass intensity', 'Glasintensität')),
+                            value: _glass,
+                            onChanged: (v) => setState(() {
+                              _glass = v;
+                              JuzzioGlassTokens.intensity = v; // canlı önizleme (Uygula'ya kadar kaydedilmez)
+                            }),
+                          ),
+                        ]),
+                      ),
+                    ),
+                    Padding(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                       child: FilledButton.icon(
+                        key: const ValueKey('gm033-apply'),
                         style: FilledButton.styleFrom(
-                          backgroundColor: applied ? JuzzioGlassTokens.surfaceStrong : JuzzioGlassTokens.accentFill,
-                          foregroundColor: applied ? t : JuzzioGlassTokens.onAccent,
+                          backgroundColor: dirty ? JuzzioGlassTokens.accentFill : JuzzioGlassTokens.surfaceStrong,
+                          foregroundColor: dirty ? JuzzioGlassTokens.onAccent : t,
                           minimumSize: const Size.fromHeight(54),
                           shape: const StadiumBorder(),
                         ),
-                        onPressed: applied
-                            ? null
-                            : () {
-                                HapticFeedback.mediumImpact();
-                                app.setGlassPalette(_id);
-                                showGlassToast(context, app.trEn('Tema uygulandı: ${pal.label('tr')}',
-                                    'Theme applied: ${pal.label('en')}', 'Design angewendet: ${pal.label('de')}'),
-                                    icon: Icons.check_circle_rounded);
-                              },
-                        icon: Icon(applied ? Icons.check_circle_rounded : Icons.format_color_fill_rounded),
+                        onPressed: dirty ? _apply : null,
+                        icon: Icon(dirty ? Icons.format_color_fill_rounded : Icons.check_circle_rounded),
                         label: Text(
-                          applied
-                              ? app.trEn('Bu tema kullanılıyor', 'Theme in use', 'Design aktiv')
-                              : app.trEn('Uygula', 'Apply', 'Anwenden'),
+                          dirty ? _app.trEn('Uygula', 'Apply', 'Anwenden') : _app.trEn('Bu tema kullanılıyor', 'Theme in use', 'Design aktiv'),
                           style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
                         ),
                       ),
@@ -177,7 +284,6 @@ class _JuzzioThemePreviewPageState extends State<JuzzioThemePreviewPage> {
       },
     );
   }
-
 }
 
 /// Gerçek bileşenlerle mini uygulama önizlemesi (tema önizleme ve Tema Stüdyosu ortak).

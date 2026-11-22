@@ -17,7 +17,7 @@ void main() {
   test('Cam temaları benzersiz ve turuncu ton içermez (yalnız Amber Altın bilinçli sıcak tema, KR-012)', () {
     final ids = kJuzzioAuroraPalettes.map((p) => p.id).toList();
     expect(ids.toSet().length, ids.length);
-    expect(ids, containsAll(<String>['ocean', 'amethyst', 'emerald', 'lagoon', 'chrome']));
+    expect(ids, containsAll(<String>['ocean', 'amethyst', 'emerald', 'lagoon', 'glass_white']));
     for (final p in kJuzzioAuroraPalettes.where((p) => p.id != 'amber_gold')) {
       expect(isOrange(p.swatchA), isFalse, reason: p.id);
       expect(isOrange(p.swatchB), isFalse, reason: p.id);

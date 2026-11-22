@@ -102,7 +102,7 @@ void main() {
 
   test('16 cam teması; yenileri listede', () {
     final ids = kJuzzioAuroraPalettes.map((p) => p.id).toSet();
-    expect(ids, containsAll(['aurora_borealis', 'frosted_pearl', 'midnight_sapphire', 'nordic_frost']));
+    expect(ids, containsAll(['aurora_borealis', 'nordic_frost']));
     expect(ids.length, 19); // v2.2.0: Amber Altın
   });
 }

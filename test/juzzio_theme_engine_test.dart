@@ -22,7 +22,7 @@ void main() {
   test('Tema kataloğu benzersiz ve genişletilmiş', () {
     final ids = kJuzzioAuroraPalettes.map((p) => p.id).toList();
     expect(ids.toSet().length, ids.length);
-    expect(ids, containsAll(<String>['juzzio_liquid', 'obsidian_oled', 'lavender_mist', 'rose_quartz', 'cyber_neon', 'high_contrast']));
+    expect(ids, containsAll(<String>['juzzio_liquid', 'glass_white', 'lavender_mist', 'rose_quartz', 'high_contrast']));
   });
 
   test('Cam yoğunluğu yüzey opaklığını ölçekler', () {

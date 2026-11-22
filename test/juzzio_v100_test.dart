@@ -22,7 +22,7 @@ double _contrast(Color a, Color b) {
 void main() {
   group('Juzzio Space tema motoru', () {
     test('16 temanın hepsinde parlayan vurgu ve okunur vurgu metni var', () {
-      expect(kJuzzioAuroraPalettes.length, 19);
+      expect(kJuzzioAuroraPalettes.length, 14); // GM-032: aynı renkli 5 tema kaldırıldı
       for (final p in kJuzzioAuroraPalettes) {
         final sp = p.space;
         expect(sp.depth.length, 3, reason: p.id);

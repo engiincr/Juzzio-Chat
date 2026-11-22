@@ -199,16 +199,6 @@ class JuzzioAppThemeGallery extends StatelessWidget {
 class JuzzioChatThemeGallery extends StatelessWidget {
   const JuzzioChatThemeGallery({super.key});
 
-  void _toast(BuildContext context, String name) {
-    ScaffoldMessenger.maybeOf(context)
-      ?..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(milliseconds: 1400),
-        content: Text(_gl('Sohbet teması uygulandı: $name', 'Chat theme applied: $name', 'Chatdesign angewendet: $name')),
-      ));
-  }
-
   @override
   Widget build(BuildContext context) {
     // GM-014: tema/gece-gündüz değişince yeniden çizilir (const kullanımda donuyordu)
@@ -217,47 +207,63 @@ class JuzzioChatThemeGallery extends StatelessWidget {
   }
 
   Widget _build(BuildContext context, JuzzioAppController app) {
-    final presets = kJuzzioChatThemes;
+    final items = juzzioChatThemePreviewItems(app);
     return SizedBox(
       height: 168,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        itemCount: kJuzzioAuroraPalettes.length + presets.length,
+        itemCount: items.length,
         itemBuilder: (context, i) {
-          if (i < kJuzzioAuroraPalettes.length) {
-            final pal = kJuzzioAuroraPalettes[i];
-            final name = pal.label(app.uiLang);
-            return _GalleryCard(
-              palette: pal,
-              title: name,
-              subtitle: juzzioCharacterText(pal),
-              chatMock: true,
-              selected: app.chatPaletteId == pal.id,
-              onTap: () {
-                app.setChatPalette(pal.id);
-                _toast(context, name);
-              },
-            );
-          }
-          final idx = i - kJuzzioAuroraPalettes.length;
-          final preset = presets[idx];
-          // klasik ön ayar, kendi renkleriyle sentetik bir cam paleti üzerinden gösterilir
-          final pal = _presetPalette(preset);
-          final name = preset.localizedName;
+          final it = items[i];
+          final pal = it.palette;
           return _GalleryCard(
             palette: pal,
-            title: name,
-            subtitle: _gl('Klasik sohbet teması', 'Classic chat theme', 'Klassisches Chatdesign'),
+            title: pal.label(app.uiLang),
+            subtitle: it.subtitle ?? juzzioCharacterText(pal),
             chatMock: true,
-            selected: app.chatPaletteId.isEmpty && app.selectedChatThemeIndex == idx,
-            onTap: () {
-              app.setChatTheme(idx);
-              _toast(context, name);
-            },
+            selected: it.isApplied(app),
+            // GM-033: dokun → önizleme (kaydır → sonraki tema, parlaklık/cam + Uygula)
+            onTap: () => JuzzioThemePreviewPage.open(context, it.key, chat: true, items: items),
           );
         },
       ),
     );
   }
+}
+
+/// GM-032 (v2.2.0): uygulama temalarıyla ya da birbirleriyle AYNI renkteki klasik sohbet
+/// ön ayarları galeride gösterilmez (dizin sırası korunur; seçili olan gizlenmez).
+const Set<String> kJuzzioHiddenDuplicateChatPresets = {
+  'rose_quartz', // = Gül Kuvars cam teması
+  'nordic_slate', // = Cam (varsayılan) ile aynı gri
+  'liquid_aqua', // = Siber Camgöbeği
+  'liquid_violet', // = Lavanta Sisi cam teması
+  'liquid_rose', // = Gül Kuvars
+};
+
+/// GM-033: sohbet teması önizleme listesi (cam aileleri + benzersiz klasik ön ayarlar)
+List<JuzzioThemePreviewItem> juzzioChatThemePreviewItems(JuzzioAppController app) {
+  final out = <JuzzioThemePreviewItem>[
+    for (final p in kJuzzioAuroraPalettes)
+      JuzzioThemePreviewItem(
+        key: p.id,
+        palette: p,
+        isApplied: (a) => a.chatPaletteId == p.id,
+        apply: (a) => a.setChatPalette(p.id),
+      ),
+  ];
+  for (var idx = 0; idx < kJuzzioChatThemes.length; idx++) {
+    final preset = kJuzzioChatThemes[idx];
+    final selected = app.chatPaletteId.isEmpty && app.selectedChatThemeIndex == idx;
+    if (kJuzzioHiddenDuplicateChatPresets.contains(preset.id) && !selected) continue;
+    out.add(JuzzioThemePreviewItem(
+      key: 'chat_${preset.id}',
+      palette: _presetPalette(preset),
+      subtitle: _gl('Klasik sohbet teması', 'Classic chat theme', 'Klassisches Chatdesign'),
+      isApplied: (a) => a.chatPaletteId.isEmpty && a.selectedChatThemeIndex == idx,
+      apply: (a) => a.setChatTheme(idx),
+    ));
+  }
+  return out;
 }

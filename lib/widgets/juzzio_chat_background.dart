@@ -183,11 +183,11 @@ class JuzzioChatBackgrounds extends ChangeNotifier {
 
 /// Sohbet gövdesinin arkasına konan katman (ayar yoksa hiçbir şey çizmez)
 class JuzzioChatBackgroundLayer extends StatefulWidget {
-  const JuzzioChatBackgroundLayer({super.key, required this.roomId, this.override});
+  const JuzzioChatBackgroundLayer({super.key, required this.roomId, this.preview});
   final String roomId;
 
   /// Önizlemede kaydedilmemiş ayarı göstermek için
-  final JuzzioChatBackground? override;
+  final JuzzioChatBackground? preview;
 
   @override
   State<JuzzioChatBackgroundLayer> createState() => _JuzzioChatBackgroundLayerState();
@@ -205,7 +205,7 @@ class _JuzzioChatBackgroundLayerState extends State<JuzzioChatBackgroundLayer> {
     return ListenableBuilder(
       listenable: Listenable.merge([JuzzioChatBackgrounds.instance, JuzzioAppController.instance]),
       builder: (context, _) {
-        final bg = widget.override ?? JuzzioChatBackgrounds.instance.of(widget.roomId);
+        final bg = widget.preview ?? JuzzioChatBackgrounds.instance.of(widget.roomId);
         return IgnorePointer(child: juzzioChatBackgroundPaint(bg));
       },
     );

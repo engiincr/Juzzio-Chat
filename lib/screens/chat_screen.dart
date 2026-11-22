@@ -5722,7 +5722,6 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     JuzzioGroupRoom? group,
     JuzzioUserProfile? partner,
   ) {
-    final roomId = _activeConversationRoomId;
     // v1.0.0: menü artık opak (okunur), emojisiz; her seçenek ikonlu, tehlikeli işlemler
     // ayırıcıdan sonra kırmızı.
     PopupMenuEntry<String> item(String value, IconData icon, String label, {bool danger = false}) => PopupMenuItem<String>(

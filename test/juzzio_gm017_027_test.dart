@@ -5,7 +5,9 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:juzzio/core/theme/juzzio_aurora.dart';
 import 'package:juzzio/screens/message_search_page.dart';
+import 'package:juzzio/screens/theme_preview_page.dart';
 import 'package:juzzio/services/juzzio_admin_pin.dart';
 import 'package:juzzio/services/supabase_service.dart';
 import 'package:juzzio/widgets/juzzio_attach_menu.dart';
@@ -154,6 +156,35 @@ void main() {
       expect(c.contains('showJuzzioPinPad('), isTrue);
       expect(c.contains('JuzzioAdminPin.instance'), isTrue);
       expect(c.contains('forgetAdminToken()'), isTrue);
+    });
+  });
+
+  group('GM-032: aynı renkli temalar', () {
+    test('14 benzersiz tema; kaldırılanlar en yakın temaya taşınır', () {
+      expect(kJuzzioAuroraPalettes.length, 14);
+      final ids = kJuzzioAuroraPalettes.map((p) => p.id).toSet();
+      for (final gone in kJuzzioRemovedThemeAliases.keys) {
+        expect(ids.contains(gone), isFalse, reason: gone);
+        expect(juzzioAuroraPaletteById(gone).id, kJuzzioRemovedThemeAliases[gone]);
+      }
+    });
+  });
+
+  group('GM-033: tema önizleme', () {
+    test('etiket "Ad | Parlaklık" biçiminde', () {
+      expect(juzzioThemeSettingLabel('Gece Mavisi', 'Parlaklık'), 'Gece Mavisi | Parlaklık');
+    });
+    test('uygulama temaları listesi tüm temaları içerir; ayrı sohbet teması sayfası yok', () {
+      expect(juzzioAppThemePreviewItems().length, kJuzzioAuroraPalettes.length);
+      final s = _src('lib/screens/settings_suite_screens.dart');
+      expect(s.contains('class JuzzioChatThemeCustomizerPage'), isFalse);
+      expect(s.contains("'Tüm sohbet temaları ve önizleme', 'All chat themes"), isFalse);
+      final g = _src('lib/widgets/glass/juzzio_theme_gallery.dart');
+      expect(g.contains('JuzzioThemePreviewPage.open(context, it.key, chat: true, items: items)'), isTrue);
+      final pv = _src('lib/screens/theme_preview_page.dart');
+      for (final k in ['gm033-brightness', 'gm033-glass', 'gm033-apply', 'gm033-theme-pager']) {
+        expect(pv.contains(k), isTrue, reason: k);
+      }
     });
   });
 }

@@ -19,7 +19,7 @@ void main() {
   });
 
   test('16 temanın her biri kendi cam karakterine sahip (v0.9.7: +4)', () {
-    expect(kJuzzioAuroraPalettes.length, 19);
+    expect(kJuzzioAuroraPalettes.length, 14); // GM-032
     for (final p in kJuzzioAuroraPalettes) {
       expect(kJuzzioGlassCharacters.containsKey(p.id), isTrue, reason: p.id);
       final c = p.character;
@@ -30,7 +30,7 @@ void main() {
       }
     }
     expect(kJuzzioAuroraPalettes.first.id, 'graphite_lime'); // v2.2.0: varsayılan lime (KR-012)
-    expect(juzzioAuroraPaletteById('cyber_neon').character.glow, greaterThan(0));
+    expect(juzzioAuroraPaletteById('juzzio_liquid').character.glow, greaterThan(0));
   });
 
   test('Cam paleti sohbet teması olarak seçilir, doğrulanır ve kaydedilir', () {

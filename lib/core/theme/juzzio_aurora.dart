@@ -449,45 +449,7 @@ const List<JuzzioAuroraPalette> kJuzzioAuroraPalettes = [
       JuzzioAuroraOrb(Alignment(-0.2, 1.0), 0.85, Color(0x44BFDBFE)),
     ],
   ),
-  JuzzioAuroraPalette(
-    id: 'chrome',
-    nameTr: 'Krom',
-    nameEn: 'Chrome',
-    nameDe: 'Chrom',
-    base: Color(0xFF09090B),
-    baseLight: Color(0xFFF2F2F5),
-    swatchA: Color(0xFF8E8E93),
-    swatchB: Color(0xFF3A3A3C),
-    orbs: [
-      JuzzioAuroraOrb(Alignment(0.85, -0.8), 0.80, Color(0x55D1D1D6)),
-      JuzzioAuroraOrb(Alignment(-1.0, 0.2), 0.85, Color(0x4D8E8E93)),
-      JuzzioAuroraOrb(Alignment(0.2, 1.0), 0.80, Color(0x40AEAEB2)),
-    ],
-    orbsLight: [
-      JuzzioAuroraOrb(Alignment(0.85, -0.8), 0.80, Color(0x55FFFFFF)),
-      JuzzioAuroraOrb(Alignment(-1.0, 0.2), 0.85, Color(0x33C7C7CC)),
-      JuzzioAuroraOrb(Alignment(0.2, 1.0), 0.80, Color(0x33D1D1D6)),
-    ],
-  ),
   // v0.8.1 tema kataloğu genişletmesi (turuncu ton yok)
-  JuzzioAuroraPalette(
-    id: 'obsidian_oled',
-    nameTr: 'Obsidyen OLED',
-    nameEn: 'Obsidian OLED',
-    nameDe: 'Obsidian OLED',
-    base: Color(0xFF000000),
-    baseLight: Color(0xFFF4F5F7),
-    swatchA: Color(0xFF0A0A0A),
-    swatchB: Color(0xFF3A3A40),
-    orbs: [
-      JuzzioAuroraOrb(Alignment(-0.9, -0.9), 0.6, Color(0x1A3A3A40)),
-      JuzzioAuroraOrb(Alignment(0.9, 0.9), 0.5, Color(0x14303036)),
-    ],
-    orbsLight: [
-      JuzzioAuroraOrb(Alignment(-0.9, -0.9), 0.8, Color(0x33C7CBD4)),
-      JuzzioAuroraOrb(Alignment(0.9, 0.9), 0.7, Color(0x26DDE1E8)),
-    ],
-  ),
   JuzzioAuroraPalette(
     id: 'lavender_mist',
     nameTr: 'Lavanta Sisi',
@@ -528,26 +490,6 @@ const List<JuzzioAuroraPalette> kJuzzioAuroraPalettes = [
       JuzzioAuroraOrb(Alignment(-0.4, 1.0), 0.85, Color(0x40F5D0FE)),
     ],
   ),
-  JuzzioAuroraPalette(
-    id: 'cyber_neon',
-    nameTr: 'Siber Neon',
-    nameEn: 'Cyber Neon',
-    nameDe: 'Cyber-Neon',
-    base: Color(0xFF03040A),
-    baseLight: Color(0xFFEEF6FF),
-    swatchA: Color(0xFF22D3EE),
-    swatchB: Color(0xFFD946EF),
-    orbs: [
-      JuzzioAuroraOrb(Alignment(-1.0, -0.8), 0.8, Color(0x5922D3EE)),
-      JuzzioAuroraOrb(Alignment(1.0, 0.2), 0.75, Color(0x52D946EF)),
-      JuzzioAuroraOrb(Alignment(-0.2, 1.05), 0.7, Color(0x473B82F6)),
-    ],
-    orbsLight: [
-      JuzzioAuroraOrb(Alignment(-1.0, -0.8), 0.85, Color(0x4D67E8F9)),
-      JuzzioAuroraOrb(Alignment(1.0, 0.2), 0.8, Color(0x40F0ABFC)),
-      JuzzioAuroraOrb(Alignment(-0.2, 1.05), 0.75, Color(0x4093C5FD)),
-    ],
-  ),
   // v0.9.7 yeni cam temaları
   JuzzioAuroraPalette(
     id: 'aurora_borealis',
@@ -568,49 +510,6 @@ const List<JuzzioAuroraPalette> kJuzzioAuroraPalettes = [
       JuzzioAuroraOrb(Alignment(-1.0, -0.9), 0.95, Color(0x4D6EE7B7)),
       JuzzioAuroraOrb(Alignment(0.9, -0.55), 0.80, Color(0x405EEAD4)),
       JuzzioAuroraOrb(Alignment(-0.3, 0.6), 0.85, Color(0x33C4B5FD)),
-    ],
-  ),
-  JuzzioAuroraPalette(
-    id: 'frosted_pearl',
-    nameTr: 'Buzlu İnci',
-    nameEn: 'Frosted Pearl',
-    nameDe: 'Frostperle',
-    base: Color(0xFF14121A),
-    baseLight: Color(0xFFF7F5FB),
-    swatchA: Color(0xFFF5F3FF),
-    swatchB: Color(0xFFBFDBFE),
-    orbs: [
-      JuzzioAuroraOrb(Alignment(-0.9, -0.8), 0.90, Color(0x40E9D5FF)),
-      JuzzioAuroraOrb(Alignment(1.0, -0.2), 0.80, Color(0x3DBFDBFE)),
-      JuzzioAuroraOrb(Alignment(-0.5, 1.0), 0.80, Color(0x33FBCFE8)),
-      JuzzioAuroraOrb(Alignment(0.8, 0.9), 0.50, Color(0x2EA7F3D0)),
-    ],
-    orbsLight: [
-      JuzzioAuroraOrb(Alignment(-0.9, -0.8), 0.95, Color(0x59E9D5FF)),
-      JuzzioAuroraOrb(Alignment(1.0, -0.2), 0.85, Color(0x4DBFDBFE)),
-      JuzzioAuroraOrb(Alignment(-0.5, 1.0), 0.85, Color(0x4DFBCFE8)),
-      JuzzioAuroraOrb(Alignment(0.8, 0.9), 0.55, Color(0x40A7F3D0)),
-    ],
-  ),
-  JuzzioAuroraPalette(
-    id: 'midnight_sapphire',
-    nameTr: 'Gece Safiri',
-    nameEn: 'Midnight Sapphire',
-    nameDe: 'Mitternachtssaphir',
-    base: Color(0xFF040616),
-    baseLight: Color(0xFFECEEFB),
-    swatchA: Color(0xFF1E3A8A),
-    swatchB: Color(0xFFA78BFA),
-    orbs: [
-      JuzzioAuroraOrb(Alignment(-0.95, -0.7), 0.95, Color(0x991E3A8A)),
-      JuzzioAuroraOrb(Alignment(1.0, -0.3), 0.75, Color(0x667C3AED)),
-      JuzzioAuroraOrb(Alignment(-0.2, 1.05), 0.85, Color(0x660F172A)),
-      JuzzioAuroraOrb(Alignment(0.8, 0.85), 0.50, Color(0x4D3B82F6)),
-    ],
-    orbsLight: [
-      JuzzioAuroraOrb(Alignment(-0.95, -0.7), 0.95, Color(0x4D93C5FD)),
-      JuzzioAuroraOrb(Alignment(1.0, -0.3), 0.75, Color(0x40C4B5FD)),
-      JuzzioAuroraOrb(Alignment(0.8, 0.85), 0.50, Color(0x3360A5FA)),
     ],
   ),
   JuzzioAuroraPalette(
@@ -671,9 +570,20 @@ const List<JuzzioAuroraPalette> kJuzzioAuroraPalettes = [
   ),
 ];
 
+/// GM-032 (v2.2.0): farklı adlı ama aynı renkteki temalar kaldırıldı. Bu temayı seçmiş
+/// kullanıcılar en yakın (aynı renkteki) temaya geçer — tercihleri kaybolmaz.
+const Map<String, String> kJuzzioRemovedThemeAliases = {
+  'chrome': 'glass_white',
+  'obsidian_oled': 'glass_white',
+  'frosted_pearl': 'glass_white',
+  'cyber_neon': 'juzzio_liquid',
+  'midnight_sapphire': 'ocean',
+};
+
 JuzzioAuroraPalette juzzioAuroraPaletteById(String? id) {
+  final want = kJuzzioRemovedThemeAliases[id] ?? id;
   for (final p in kJuzzioAuroraPalettes) {
-    if (p.id == id) return p;
+    if (p.id == want) return p;
   }
   return kJuzzioAuroraPalettes.first;
 }
