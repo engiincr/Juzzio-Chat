@@ -12,7 +12,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../core/app_theme_and_locale.dart';
 import '../../core/config.dart';
@@ -22,6 +21,7 @@ import '../../services/juzzio_features_service.dart';
 import '../../services/supabase_service.dart';
 import '../../widgets/profile_extras.dart';
 import '../../widgets/juzzio_motion.dart';
+import '../../widgets/juzzio_profile_qr.dart';
 
 String _l(String tr, String en, String de) => JuzzioAppController.instance.trEn(tr, en, de);
 
@@ -539,17 +539,8 @@ class _JuzzioProfileCardPageState extends State<JuzzioProfileCardPage> with Sing
                     borderRadius: BorderRadius.circular(26),
                     boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 18)],
                   ),
-                  child: QrImageView(
-                    data: _link,
-                    version: QrVersions.auto,
-                    size: 190,
-                    backgroundColor: Colors.white,
-                    eyeStyle: QrEyeStyle(eyeShape: QrEyeShape.circle, color: cardColor),
-                    dataModuleStyle: const QrDataModuleStyle(
-                      dataModuleShape: QrDataModuleShape.circle,
-                      color: JuzzioColors.ink,
-                    ),
-                  ),
+                  // v2.2.0: "Profil Karekodum" sayfasıyla aynı karekod (JuzzioProfileQr)
+                  child: JuzzioProfileQr(data: _link, color: cardColor, size: 190),
                 ),
                 const SizedBox(height: 22),
                 _usernameSticker(dark: true),

@@ -239,6 +239,8 @@ class _CallScreenState extends State<CallScreen> {
       if (mounted) _reactions.add(emoji);
     };
     _controller.addListener(_onControllerUpdate);
+    // v2.2.0: kamera açılamadıysa kısa bilgi (arama sürer)
+    _controller.cameraUnavailable.addListener(_onCameraUnavailable);
     _startBatteryMonitor();
     // v0.9.3: küçük pencere / PiP görüntüsü ve bildirimden kapatma için oturuma kaydol
     final session = JuzzioActiveCall.instance;
@@ -990,6 +992,11 @@ class _CallScreenState extends State<CallScreen> {
         unawaited(_checkMobileDataPrompt());
       }
     } catch (e) {
+      // v2.2.0: kullanıcı bağlanırken aramayı kapattıysa bu bir hata değildir (raporlanmaz, gösterilmez)
+      if (_controller.isTearingDown) {
+        if (mounted) setState(() => _isConnecting = false);
+        return;
+      }
       JuzzioHealthMonitor.instance.reportFailure('call'); // v1.2.9: arama kurulamadı → yolları yokla/onar
       if (mounted) {
         setState(() {
@@ -1091,7 +1098,19 @@ class _CallScreenState extends State<CallScreen> {
   /// Dokunuşla gönderilen tepki (basılı tutup seçilen son emoji; varsayılan ❤️)
   String _callReaction = '❤️';
 
+  void _onCameraUnavailable() {
+    if (!mounted) return;
+    final app = JuzzioAppController.instance;
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(
+      content: Text(app.trEn('Kamera açılamadı. Başka bir uygulama kullanıyor olabilir ya da izin verilmemiş.',
+          'Camera could not be opened. Another app may be using it, or permission is missing.',
+          'Kamera konnte nicht geöffnet werden. Eine andere App nutzt sie oder die Berechtigung fehlt.')),
+    ));
+  }
+
+  @override
   void dispose() {
+    _controller.cameraUnavailable.removeListener(_onCameraUnavailable);
     _levelTimer?.cancel();
     _outputLevel.dispose();
     JuzzioIsland.instance.clear('call');

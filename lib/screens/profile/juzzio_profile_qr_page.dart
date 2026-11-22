@@ -14,7 +14,6 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../core/app_theme_and_locale.dart';
 import '../../core/native_bridge.dart';
@@ -22,6 +21,7 @@ import '../../core/theme/juzzio_glass.dart';
 import '../../core/theme/juzzio_aurora.dart';
 import '../../services/supabase_service.dart';
 import '../../widgets/juzzio_brand.dart';
+import '../../widgets/juzzio_profile_qr.dart';
 import '../../widgets/juzzio_neon_kit.dart';
 import '../../widgets/social_common_widgets.dart';
 
@@ -213,20 +213,12 @@ class _JuzzioProfileQrPageState extends State<JuzzioProfileQrPage> {
                         child: SizedBox(
                           width: 200,
                           height: 200,
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              QrImageView(
-                                data: _link,
-                                size: 200,
-                                padding: EdgeInsets.zero,
-                                errorCorrectionLevel: QrErrorCorrectLevel.H,
-                                backgroundColor: Colors.white,
-                                eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.square, color: Color(0xFF0E0F12)),
-                                dataModuleStyle: const QrDataModuleStyle(dataModuleShape: QrDataModuleShape.square, color: Color(0xFF0E0F12)),
-                              ),
-                              const JuzzioLogoTile(size: 46, glow: false),
-                            ],
+                          // v2.2.0: profil fotoğrafındaki çevirmeli kartla birebir aynı karekod
+                          // (aynı düzey, yuvarlak noktalar, kart renginde yuvarlak gözler)
+                          child: JuzzioProfileQr(
+                            data: _link,
+                            color: juzzioProfileCardColor(p.cardBgColor, const Color(0xFF2563EB)),
+                            size: 200,
                           ),
                         ),
                       ),

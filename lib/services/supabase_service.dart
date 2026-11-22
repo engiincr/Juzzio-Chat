@@ -419,6 +419,66 @@ class JuzzioMessage {
   }
 }
 
+/// v2.2.0: ortak arkadaş (profilde gösterilen kısa kişi bilgisi)
+class JuzzioMutualFriend {
+  const JuzzioMutualFriend({required this.id, required this.username, required this.displayName, required this.avatarUrl});
+  final String id;
+  final String username;
+  final String displayName;
+  final String avatarUrl;
+  String get name => displayName.trim().isEmpty ? username : displayName.trim();
+}
+
+class JuzzioMutualFriends {
+  const JuzzioMutualFriends(this.people, this.total);
+  final List<JuzzioMutualFriend> people;
+  final int total;
+  bool get isEmpty => people.isEmpty;
+
+  /// Sunucu satırlarından (saf; test edilir)
+  factory JuzzioMutualFriends.fromRows(Object? rows) {
+    final out = <JuzzioMutualFriend>[];
+    var total = 0;
+    if (rows is List) {
+      for (final r in rows) {
+        if (r is! Map) continue;
+        final id = (r['id'] ?? '').toString();
+        if (id.isEmpty) continue;
+        out.add(JuzzioMutualFriend(
+          id: id,
+          username: (r['username'] ?? '').toString(),
+          displayName: (r['display_name'] ?? '').toString(),
+          avatarUrl: (r['avatar_url'] ?? '').toString(),
+        ));
+        final t = (r['total'] as num?)?.toInt() ?? 0;
+        if (t > total) total = t;
+      }
+    }
+    return JuzzioMutualFriends(out, total < out.length ? out.length : total);
+  }
+}
+
+/// v2.2.0: "Ali, Ayşe ve 3 kişi daha ortak arkadaşınız" metni (saf; test edilir)
+String juzzioMutualFriendsLine(JuzzioMutualFriends m, {required String lang}) {
+  if (m.isEmpty) return '';
+  final names = m.people.take(2).map((p) => p.name).toList();
+  final rest = m.total - names.length;
+  switch (lang) {
+    case 'tr':
+      final who = names.length == 1 ? names.first : '${names[0]} ve ${names[1]}';
+      if (rest <= 0) return '$who ortak arkadaşınız';
+      return '${names.join(', ')} ve $rest kişi daha ortak arkadaşınız';
+    case 'de':
+      final who = names.length == 1 ? names.first : '${names[0]} und ${names[1]}';
+      if (rest <= 0) return 'Gemeinsame Freunde: $who';
+      return 'Gemeinsame Freunde: ${names.join(', ')} und $rest weitere';
+    default:
+      final who = names.length == 1 ? names.first : '${names[0]} and ${names[1]}';
+      if (rest <= 0) return 'Mutual friends: $who';
+      return 'Mutual friends: ${names.join(', ')} and $rest more';
+  }
+}
+
 class JuzzioFriendship {
   final String id;
   final String requesterId;
@@ -3773,6 +3833,16 @@ class SupabaseService {
       return out;
     } catch (_) {
       return const {};
+    }
+  }
+
+  /// v2.2.0: profilde ortak arkadaşlar (en çok 12 kişi + toplam). Hata ya da eski sunucuda boş döner.
+  Future<JuzzioMutualFriends> mutualFriends(String userId) async {
+    try {
+      final rows = await client.rpc('mutual_friends', params: {'p_user': userId, 'p_limit': 12});
+      return JuzzioMutualFriends.fromRows(rows);
+    } catch (_) {
+      return const JuzzioMutualFriends(<JuzzioMutualFriend>[], 0);
     }
   }
 

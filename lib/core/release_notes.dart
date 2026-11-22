@@ -157,6 +157,87 @@ class JuzzioReleaseNote {
 /// Uygulamaya gömülü sürüm geçmişi (yayınlanmış sürümlerin gerçek içeriği)
 final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
   JuzzioReleaseNote(
+    versionName: '2.2.0',
+    versionCode: 220,
+    publishedAt: DateTime(2026, 11, 22),
+    mandatory: false,
+    sections: const {
+      'tr': JuzzioReleaseSection(
+        reason: "Juzzio 2.2: Engin'in gönderdiği ekranlara göre yenilendi — bulut, güneş, yağmur ve hilal aylı yeni hava görünümü, birebir yeni Ayarlar sayfası, tek sayfada Arkadaşlar, profilde ortak arkadaşlar, yeni Amber Altın tema ve varsayılan Grafit Limon.",
+        features: [
+          "🌦️ Yeni hava görünümü: küçük bulutlar, ince ışınlı güneşler, mavi damlalar, ince yağmur çizgileri ve gerçek evreli hilal ay — içeriğin arkasında, her temada",
+          "⚙️ Ayarlar baştan: tek büyük cam panel, BÜYÜK HARF bölümler (Sohbetler ve Bildirimler, Görünüm ve Dil, Depolama ve Pil, Destek), yuvarlak simgeli satırlar ve ayrı Dil satırı",
+          "👥 Arkadaşlar tek sayfada: Ekle (kullanıcı adıyla ara) · Gelen · Gönderilen — ayrı açılır pencere kalktı",
+          "🤝 Profilde ortak arkadaşlar: \"Ali, Ayşe ve 3 kişi daha ortak arkadaşınız\"",
+          "🟡 Yeni tema: Amber Altın",
+          "🟢 Varsayılan tema yeniden Grafit Limon; güncellemeyle herkes bir kez lime görünüme geçer (Görünüm'den istediğin temayı seçebilirsin)",
+          "✉️ Gelen kutusunda yeni mesaj sayısı: \"Gelen kutusu • 1 yeni mesaj\"",
+          "🔳 Profil karekodu her yerde aynı: profil fotoğrafındaki kart ile Profil Karekodum aynı karekodu gösterir",
+          "📎 Sohbet ek menüsü yenilendi: Belge, Fotoğraf, Video, Tek gösterim, Konum, Kişi kartı… renkli cam kartlar ve kısa açıklamalar",
+        ],
+        fixes: [
+          "Keşfet ve Sohbetler başlığında \"Juzzio\" yazısının sonu silinmiyor",
+          "Başlıktaki ikinci ay ve arama kutusuna binen ay kaldırıldı",
+          "Arkadaşlık İstekleri sayfası her temaya uyumlu",
+          "Bağlanırken kapatılan aramada \"Null check\" hatası giderildi",
+          "Kamera yoksa ya da başka uygulama kullanıyorsa görüntülü arama düşmüyor; kısa bilgi gösteriliyor",
+          "Sohbet temizlenince oluşan \"No element\" hatası ve masaüstünde \"widget tree was locked\" hatası giderildi",
+        ],
+        security: [
+          "Ortak arkadaşlar yalnız zaten senin arkadaşın olan kişileri gösterir; engellenen kişiler ve girişsiz (anon) erişim hariç",
+        ],
+      ),
+      'en': JuzzioReleaseSection(
+        reason: "Juzzio 2.2: refreshed from Engin's screenshots — a new weather look with clouds, suns, rain and a crescent moon, a brand-new Settings page, Friends on one page, mutual friends on profiles, the new Amber Gold theme and Graphite Lime as default.",
+        features: [
+          "🌦️ New weather look: small clouds, thin-rayed suns, blue drops, fine rain streaks and a real-phase crescent moon — behind the content, in every theme",
+          "⚙️ Settings redesigned: one large glass panel, UPPERCASE sections (Chats & notifications, Appearance & language, Storage & battery, Support), round-icon rows and a separate Language row",
+          "👥 Friends on one page: Add (search by username) · Received · Sent — no separate pop-up",
+          "🤝 Mutual friends on profiles: \"Mutual friends: Ali, Ayşe and 3 more\"",
+          "🟡 New theme: Amber Gold",
+          "🟢 Default theme is Graphite Lime again; the update moves everyone to lime once (pick any theme in Appearance)",
+          "✉️ New message count in the inbox: \"Inbox • 1 new message\"",
+          "🔳 One profile QR everywhere: the profile photo card and My Profile QR show the same code",
+          "📎 Chat attach menu redesigned: Document, Photo, Video, View once, Location, Contact… colourful glass cards with short hints",
+        ],
+        fixes: [
+          "The end of the \"Juzzio\" title no longer fades out on Explore and Chats",
+          "Removed the second moon in the header and the moon overlapping the search box",
+          "Friend Requests page matches every theme",
+          "Fixed the \"Null check\" error when a call is ended while connecting",
+          "Video calls no longer fail when there is no camera or it is busy; a short notice is shown",
+          "Fixed \"No element\" when a chat is cleared and \"widget tree was locked\" on desktop",
+        ],
+        security: [
+          "Mutual friends only lists people who are already your friends; blocked people and signed-out (anon) access are excluded",
+        ],
+      ),
+      'de': JuzzioReleaseSection(
+        reason: "Juzzio 2.2: nach Engins Screenshots überarbeitet — neues Wetterbild mit Wolken, Sonnen, Regen und Mondsichel, neue Einstellungen, Freunde auf einer Seite, gemeinsame Freunde im Profil, neues Design Bernsteingold und Graphit Limette als Standard.",
+        features: [
+          "🌦️ Neues Wetterbild: kleine Wolken, Sonnen, blaue Tropfen, feine Regenstriche und eine Mondsichel mit echter Phase — hinter den Inhalten, in jedem Design",
+          "⚙️ Neue Einstellungen: ein großes Glaspanel, Abschnitte in GROSSBUCHSTABEN, Zeilen mit runden Symbolen und eigene Zeile für Sprache",
+          "👥 Freunde auf einer Seite: Hinzufügen (Suche nach Benutzername) · Erhalten · Gesendet",
+          "🤝 Gemeinsame Freunde im Profil",
+          "🟡 Neues Design: Bernsteingold",
+          "🟢 Standard wieder Graphit Limette; das Update stellt einmalig alle auf Limette um",
+          "✉️ Neue Nachrichten im Posteingang: \"Posteingang • 1 neue Nachricht\"",
+          "🔳 Überall derselbe Profil-QR-Code",
+          "📎 Neues Anhang-Menü mit farbigen Glaskarten",
+        ],
+        fixes: [
+          "\"Juzzio\"-Titel wird auf Entdecken und Chats nicht mehr abgeschnitten",
+          "Zweiter Mond im Kopfbereich entfernt",
+          "Fehler beim Beenden eines Anrufs während des Verbindens behoben",
+          "Videoanruf ohne Kamera bricht nicht mehr ab",
+        ],
+        security: [
+          "Gemeinsame Freunde zeigen nur Personen, die bereits deine Freunde sind; Blockierte und anonymer Zugriff ausgeschlossen",
+        ],
+      ),
+    },
+  ),
+  JuzzioReleaseNote(
     versionName: '2.1.0',
     versionCode: 210,
     publishedAt: DateTime(2026, 11, 21),

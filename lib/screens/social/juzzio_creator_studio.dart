@@ -117,7 +117,7 @@ class JuzzioCreatorStudioPage extends StatefulWidget {
       PageRouteBuilder<Object?>(
         transitionDuration: const Duration(milliseconds: 320),
         reverseTransitionDuration: const Duration(milliseconds: 240),
-        pageBuilder: (_, __, ___) => JuzzioAuroraPage(child: JuzzioCreatorStudioPage(currentUser: currentUser, initialMode: mode)),
+        pageBuilder: (_, __, ___) => JuzzioAuroraPage(weather: false, child: JuzzioCreatorStudioPage(currentUser: currentUser, initialMode: mode)),
         transitionsBuilder: (_, anim, __, child) {
           final curved = CurvedAnimation(parent: anim, curve: Curves.easeOutCubic);
           return FadeTransition(

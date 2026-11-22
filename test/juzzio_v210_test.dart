@@ -189,7 +189,7 @@ void main() {
       expect(f.contains('Tümünü Kabul Et'), isTrue);
       expect(f.contains('Arkadaşlarımı Bul'), isTrue);
       expect(f.contains('ortak arkadaş'), isTrue);
-      expect(_src('lib/screens/chat_screen.dart').contains('onTap: _openFriendRequestsPage'), isTrue);
+      expect(_src('lib/screens/chat_screen.dart').contains('onTap: () => _openFriendRequestsPage()'), isTrue); // v2.2.0
       expect(_src('supabase/juzzio_database.sql').contains('FUNCTION public.mutual_friend_counts(p_users UUID[])'), isTrue);
     });
     test('Aramalar (v2.1 tasarım): Tümü / Görüntülü / Sesli / Cevapsız sekmeleri, Tümünü Temizle', () {
@@ -225,10 +225,8 @@ void main() {
     });
   });
 
-  test('sürüm 2.1.0: yapılandırma ve uygulama içi notlar', () {
-    expect(JuzzioConfig.appVersion, '2.1.0');
-    expect(_src('pubspec.yaml').contains('version: 2.1.0+210'), isTrue);
-    final n = kJuzzioBundledReleaseNotes.first;
+  test('sürüm 2.1.0: uygulama içi notlar geçmişte duruyor', () {
+    final n = kJuzzioBundledReleaseNotes.firstWhere((r) => r.versionName == '2.1.0');
     expect(n.versionName, '2.1.0');
     for (final l in ['tr', 'en', 'de']) {
       expect(n.sections[l]!.features.length >= 5, isTrue, reason: l);
@@ -316,7 +314,7 @@ void main() {
       expect(u.queryParameters['daily'], 'sunrise,sunset');
       expect(u.queryParameters['timezone'], 'auto');
       expect(u.queryParameters['latitude'], '41.0');
-      expect(_src('lib/widgets/juzzio_weather_ambience.dart').contains('JuzzioSky21Painter('), isTrue);
+      expect(_src('lib/widgets/juzzio_weather_ambience.dart').contains('JuzzioDoodleSkyPainter('), isTrue); // v2.2.0
     });
   });
 
@@ -326,7 +324,7 @@ void main() {
       expect(s.contains('JuzzioCallSettingsPage()'), isTrue);
       expect(s.contains('showJuzzioLogoutDialog(context)'), isTrue);
       expect(s.contains("'Hesap ve Profil'"), isTrue);
-      expect(s.contains("'Medya ve Depolama'"), isTrue);
+      expect(s.contains("'Depolama ve veriler'"), isTrue); // v2.2.0: referanstaki ad
     });
   });
 

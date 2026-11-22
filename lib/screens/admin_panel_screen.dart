@@ -696,6 +696,7 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> {
   Future<void> _searchUsers({bool allowEmpty = false}) async {
     final q = _search.text.trim();
     if (q.isEmpty && !allowEmpty) return;
+    if (!mounted) return; // v2.2.0: panel kapandıktan sonra gelen yenileme (Null check hatası)
     setState(() => _usersLoading = true);
     await _guard(() async {
       final res = await _f.adminSearchUsers(widget.token, q);

@@ -2928,6 +2928,10 @@ SET ROLE authenticated;
 SELECT pg_temp.as_user(:'A');
 SELECT pg_temp.check('ortak arkadaş sayısı doğru', (SELECT mutual FROM mutual_friend_counts(ARRAY[:'C'::uuid])) = 1);
 SELECT pg_temp.check('kişi kendisi için sayı almaz', NOT EXISTS (SELECT 1 FROM mutual_friend_counts(ARRAY[:'A'::uuid])));
+-- 10.54 (v2.2.0): profilde ortak arkadaş listesi
+SELECT pg_temp.check('ortak arkadaş listesi B''yi döner', (SELECT array_agg(id) FROM mutual_friends(:'C'::uuid)) = ARRAY[:'B'::uuid]);
+SELECT pg_temp.check('ortak arkadaş toplamı 1', (SELECT max(total) FROM mutual_friends(:'C'::uuid)) = 1);
+SELECT pg_temp.check('kendi profilinde ortak arkadaş yok', NOT EXISTS (SELECT 1 FROM mutual_friends(:'A'::uuid)));
 RESET ROLE;
 DELETE FROM friendships WHERE requester_id IN (:'A', :'C') AND receiver_id = :'B';
 

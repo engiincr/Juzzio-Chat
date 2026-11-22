@@ -15,6 +15,7 @@ import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 
 import '../core/theme/juzzio_glass.dart';
 import '../services/juzzio_call_session.dart';
@@ -63,7 +64,15 @@ class JuzzioDesktopFrameObserver extends NavigatorObserver {
       }
     }
     final v = _fullWindowRoute != null && identical(topPage, _fullWindowRoute);
-    if (fullWindow.value != v) fullWindow.value = v;
+    if (fullWindow.value == v) return;
+    // v2.2.0: gezinme olayı çizim/derleme sırasında gelirse ("widget tree was locked") değer kare
+    // sonunda güncellenir; boşta iken hemen.
+    final phase = SchedulerBinding.instance.schedulerPhase;
+    if (phase == SchedulerPhase.idle || phase == SchedulerPhase.postFrameCallbacks) {
+      fullWindow.value = v;
+    } else {
+      SchedulerBinding.instance.addPostFrameCallback((_) => _update());
+    }
   }
 
   @override

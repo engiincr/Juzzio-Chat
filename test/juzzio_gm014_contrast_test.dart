@@ -13,9 +13,10 @@ double _contrast(Color a, Color b) {
 }
 
 void main() {
-  test('18 tema kayıtlı ve varsayılan Gece Mavisi', () {
-    expect(kJuzzioAuroraPalettes.length, greaterThanOrEqualTo(18));
-    expect(kJuzzioAuroraPalettes.first.id, 'ocean');
+  test('19 tema kayıtlı (Amber Altın dahil) ve varsayılan Grafit Limon', () {
+    expect(kJuzzioAuroraPalettes.length, greaterThanOrEqualTo(19));
+    expect(kJuzzioAuroraPalettes.first.id, 'graphite_lime');
+    expect(kJuzzioAuroraPalettes.any((p) => p.id == 'amber_gold'), isTrue);
   });
 
   for (final pal in kJuzzioAuroraPalettes) {

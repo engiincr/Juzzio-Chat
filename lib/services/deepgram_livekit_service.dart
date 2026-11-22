@@ -678,32 +678,38 @@ class DeepgramLiveKitController extends ChangeNotifier {
       ),
     );
 
-    _room!.addListener(notifyListeners);
-    _roomListener = _room!.createListener();
+    // v2.2.0: bağlanırken arama kapatılırsa _room null olur; yerel kopya "Null check" hatasını önler
+    final room = _room!;
+    room.addListener(notifyListeners);
+    _roomListener = room.createListener();
     _setupRoomListeners();
 
     _lastAccessUrl = access.url;
     _lastAccessToken = access.token;
     _backupIce = access.backupIceServers;
+    // v2.2.0: masaüstünde kamera yoksa görüntülü arama kamerasız başlar (TrackCreateException yerine)
+    final camOk = enableVideo && await _hasCameraDevice();
+    if (enableVideo && !camOk) cameraUnavailable.value++;
+    isCameraEnabled = camOk;
     final fast = FastConnectOptions(
       microphone: const TrackOption(enabled: true),
-      camera: TrackOption(enabled: enableVideo),
+      camera: TrackOption(enabled: camOk),
     );
     usingBackupTurn = preferBackupTurn && _backupIce.isNotEmpty;
     try {
-      await _room!.connect(access.url, access.token, connectOptions: _connectOptions(usingBackupTurn), fastConnectOptions: fast);
+      await room.connect(access.url, access.token, connectOptions: _connectOptions(usingBackupTurn), fastConnectOptions: fast);
     } catch (e) {
       // v1.2.9: ana yol kurulamadı → önce ANA yol bir kez daha (anlık ağ hatası), sonra yedek TURN
       if (_isDisposed) rethrow;
       try {
         await Future<void>.delayed(const Duration(milliseconds: 900));
         usingBackupTurn = false;
-        await _room!.connect(access.url, access.token, connectOptions: _connectOptions(false), fastConnectOptions: fast);
+        await room.connect(access.url, access.token, connectOptions: _connectOptions(false), fastConnectOptions: fast);
       } catch (_) {
         if (_backupIce.isEmpty || _isDisposed) rethrow;
         usingBackupTurn = true;
         notifyListeners();
-        await _room!.connect(access.url, access.token, connectOptions: _connectOptions(true), fastConnectOptions: fast);
+        await room.connect(access.url, access.token, connectOptions: _connectOptions(true), fastConnectOptions: fast);
         markPrimaryUnreachable();
       }
     }
@@ -714,7 +720,7 @@ class DeepgramLiveKitController extends ChangeNotifier {
     // kurulamayınca mikrofon yayını hata verip aramayı düşürüyordu. Artık 3 kez (1 sn, 2 sn arayla)
     // denenir; yayın bağlantısı çoğu zaman ikinci denemede hazırdır.
     Future<void> publishMic() async {
-      await _room!.localParticipant?.setMicrophoneEnabled(
+      await room.localParticipant?.setMicrophoneEnabled(
         true,
         audioCaptureOptions: Platform.isWindows || Platform.isLinux || Platform.isMacOS
             ? AudioCaptureOptions(
@@ -1922,10 +1928,25 @@ class DeepgramLiveKitController extends ChangeNotifier {
     await _applyBeautyFilter();
   }
 
+  /// v2.2.0: kamera açılamazsa (cihazda kamera yok / başka uygulama kullanıyor / izin yok) arama
+  /// düşmez, hata raporu oluşmaz; düğme eski hâline döner ve [cameraUnavailable] bir kez yükselir.
+  final ValueNotifier<int> cameraUnavailable = ValueNotifier<int>(0);
+
   Future<void> toggleCamera() async {
-    isCameraEnabled = !isCameraEnabled;
-    await _room?.localParticipant?.setCameraEnabled(isCameraEnabled);
-    if (isCameraEnabled) await _applyBeautyFilter();
+    final want = !isCameraEnabled;
+    isCameraEnabled = want;
+    notifyListeners();
+    try {
+      await _room?.localParticipant?.setCameraEnabled(want);
+      if (want) await _applyBeautyFilter();
+    } catch (e) {
+      // TrackCreateException ("at least 1 video or audio track should exist") / addTransceiver
+      isCameraEnabled = false;
+      if (want) cameraUnavailable.value++;
+      try {
+        await _room?.localParticipant?.setCameraEnabled(false);
+      } catch (_) {}
+    }
     notifyListeners();
   }
 
@@ -1995,6 +2016,20 @@ class DeepgramLiveKitController extends ChangeNotifier {
 
   /// Aramadan çıkış: her adım ayrı korunur; biri hata verse de diğer kaynaklar
   /// (mikrofon, kamera, Deepgram soketi, LiveKit odası) mutlaka serbest bırakılır.
+  /// v2.2.0: cihazda kullanılabilir kamera var mı (telefonda her zaman var sayılır)
+  Future<bool> _hasCameraDevice() async {
+    if (kIsWeb || Platform.isAndroid || Platform.isIOS) return true;
+    try {
+      final devices = await Hardware.instance.enumerateDevices(type: 'videoinput');
+      return devices.isNotEmpty;
+    } catch (_) {
+      return true; // bilinemiyorsa eski davranış
+    }
+  }
+
+  /// v2.2.0: arama kapatılıyor / kapatıldı mı (bağlanma hatası kullanıcıya gösterilmez)
+  bool get isTearingDown => _isDisposed || _isDisconnecting || _room == null;
+
   Future<void> disconnectCall() async {
     if (_isDisconnecting) return;
     _isDisconnecting = true;

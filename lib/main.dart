@@ -37,6 +37,7 @@ import 'widgets/juzzio_motion.dart' show JuzzioLiveIsland;
 import 'widgets/juzzio_splash.dart';
 import 'widgets/juzzio_consent.dart';
 import 'widgets/juzzio_weather_ambience.dart';
+import 'widgets/juzzio_weather_doodles.dart';
 import 'widgets/profile_extras.dart' show JuzzioMusicRouteObserver;
 import 'core/juzzio_ui_sync.dart';
 import 'core/juzzio_audio_guard.dart';
@@ -112,6 +113,8 @@ Future<void> main() async {
   JuzzioAuroraScope.reduceMotion = () =>
       appCtrl.reduceMotion || WidgetsBinding.instance.platformDispatcher.accessibilityFeatures.disableAnimations;
   WidgetsBinding.instance.addObserver(_JuzzioSystemAppearanceObserver(appCtrl));
+  // v2.2.0: Ayarlar ve diğer cam sayfalarda da aynı hava katmanı (referanstaki bulut/güneş/yağmur/ay)
+  JuzzioAuroraPage.weatherLayerBuilder = () => const JuzzioWeatherDoodleLayer();
 
   // v0.8.1 tema motoru §3.3: kullanıcının kayıtlı teması ilk kareden ÖNCE yüklenir
   // (yanlış tema parlaması olmaz). Bozuk/eksik veri güvenli varsayılana döner.

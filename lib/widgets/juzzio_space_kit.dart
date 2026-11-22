@@ -113,13 +113,14 @@ class JuzzioSpaceBrand extends StatelessWidget {
   Widget build(BuildContext context) {
     // v2.1: marka adı yazılırken önüne yeşil şerit "J" logosu gelir (tasarımdaki başlık)
     final word = _word();
-    if (text != 'Juzzio') return word;
+    if (text != 'Juzzio') return FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: word);
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         JuzzioLogoGlyph(size: size * 1.05),
         SizedBox(width: size * 0.12),
-        Flexible(child: word),
+        // v2.2.0: dar yerde yazı solarak SİLİNMEZ; bütün hâlde küçülür
+        Flexible(child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: word)),
       ],
     );
   }
@@ -131,7 +132,7 @@ class JuzzioSpaceBrand extends StatelessWidget {
         if (dot) TextSpan(text: '.', style: TextStyle(color: JuzzioGlassTokens.glowText)),
       ]),
       maxLines: 1,
-      overflow: TextOverflow.fade,
+      overflow: TextOverflow.visible,
       softWrap: false,
       style: TextStyle(
         fontFamily: JuzzioConfig.fontRegularBold,

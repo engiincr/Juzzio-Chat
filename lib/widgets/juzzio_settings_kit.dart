@@ -1,5 +1,11 @@
 // =============================================================================
-// GM-015 — Ayarlar tasarım kiti ("Juzzio Ayarlar" tuvali, GM-011 Ana çizim tahtası)
+// v2.2.0 — Ayarlar, Engin'in gönderdiği referans görselle birebir:
+//  • Sol üstte ince çerçeveli yuvarlak geri düğmesi + büyük "Ayarlar", sağda QR simgesi
+//  • Başlığın altında üst köşeleri çok yuvarlak TEK büyük cam panel; bölümler bunun içinde
+//  • Harf aralıklı BÜYÜK HARF bölüm etiketleri (SOHBETLER VE BİLDİRİMLER, GÖRÜNÜM VE DİL…)
+//  • Satırlar kartsız: yuvarlak ikon dairesi · kalın başlık · altında açıklama/değer · sağda ok
+//  • Arkada hava katmanı (bulut/güneş/yağmur/ay) — sayfa JuzzioAuroraPage ile gelir
+// Önceki GM-015 kiti ("Juzzio Ayarlar" tuvali, GM-011 Ana çizim tahtası)
 //  • Sola hizalı büyük başlık + cam geri / QR düğmeleri
 //  • Güçlü cam profil kartı: tema vurgulu halkalı avatar, ad + onay, "@kullanıcı · Profili ve hesabı düzenle"
 //  • "Ayarlarda ara" cam arama kutusu (satır başlığı ve açıklamasında arar)
@@ -77,7 +83,7 @@ List<JuzzioSettingsSection> juzzioFilterSettings(List<JuzzioSettingsSection> sec
   return out;
 }
 
-/// Sola hizalı başlık satırı
+/// Başlık satırı (referans: ince çerçeveli geri dairesi + büyük başlık + sağda sade QR simgesi)
 class JuzzioSettingsTitleBar extends StatelessWidget {
   const JuzzioSettingsTitleBar({super.key, required this.title, this.showBack = true, this.trailing});
   final String title;
@@ -88,12 +94,12 @@ class JuzzioSettingsTitleBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final nav = Navigator.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(0, 10, 0, 14),
+      padding: const EdgeInsets.fromLTRB(4, 14, 4, 18),
       child: Row(
         children: [
           if (showBack && nav.canPop()) ...[
-            _GlassCircle(icon: Icons.arrow_back_ios_new_rounded, semantic: 'Geri', onTap: () => nav.maybePop()),
-            const SizedBox(width: 12),
+            _OutlineCircle(icon: Icons.chevron_left_rounded, semantic: 'Geri', onTap: () => nav.maybePop()),
+            const SizedBox(width: 16),
           ],
           Expanded(
             child: Semantics(
@@ -105,9 +111,9 @@ class JuzzioSettingsTitleBar extends StatelessWidget {
                 style: TextStyle(
                   fontFamily: JuzzioConfig.fontRegularBold,
                   color: JuzzioGlassTokens.heading,
-                  fontSize: 28,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.8,
+                  fontSize: 32,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.4,
                 ),
               ),
             ),
@@ -119,8 +125,38 @@ class JuzzioSettingsTitleBar extends StatelessWidget {
   }
 }
 
-class _GlassCircle extends StatelessWidget {
-  const _GlassCircle({required this.icon, required this.onTap, required this.semantic});
+/// Sağ üstteki sade simge düğmesi (referanstaki QR)
+class JuzzioSettingsPlainIconButton extends StatelessWidget {
+  const JuzzioSettingsPlainIconButton({super.key, required this.icon, required this.onTap, required this.tooltip});
+  final IconData icon;
+  final VoidCallback onTap;
+  final String tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Semantics(
+        button: true,
+        label: tooltip,
+        child: InkResponse(
+          radius: 26,
+          onTap: () {
+            HapticFeedback.selectionClick();
+            onTap();
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: Icon(icon, size: 30, color: JuzzioGlassTokens.heading),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _OutlineCircle extends StatelessWidget {
+  const _OutlineCircle({required this.icon, required this.onTap, required this.semantic});
   final IconData icon;
   final VoidCallback onTap;
   final String semantic;
@@ -130,26 +166,50 @@ class _GlassCircle extends StatelessWidget {
     return Semantics(
       button: true,
       label: semantic,
-      child: GestureDetector(
+      child: InkResponse(
+        radius: 28,
         onTap: () {
           HapticFeedback.selectionClick();
           onTap();
         },
-        child: JuzzioLiquidGlass(
-          shape: BoxShape.circle,
-          blur: 14,
-          child: SizedBox(
-            width: 42,
-            height: 42,
-            child: Icon(icon, size: 18, color: JuzzioGlassTokens.heading),
+        child: Container(
+          width: 50,
+          height: 50,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: JuzzioGlassTokens.textSecondary.withValues(alpha: 0.55), width: 1.4),
           ),
+          child: Icon(icon, size: 30, color: JuzzioGlassTokens.heading),
         ),
       ),
     );
   }
 }
 
-/// Güçlü cam profil kartı
+/// Başlığın altındaki TEK büyük cam panel (üst köşeler çok yuvarlak, alta kadar uzanır)
+class JuzzioSettingsPanel extends StatelessWidget {
+  const JuzzioSettingsPanel({super.key, required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = JuzzioGlassTokens.isDarkResolver();
+    return JuzzioLiquidGlass(
+      radius: 44,
+      blur: 18,
+      padding: EdgeInsets.zero,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: JuzzioGlassTokens.textPrimary.withValues(alpha: dark ? 0.035 : 0.02),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(44)),
+        ),
+        child: child,
+      ),
+    );
+  }
+}
+
+/// Profil satırı (panelin en üstü): yuvarlak avatar · ad + onay · "@kullanıcı · …" · ok
 class JuzzioSettingsProfileCard extends StatelessWidget {
   const JuzzioSettingsProfileCard({
     super.key,
@@ -169,56 +229,54 @@ class JuzzioSettingsProfileCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final glow = JuzzioGlassTokens.glow;
-    final pair = JuzzioGlassTokens.accentPair;
     return Semantics(
       button: true,
       label: '$name, $handleLine',
-      child: GestureDetector(
-        onTap: onTap,
-        child: JuzzioLiquidGlass(
-          strong: true,
-          radius: 26,
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            children: [
-              Container(
-                width: 60,
-                height: 60,
-                padding: const EdgeInsets.all(3),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: SweepGradient(colors: [glow, pair.length > 1 ? pair[1] : glow, glow]),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(28),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(22, 16, 18, 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 60,
+                  height: 60,
+                  padding: const EdgeInsets.all(2.5),
+                  decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: glow, width: 2)),
+                  child: ClipOval(child: avatar),
                 ),
-                child: ClipOval(child: avatar),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(children: [
-                      Flexible(
-                        child: Text(
-                          name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: JuzzioGlassTokens.heading, fontSize: 18, fontWeight: FontWeight.w900),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(children: [
+                        Flexible(
+                          child: Text(
+                            name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(color: JuzzioGlassTokens.heading, fontSize: 20, fontWeight: FontWeight.w800),
+                          ),
                         ),
+                        if (verified != null) ...[const SizedBox(width: 6), verified!],
+                      ]),
+                      const SizedBox(height: 3),
+                      Text(
+                        handleLine,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: JuzzioGlassTokens.textSecondary, fontSize: 14, fontWeight: FontWeight.w600),
                       ),
-                      if (verified != null) ...[const SizedBox(width: 6), verified!],
-                    ]),
-                    const SizedBox(height: 3),
-                    Text(
-                      handleLine,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: JuzzioGlassTokens.textSecondary, fontSize: 13),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              Icon(Icons.chevron_right_rounded, color: JuzzioGlassTokens.textMuted, size: 22),
-            ],
+                Icon(Icons.chevron_right_rounded, color: JuzzioGlassTokens.textMuted, size: 26),
+              ],
+            ),
           ),
         ),
       ),
@@ -226,7 +284,7 @@ class JuzzioSettingsProfileCard extends StatelessWidget {
   }
 }
 
-/// "Ayarlarda ara" cam kutusu
+/// "Ayarlarda ara" kutusu (panelin içinde, sade)
 class JuzzioSettingsSearchField extends StatelessWidget {
   const JuzzioSettingsSearchField({super.key, required this.controller, required this.hint, required this.onChanged});
   final TextEditingController controller;
@@ -235,13 +293,19 @@ class JuzzioSettingsSearchField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return JuzzioLiquidGlass(
-      radius: 999,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: SizedBox(
+    final dark = JuzzioGlassTokens.isDarkResolver();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 4, 18, 4),
+      child: Container(
         height: 46,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          color: JuzzioGlassTokens.textPrimary.withValues(alpha: dark ? 0.06 : 0.05),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: JuzzioGlassTokens.border.withValues(alpha: 0.6)),
+        ),
         child: Row(children: [
-          Icon(Icons.search_rounded, size: 19, color: JuzzioGlassTokens.textSecondary),
+          Icon(Icons.search_rounded, size: 20, color: JuzzioGlassTokens.textSecondary),
           const SizedBox(width: 10),
           Expanded(
             child: TextField(
@@ -272,7 +336,7 @@ class JuzzioSettingsSearchField extends StatelessWidget {
   }
 }
 
-/// Bölüm: BÜYÜK HARF etiket + cam grup
+/// Bölüm: harf aralıklı BÜYÜK HARF etiket + kartsız satırlar
 class JuzzioSettingsSectionView extends StatelessWidget {
   const JuzzioSettingsSectionView({super.key, required this.section});
   final JuzzioSettingsSection section;
@@ -280,58 +344,52 @@ class JuzzioSettingsSectionView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: 14),
+      padding: const EdgeInsets.only(top: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (section.label.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.fromLTRB(6, 0, 6, 7),
+              padding: const EdgeInsets.fromLTRB(26, 10, 22, 4),
               child: Text(
                 juzzioSettingsUpper(section.label, turkish: JuzzioAppController.instance.uiLang == 'tr'),
                 style: TextStyle(
-                  color: JuzzioGlassTokens.textMuted,
-                  fontSize: 12,
+                  color: JuzzioGlassTokens.textSecondary,
+                  fontSize: 13.5,
                   fontWeight: FontWeight.w800,
-                  letterSpacing: 0.8,
+                  letterSpacing: 1.6,
                 ),
               ),
             ),
-          JuzzioLiquidGlass(
-            radius: 24,
-            padding: const EdgeInsets.symmetric(vertical: 2),
-            child: Column(
-              children: [
-                for (var i = 0; i < section.items.length; i++) ...[
-                  if (i > 0) Divider(height: 1, thickness: 1, indent: 63, color: JuzzioGlassTokens.border.withValues(alpha: 0.5)),
-                  JuzzioSettingsRow(item: section.items[i]),
-                ],
-              ],
-            ),
-          ),
+          for (final it in section.items) JuzzioSettingsRow(item: it),
         ],
       ),
     );
   }
 }
 
-/// Tek satır: ikon karosu · başlık/açıklama · değer · ok
+/// Tek satır (referans): yuvarlak ikon dairesi · kalın başlık · açıklama ya da değer · ok
 class JuzzioSettingsRow extends StatelessWidget {
   const JuzzioSettingsRow({super.key, required this.item});
   final JuzzioSettingsItem item;
 
   @override
   Widget build(BuildContext context) {
-    final glowText = JuzzioGlassTokens.glowText;
+    final dark = JuzzioGlassTokens.isDarkResolver();
     final danger = item.danger;
-    final dangerColor = JuzzioGlassTokens.isDarkResolver() ? const Color(0xFFFF7A82) : const Color(0xFFC62835);
-    final tileBg = danger
-        ? dangerColor.withValues(alpha: 0.12)
+    final dangerColor = dark ? const Color(0xFFFF7A82) : const Color(0xFFC62835);
+    final circleBg = danger
+        ? dangerColor.withValues(alpha: 0.14)
         : item.primary
             ? JuzzioGlassTokens.glow
-            : glowText.withValues(alpha: JuzzioGlassTokens.isDarkResolver() ? 0.14 : 0.12);
-    final tileFg = danger ? dangerColor : (item.primary ? JuzzioGlassTokens.onGlow : glowText);
-    final titleColor = danger ? dangerColor : JuzzioGlassTokens.textPrimary;
+            : JuzzioGlassTokens.textPrimary.withValues(alpha: dark ? 0.08 : 0.06);
+    final iconColor = danger ? dangerColor : (item.primary ? JuzzioGlassTokens.onGlow : JuzzioGlassTokens.heading);
+    final titleColor = danger ? dangerColor : JuzzioGlassTokens.heading;
+    // değer (ör. "Türkçe") açıklama satırında gösterilir — referanstaki "Dil / Türkçe"
+    final sub = [
+      if ((item.subtitle ?? '').isNotEmpty) item.subtitle!,
+      if ((item.subtitle ?? '').isEmpty && (item.value ?? '').isNotEmpty) item.value!,
+    ].join();
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -342,18 +400,18 @@ class JuzzioSettingsRow extends StatelessWidget {
                 item.onTap!();
               },
         child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 58),
+          constraints: const BoxConstraints(minHeight: 72),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+            padding: const EdgeInsets.fromLTRB(22, 10, 18, 10),
             child: Row(
               children: [
                 Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(color: tileBg, borderRadius: BorderRadius.circular(12)),
-                  child: Icon(item.icon, size: 19, color: tileFg),
+                  width: 54,
+                  height: 54,
+                  decoration: BoxDecoration(color: circleBg, shape: BoxShape.circle),
+                  child: Icon(item.icon, size: 24, color: iconColor),
                 ),
-                const SizedBox(width: 13),
+                const SizedBox(width: 18),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -363,35 +421,35 @@ class JuzzioSettingsRow extends StatelessWidget {
                         item.title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: titleColor, fontSize: 15, fontWeight: FontWeight.w700),
+                        style: TextStyle(color: titleColor, fontSize: 18.5, fontWeight: FontWeight.w800),
                       ),
-                      if ((item.subtitle ?? '').isNotEmpty) ...[
-                        const SizedBox(height: 1),
+                      if (sub.isNotEmpty) ...[
+                        const SizedBox(height: 3),
                         Text(
-                          item.subtitle!,
-                          maxLines: 1,
+                          sub,
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: JuzzioGlassTokens.textSecondary, fontSize: 12.5),
+                          style: TextStyle(color: JuzzioGlassTokens.textSecondary, fontSize: 14, fontWeight: FontWeight.w600, height: 1.3),
                         ),
                       ],
                     ],
                   ),
                 ),
-                if ((item.value ?? '').isNotEmpty) ...[
+                if ((item.subtitle ?? '').isNotEmpty && (item.value ?? '').isNotEmpty) ...[
                   const SizedBox(width: 8),
                   ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 120),
+                    constraints: const BoxConstraints(maxWidth: 110),
                     child: Text(
                       item.value!,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: glowText, fontSize: 13, fontWeight: FontWeight.w700),
+                      style: TextStyle(color: JuzzioGlassTokens.glowText, fontSize: 13, fontWeight: FontWeight.w700),
                     ),
                   ),
                 ],
                 if (item.showChevron && !danger) ...[
-                  const SizedBox(width: 4),
-                  Icon(Icons.chevron_right_rounded, size: 20, color: JuzzioGlassTokens.textMuted),
+                  const SizedBox(width: 6),
+                  Icon(Icons.chevron_right_rounded, size: 26, color: JuzzioGlassTokens.textMuted),
                 ],
               ],
             ),

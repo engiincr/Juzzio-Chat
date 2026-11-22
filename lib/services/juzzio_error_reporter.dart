@@ -99,6 +99,10 @@ class JuzzioErrorReporter {
           low.contains('connection reset') || low.contains('connection closed')) {
         return;
       }
+      // v2.2.0: LiveKit kütüphanesinin içinde kalan ve aramayı etkilemeyen yarış/zaman aşımı kayıtları
+      // (katılımcı güncellemesi beklerken zaman aşımı, kapanan izin yayınlanmaya çalışılması).
+      // Aramayı etkileyen hatalar uygulamada yakalanıp ayrıca "call" sağlık kaydı olarak raporlanır.
+      if (juzzioIsBenignLiveKitNoise(low)) return;
       final fp = juzzioErrorFingerprint(type, stackText);
       final last = _lastSent[fp];
       final now = DateTime.now();
@@ -130,4 +134,13 @@ class JuzzioHandledIssue {
   JuzzioHandledIssue(this.area, this.detail);
   @override
   String toString() => '[$area] $detail';
+}
+
+
+/// v2.2.0: raporlanmayacak LiveKit iç gürültüsü (saf; test edilir)
+bool juzzioIsBenignLiveKitNoise(String lowerMessage) {
+  final m = lowerMessage;
+  if (m.contains('livekit exception: [timeoutexception]')) return true;
+  if (m.contains('addtransceiver') && m.contains('track is null')) return true;
+  return false;
 }

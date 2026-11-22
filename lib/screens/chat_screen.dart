@@ -2500,306 +2500,27 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   }
 
   /// v2.1: tasarımdaki Arkadaşlık İstekleri sayfası (Gelen/Gönderilen, ortak arkadaş, Tümünü Kabul Et)
-  Future<void> _openFriendRequestsPage() async {
+  /// v2.2.0: "Arkadaş Ekle & Kişilerim" ayrı alt pencere değil, bu sayfanın "Ekle" sekmesi.
+  Future<void> _openFriendRequestsPage({int? tab}) async {
     await Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => JuzzioFriendRequestsPage(
+      builder: (ctx) => JuzzioFriendRequestsPage(
         respond: _respondFriendRequest,
-        onFindFriends: _showFriendSearchAndRequestsSheet,
+        onFindFriends: () {},
+        initialTab: tab ?? (_pendingIncomingRequests.isNotEmpty ? 1 : 0),
+        sendRequest: (u) async {
+          await _sendFriendRequestTo(u);
+        },
+        openChat: (u) {
+          Navigator.of(ctx).pop();
+          _openDirectChatWithFriend(u);
+        },
+        openProfile: _openUserProfilePage,
       ),
     ));
   }
 
-  Future<void> _showFriendSearchAndRequestsSheet() async {
-    final appCtrl = JuzzioAppController.instance;
-    final p = JuzzioPalette(appCtrl.isDark);
-    final s = JuzzioStrings(appCtrl.uiLang);
-    final searchCtrl = TextEditingController();
-    List<JuzzioUserProfile> results = await SupabaseService.instance.searchUsersByUsername('');
-
-    if (!mounted) return;
-    await showJuzzioSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setModalState) {
-            final pendingReqs = _pendingIncomingRequests;
-            return Container(
-              height: MediaQuery.of(ctx).size.height * 0.86,
-              padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
-              decoration: BoxDecoration(
-                color: p.sheetBg,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-                border: Border.all(color: p.glassBorder),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 44,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: p.textMuted.withValues(alpha: 0.4),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    s.t('friend_search_title'),
-                    style: TextStyle(
-                      fontFamily: JuzzioConfig.fontRegularBold,
-                      color: p.textPrimary,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: searchCtrl,
-                    style: TextStyle(color: p.textPrimary, fontFamily: JuzzioConfig.fontRegularBold),
-                    onChanged: (val) async {
-                      final found = await SupabaseService.instance.searchUsersByUsername(val);
-                      setModalState(() => results = found);
-                    },
-                    decoration: InputDecoration(
-                      hintText: s.t('friend_search_hint'),
-                      hintStyle: TextStyle(color: p.textMuted),
-                      prefixIcon: Icon(Icons.alternate_email_rounded, color: p.textPrimary),
-                      filled: true,
-                      fillColor: p.inputBg,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(999),
-                        borderSide: BorderSide(color: p.glassBorder),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(999),
-                        borderSide: BorderSide(color: p.glassBorder),
-                      ),
-                    ),
-                  ),
-                  if (pendingReqs.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    Text(
-                      s.t('incoming_friend_reqs'),
-                      style: TextStyle(
-                        fontFamily: JuzzioConfig.fontRegularBold,
-                        color: p.badgeOrange,
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    ...pendingReqs.map(
-                      (req) => Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: p.cardBg,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: p.glassBorder),
-                          boxShadow: p.softCardShadow,
-                        ),
-                        child: Row(
-                          children: [
-                            CircleAvatar(
-                              backgroundColor: JuzzioColors.ink,
-                              child: Text(
-                                juzzioInitial(req.requesterName),
-                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    '${req.requesterName} (@${req.requesterUsername})',
-                                    style: TextStyle(
-                                      fontFamily: JuzzioConfig.fontRegularBold,
-                                      color: p.textPrimary,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                  Text(
-                                    appCtrl.trEn('Size arkadaşlık isteği gönderdi.', 'Sent you a friend request.', 'Hat dir eine Freundschaftsanfrage gesendet.'),
-                                    style: TextStyle(color: p.textSecondary, fontSize: 12),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: JuzzioColors.ink,
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-                              ),
-                              onPressed: () async {
-                                await _respondFriendRequest(req, true);
-                                setModalState(() {});
-                              },
-                              child: Text(s.t('accept_req'), style: const TextStyle(fontSize: 12)),
-                            ),
-                            IconButton(
-                              onPressed: () async {
-                                await _respondFriendRequest(req, false);
-                                setModalState(() {});
-                              },
-                              icon: Icon(Icons.close_rounded, color: p.dangerRed),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 14),
-                  Expanded(
-                    child: ListView.separated(
-                      itemCount: results.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 8),
-                      itemBuilder: (context, idx) {
-                        final user = results[idx];
-                        final isAccepted = _acceptedFriendIds.contains(user.id);
-                        final myId = SupabaseService.instance.currentUserId;
-                        final isPending = _locallySentRequestIds.contains(user.id) ||
-                            _friendships.any(
-                              (f) =>
-                                  ((f.requesterId == myId && f.receiverId == user.id) ||
-                                      (f.receiverId == myId && f.requesterId == user.id)) &&
-                                  f.status == 'pending',
-                            );
-                        return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                          decoration: BoxDecoration(
-                            color: p.cardBg,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: p.glassBorder),
-                            boxShadow: p.softCardShadow,
-                          ),
-                          child: Row(
-                            children: [
-                              // v1.2.9: avatar/ada dokun → profili EKLEMEDEN görüntüle
-                              Expanded(
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(16),
-                                  onTap: () => _openUserProfilePage(user.id),
-                                  child: Row(
-                                    children: [
-                                      _buildUserAvatar(
-                                        avatarUrl: user.avatarUrl,
-                                        fallbackName: user.displayName,
-                                        radius: 22,
-                                        p: p,
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              user.displayName,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(
-                                                fontFamily: JuzzioConfig.fontRegularBold,
-                                                color: p.textPrimary,
-                                                fontWeight: FontWeight.w800,
-                                                fontSize: 15,
-                                              ),
-                                            ),
-                                            Text(
-                                              '@${user.username} • ${user.preferredLang.toUpperCase()}',
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(color: p.textSecondary, fontSize: 12),
-                                            ),
-                                            Text(
-                                              appCtrl.trEn('Profili görmek için dokun', 'Tap to view profile', 'Tippen, um das Profil zu sehen'),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(color: JuzzioGlassTokens.glowText, fontSize: 11, fontWeight: FontWeight.w700),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              if (isAccepted)
-                                ElevatedButton.icon(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: JuzzioColors.ink,
-                                    foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-                                  ),
-                                  onPressed: () {
-                                    Navigator.of(ctx).pop();
-                                    _openDirectChatWithFriend(user);
-                                  },
-                                  icon: const Icon(Icons.chat_bubble_outline_rounded, size: 15),
-                                  label: Text(
-                                    s.t('message_friend'),
-                                    style: const TextStyle(
-                                      fontFamily: JuzzioConfig.fontRegularBold,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                )
-                              else if (isPending)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                                  decoration: BoxDecoration(
-                                    color: p.pillBg,
-                                    borderRadius: BorderRadius.circular(999),
-                                  ),
-                                  child: Text(
-                                    s.t('friend_req_sent'),
-                                    style: TextStyle(
-                                      fontFamily: JuzzioConfig.fontRegularBold,
-                                      color: p.textSecondary,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                )
-                              else
-                                ElevatedButton.icon(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: JuzzioColors.ink,
-                                    foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-                                  ),
-                                  onPressed: () async {
-                                    await _sendFriendRequestTo(user);
-                                    setModalState(() {});
-                                  },
-                                  icon: const Icon(Icons.person_add_alt_1_rounded, size: 16),
-                                  label: Text(
-                                    s.t('send_friend_req'),
-                                    style: const TextStyle(
-                                      fontFamily: JuzzioConfig.fontRegularBold,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
+  /// v2.2.0: eskiden alt pencereydi; artık Arkadaşlar sayfasının "Ekle" sekmesini açar
+  Future<void> _showFriendSearchAndRequestsSheet() => _openFriendRequestsPage(tab: 0);
 
   /// v0.9.0 Faz 2: sistem geri hareketi. Kararı saf durum makinesi verir.
   void _handleSystemBack() {
@@ -3745,9 +3466,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                     ),
                   ),
                 ),
-                // GM-014: masaüstünde de gerçek ay evresi / güneş başlıkta sabit yerinde
-                const JuzzioSkyIcon(size: 28),
-                const SizedBox(width: 10),
+                // v2.2.0: ay/güneş artık başlıkta değil, gökyüzü katmanında (referanstaki gibi)
                 JuzzioSpaceIconButton(
                   icon: Icons.more_horiz_rounded,
                   tooltip: appCtrl.trEn('Diğer seçenekler', 'More options', 'Weitere Optionen'),
@@ -3774,23 +3493,15 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         ] else ...[
         JuzzioSpaceHeader(
           eyebrow: _greetingEyebrow(appCtrl),
-          // v1.2.9: Juzzio yazısının yanında gece gerçek Ay evresi, gündüz Güneş (kişinin yerel saatine göre)
-          title: const Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Flexible(child: JuzzioSpaceBrand()),
-              SizedBox(width: 8),
-              JuzzioSkyIcon(size: 30),
-            ],
-          ),
+          // v2.2.0: ay/güneş başlıkta değil, gökyüzü katmanında (çift ay ve yazıya binme kalktı)
+          title: const JuzzioSpaceBrand(),
           actions: [
             JuzzioSpaceIconButton(
               icon: Icons.person_outline_rounded,
               dotColor: anyFriendOnline ? JuzzioGlassTokens.glow : null,
               badgeCount: _pendingIncomingRequests.length,
               tooltip: appCtrl.trEn('Arkadaşlar ve istekler', 'Friends and requests', 'Freunde und Anfragen'),
-              onTap: _openFriendRequestsPage,
+              onTap: () => _openFriendRequestsPage(),
             ),
             JuzzioSpaceIconButton(
               icon: Icons.notifications_none_rounded,
@@ -3907,9 +3618,15 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                           const SizedBox(height: 14),
                           JuzzioSpaceSectionHeader(
                             // Figma 01: "Mesajlar · 03 sohbet"
-                            eyebrow: chatCount > 0
-                                ? '${appCtrl.trEn('Gelen kutusu', 'Inbox', 'Posteingang')} · ${chatCount.toString().padLeft(2, '0')} ${appCtrl.trEn('sohbet', 'chats', 'Chats')}'
-                                : appCtrl.trEn('Gelen kutusu', 'Inbox', 'Posteingang'),
+                            // v2.2.0: okunmamış mesaj varsa "Gelen kutusu • 1 yeni mesaj"; yoksa sohbet sayısı
+                            eyebrow: juzzioInboxEyebrow(
+                              inbox: appCtrl.trEn('Gelen kutusu', 'Inbox', 'Posteingang'),
+                              chatCount: chatCount,
+                              unread: _conversations.fold<int>(0, (sum, c) => sum + (c.isMuted ? 0 : c.unreadCount)),
+                              chatsWord: appCtrl.trEn('sohbet', 'chats', 'Chats'),
+                              newWord: appCtrl.trEn('yeni mesaj', 'new messages', 'neue Nachrichten'),
+                              newWordOne: appCtrl.trEn('yeni mesaj', 'new message', 'neue Nachricht'),
+                            ),
                             title: appCtrl.trEn('Mesajlar', 'Messages', 'Nachrichten'),
                             moreTooltip: appCtrl.trEn('Diğer seçenekler', 'More options', 'Weitere Optionen'),
                             onMore: () => _showInboxMoreMenu(p, s, appCtrl, lockedCount),
@@ -4939,7 +4656,11 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                               // Yalnız EN YENİ mesaj değiştiğinde aşağı inilir; eski sayfa yüklenmesi
                               // (üste ekleme) görünümü hiç oynatmaz.
                               final newestId = messages.isEmpty ? null : messages.last.id;
-                              if (newestId != _newestRenderedId) {
+                              // v2.2.0: liste boşalınca (sohbet temizlendi / oda değişti) "No element" hatası
+                              // verilmez — yalnız iz sıfırlanır.
+                              if (newestId == null) {
+                                _newestRenderedId = null;
+                              } else if (newestId != _newestRenderedId) {
                                 final firstLoad = _newestRenderedId == null;
                                 // v1.2.4: yalnız GERÇEKTEN daha yeni bir mesaj geldiyse aşağı inilir.
                                 // Eski sayfa yüklenirken önbellekten gelen bir anlık eski liste "yeni
@@ -11513,4 +11234,20 @@ class JuzzioOfficialAvatar extends StatelessWidget {
       ),
     );
   }
+}
+
+
+/// v2.2.0: gelen kutusu üst satırı (saf; test edilir). Okunmamış varsa "Gelen kutusu • 1 yeni mesaj",
+/// yoksa "Gelen kutusu · 08 sohbet", hiç sohbet yoksa yalnız "Gelen kutusu".
+String juzzioInboxEyebrow({
+  required String inbox,
+  required int chatCount,
+  required int unread,
+  required String chatsWord,
+  required String newWord,
+  required String newWordOne,
+}) {
+  if (unread > 0) return '$inbox • $unread ${unread == 1 ? newWordOne : newWord}';
+  if (chatCount > 0) return '$inbox · ${chatCount.toString().padLeft(2, '0')} $chatsWord';
+  return inbox;
 }

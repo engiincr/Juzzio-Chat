@@ -28,67 +28,98 @@ class _AttachItem {
   final String id;
   final IconData icon;
   final String label;
-  final List<Color> colors;
-  const _AttachItem(this.id, this.icon, this.label, this.colors);
+  final String hint;
+  final Color color;
+  const _AttachItem(this.id, this.icon, this.label, this.hint, this.color);
 }
 
+/// v2.2.0: ek menüsü renkleri — her temada uyumlu, yumuşak ve birbirinden ayırt edilir (saf; test edilir)
+const Map<String, Color> kJuzzioAttachColors = {
+  'document': Color(0xFF8B7CF6),
+  'gallery_photo': Color(0xFFF472B6),
+  'gallery_video': Color(0xFFFB923C),
+  'view_once': Color(0xFF2DD4BF),
+  'location': Color(0xFF34D399),
+  'contact': Color(0xFF60A5FA),
+  'music': Color(0xFFF87171),
+  'poll': Color(0xFFFBBF24),
+  'event': Color(0xFFA3E635),
+  'schedule': Color(0xFF94A3B8),
+};
+
 /// Seçilen eklenti kimliğini döner: document, gallery_photo, gallery_video, view_once, location, contact, poll, event, schedule.
+/// v2.2.0: yeniden tasarlandı — tema camında başlıklı pano, her seçenek kendi renginde yumuşak bir
+/// cam kart (renkli simge dairesi + ad + kısa açıklama). Belge / Video / Tek seferlik öne çıkar.
 Future<String?> showJuzzioAttachMenu(BuildContext context, {required bool isGroup}) {
   final app = JuzzioAppController.instance;
+  Color c(String id) => kJuzzioAttachColors[id]!;
   final items = <_AttachItem>[
-    _AttachItem('document', Icons.description_rounded, app.trEn('Belge', 'Document', 'Dokument'), const [Color(0xFF7C4DFF), Color(0xFF536DFE)]),
-    _AttachItem('gallery_photo', Icons.photo_library_rounded, app.trEn('Galeri', 'Gallery', 'Galerie'), const [Color(0xFFEC407A), Color(0xFFAB47BC)]),
-    _AttachItem('gallery_video', Icons.video_library_rounded, app.trEn('Video', 'Video', 'Video'), const [Color(0xFFFF7043), Color(0xFFF4511E)]),
-    _AttachItem('view_once', Icons.looks_one_rounded, app.trEn('Tek seferlik', 'View once', 'Einmalig'), const [Color(0xFF00BFA5), Color(0xFF00897B)]),
-    _AttachItem('location', Icons.location_on_rounded, app.trEn('Konum', 'Location', 'Standort'), const [Color(0xFF26A69A), Color(0xFF00897B)]),
-    _AttachItem('contact', Icons.contact_page_rounded, app.trEn('Kişi kartı', 'Contact', 'Kontakt'), const [Color(0xFF42A5F5), Color(0xFF1E88E5)]),
+    _AttachItem('document', Icons.description_outlined, app.trEn('Belge', 'Document', 'Dokument'),
+        app.trEn('PDF, Word, ZIP', 'PDF, Word, ZIP', 'PDF, Word, ZIP'), c('document')),
+    _AttachItem('gallery_photo', Icons.photo_outlined, app.trEn('Fotoğraf', 'Photo', 'Foto'),
+        app.trEn('Galeriden', 'From gallery', 'Aus Galerie'), c('gallery_photo')),
+    _AttachItem('gallery_video', Icons.videocam_outlined, app.trEn('Video', 'Video', 'Video'),
+        app.trEn('Galeriden', 'From gallery', 'Aus Galerie'), c('gallery_video')),
+    _AttachItem('view_once', Icons.looks_one_outlined, app.trEn('Tek gösterim', 'View once', 'Einmal ansehen'),
+        app.trEn('Bir kez açılır', 'Opens once', 'Einmal öffnen'), c('view_once')),
+    _AttachItem('location', Icons.location_on_outlined, app.trEn('Konum', 'Location', 'Standort'),
+        app.trEn('Şu anki yerin', 'Where you are', 'Dein Standort'), c('location')),
+    _AttachItem('contact', Icons.contact_page_outlined, app.trEn('Kişi kartı', 'Contact', 'Kontakt'),
+        app.trEn('Arkadaşını paylaş', 'Share a friend', 'Freund teilen'), c('contact')),
     // v1.2.9: sohbette müzik paylaş (30 sn önizleme + Apple Music'te tamamı)
     if (JuzzioFeaturesService.instance.lastAppConfig.itunesPreviewsEnabled)
-      _AttachItem('music', Icons.music_note_rounded, app.trEn('Müzik', 'Music', 'Musik'), const [Color(0xFFFF5E7E), Color(0xFFE53964)]),
-    if (isGroup) _AttachItem('poll', Icons.poll_rounded, app.trEn('Anket', 'Poll', 'Umfrage'), const [Color(0xFFFFCA28), Color(0xFFFFA000)]),
-    if (isGroup) _AttachItem('event', Icons.event_rounded, app.trEn('Etkinlik', 'Event', 'Termin'), const [Color(0xFF66BB6A), Color(0xFF43A047)]),
-    _AttachItem('schedule', Icons.schedule_send_rounded, app.trEn('Zamanla', 'Schedule', 'Planen'), const [Color(0xFF78909C), Color(0xFF546E7A)]),
+      _AttachItem('music', Icons.music_note_outlined, app.trEn('Müzik', 'Music', 'Musik'),
+          app.trEn('30 sn önizleme', '30 s preview', '30 s Vorschau'), c('music')),
+    if (isGroup)
+      _AttachItem('poll', Icons.poll_outlined, app.trEn('Anket', 'Poll', 'Umfrage'), app.trEn('Oylama', 'Vote', 'Abstimmung'), c('poll')),
+    if (isGroup)
+      _AttachItem('event', Icons.event_outlined, app.trEn('Etkinlik', 'Event', 'Termin'), app.trEn('Tarih + hatırlatma', 'Date + reminder', 'Datum + Erinnerung'), c('event')),
+    _AttachItem('schedule', Icons.schedule_send_outlined, app.trEn('Zamanla', 'Schedule', 'Planen'),
+        app.trEn('Sonra gönder', 'Send later', 'Später senden'), c('schedule')),
   ];
   return showJuzzioSheet<String>(
     context: context,
     backgroundColor: Colors.transparent,
     builder: (ctx) {
-      final dark = app.isDark;
-      final p = JuzzioPalette(dark);
       final reduced = JuzzioGlassTokens.reducedEffects;
-      // v1.2.9: Liquid Glass — buzlu cam pano, ışık kenarı (specular rim) ve renkli cam simge kuyuları
       final panel = Container(
         decoration: BoxDecoration(
+          color: JuzzioGlassTokens.sheet,
           borderRadius: BorderRadius.circular(30),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: dark
-                ? [Colors.white.withValues(alpha: 0.14), Colors.white.withValues(alpha: 0.05)]
-                : [Colors.white.withValues(alpha: 0.78), Colors.white.withValues(alpha: 0.55)],
-          ),
-          border: Border.all(color: Colors.white.withValues(alpha: dark ? 0.22 : 0.7), width: 1.1),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: dark ? 0.45 : 0.15), blurRadius: 30, offset: const Offset(0, 14))],
+          border: Border.all(color: JuzzioGlassTokens.spaceCardBorder, width: 1.1),
         ),
-        padding: const EdgeInsets.fromLTRB(14, 10, 14, 16),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(width: 38, height: 4, decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.35), borderRadius: BorderRadius.circular(9))),
-          const SizedBox(height: 16),
-          LayoutBuilder(builder: (context, c) {
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4.5,
+              decoration: BoxDecoration(color: JuzzioGlassTokens.textMuted.withValues(alpha: 0.5), borderRadius: BorderRadius.circular(9)),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Text(app.trEn('Paylaş', 'Share', 'Teilen'),
+                style: TextStyle(color: JuzzioGlassTokens.heading, fontSize: 19, fontWeight: FontWeight.w800)),
+          ),
+          const SizedBox(height: 12),
+          LayoutBuilder(builder: (context, box) {
             // dar ekranda 3, normalde 4 sütun → etiketler taşmaz
-            final cols = c.maxWidth < 300 ? 3 : 4;
+            final cols = box.maxWidth < 330 ? 3 : 4;
             return GridView.count(
               crossAxisCount: cols,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 14,
-              crossAxisSpacing: 8,
-              childAspectRatio: 0.84,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+              childAspectRatio: 0.78,
               children: [
-                for (final it in items) _JuzzioGlassAttachTile(item: it, dark: dark, textColor: p.textPrimary, onTap: () {
-                  HapticFeedback.selectionClick();
-                  Navigator.pop(ctx, it.id);
-                }),
+                for (final it in items)
+                  _JuzzioAttachTile(item: it, onTap: () {
+                    HapticFeedback.selectionClick();
+                    Navigator.pop(ctx, it.id);
+                  }),
               ],
             );
           }),
@@ -100,7 +131,7 @@ Future<String?> showJuzzioAttachMenu(BuildContext context, {required bool isGrou
           padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(30),
-            child: reduced ? Container(color: p.sheetBg, child: panel) : BackdropFilter(filter: ui.ImageFilter.blur(sigmaX: 26, sigmaY: 26), child: panel),
+            child: reduced ? panel : BackdropFilter(filter: ui.ImageFilter.blur(sigmaX: 24, sigmaY: 24), child: panel),
           ),
         ),
       );
@@ -108,24 +139,25 @@ Future<String?> showJuzzioAttachMenu(BuildContext context, {required bool isGrou
   );
 }
 
-class _JuzzioGlassAttachTile extends StatefulWidget {
-  const _JuzzioGlassAttachTile({required this.item, required this.dark, required this.textColor, required this.onTap});
+/// v2.2.0: tek seçenek kartı — kendi renginde yumuşak cam zemin, renkli simge dairesi, ad ve açıklama
+class _JuzzioAttachTile extends StatefulWidget {
+  const _JuzzioAttachTile({required this.item, required this.onTap});
   final _AttachItem item;
-  final bool dark;
-  final Color textColor;
   final VoidCallback onTap;
 
   @override
-  State<_JuzzioGlassAttachTile> createState() => _JuzzioGlassAttachTileState();
+  State<_JuzzioAttachTile> createState() => _JuzzioAttachTileState();
 }
 
-class _JuzzioGlassAttachTileState extends State<_JuzzioGlassAttachTile> {
+class _JuzzioAttachTileState extends State<_JuzzioAttachTile> {
   bool _down = false;
 
   @override
   Widget build(BuildContext context) {
     final it = widget.item;
-    final tint = it.colors.first;
+    final dark = JuzzioGlassTokens.isDarkResolver();
+    // açık zeminde simge rengi okunur kalsın diye koyulaştırılır
+    final ink = dark ? it.color : Color.lerp(it.color, const Color(0xFF000000), 0.28)!;
     return Semantics(
       button: true,
       label: it.label,
@@ -135,51 +167,39 @@ class _JuzzioGlassAttachTileState extends State<_JuzzioGlassAttachTile> {
         onTapUp: (_) => setState(() => _down = false),
         onTap: widget.onTap,
         child: AnimatedScale(
-          scale: _down ? 0.9 : 1,
-          duration: const Duration(milliseconds: 120),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Container(
-              width: 58,
-              height: 58,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                // renkli cam kuyu: üstte parlak, altta tonlu
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [tint.withValues(alpha: 0.55), it.colors.last.withValues(alpha: 0.85)],
-                ),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.45), width: 1),
-                boxShadow: [BoxShadow(color: it.colors.last.withValues(alpha: 0.38), blurRadius: 14, offset: const Offset(0, 6))],
-              ),
-              child: Stack(children: [
-                // üst ışık yansıması
-                Positioned(
-                  left: 6,
-                  right: 6,
-                  top: 4,
-                  height: 20,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(14),
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [Colors.white.withValues(alpha: 0.45), Colors.white.withValues(alpha: 0.0)],
-                      ),
-                    ),
-                  ),
-                ),
-                Center(child: Icon(it.icon, color: Colors.white, size: 27)),
-              ]),
+          scale: _down ? 0.93 : 1,
+          duration: const Duration(milliseconds: 110),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(22),
+              color: it.color.withValues(alpha: dark ? 0.12 : 0.10),
+              border: Border.all(color: it.color.withValues(alpha: dark ? 0.30 : 0.35)),
             ),
-            const SizedBox(height: 7),
-            Text(it.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: TextStyle(color: widget.textColor, fontSize: 12, fontWeight: FontWeight.w700)),
-          ]),
+            padding: const EdgeInsets.fromLTRB(6, 12, 6, 10),
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: it.color.withValues(alpha: dark ? 0.22 : 0.18),
+                ),
+                child: Icon(it.icon, color: ink, size: 24),
+              ),
+              const SizedBox(height: 8),
+              Text(it.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: JuzzioGlassTokens.textPrimary, fontSize: 12.5, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 2),
+              Text(it.hint,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: JuzzioGlassTokens.textMuted, fontSize: 10.5, fontWeight: FontWeight.w600)),
+            ]),
+          ),
         ),
       ),
     );

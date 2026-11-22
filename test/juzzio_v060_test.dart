@@ -14,18 +14,18 @@ void main() {
     return hsl.saturation > 0.35 && hsl.lightness > 0.25 && hsl.lightness < 0.9 && hsl.hue >= 12 && hsl.hue <= 48;
   }
 
-  test('Cam temaları benzersiz ve turuncu ton içermez', () {
+  test('Cam temaları benzersiz ve turuncu ton içermez (yalnız Amber Altın bilinçli sıcak tema, KR-012)', () {
     final ids = kJuzzioAuroraPalettes.map((p) => p.id).toList();
     expect(ids.toSet().length, ids.length);
     expect(ids, containsAll(<String>['ocean', 'amethyst', 'emerald', 'lagoon', 'chrome']));
-    for (final p in kJuzzioAuroraPalettes) {
+    for (final p in kJuzzioAuroraPalettes.where((p) => p.id != 'amber_gold')) {
       expect(isOrange(p.swatchA), isFalse, reason: p.id);
       expect(isOrange(p.swatchB), isFalse, reason: p.id);
       for (final o in [...p.orbs, ...p.orbsLight]) {
         expect(isOrange(o.color.withValues(alpha: 1)), isFalse, reason: '${p.id} orb');
       }
     }
-    expect(juzzioAuroraPaletteById('yok').id, 'ocean'); // GM-014: varsayılan mavi
+    expect(juzzioAuroraPaletteById('yok').id, 'graphite_lime'); // v2.2.0: varsayılan lime
     expect(juzzioAuroraPaletteById('emerald').id, 'emerald');
   });
 

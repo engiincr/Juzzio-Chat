@@ -1,12 +1,12 @@
 {
-  "version": "2.1.0",
-  "buildNumber": 210,
-  "releaseDate": "2026-11-21",
-  "releaseTitle": "Juzzio 2.1: Yeni Logo, Keşfet ve Arkadaşlık İstekleri",
+  "version": "2.2.0",
+  "buildNumber": 220,
+  "releaseDate": "2026-11-22",
+  "releaseTitle": "Juzzio 2.2: Yeni Hava Görünümü, Yeni Ayarlar ve Ortak Arkadaşlar",
   "mandatory": false,
   "minSupportedVersion": "0.1.0",
   "apkUrl": "https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk",
-  "versionedApkUrl": "https://github.com/engiincr/Juzzio-Chat/releases/download/v2.1.0/juzzio-v2.1.0-release.apk",
+  "versionedApkUrl": "https://github.com/engiincr/Juzzio-Chat/releases/download/v2.2.0/juzzio-v2.2.0-release.apk",
   "apkSha256": "754b6416f95a20c1f169e69ca3eac3b85584113245e3469966a3f3a76ff03c60",
   "apkSize": "137.07 MB",
   "verifiedBuild": true,
@@ -18,112 +18,92 @@
     "email": "engiincr@pm.me"
   },
   "changelog": {
-    "tr": "v2.1.0: Juzzio 2.1: yeni yeşil şerit J logosu ve tasarım dosyalarıyla birebir Neon Lime görünüm. Yeni Kayıt/Giriş ekranı, Arkadaşlık İstekleri sayfası, kişi keşfetme (kart, eşleşme, beğeni), Profil Karekodum ve veritabanı güvenlik sıkılaştırması.",
-    "en": "v2.1.0: Juzzio 2.1: the new green ribbon J logo and a Neon Lime look that matches the design files. New sign-in/sign-up, Friend Requests page, people discovery (cards, matches, likes), My Profile QR and database hardening.",
-    "de": "v2.1.0: Juzzio 2.1: neues grünes Band-J-Logo und ein Neon-Lime-Design nach den Entwürfen. Neue Anmeldung/Registrierung, Freundschaftsanfragen, Leute entdecken (Karten, Matches, Likes), Mein Profil-QR und Datenbank-Härtung."
+    "tr": "v2.2.0: Juzzio 2.2: Engin'in gönderdiği ekranlara göre yenilendi — bulut, güneş, yağmur ve hilal aylı yeni hava görünümü, birebir yeni Ayarlar sayfası, tek sayfada Arkadaşlar, profilde ortak arkadaşlar, yeni Amber Altın tema ve varsayılan Grafit Limon.",
+    "en": "v2.2.0: Juzzio 2.2: refreshed from Engin's screenshots — a new weather look with clouds, suns, rain and a crescent moon, a brand-new Settings page, Friends on one page, mutual friends on profiles, the new Amber Gold theme and Graphite Lime as default.",
+    "de": "v2.2.0: Juzzio 2.2: nach Engins Screenshots überarbeitet — neues Wetterbild mit Wolken, Sonnen, Regen und Mondsichel, neue Einstellungen, Freunde auf einer Seite, gemeinsame Freunde im Profil, neues Design Bernsteingold und Graphit Limette als Standard."
   },
-  "build": 210,
-  "versionCode": 210,
+  "build": 220,
+  "versionCode": 220,
   "url": "https://github.com/engiincr/Juzzio-Chat/releases/latest/download/Juzzio-latest.apk",
-  "changelog_tr": "v2.1.0: Juzzio 2.1: yeni yeşil şerit J logosu ve tasarım dosyalarıyla birebir Neon Lime görünüm. Yeni Kayıt/Giriş ekranı, Arkadaşlık İstekleri sayfası, kişi keşfetme (kart, eşleşme, beğeni), Profil Karekodum ve veritabanı güvenlik sıkılaştırması.",
-  "changelog_en": "v2.1.0: Juzzio 2.1: the new green ribbon J logo and a Neon Lime look that matches the design files. New sign-in/sign-up, Friend Requests page, people discovery (cards, matches, likes), My Profile QR and database hardening.",
-  "changelog_de": "v2.1.0: Juzzio 2.1: neues grünes Band-J-Logo und ein Neon-Lime-Design nach den Entwürfen. Neue Anmeldung/Registrierung, Freundschaftsanfragen, Leute entdecken (Karten, Matches, Likes), Mein Profil-QR und Datenbank-Härtung.",
+  "changelog_tr": "v2.2.0: Juzzio 2.2: Engin'in gönderdiği ekranlara göre yenilendi — bulut, güneş, yağmur ve hilal aylı yeni hava görünümü, birebir yeni Ayarlar sayfası, tek sayfada Arkadaşlar, profilde ortak arkadaşlar, yeni Amber Altın tema ve varsayılan Grafit Limon.",
+  "changelog_en": "v2.2.0: Juzzio 2.2: refreshed from Engin's screenshots — a new weather look with clouds, suns, rain and a crescent moon, a brand-new Settings page, Friends on one page, mutual friends on profiles, the new Amber Gold theme and Graphite Lime as default.",
+  "changelog_de": "v2.2.0: Juzzio 2.2: nach Engins Screenshots überarbeitet — neues Wetterbild mit Wolken, Sonnen, Regen und Mondsichel, neue Einstellungen, Freunde auf einer Seite, gemeinsame Freunde im Profil, neues Design Bernsteingold und Graphit Limette als Standard.",
   "details": {
     "tr": {
-      "reason": "Juzzio 2.1: yeni yeşil şerit J logosu ve tasarım dosyalarıyla birebir Neon Lime görünüm. Yeni Kayıt/Giriş ekranı, Arkadaşlık İstekleri sayfası, kişi keşfetme (kart, eşleşme, beğeni), Profil Karekodum ve veritabanı güvenlik sıkılaştırması.",
+      "reason": "Juzzio 2.2: Engin'in gönderdiği ekranlara göre yenilendi — bulut, güneş, yağmur ve hilal aylı yeni hava görünümü, birebir yeni Ayarlar sayfası, tek sayfada Arkadaşlar, profilde ortak arkadaşlar, yeni Amber Altın tema ve varsayılan Grafit Limon.",
       "features": [
-        "🟢 Yeni resmî Juzzio logosu: uygulama ikonu, açılış ekranı, bildirim simgesi ve tüm sayfalar",
-        "🎥 Görüntülü arama: en yüksek 1080p · 60 fps, en düşük 480p · 60 fps; kamera açılınca ve kamera çevrilince yaşanan donma giderildi",
-        "🟢 Yeni marka: yeşil şerit J logosu (uygulama ikonu dahil) ve Neon Lime renkleri",
-        "🔐 Yeni Kayıt Ol / Giriş Yap ekranı: Beni hatırla, Şifremi unuttum",
-        "👥 Arkadaşlık İstekleri sayfası: Gelen/Gönderilen, ortak arkadaş sayısı, Tümünü Kabul Et, Geri Çek",
-        "💜 Keşfet: yeni insanlarla tanış — kartlar, beğen, süper beğeni, eşleşmeler, seni beğenenler (gerçek kullanıcılar; Profil Düzenle'den gizlenebilir)",
-        "🔳 Profil Karekodum: bağlantı kopyala, paylaş, galeriye indir, karekod/kullanıcı adıyla profil aç",
-        "🔔 Bildirimlerde İstekler, Bahsetmeler ve Sistem filtreleri",
-        "🌐 Görüntülü aramada \"Canlı Çeviri · Aktif\" rozeti",
-        "🖥️ Aramada ekran paylaşımı (Android ve masaüstü): üst çubuktaki düğmeyle başlat/durdur",
-        "📷 Karekodu kamerayla tara (Android/iOS), fener düğmesi ve bağlantı yapıştırma yedeği",
-        "🌤️ Gökyüzü 2.1: hava ambiyansı baştan tasarlandı — konumunun yerel saatine göre gök rengi, gün boyu yayda ilerleyen güneş, gerçek evreli ay, göz kırpan yıldızlar, bulutlar, rüzgârlı yağmur, şimşek, kar ve sis",
-        "⚙️ Yeni Ayarlar: Hesap ve Profil, Gizlilik ve Güvenlik, iki adımlı doğrulama (kimlik doğrulayıcı uygulama), zamanlanmış sessiz saatler, çeviri kipi (Gerçek Zamanlı / Hızlı / Yüksek Doğruluk), depolama halka grafiği, balon köşeleri, kalın yazı, renk düzeltme, SSS, Verilerimi indir, Onaylarım; Arama Ayarları ve Çıkış onay penceresi",
-        "📞 Arama ekranları baştan tasarlandı: yeni Aramalar sekmesi, Sesli Arama, Görüntülü Arama ve tam ekran Gelen Arama (tuş takımı kaldırıldı — aramalar internet üzerinden)",
-        "🎧 Ses çıkışı seçici: Hoparlör düğmesi yanındaki okla ahize / hoparlör / kablolu / Bluetooth; kulaklık takılınca ses otomatik ona, çıkarılınca ahizeye döner",
-        "🎬 Sinema Parti odası yeni tasarım: tema renkli sinema kartı, CANLI rozeti, cam kontrol rafı, Sinemadakiler koltukları",
-        "🛡️ Yönetici Paneli: tüm bölümler ve modüller ana sayfada; her biri kendi tam sayfasında açılır",
-        "🔐 İki adımlı doğrulama kodu artık okunaklı tam sayfada (6 kutulu kod, yapıştır); Çıkış vb. pencereler opak ve net"
+        "🌦️ Yeni hava görünümü: küçük bulutlar, ince ışınlı güneşler, mavi damlalar, ince yağmur çizgileri ve gerçek evreli hilal ay — içeriğin arkasında, her temada",
+        "⚙️ Ayarlar baştan: tek büyük cam panel, BÜYÜK HARF bölümler (Sohbetler ve Bildirimler, Görünüm ve Dil, Depolama ve Pil, Destek), yuvarlak simgeli satırlar ve ayrı Dil satırı",
+        "👥 Arkadaşlar tek sayfada: Ekle (kullanıcı adıyla ara) · Gelen · Gönderilen — ayrı açılır pencere kalktı",
+        "🤝 Profilde ortak arkadaşlar: \"Ali, Ayşe ve 3 kişi daha ortak arkadaşınız\"",
+        "🟡 Yeni tema: Amber Altın",
+        "🟢 Varsayılan tema yeniden Grafit Limon; güncellemeyle herkes bir kez lime görünüme geçer (Görünüm'den istediğin temayı seçebilirsin)",
+        "✉️ Gelen kutusunda yeni mesaj sayısı: \"Gelen kutusu • 1 yeni mesaj\"",
+        "🔳 Profil karekodu her yerde aynı: profil fotoğrafındaki kart ile Profil Karekodum aynı karekodu gösterir",
+        "📎 Sohbet ek menüsü yenilendi: Belge, Fotoğraf, Video, Tek gösterim, Konum, Kişi kartı… renkli cam kartlar ve kısa açıklamalar"
       ],
       "fixes": [
-        "Alt menüde seçili sekme limon çizgiyle gösterilir",
-        "Giriş ekranı başlığı ve açıklamaları ortalandı"
+        "Keşfet ve Sohbetler başlığında \"Juzzio\" yazısının sonu silinmiyor",
+        "Başlıktaki ikinci ay ve arama kutusuna binen ay kaldırıldı",
+        "Arkadaşlık İstekleri sayfası her temaya uyumlu",
+        "Bağlanırken kapatılan aramada \"Null check\" hatası giderildi",
+        "Kamera yoksa ya da başka uygulama kullanıyorsa görüntülü arama düşmüyor; kısa bilgi gösteriliyor",
+        "Sohbet temizlenince oluşan \"No element\" hatası ve masaüstünde \"widget tree was locked\" hatası giderildi"
       ],
       "security": [
-        "Tüm tablolarda istemci rollerinden TRUNCATE/REFERENCES/TRIGGER yetkisi kaldırıldı; girişsiz (anon) yazma tamamen kapatıldı",
-        "Keşfet'te konum ve yaş kullanılmaz; gizli hesaplar hiç gösterilmez, herkes Keşfet'ten gizlenebilir"
+        "Ortak arkadaşlar yalnız zaten senin arkadaşın olan kişileri gösterir; engellenen kişiler ve girişsiz (anon) erişim hariç"
       ]
     },
     "en": {
-      "reason": "Juzzio 2.1: the new green ribbon J logo and a Neon Lime look that matches the design files. New sign-in/sign-up, Friend Requests page, people discovery (cards, matches, likes), My Profile QR and database hardening.",
+      "reason": "Juzzio 2.2: refreshed from Engin's screenshots — a new weather look with clouds, suns, rain and a crescent moon, a brand-new Settings page, Friends on one page, mutual friends on profiles, the new Amber Gold theme and Graphite Lime as default.",
       "features": [
-        "🟢 New official Juzzio logo: app icon, splash screen, notification icon and every screen",
-        "🎥 Video calls: up to 1080p · 60 fps, never below 480p · 60 fps; freezing when turning on or flipping the camera is fixed",
-        "🟢 New brand: green ribbon J logo (incl. app icon) and Neon Lime colours",
-        "🔐 New Sign up / Sign in screen: Remember me, Forgot password",
-        "👥 Friend Requests page: received/sent, mutual friends, Accept all, Withdraw",
-        "💜 Explore: meet new people — cards, like, super like, matches, who liked you (real users; hide anytime in Edit Profile)",
-        "🔳 My Profile QR: copy link, share, save to gallery, open a profile from a code or username",
-        "🔔 Requests, Mentions and System filters in notifications",
-        "🌐 \"Live Translation · Active\" badge in video calls",
-        "🖥️ Screen sharing in calls (Android and desktop): start/stop from the top bar",
-        "📷 Scan QR codes with the camera (Android/iOS), torch button and paste fallback",
-        "🌤️ Sky 2.1: weather ambience redesigned — sky colour by your local time, a sun that arcs through the day, the moon in its real phase, twinkling stars, clouds, windy rain, lightning, snow and fog",
-        "⚙️ New Settings: Account & Profile, Privacy & Security, two-step verification (authenticator app), scheduled quiet hours, translation mode (Real-time / Fast / High accuracy), storage ring chart, bubble corners, bold text, colour correction, FAQ, Download my data, Consents; Call Settings and sign-out dialog",
-        "📞 Call screens redesigned: new Calls tab, Voice Call, Video Call and full-screen Incoming Call (keypad removed — calls go over the internet)",
-        "🎧 Audio output picker: arrow next to Speaker for earpiece / speaker / wired / Bluetooth; plugging a headset switches to it, unplugging returns to the earpiece",
-        "🎬 Cinema Party room redesigned: theme-coloured cinema card, LIVE badge, glass control bar, seats for viewers",
-        "🛡️ Admin Panel: every section and module on the home page; each opens as its own full page",
-        "🔐 The two-step verification code now has a clear full page (6-box code, paste); Sign out and other dialogs are opaque and readable"
+        "🌦️ New weather look: small clouds, thin-rayed suns, blue drops, fine rain streaks and a real-phase crescent moon — behind the content, in every theme",
+        "⚙️ Settings redesigned: one large glass panel, UPPERCASE sections (Chats & notifications, Appearance & language, Storage & battery, Support), round-icon rows and a separate Language row",
+        "👥 Friends on one page: Add (search by username) · Received · Sent — no separate pop-up",
+        "🤝 Mutual friends on profiles: \"Mutual friends: Ali, Ayşe and 3 more\"",
+        "🟡 New theme: Amber Gold",
+        "🟢 Default theme is Graphite Lime again; the update moves everyone to lime once (pick any theme in Appearance)",
+        "✉️ New message count in the inbox: \"Inbox • 1 new message\"",
+        "🔳 One profile QR everywhere: the profile photo card and My Profile QR show the same code",
+        "📎 Chat attach menu redesigned: Document, Photo, Video, View once, Location, Contact… colourful glass cards with short hints"
       ],
       "fixes": [
-        "The selected bottom tab shows a lime underline",
-        "Sign-in title and texts are centred"
+        "The end of the \"Juzzio\" title no longer fades out on Explore and Chats",
+        "Removed the second moon in the header and the moon overlapping the search box",
+        "Friend Requests page matches every theme",
+        "Fixed the \"Null check\" error when a call is ended while connecting",
+        "Video calls no longer fail when there is no camera or it is busy; a short notice is shown",
+        "Fixed \"No element\" when a chat is cleared and \"widget tree was locked\" on desktop"
       ],
       "security": [
-        "TRUNCATE/REFERENCES/TRIGGER removed from client roles on every table; signed-out (anon) writes fully blocked",
-        "Explore never uses location or age; private accounts are never shown and anyone can hide from Explore"
+        "Mutual friends only lists people who are already your friends; blocked people and signed-out (anon) access are excluded"
       ]
     },
     "de": {
-      "reason": "Juzzio 2.1: neues grünes Band-J-Logo und ein Neon-Lime-Design nach den Entwürfen. Neue Anmeldung/Registrierung, Freundschaftsanfragen, Leute entdecken (Karten, Matches, Likes), Mein Profil-QR und Datenbank-Härtung.",
+      "reason": "Juzzio 2.2: nach Engins Screenshots überarbeitet — neues Wetterbild mit Wolken, Sonnen, Regen und Mondsichel, neue Einstellungen, Freunde auf einer Seite, gemeinsame Freunde im Profil, neues Design Bernsteingold und Graphit Limette als Standard.",
       "features": [
-        "🟢 Neues offizielles Juzzio-Logo: App-Symbol, Startbildschirm, Benachrichtigungssymbol und alle Seiten",
-        "🎥 Videoanrufe: bis 1080p · 60 fps, nie unter 480p · 60 fps; Einfrieren beim Einschalten/Wechseln der Kamera behoben",
-        "🟢 Neue Marke: grünes Band-J-Logo (inkl. App-Symbol) und Neon-Lime-Farben",
-        "🔐 Neuer Anmelde-/Registrierungsbildschirm: Angemeldet bleiben, Passwort vergessen",
-        "👥 Freundschaftsanfragen: erhalten/gesendet, gemeinsame Freunde, Alle annehmen, Zurückziehen",
-        "💜 Entdecken: neue Leute kennenlernen — Karten, Like, Super-Like, Matches, wer dich mag (freiwillige Sichtbarkeit)",
-        "🔳 Mein Profil-QR: Link kopieren, teilen, in der Galerie speichern, Profil per Code oder Benutzername öffnen",
-        "🔔 Filter Anfragen, Erwähnungen und System in den Benachrichtigungen",
-        "🌐 Abzeichen „Live-Übersetzung · Aktiv“ im Videoanruf",
-        "🖥️ Bildschirmfreigabe im Anruf (Android und Desktop): Start/Stopp über die obere Leiste",
-        "📷 QR-Codes mit der Kamera scannen (Android/iOS), Taschenlampe und Einfügen als Alternative",
-        "🌤️ Himmel 2.1: Wetter-Ambiente neu gestaltet — Himmelsfarbe nach Ortszeit, Sonne im Tagesbogen, Mond in echter Phase, funkelnde Sterne, Wolken, Regen mit Wind, Blitze, Schnee und Nebel",
-        "⚙️ Neue Einstellungen: Konto & Profil, Datenschutz & Sicherheit, Zwei-Schritt-Verifizierung (Authenticator-App), Ruhezeiten, Übersetzungsmodus (Echtzeit / Schnell / Hohe Genauigkeit), Speicher-Ringdiagramm, Blasenecken, Fettschrift, Farbkorrektur, FAQ, Meine Daten herunterladen, Einwilligungen; Anrufeinstellungen und Abmelde-Dialog",
-        "📞 Anrufbildschirme neu gestaltet: neuer Anrufe-Tab, Sprachanruf, Videoanruf und Vollbild-Eingangsanruf (ohne Wähltastatur — Anrufe laufen übers Internet)",
-        "🎧 Audioausgabe: Pfeil neben Lautsprecher für Hörmuschel / Lautsprecher / Kabel / Bluetooth; Headset einstecken wechselt dorthin, Entfernen zurück zur Hörmuschel",
-        "🎬 Kino-Party-Raum neu gestaltet: Kinokarte in Themenfarbe, LIVE-Abzeichen, Glas-Steuerleiste, Plätze der Zuschauer",
-        "🛡️ Admin-Panel: alle Bereiche und Module auf der Startseite; jeder öffnet sich als eigene Seite",
-        "🔐 Der Zwei-Schritt-Code hat jetzt eine klare Vollbildseite (6 Felder, Einfügen); Abmelden und andere Dialoge sind deckend und lesbar"
+        "🌦️ Neues Wetterbild: kleine Wolken, Sonnen, blaue Tropfen, feine Regenstriche und eine Mondsichel mit echter Phase — hinter den Inhalten, in jedem Design",
+        "⚙️ Neue Einstellungen: ein großes Glaspanel, Abschnitte in GROSSBUCHSTABEN, Zeilen mit runden Symbolen und eigene Zeile für Sprache",
+        "👥 Freunde auf einer Seite: Hinzufügen (Suche nach Benutzername) · Erhalten · Gesendet",
+        "🤝 Gemeinsame Freunde im Profil",
+        "🟡 Neues Design: Bernsteingold",
+        "🟢 Standard wieder Graphit Limette; das Update stellt einmalig alle auf Limette um",
+        "✉️ Neue Nachrichten im Posteingang: \"Posteingang • 1 neue Nachricht\"",
+        "🔳 Überall derselbe Profil-QR-Code",
+        "📎 Neues Anhang-Menü mit farbigen Glaskarten"
       ],
       "fixes": [
-        "Der ausgewählte Tab unten zeigt eine Lime-Linie",
-        "Titel und Texte der Anmeldung sind zentriert"
+        "\"Juzzio\"-Titel wird auf Entdecken und Chats nicht mehr abgeschnitten",
+        "Zweiter Mond im Kopfbereich entfernt",
+        "Fehler beim Beenden eines Anrufs während des Verbindens behoben",
+        "Videoanruf ohne Kamera bricht nicht mehr ab"
       ],
       "security": [
-        "TRUNCATE/REFERENCES/TRIGGER bei allen Tabellen für Client-Rollen entfernt; Schreiben ohne Anmeldung vollständig gesperrt",
-        "Entdecken nutzt nie Standort oder Alter; private Konten erscheinen nie, jeder kann sich ausblenden"
+        "Gemeinsame Freunde zeigen nur Personen, die bereits deine Freunde sind; Blockierte und anonymer Zugriff ausgeschlossen"
       ]
     }
   },
-  "releaseTitleEn": "Juzzio 2.1: New Logo, Explore and Friend Requests",
+  "releaseTitleEn": "Juzzio 2.2: New Weather Look, New Settings and Mutual Friends",
   "signatureAlg": "ML-DSA-65 (FIPS 204)",
   "mldsa65Sig": "mIq22oRV51kcohaBoevWckrIG+VwAMCK4EygIY0GCE8NCeVIlSL2atJB3KaSDPCYXnsgb72dOI2A0ov/+f8XBjAqq6pZ0zUHYzjMk9Sc5zGpnvkjQPZ4Dn/OMSaiYlVdtboIuDh+b7QicByR2ok4/Nf1T+oqsEcZeVmY0rb/kP7uK0mL/lknPlqkt2HW4VKbwr1ip3Q2a31O3HjdComX17JWYPVf92/dG738uxJm6knfvqVdaUQSOWclJHcD4lIwL54dl+mKtfiHuw3qAKiwi/1Se7h3XcIu5SLXBVcq5wFVRFBR2wvC+QlWeV282CN84y2szsbqR6i0xAKrTRw3ZWRF3CdMg+oTRdnoAF+6qSCt3WQDLcXj41rm6GshkxA5hVpKH15HH8hEMvepLkS50LDVxXPHIKDT/wKZQjjjyariSUFAzNdZAMRWz+YdfTDuB0GwIACX9YgjpK1TMgPisXq4iL9VDPThLvnTFlTvfpPwgIrSm51HghUu9bhaRcs0ejlCTIh3XhKKOeuSR10bafO0khOKhAILxPUgbm1IWJQygrZYWZ0PpQiexFXLzc3kvJLACJrkT55QnJCfnbXHnWLCLTJOlDzFZoj9xY2Tqmt2XBPk7HZoH5yp3v3nnuGvZTiWLH6tQo5ewvmvD2xkKH+W4SO2ZOfwtU+zjxeP+QBRBuCvuOe/qLBJVrjpa24powxpBIFCt58rkJSgTZLV99iUYMURqzv9A09z9onwvju1JAxPc4OHItdtTHCbCzRkv5Rkv6Nd2udL4O8cpGEN1UX+3zyDCz1V3yyfYbGsP7lOl8mBZSeNEph/zyn7yCWE7uNUu+Tc+sNUzYI9CFdBz1YCKC1CBc9JQwH9D/Coh8xT9JYrnWI4ICi5wcnIXheCbqRR9VfMtuW+irleZGCI40fZzB4uj5EkA9WRVUq4ds56LZFyPhpxWU0A+lUZAz/riXq1TcAuDDeFVwGRscTnb8Ax3metWbPWEd7cVqAn+9knhu2qmv4qjupEzUjyeUBnzXF7BgIvDD5sK6fBZafeAK1Vb9Jlk7pCQ5w+V8UeL3I18tL0Z3zwVKHgX8ielbH9MIeY6yIUjVymxbwPYQasUkUZk22f0iNMtuAzjocmZsqQ3vvaTxnBht4jMmWVfbsoWE3fJjRugTCLtIXHWskjVkjaU3fu+pzzjW/FqWWsZBWBCVGP0pfZ1AWrx4Om+Yr0CafpGowR4vLsfeC1ufynUgy5XK4diacCLW1QiMZQ56CSSxOr6AdmdWA1sD8ZdvxVY1hgNGtj+7KlKiYJfXliM7BGXnul95FUulRz3Qyz7E+J0qqXvOaR4rz4AlxO0J+anezk5zdOJDEX5ZJZanaQvL/bnKUD8vTT4WVZ523+6Jw2iRlb3MtNoTUopG9LGuDPKluG4STclTZBtdz7kE0h3nLzBydsEm1NdZ7/0qz4vajAFoCCdyrj8DJEKTkXlDjXeF7x4McxBWPOBXcEiAbly7jwxwpIxFo3cNTGs1TFSX+IRwE2/GeqZPa1xtM8NZZmPkfRkwIm81E7ipNcc+ATi66DtJIJGjyyEG79/6Q3l1UNDYv+/NkffRjKMH44vyEXQ4nAqDR2ii4iRBsiyqVecNJ+0KMsIVKv0PXrX6Z41B1Cc7IqNgcQt8A5CsvQOUCELlrzb2FWh234YbtiHr3yWjbNU29iY/j09jBZE5mH+Y9PgL3wM8HK2RG2ljVlY2tioW77o6wjZ20rg/7J2RHJdhuE12GM+fidzmV05QmBEZzgXpsEenCWRWxcBqeAsE0pjGcOQT7KmLiS/yYXjpcf74pDxGC1OgyD+wITrntDIUgtPmNYajSNA8T08p31ikc5YGKqQHSNKpAUWcaRkG75NWyGe6g980pvmbu30MqajFN/Y2q2fdnwxvdU0Q2ljCWSEmFCnrq8TUL/8Q5XHJxecnc6ABoH4dGH5R2o7QT1AmmpMGWPwh6AuXpDcW0V7+7p6cyzESAhxes0XUhVXoPS7buPt59ET9KB0MGSdE4+tayC4FbzNJn1jU2q1+RWug3cs1l1nELUoj0vohBEYIKx6Hy5qe/usRB9iwWBRbYkUWZQomezhVF6rgMKBC5pN4avcFGgqN4gIxHNVzeBhR3A49fnmZMaJHDqpcz5yaKvKHohZaJBoBuwRieqlNQZIoqg/H9FA6jC+ZoWcoQBvfTRuxxpyWly4rJOpxeOE4aVSJ2b06jGkrQAqfnizQGXFz4Fv0NhophVM0Ueo+WoxCy/3pAg/1mmwtxbN7xFwJqrix/dkUpFkiilNbbtrs/bD7FJFbWmLJLtwP32TSI6FNFZoNgTIwuce2Zp2VR5n3q4lT0VcT35dsEPogBgFTWn+Dx+b8Dk0Shps7sUrPv6EmYo8392pqaPhxW0s7JN3EN8H6kFPkdSp21bwFCqfKYIdmXTY5yj7YNgAskID2RLcNjO83Q6r7Z/hQoKEVCGBmST2Zh1LI1Uq2m4r2mlHWRAxLwmDzPbflSzkMLwVtSQyhpydJtUBnUtbW9LLyvs0yFLYqRz+/kQT6HTXfrbn62NkqVi+RuhFOVnJ5Aev4burzrr1BManmMpKq77WTVcZ6UMgzQBQkvCTSRHDS2ADZfPiMd9olIwhVrGgJG/9zMsm+nffR10CfGiokQhUWeqPtu8d8X9/EUTRluMy9ujO15Sj18oTHEYLVWUG6dPk356J5HphyuAtIMPcVgBTkUAZ+lFnJJl+GYxFuGiSZULUgrAh/Qa04Ol8y1FSprhu3dm1bclQuLquLVrEgTM+fzofL8e9d2noTm+3KwC2kcNhps2QmT1BCa0iF/mF8uGsJSzBVotdsLEd2/fHhO//GHzfVj/0gBrNMAGOMZQaGbH8sKwTUx3HGb+EnGJiTRRsLKVLxePKN+2nlfyKKnz+trszONTm2uK3KqMOqRCTceY4iY/soc075ejByEWzYqXzr9pILkaJxWzjSKT4WtR5CuPxW6+LlgmYM+YKTf5WPqT5Kw5dCLSfukjUb4fn6dCPSdSraM69h6dPU0kZDUAsnv8ubk2okZPQ9GVqsuJdRpq+qq8co+MxybasRQUG3tiXmgEx6haJROqQvMPzoOIDfBiXHADSYW2Ia03wuQs/+dlDd5r4wJl0jTOj4plaOpaCGa9PCvK8dagc+lKZjGlDtZ8ReBi/adQW6pXYqS5zlzy83IoKscmAJQqkCxJe9mSvM1EIHzUWW2Z1QWahYeg8sIHi5uQwy1RJSv7npn+nZ97zZaRfGQOqqXN3k4MOQ+fxey5/GXbCyh0oEOL/2Myc0zJbMQyQ7/yUN2k7ZBKJRaMtHVJ4r2kgbwI1y0Itkkmo9Y22Ph5Du9jeCvwXD+AJirr7ytDvQ4u12Ed/tkyJKhIw+2lUfCCqeuXsk5w9BJUXeN9jbUJgHSYlsSCUKPtV/RJssOmc8pW/b8U5pxL8BA5nMqCGnjnom6WNdl5l2kR8hl1TdPTKbqzM2joOYf1sVvb4wkmaEQ+vaoBxRbo1YrAsnRSPCgwMhaC/Qd2ZQNcijqUDshv2TSTri+kWIsX4lAUHCIvZRfwSG24+XLE90DPLsDEdYK2uoRkbC0QlpXFr6u0YxEW4t4HMgx45w8PVkhohdahtzTkWWgvJqiPaC30IEQEE1roR7BGbg8IpkakydmPVVPUjN9vDWCkmpGDLJVwkAzH0cVKlMJC6TmekVShkaD3v8M/jHFdw+O0K9I4LLt9fV6J/0EG8/3lYZaYsmnX+qm4Syp/YYAg3LPHx5A94GGn3nmfHWWlplBUiC4z+zjzJylDd0jVAENE59UiNd16mdz8v3zm7S7OV4WBT4aG3h7EBpor0eQ4krcoCYBHpJgSGyoUDueqG4KddT2hiNj6YNuZ/pcEFch9YqyNpoumKTq59cO5Rw4O5YVw/4AuWeTxORX6COI9F/tu0OxaNLL52I/HKJ6452SyYwjxAWt6cwTeTBT/8ip3nWdfRT2zc5A+Mr9eyIH9RbHA34Zd8Gy5295DyHVjnGvYlWPs7LwSCYWuxX2MO5sqn/McaO1yj/WAkwQ9vX++JRQxyl0P2dmiFLeLSgFmPopzpLq6r0wgQZGMxeVb/ETMQio6vQpCnVqk3Yr0hp5MU6BqOFqL1jiiA5KvYm69RuX7YczMt4Bk9enx5HSG0k+Kq5KoFKquQBQEenjPtbQUY2qA8xCq7EBcNqD5hPWQw4+2/79K1yg+kjYznDCd2wgo3v/7G9TsZI+RtRh1Vg6MKVeGL3e+dgFX/F32W8Kbej5zgAKHzVgcxEBoRk/kYew/INA/s0Pfke70RjeBLCy9piTgtyCQfDfEY2YYVxcmh67L/CY+hKHT1fL6DThHU4+04/oQUlqIjL7J+G9yebK14AAAAAAAAAAAAAAAAAAAAAAAAAAABQ0OFR0j"
 }

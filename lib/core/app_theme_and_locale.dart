@@ -465,10 +465,12 @@ class JuzzioAppController extends ChangeNotifier {
   int _selectedChatThemeIndex = 0;
   // v0.6 Glassmorphism: seçili aurora cam teması (boşsa yöneticinin varsayılanı / ilk palet)
   // GM-014 (KR-011): varsayılan tema mavi — Gece Mavisi (ocean)
-  String _glassPaletteId = 'ocean';
+  String _glassPaletteId = 'graphite_lime';
   bool _paletteV21Migrated = false;
   /// GM-014: kullanıcı temayı kendisi seçti mi (varsayılan göçü seçimini ezmez)
   bool _paletteUserPicked = false;
+  // v2.2.0: bu yüklemede lime göçü uygulandı mı (özel/küresel tema da kapatılır)
+  bool _paletteV220Reset = false;
   bool _reducedEffects = false;
   // v1.2.1: hava durumuna göre tema ambiyansı (varsayılan AÇIK)
   bool _weatherThemeEnabled = true;
@@ -491,7 +493,7 @@ class JuzzioAppController extends ChangeNotifier {
   int _darkEndMin = 7 * 60; // 07:00
   Timer? _scheduleTimer;
   // v1.0.0: yeni kullanıcıların ilk görünümü Figma "Juzzio Space" — Zümrüt
-  String _defaultGlassPaletteId = 'ocean'; // v1.2.9: varsayılan tema "Gece Mavisi" (ocean)
+  String _defaultGlassPaletteId = 'graphite_lime'; // v2.2.0 (KR-012): varsayılan tema Grafit Limon
   double _chatThemeIntensity = 1.0;
 
   // Dil Ayarları (Cihaz Dilini Otomatik Baz Alır, 142 Dili Destekler)
@@ -1176,13 +1178,16 @@ class JuzzioAppController extends ChangeNotifier {
       // hesaplar bir kez Grafit Limon'a taşınır; kullanıcı sonra istediği temayı seçebilir.
       // GM-014 (KR-011): varsayılan yeniden mavi. v2.1 göçüyle Grafit Limon'a taşınmış ya da hiç seçim
       // yapmamış hesaplar bir kez Gece Mavisi'ne alınır; sonra kullanıcı istediği temayı seçer.
-      if (raw['paletteV22'] != true) {
-        if (_glassPaletteId.isEmpty || (raw['paletteV21'] == true && _glassPaletteId == 'graphite_lime' && raw['paletteUserPicked'] != true)) {
-          _glassPaletteId = 'ocean';
-        }
+      // v2.2.0 (KR-012): varsayılan tema yeniden Grafit Limon. Güncellemeyle HERKES bir kez
+      // lime görünüme alınır (önceki seçim, özel tema ve küresel tema takibi dahil); sonra
+      // kullanıcı Görünüm'den istediği temayı yine seçebilir.
+      _paletteV220Reset = false;
+      if (raw['paletteV220'] != true) {
+        _glassPaletteId = 'graphite_lime';
+        _paletteV220Reset = true;
       }
       _paletteV21Migrated = true;
-      _paletteUserPicked = raw['paletteUserPicked'] == true;
+      _paletteUserPicked = _paletteV220Reset ? false : raw['paletteUserPicked'] == true;
       final cp = (raw['chatPalette'] ?? '').toString();
       _chatPaletteId = kJuzzioAuroraPalettes.any((p) => p.id == cp) ? cp : '';
       _reducedEffects = raw['reducedEffects'] == true;
@@ -1201,7 +1206,7 @@ class JuzzioAppController extends ChangeNotifier {
             if (JuzzioCustomTheme.fromStored(e) case final t?) t,
       ];
       final act = (raw['activeCustomTheme'] ?? '').toString();
-      _activeCustomThemeId = _customThemes.any((t) => t.id == act) ? act : '';
+      _activeCustomThemeId = !_paletteV220Reset && _customThemes.any((t) => t.id == act) ? act : '';
       _previewTheme = null;
       final sch = raw['themeSchedule'];
       if (sch is Map) {
@@ -1209,7 +1214,7 @@ class JuzzioAppController extends ChangeNotifier {
         if (a is int) _darkStartMin = a.clamp(0, 1439);
         if (b is int) _darkEndMin = b.clamp(0, 1439);
       }
-      _followGlobalTheme = raw['followGlobalTheme'] == true;
+      _followGlobalTheme = !_paletteV220Reset && raw['followGlobalTheme'] == true;
       final gc = raw['globalThemeCache'];
       if (gc is Map && gc['payload'] is Map) {
         _globalThemeVersion = (gc['version'] as num?)?.toInt() ?? 0;
@@ -1221,6 +1226,10 @@ class JuzzioAppController extends ChangeNotifier {
       // Mevcut kullanıcılar yönetici değişikliğinden etkilenmez: seçim yoksa kendi
       // görmekte olduğu temaya sabitlenir.
       if (_glassPaletteId.isEmpty) _glassPaletteId = kJuzzioAuroraPalettes.first.id;
+      if (_paletteV220Reset) {
+        _paletteV220Reset = false;
+        _persistUserPreferences(); // göç bir kez uygulanır
+      }
       _uiLang = _deviceUiLang ?? (raw['uiLang'] ?? _uiLang).toString();
       _subtitleLang = (raw['subtitleLang'] ?? _subtitleLang).toString();
       _enterSendsMessage = raw['enterSendsMessage'] is bool ? raw['enterSendsMessage'] as bool : _enterSendsMessage;
@@ -1366,6 +1375,7 @@ class JuzzioAppController extends ChangeNotifier {
         'glassPalette': _glassPaletteId,
         'paletteV21': _paletteV21Migrated,
         'paletteV22': true,
+        'paletteV220': true,
         'paletteUserPicked': _paletteUserPicked,
         'chatPalette': _chatPaletteId,
         'reducedEffects': _reducedEffects,

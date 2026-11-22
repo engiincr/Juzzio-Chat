@@ -263,9 +263,9 @@ void main() {
       final back = chat.substring(chat.indexOf('void _handleSystemBack()'), chat.indexOf('void _handleSystemBack()') + 900);
       expect(back.contains('JuzzioBirthdayFxHost'), isFalse);
     });
-    test('hikâye görüntüleyici hava katmanını gizler; varsayılan tema Gece Mavisi', () {
+    test('hikâye görüntüleyici hava katmanını gizler; varsayılan tema Grafit Limon', () {
       expect(_src('lib/screens/chat_screen.dart').contains('JuzzioAmbienceHide(child: JuzzioStoryViewerModal('), isTrue);
-      expect(_src('lib/core/app_theme_and_locale.dart').contains("_defaultGlassPaletteId = 'ocean'"), isTrue);
+      expect(_src('lib/core/app_theme_and_locale.dart').contains("_defaultGlassPaletteId = 'graphite_lime'"), isTrue);
     });
   });
 
@@ -512,9 +512,9 @@ void main() {
       expect(juzzioWeatherDoodles(18, JuzzioWeatherKind.clear, isDay: true).contains(JuzzioWeatherDoodle.moon), isFalse);
       expect(juzzioWeatherDoodles(18, JuzzioWeatherKind.clear, isDay: false).contains(JuzzioWeatherDoodle.moon), isTrue);
     });
-    test('başlıkta sabit ay yerine gökyüzü simgesi', () {
+    test('v2.2.0: başlıkta ay simgesi yok (ay gökyüzü katmanında)', () {
       final c = _src('lib/screens/chat_screen.dart');
-      expect(c.contains('JuzzioSkyIcon(size: 30)'), isTrue);
+      expect(c.contains('JuzzioSkyIcon('), isFalse);
       expect(c.contains('JuzzioMoonPhaseIcon(size: 30)'), isFalse);
     });
   });

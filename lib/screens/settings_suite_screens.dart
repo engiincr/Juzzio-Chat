@@ -171,12 +171,14 @@ class _JuzzioSettingsMainPageState extends State<JuzzioSettingsMainPage> {
         final modeLabel = appCtrl.isDark ? appCtrl.trEn('Gece', 'Dark', 'Dunkel') : appCtrl.trEn('Gündüz', 'Light', 'Hell');
         final showAdmin = uname.toLowerCase() == 'tugkancr' || _adminOk;
 
+        // v2.2.0: bölümler Engin'in referans görseliyle aynı sırada ve adlarla
         final sections = <JuzzioSettingsSection>[
-          JuzzioSettingsSection(appCtrl.trEn('Hesap ve güvenlik', 'Account & security', 'Konto & Sicherheit'), [
+          JuzzioSettingsSection(appCtrl.trEn('Hesap', 'Account', 'Konto'), [
             JuzzioSettingsItem(
               icon: Icons.person_outline_rounded,
-              title: appCtrl.trEn('Hesap ve Profil', 'Account & Profile', 'Konto & Profil'),
+              title: appCtrl.trEn('Hesap', 'Account', 'Konto'),
               subtitle: appCtrl.trEn('Kullanıcı adı, e-posta, şifre, verilerin', 'Username, email, password, your data', 'Benutzername, E-Mail, Passwort, Daten'),
+              keywords: 'profil hesap şifre e-posta',
               onTap: () => _push(JuzzioAccountProfileHubPage(
                 username: uname,
                 email: _profile?.email ?? SupabaseService.instance.client.auth.currentUser?.email ?? '',
@@ -185,20 +187,28 @@ class _JuzzioSettingsMainPageState extends State<JuzzioSettingsMainPage> {
               )),
             ),
             JuzzioSettingsItem(
-              icon: Icons.shield_outlined,
-              title: appCtrl.trEn('Gizlilik ve Güvenlik', 'Privacy & Security', 'Datenschutz & Sicherheit'),
-              subtitle: appCtrl.trEn('İki adımlı doğrulama, cihazlar, engellenenler', 'Two-step verification, devices, blocked', '2FA, Geräte, Blockiert'),
-              keywords: 'kilit pin engel cihaz mfa',
+              icon: Icons.lock_outline_rounded,
+              title: appCtrl.trEn('Gizlilik', 'Privacy', 'Datenschutz'),
+              subtitle: appCtrl.trEn('Gizlilik ayarları', 'Privacy settings', 'Datenschutzeinstellungen'),
+              keywords: 'güvenlik kilit pin engel cihaz mfa iki adımlı',
               onTap: () => _push(const JuzzioPrivacySecurityHubPage()),
             ),
           ]),
-          JuzzioSettingsSection(appCtrl.trEn('Sohbet ve arama', 'Chats & calls', 'Chats & Anrufe'), [
+          JuzzioSettingsSection(appCtrl.trEn('Sohbetler ve bildirimler', 'Chats & notifications', 'Chats & Benachrichtigungen'), [
             JuzzioSettingsItem(
-              icon: Icons.translate_rounded,
-              title: appCtrl.trEn('Dil ve canlı çeviri', 'Language & live translation', 'Sprache & Live-Übersetzung'),
-              value: currentLangName,
-              keywords: 'çeviri dil',
-              onTap: () => _push(const JuzzioLanguageSettingsPage()),
+              icon: Icons.chat_bubble_outline_rounded,
+              title: appCtrl.trEn('Sohbetler', 'Chats', 'Chats'),
+              subtitle: appCtrl.trEn('Gönderme, çift dokunuş, arşiv, yedek ve geçmiş', 'Sending, double tap, archive, backup and history', 'Senden, Doppeltippen, Archiv, Backup und Verlauf'),
+              keywords: 'enter sohbet ayarları',
+              onTap: () => _push(const JuzzioChatsSettingsPage()),
+            ),
+            JuzzioSettingsItem(
+              icon: Icons.notifications_none_rounded,
+              title: appCtrl.trEn('Bildirimler', 'Notifications', 'Benachrichtigungen'),
+              subtitle: appCtrl.trEn('Bildirim tercihleri', 'Notification preferences', 'Benachrichtigungseinstellungen'),
+              value: appCtrl.notificationsEnabled ? appCtrl.trEn('Açık', 'On', 'An') : appCtrl.trEn('Kapalı', 'Off', 'Aus'),
+              keywords: 'sessiz saatler ses',
+              onTap: () => _push(const JuzzioNotificationsSettingsPage()),
             ),
             JuzzioSettingsItem(
               icon: Icons.call_outlined,
@@ -207,35 +217,22 @@ class _JuzzioSettingsMainPageState extends State<JuzzioSettingsMainPage> {
               keywords: 'arama ayarları görüntü kalitesi',
               onTap: () => _push(const JuzzioCallSettingsPage()),
             ),
-            JuzzioSettingsItem(
-              icon: Icons.chat_bubble_outline_rounded,
-              title: appCtrl.trEn('Sohbet Ayarları', 'Chat Settings', 'Chat-Einstellungen'),
-              subtitle: appCtrl.trEn('Enter ile gönder, arşiv, yedek', 'Enter to send, archive, backup', 'Enter zum Senden, Archiv, Backup'),
-              onTap: () => _push(const JuzzioChatsSettingsPage()),
-            ),
-            JuzzioSettingsItem(
-              icon: Icons.notifications_none_rounded,
-              title: appCtrl.trEn('Bildirimler', 'Notifications', 'Benachrichtigungen'),
-              value: appCtrl.notificationsEnabled ? appCtrl.trEn('Açık', 'On', 'An') : appCtrl.trEn('Kapalı', 'Off', 'Aus'),
-              keywords: 'sessiz saatler ses',
-              onTap: () => _push(const JuzzioNotificationsSettingsPage()),
-            ),
-            JuzzioSettingsItem(
-              icon: Icons.perm_media_outlined,
-              title: appCtrl.trEn('Medya ve Depolama', 'Media & Storage', 'Medien & Speicher'),
-              subtitle: appCtrl.trEn('Otomatik indirme, önbellek', 'Auto-download, cache', 'Auto-Download, Cache'),
-              onTap: () => _push(const JuzzioStorageSettingsPage()),
-            ),
           ]),
-          JuzzioSettingsSection(appCtrl.trEn('Görünüm', 'Appearance', 'Darstellung'), [
+          JuzzioSettingsSection(appCtrl.trEn('Görünüm ve dil', 'Appearance & language', 'Darstellung & Sprache'), [
             JuzzioSettingsItem(
               icon: Icons.palette_outlined,
-              title: appCtrl.trEn('Tema ve görünüm', 'Theme & appearance', 'Design & Darstellung'),
-              subtitle: '$themeName · $modeLabel',
-              value: themeName,
-              primary: true,
+              title: appCtrl.trEn('Görünüm', 'Appearance', 'Darstellung'),
+              subtitle: appCtrl.trEn('Gece/gündüz, temalar, sohbet teması, yazı boyutu', 'Night/day, themes, chat theme, text size', 'Nacht/Tag, Designs, Chat-Design, Schriftgröße'),
+              value: '$themeName · $modeLabel',
               keywords: 'tema gece gündüz koyu açık hava durumu cam',
               onTap: () => _push(const JuzzioAppearanceSettingsPage()),
+            ),
+            JuzzioSettingsItem(
+              icon: Icons.language_rounded,
+              title: appCtrl.trEn('Dil', 'Language', 'Sprache'),
+              value: currentLangName,
+              keywords: 'çeviri dil canlı çeviri',
+              onTap: () => _push(const JuzzioLanguageSettingsPage()),
             ),
             JuzzioSettingsItem(
               icon: Icons.accessibility_new_rounded,
@@ -243,16 +240,27 @@ class _JuzzioSettingsMainPageState extends State<JuzzioSettingsMainPage> {
               subtitle: appCtrl.trEn('Kalın yazı, renk düzeltme', 'Bold text, colour correction', 'Fettschrift, Farbkorrektur'),
               onTap: () => _push(const JuzzioAccessibilitySettingsPage()),
             ),
+          ]),
+          JuzzioSettingsSection(appCtrl.trEn('Depolama ve pil', 'Storage & battery', 'Speicher & Akku'), [
+            JuzzioSettingsItem(
+              icon: Icons.storage_rounded,
+              title: appCtrl.trEn('Depolama ve veriler', 'Storage & data', 'Speicher & Daten'),
+              subtitle: appCtrl.trEn('Ağ kullanımı ve medya önbelleği', 'Network usage and media cache', 'Netzwerknutzung und Medien-Cache'),
+              keywords: 'otomatik indirme önbellek medya',
+              onTap: () => _push(const JuzzioStorageSettingsPage()),
+            ),
             JuzzioSettingsItem(
               icon: Icons.battery_charging_full_rounded,
               title: appCtrl.trEn('Pil ve arka plan', 'Battery & background', 'Akku & Hintergrund'),
+              subtitle: appCtrl.trEn('Pil optimizasyonu, kesintisiz bildirim, veri tasarrufu', 'Battery optimisation, reliable notifications, data saver', 'Akku-Optimierung, zuverlässige Benachrichtigungen, Datensparen'),
               onTap: () => _push(const JuzzioBatteryOptimizationPage()),
             ),
           ]),
           JuzzioSettingsSection(appCtrl.trEn('Destek', 'Support', 'Support'), [
             JuzzioSettingsItem(
               icon: Icons.help_outline_rounded,
-              title: appCtrl.trEn('Yardım ve Destek', 'Help & Support', 'Hilfe & Support'),
+              title: appCtrl.trEn('Yardım & Destek', 'Help & Support', 'Hilfe & Support'),
+              subtitle: appCtrl.trEn('Sorular, geri bildirim', 'Questions, feedback', 'Fragen, Feedback'),
               onTap: () => _push(JuzzioHelpAndSupportPage(username: uname)),
             ),
             JuzzioSettingsItem(
@@ -283,25 +291,41 @@ class _JuzzioSettingsMainPageState extends State<JuzzioSettingsMainPage> {
         ];
         final shown = juzzioFilterSettings(sections, _query);
 
+        // v2.2.0 (referans görsel): başlık sabit, altında alta kadar uzanan TEK cam panel
         return JuzzioAuroraPage(child: Scaffold(
           backgroundColor: Colors.transparent,
           body: SafeArea(
             bottom: false,
             child: Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 560),
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 36),
+                constraints: const BoxConstraints(maxWidth: 600),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    JuzzioSettingsTitleBar(
-                      title: appCtrl.trEn('Ayarlar', 'Settings', 'Einstellungen'),
-                      showBack: widget.showBackButton,
-                      trailing: JuzzioHeaderCircleButton(
-                        icon: Icons.qr_code_2_rounded,
-                        tooltip: appCtrl.trEn('QR Bağlantı Kodu', 'QR Sync Code', 'QR-Synchronisationscode'),
-                        onTap: () => _showQrSyncDialog(context, p, uname),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 18),
+                      child: JuzzioSettingsTitleBar(
+                        title: appCtrl.trEn('Ayarlar', 'Settings', 'Einstellungen'),
+                        showBack: widget.showBackButton,
+                        trailing: JuzzioSettingsPlainIconButton(
+                          icon: Icons.qr_code_2_rounded,
+                          tooltip: appCtrl.trEn('QR Bağlantı Kodu', 'QR Sync Code', 'QR-Synchronisationscode'),
+                          onTap: () => _showQrSyncDialog(context, p, uname),
+                        ),
                       ),
                     ),
+                    Expanded(
+                      // panelin alt köşeleri ekranın altında kalır (referanstaki gibi alta kadar uzanır)
+                      child: Stack(clipBehavior: Clip.none, children: [
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          top: 0,
+                          bottom: -60,
+                          child: JuzzioSettingsPanel(
+                            child: ListView(
+                              padding: EdgeInsets.only(top: 6, bottom: 96 + MediaQuery.paddingOf(context).bottom),
+                              children: [
                     JuzzioSettingsProfileCard(
                       name: dname,
                       handleLine: '@$uname · ${appCtrl.trEn('Profili ve hesabı düzenle', 'Edit profile and account', 'Profil und Konto bearbeiten')}',
@@ -316,7 +340,6 @@ class _JuzzioSettingsMainPageState extends State<JuzzioSettingsMainPage> {
                                 style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800)),
                       ),
                     ),
-                    const SizedBox(height: 14),
                     JuzzioSettingsSearchField(
                       controller: _search,
                       hint: appCtrl.trEn('Ayarlarda ara', 'Search settings', 'Einstellungen durchsuchen'),
@@ -332,6 +355,12 @@ class _JuzzioSettingsMainPageState extends State<JuzzioSettingsMainPage> {
                           style: TextStyle(color: JuzzioGlassTokens.textMuted, fontSize: 14),
                         ),
                       ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ]),
+                    ),
                   ],
                 ),
               ),

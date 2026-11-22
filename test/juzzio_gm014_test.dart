@@ -13,19 +13,19 @@ import 'package:juzzio/widgets/juzzio_weather_ambience.dart';
 String _read(String path) => File(path).readAsStringSync();
 
 void main() {
-  group('GM-014-A varsayılan tema mavi', () {
-    test('palet listesinin ilki ve bilinmeyen kimlik ocean (Gece Mavisi)', () {
-      expect(kJuzzioAuroraPalettes.first.id, 'ocean');
-      expect(juzzioAuroraPaletteById('yok').id, 'ocean');
-      expect(juzzioAuroraPaletteById('').id, 'ocean');
+  group('v2.2.0 (KR-012) varsayılan tema lime', () {
+    test('palet listesinin ilki ve bilinmeyen kimlik graphite_lime (Grafit Limon)', () {
+      expect(kJuzzioAuroraPalettes.first.id, 'graphite_lime');
+      expect(juzzioAuroraPaletteById('yok').id, 'graphite_lime');
+      expect(juzzioAuroraPaletteById('').id, 'graphite_lime');
+      expect(juzzioAuroraPaletteById('ocean').id, 'ocean');
     });
 
-    test('ilk açılış ve göç mavi; kullanıcının kendi seçimi ezilmez', () {
+    test('ilk açılış lime; v2.2.0 göçü herkesi bir kez lime yapar, sonra seçim serbest', () {
       final src = _read('lib/core/app_theme_and_locale.dart');
-      expect(src, contains("String _glassPaletteId = 'ocean';"));
-      expect(src, contains("raw['paletteV22'] != true"));
-      expect(src, contains("raw['paletteUserPicked'] != true"));
-      expect(src, contains("'paletteV22': true,"));
+      expect(src, contains("String _glassPaletteId = 'graphite_lime';"));
+      expect(src, contains("raw['paletteV220'] != true"));
+      expect(src, contains("'paletteV220': true,"));
       expect(src, contains('_paletteUserPicked = true;'));
     });
   });
@@ -88,9 +88,9 @@ void main() {
       expect(tail, contains('CREATE TRIGGER trg_profile_hide_legacy'));
     });
 
-    test('sunucu varsayılan teması ocean (dosyanın son sözü)', () {
+    test('sunucu varsayılan teması graphite_lime (dosyanın son sözü)', () {
       final last = sql.lastIndexOf("'default_glass_palette', '\"");
-      expect(sql.substring(last, last + 40), contains('"ocean"'));
+      expect(sql.substring(last, last + 40), contains('"graphite_lime"'));
     });
   });
 
@@ -109,13 +109,11 @@ void main() {
       expect(kJuzzioAmbienceContentAlpha, lessThan(0.7));
     });
 
-    test('ay/güneş arka planda çizilmez, başlıktaki sabit simgede durur', () {
+    test('v2.2.0: ay/güneş başlıkta değil, içeriğin arkasındaki gökyüzü katmanında', () {
       final amb = _read('lib/widgets/juzzio_weather_ambience.dart');
-      expect(amb, contains('celestial: false'));
-      expect(amb, contains('BlendMode.dstIn'));
+      expect(amb, contains('JuzzioDoodleSkyPainter('));
       final chat = _read('lib/screens/chat_screen.dart');
-      expect(RegExp(r'JuzzioSkyIcon\(size: \d+\)').allMatches(chat).length,
-          greaterThanOrEqualTo(2));
+      expect(chat.contains('JuzzioSkyIcon('), isFalse);
     });
   });
 

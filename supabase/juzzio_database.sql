@@ -19497,8 +19497,45 @@ DROP TRIGGER IF EXISTS trg_profile_hide_legacy ON public.profiles;
 CREATE TRIGGER trg_profile_hide_legacy BEFORE INSERT OR UPDATE OF blocked_users, muted_users ON public.profiles
     FOR EACH ROW EXECUTE FUNCTION public.juzzio_profile_hide_legacy();
 
--- C) varsayılan tema Gece Mavisi (ocean); yönetici panelden yine değiştirebilir
-UPDATE public.app_settings SET value = '"ocean"'::jsonb, updated_at = NOW()
- WHERE key = 'default_glass_palette' AND value IN ('"graphite_lime"'::jsonb, '"juzzio_liquid"'::jsonb);
-INSERT INTO public.app_settings (key, value) VALUES ('default_glass_palette', '"ocean"'::jsonb)
+-- C) v2.2.0 (KR-012): varsayılan tema Grafit Limon; yönetici panelden yine değiştirebilir
+UPDATE public.app_settings SET value = '"graphite_lime"'::jsonb, updated_at = NOW()
+ WHERE key = 'default_glass_palette' AND value IN ('"ocean"'::jsonb, '"juzzio_liquid"'::jsonb);
+INSERT INTO public.app_settings (key, value) VALUES ('default_glass_palette', '"graphite_lime"'::jsonb)
 ON CONFLICT (key) DO NOTHING;
+
+
+-- =============================================================================
+-- 10.54 (v2.2.0) — Profilde ortak arkadaşlar
+--  Başkasının profilinde, İKİMİZİN de kabul edilmiş arkadaşı olan kişiler (en fazla 12) gösterilir.
+--  Yalnız ZATEN benim arkadaşım olan kişiler döner (yeni kişi bilgisi açılmaz); engelli kişiler
+--  ve profile bakanla aramızda engel varsa hiç sonuç dönmez. anon çalıştıramaz.
+-- =============================================================================
+CREATE OR REPLACE FUNCTION public.mutual_friends(p_user UUID, p_limit INTEGER DEFAULT 12)
+RETURNS TABLE (id UUID, username TEXT, display_name TEXT, avatar_url TEXT, total INTEGER)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+    WITH me AS (SELECT auth.uid() AS id),
+    mine AS (
+        SELECT CASE WHEN f.requester_id = me.id THEN f.receiver_id ELSE f.requester_id END AS fid
+          FROM public.friendships f, me
+         WHERE f.status = 'accepted' AND me.id IN (f.requester_id, f.receiver_id)
+    ),
+    theirs AS (
+        SELECT CASE WHEN f.requester_id = p_user THEN f.receiver_id ELSE f.requester_id END AS fid
+          FROM public.friendships f
+         WHERE f.status = 'accepted' AND p_user IN (f.requester_id, f.receiver_id)
+    ),
+    common AS (
+        SELECT m.fid FROM mine m JOIN theirs t ON t.fid = m.fid, me
+         WHERE m.fid <> me.id AND m.fid <> p_user
+           AND NOT public.is_blocked_between(me.id, m.fid)
+    )
+    SELECT pr.id, pr.username::text, COALESCE(pr.display_name, '')::text, COALESCE(pr.avatar_url, '')::text,
+           (SELECT COUNT(*)::int FROM common) AS total
+      FROM common c JOIN public.profiles pr ON pr.id = c.fid, me
+     WHERE me.id IS NOT NULL AND p_user IS NOT NULL AND p_user <> me.id
+       AND NOT public.is_blocked_between(me.id, p_user)
+     ORDER BY pr.display_name NULLS LAST, pr.username
+     LIMIT LEAST(GREATEST(COALESCE(p_limit, 12), 1), 12);
+$$;
+REVOKE ALL ON FUNCTION public.mutual_friends(UUID, INTEGER) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.mutual_friends(UUID, INTEGER) TO authenticated;

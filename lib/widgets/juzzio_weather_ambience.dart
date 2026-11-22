@@ -33,6 +33,7 @@ import '../core/app_theme_and_locale.dart';
 import '../core/theme/juzzio_glass.dart';
 import '../services/juzzio_weather_service.dart';
 import 'juzzio_sky21.dart';
+import 'juzzio_weather_doodles.dart';
 
 /// v1.2.8: hava katmanının hangi sayfada görüneceğini izler. Yalnız ana ekranda (yığında tek
 /// tam sayfa varken) görünür; hikâye, video, arama, profil vb. tam sayfalar açılınca söner.
@@ -277,14 +278,19 @@ class _JuzzioWeatherAmbienceState extends State<JuzzioWeatherAmbience> with Tick
     super.dispose();
   }
 
+  // v2.2.0: Engin'in referans görsellerindeki "doodle" gökyüzü — küçük düz bulutlar, ince ışınlı
+  // güneşler, hilal ay, mavi damlalar ve ince yağmur çizgileri (JuzzioDoodleSkyPainter).
+  // Gökyüzü 2.1'in büyük bulanık bulutları ve fotoğraf ay kaldırıldı.
   Widget _scenePaint(JuzzioSkyScene sc) => CustomPaint(
         size: Size.infinite,
-        painter: JuzzioSky21Painter(
+        painter: JuzzioDoodleSkyPainter(
           t: _loop,
-          scene: sc,
+          kind: sc.kind,
+          night: sc.showMoon,
           dark: JuzzioAppController.instance.isDark,
           still: !_animate,
-          celestial: false, // GM-014: ay/güneş yalnız başlıktaki JuzzioSkyIcon'da
+          moonPhase: sc.moonPhase,
+          topInset: MediaQuery.maybeOf(context)?.padding.top ?? 0,
         ),
       );
 
@@ -312,18 +318,9 @@ class _JuzzioWeatherAmbienceState extends State<JuzzioWeatherAmbience> with Tick
               if (juzzioWeatherHasLightning(cur.kind) && _animate) {
                 children.add(CustomPaint(size: Size.infinite, painter: JuzzioLightning21Painter(t: _bolt, seed: _boltSeed)));
               }
-              // GM-014: başlık (logo + düğmeler) ve alt gezinme şeridinin arkası temiz kalır;
-              // bulut/yağmur/kar/sis yalnız içerik bölgesinde, cam kartların arkasında hafifçe görünür.
-              final media = MediaQuery.maybeOf(context);
-              return ShaderMask(
-                blendMode: BlendMode.dstIn,
-                shaderCallback: (r) => juzzioAmbienceSafeMask(
-                  r,
-                  topInset: media?.padding.top ?? 0,
-                  bottomInset: media?.padding.bottom ?? 0,
-                ),
-                child: Stack(fit: StackFit.expand, children: children),
-              );
+              // v2.2.0: katman içeriğin ARKASINDA; simgeler başlık ve alt şerit bölgesine konmaz
+              // (juzzioDoodleLayout), yağmur çizgileri referanstaki gibi tüm ekranda.
+              return Stack(fit: StackFit.expand, children: children);
             },
           ),
         ),

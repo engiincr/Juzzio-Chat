@@ -260,8 +260,10 @@ class _JuzzioExploreHubState extends State<JuzzioExploreHub> {
           padding: const EdgeInsets.fromLTRB(20, 10, 16, 0),
           child: Row(
             children: [
-              const Flexible(child: JuzzioSpaceBrand(size: 26)),
-              const Spacer(),
+              // v2.2.0: marka kalan genişliğin tamamını alır (önce Spacer ile yarıya bölünüp
+              // "Juzzio" yazısının sonu siliniyordu)
+              const Expanded(child: Align(alignment: Alignment.centerLeft, child: JuzzioSpaceBrand(size: 26))),
+              const SizedBox(width: 8),
               JuzzioSpaceIconButton(
                 icon: Icons.tune_rounded,
                 tooltip: _app.trEn('Filtreler', 'Filters', 'Filter'),

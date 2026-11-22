@@ -1,8 +1,8 @@
 // =============================================================================
 // JUZZIO v0.6.0 — Glassmorphism "Aurora" zemin sistemi
 //  Buzlu cam yüzeylerin arkasında yumuşak, bulanık renk küreleri: derin koyu
-//  zemin + 3-4 ışıma (mavi, ametist, zümrüt, lagün, krom). Turuncu / amber ton
-//  hiçbir palette YOKTUR.
+//  zemin + 3-4 ışıma (mavi, ametist, zümrüt, lagün, krom). v2.2.0 (KR-012): Engin'in
+//  isteğiyle tek sıcak tema eklendi — Amber Altın (amber_gold).
 //  • JuzzioAuroraBackground       : tam ekran zemin (CustomPainter, tek katman)
 //  • JuzzioAuroraPageTransitions  : her sayfanın arkasına aurora zemini koyar,
 //                                   iOS tarzı kaydırmalı geçiş korunur
@@ -128,6 +128,8 @@ const Map<String, JuzzioGlassCharacter> kJuzzioGlassCharacters = {
       blur: 1.1, opacity: 1.0, sheen: 0.9, depth: 1.1, rim: Color(0xFF4ADE80)),
   'graphite_lime': JuzzioGlassCharacter(tr: 'Grafit yüzey, limon vurgu', en: 'Graphite surfaces, lime accent', de: 'Graphit, Limettenakzent',
       blur: 0.9, opacity: 1.2, sheen: 0.7, depth: 1.2, rim: Color(0xFFC6F135)),
+  'amber_gold': JuzzioGlassCharacter(tr: 'Sıcak grafit yüzey, altın vurgu', en: 'Warm graphite, gold accent', de: 'Warmes Graphit, Goldakzent',
+      blur: 0.9, opacity: 1.2, sheen: 0.7, depth: 1.2, rim: Color(0xFFF7DC6F)),
   // v0.9.7: 2026 Liquid Glass yönelimleri — renkli kenar ışığı (koyu), tek ışık yönü, yumuşak gradyan zemin
   'aurora_borealis': JuzzioGlassCharacter(tr: 'Kuzey ışıkları, derin cam', en: 'Northern lights, deep glass', de: 'Nordlicht, tiefes Glas',
       blur: 1.25, opacity: 1.0, sheen: 1.2, depth: 1.15, rim: Color(0xFF5EEAD4), glow: 0.12),
@@ -213,6 +215,7 @@ const Map<String, Color> kJuzzioSpaceGlow = {
   'high_contrast': Color(0xFFFFE14D),
   'forest_mint': Color(0xFF4ADE80),
   'graphite_lime': Color(0xFFC6F135),
+  'amber_gold': Color(0xFFF7DC6F),
 };
 
 extension JuzzioAuroraPaletteSpace on JuzzioAuroraPalette {
@@ -242,6 +245,14 @@ extension JuzzioAuroraPaletteSpace on JuzzioAuroraPalette {
         depthLight: [Color(0xFFF7F8F2), Color(0xFFF2F3EE), Color(0xFFECEEE6)],
       );
     }
+    if (id == 'amber_gold') {
+      return const JuzzioSpaceSpec(
+        glow: Color(0xFFF7DC6F),
+        glowLight: Color(0xFF6B5200),
+        depth: [Color(0xFF1A1813), Color(0xFF13120E), Color(0xFF0A0908)],
+        depthLight: [Color(0xFFFBF8EF), Color(0xFFF5F1E4), Color(0xFFEFE9D8)],
+      );
+    }
     if (id == 'high_contrast') {
       return const JuzzioSpaceSpec(
         glow: Color(0xFFFFE14D),
@@ -261,9 +272,30 @@ extension JuzzioAuroraPaletteCharacter on JuzzioAuroraPalette {
   JuzzioGlassCharacter get character => kJuzzioGlassCharacters[id] ?? JuzzioGlassCharacter.standard;
 }
 
-/// Cam temaları. İlk öğe varsayılandır (GM-014: Gece Mavisi).
+/// Cam temaları. İlk öğe varsayılandır (v2.2.0: Grafit Limon).
 const List<JuzzioAuroraPalette> kJuzzioAuroraPalettes = [
-  // GM-014 (KR-011): varsayılan tema mavi — Gece Mavisi
+  // v2.2.0 (KR-012): varsayılan tema yeniden Grafit Limon (Neon Lime).
+  // v2.0.0 Figma 2.0 varsayılan: Grafit Limon (Obsidian Lime) — siyah-grafit zemin, neon limon vurgu.
+  // Yeni kullanıcılar bu temayla başlar; tercih kayıtlı kullanıcılar kendi seçimleriyle devam eder.
+  JuzzioAuroraPalette(
+    id: 'graphite_lime',
+    nameTr: 'Grafit Limon',
+    nameEn: 'Graphite Lime',
+    nameDe: 'Graphit Limette',
+    base: Color(0xFF0A0B0D),
+    baseLight: Color(0xFFF3F4EF),
+    swatchA: Color(0xFFC6F135),
+    swatchB: Color(0xFF8B7CF6),
+    orbs: [
+      JuzzioAuroraOrb(Alignment(-1.0, -0.95), 0.70, Color(0x1FC6F135)),
+      JuzzioAuroraOrb(Alignment(1.0, 0.6), 0.70, Color(0x1F8B7CF6)),
+    ],
+    orbsLight: [
+      JuzzioAuroraOrb(Alignment(-1.0, -0.95), 0.70, Color(0x33C6F135)),
+      JuzzioAuroraOrb(Alignment(1.0, 0.6), 0.70, Color(0x268B7CF6)),
+    ],
+  ),
+  // Gece Mavisi (GM-014'te kısa süre varsayılandı; v2.2.0'da varsayılan lime)
   JuzzioAuroraPalette(
     id: 'ocean',
     nameTr: 'Gece Mavisi',
@@ -285,24 +317,25 @@ const List<JuzzioAuroraPalette> kJuzzioAuroraPalettes = [
       JuzzioAuroraOrb(Alignment(-0.4, 0.95), 0.90, Color(0x55A5B4FC)),
     ],
   ),
-  // v2.0.0 Figma 2.0 varsayılan: Grafit Limon (Obsidian Lime) — siyah-grafit zemin, neon limon vurgu.
-  // Yeni kullanıcılar bu temayla başlar; tercih kayıtlı kullanıcılar kendi seçimleriyle devam eder.
+  // v2.2.0 (KR-012): Amber Altın — sıcak grafit zemin, yumuşak altın sarısı vurgu
+  // (Engin'in eski ekran görüntüsündeki sarı tema geri kazandırıldı).
   JuzzioAuroraPalette(
-    id: 'graphite_lime',
-    nameTr: 'Grafit Limon',
-    nameEn: 'Graphite Lime',
-    nameDe: 'Graphit Limette',
-    base: Color(0xFF0A0B0D),
-    baseLight: Color(0xFFF3F4EF),
-    swatchA: Color(0xFFC6F135),
-    swatchB: Color(0xFF8B7CF6),
+    id: 'amber_gold',
+    nameTr: 'Amber Altın',
+    nameEn: 'Amber Gold',
+    nameDe: 'Bernsteingold',
+    base: Color(0xFF0D0C0A),
+    baseLight: Color(0xFFF8F5EC),
+    swatchA: Color(0xFFF7DC6F),
+    swatchB: Color(0xFFE0A93B),
     orbs: [
-      JuzzioAuroraOrb(Alignment(-1.0, -0.95), 0.70, Color(0x1FC6F135)),
-      JuzzioAuroraOrb(Alignment(1.0, 0.6), 0.70, Color(0x1F8B7CF6)),
+      JuzzioAuroraOrb(Alignment(-1.0, -0.95), 0.75, Color(0x26F7DC6F)),
+      JuzzioAuroraOrb(Alignment(1.0, 0.55), 0.70, Color(0x1FE0A93B)),
+      JuzzioAuroraOrb(Alignment(-0.5, 1.0), 0.70, Color(0x14B07A2A)),
     ],
     orbsLight: [
-      JuzzioAuroraOrb(Alignment(-1.0, -0.95), 0.70, Color(0x33C6F135)),
-      JuzzioAuroraOrb(Alignment(1.0, 0.6), 0.70, Color(0x268B7CF6)),
+      JuzzioAuroraOrb(Alignment(-1.0, -0.95), 0.75, Color(0x40F7DC6F)),
+      JuzzioAuroraOrb(Alignment(1.0, 0.55), 0.70, Color(0x33E0A93B)),
     ],
   ),
   // v0.8.1 Premium Dark Liquid Glass (tasarım şartnamesi §2/§9): #050A12 zemin,
@@ -735,7 +768,13 @@ class JuzzioAuroraScope {
 /// Sayfanın arkasına aurora zemini çizen sarmalayıcı (ayar değişince yenilenir).
 class JuzzioAuroraPage extends StatelessWidget {
   final Widget child;
-  const JuzzioAuroraPage({super.key, required this.child});
+
+  /// v2.2.0: zeminin üstünde, içeriğin arkasında hava katmanı (bulut/güneş/yağmur/ay) çizilsin mi
+  final bool weather;
+  const JuzzioAuroraPage({super.key, required this.child, this.weather = true});
+
+  /// v2.2.0: hava katmanı oluşturucu (main.dart bağlar; çekirdek tema widget katmanına bağımlı olmaz)
+  static Widget Function()? weatherLayerBuilder;
 
   @override
   Widget build(BuildContext context) {
@@ -768,6 +807,7 @@ class JuzzioAuroraPage extends StatelessWidget {
                   },
                 ),
         ),
+        if (weather && weatherLayerBuilder != null) Positioned.fill(child: weatherLayerBuilder!()),
         child,
       ],
     );
@@ -795,7 +835,9 @@ class JuzzioAuroraPageTransitionsBuilder extends PageTransitionsBuilder {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
-    final wrapped = route.opaque ? JuzzioAuroraPage(child: child) : child;
+    // v2.2.0: genel sarmalayıcı hava katmanı çizmez (sayfa kendi JuzzioAuroraPage'ini kullanıyorsa
+    // onun opak zemini bunu örterdi; boşa çizim olmasın). Hava katmanı sayfanın kendi sarmalayıcısında.
+    final wrapped = route.opaque ? JuzzioAuroraPage(weather: false, child: child) : child;
     return _inner.buildTransitions<T>(route, context, animation, secondaryAnimation, wrapped);
   }
 }

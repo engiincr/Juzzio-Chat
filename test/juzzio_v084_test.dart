@@ -19,7 +19,7 @@ void main() {
   });
 
   test('16 temanın her biri kendi cam karakterine sahip (v0.9.7: +4)', () {
-    expect(kJuzzioAuroraPalettes.length, 18);
+    expect(kJuzzioAuroraPalettes.length, 19);
     for (final p in kJuzzioAuroraPalettes) {
       expect(kJuzzioGlassCharacters.containsKey(p.id), isTrue, reason: p.id);
       final c = p.character;
@@ -29,7 +29,7 @@ void main() {
         expect(v, inInclusiveRange(0.4, 2.0), reason: p.id);
       }
     }
-    expect(kJuzzioAuroraPalettes.first.id, 'ocean'); // GM-014: varsayılan mavi (KR-011)
+    expect(kJuzzioAuroraPalettes.first.id, 'graphite_lime'); // v2.2.0: varsayılan lime (KR-012)
     expect(juzzioAuroraPaletteById('cyber_neon').character.glow, greaterThan(0));
   });
 

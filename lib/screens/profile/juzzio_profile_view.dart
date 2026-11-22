@@ -82,6 +82,8 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
   JuzzioUserProfile? _profile;
   JuzzioProfileSocialCounts _counts = const JuzzioProfileSocialCounts();
   JuzzioRelationship _relation = const JuzzioRelationship();
+  // v2.2.0: başkasının profilinde ortak arkadaşlar
+  JuzzioMutualFriends _mutual = const JuzzioMutualFriends(<JuzzioMutualFriend>[], 0);
   List<JuzzioPost> _posts = const [];
   List<JuzzioPost> _saved = const [];
   int _tab = 0; // 0 gönderiler, 1 kaydedilenler (yalnızca kendi profilinde)
@@ -185,6 +187,7 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
         if (v != null) _relation = v;
       }),
       part<List<JuzzioPost>>(social.fetchFeedPosts(authorId: widget.userId, limit: 60), (v) => _posts = v),
+      if (!_isOwn) part<JuzzioMutualFriends>(svc.mutualFriends(widget.userId), (v) => _mutual = v),
     ]);
     if (!live()) return;
     if (_loading) setState(() => _loading = false);
@@ -817,6 +820,11 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
               ],
             ],
           ),
+          // v2.2.0: ortak arkadaşlar (ikimizin de arkadaşı olan kişiler)
+          if (!_isOwn && !_mutual.isEmpty) ...[
+            const SizedBox(height: 12),
+            _mutualFriendsRow(fg, secondary),
+          ],
           if (prof.bio.trim().isNotEmpty) ...[
             const SizedBox(height: 3),
             const SizedBox(height: 8),
@@ -887,6 +895,89 @@ class _JuzzioProfileViewState extends State<JuzzioProfileView> {
       ),
     );
     if (changed == true) await _load();
+  }
+
+  /// v2.2.0: üst üste binen küçük avatarlar + "Ali, Ayşe ve 3 kişi daha ortak arkadaşınız"
+  Widget _mutualFriendsRow(Color fg, Color secondary) {
+    final people = _mutual.people.take(3).toList();
+    const r = 14.0;
+    return Semantics(
+      button: true,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: _showMutualFriends,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: r * 2 + (people.length - 1) * r * 1.25,
+                height: r * 2,
+                child: Stack(children: [
+                  for (var i = 0; i < people.length; i++)
+                    Positioned(
+                      left: i * r * 1.25,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: JuzzioGlassTokens.spaceCardBorder, width: 1.5),
+                        ),
+                        child: JuzzioUserAvatar(imageUrl: people[i].avatarUrl, displayName: people[i].name, radius: r - 1.5),
+                      ),
+                    ),
+                ]),
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  juzzioMutualFriendsLine(_mutual, lang: JuzzioAppController.instance.uiLang),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: secondary, fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showMutualFriends() {
+    showJuzzioGlassSheet<void>(
+      context: context,
+      builder: (ctx) => ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(ctx).height * 0.6),
+        child: ListView(
+          shrinkWrap: true,
+          padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+              child: Text(_l('Ortak arkadaşlar', 'Mutual friends', 'Gemeinsame Freunde'),
+                  style: TextStyle(color: JuzzioGlassTokens.heading, fontSize: 18, fontWeight: FontWeight.w800)),
+            ),
+            for (final m in _mutual.people)
+              ListTile(
+                leading: JuzzioUserAvatar(imageUrl: m.avatarUrl, displayName: m.name, radius: 20),
+                title: Text(m.name, style: TextStyle(color: JuzzioGlassTokens.textPrimary, fontWeight: FontWeight.w700)),
+                subtitle: Text('@${m.username}', style: TextStyle(color: JuzzioGlassTokens.textSecondary)),
+              ),
+            if (_mutual.total > _mutual.people.length)
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Text(
+                  _l('ve ${_mutual.total - _mutual.people.length} kişi daha', 'and ${_mutual.total - _mutual.people.length} more',
+                      'und ${_mutual.total - _mutual.people.length} weitere'),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: JuzzioGlassTokens.textMuted),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _statTile(Color fg, Color secondary, int value, String label, {VoidCallback? onTap}) {

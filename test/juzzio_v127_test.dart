@@ -35,7 +35,7 @@ void main() {
     test('açık havada da döngü çalışır (simgeler süzülür)', () {
       final s = _src('lib/widgets/juzzio_weather_ambience.dart');
       expect(s.contains('st.kind != JuzzioWeatherKind.clear && JuzzioAppController'), isFalse);
-      expect(s.contains('JuzzioSky21Painter('), isTrue); // v2.1: sahne Gökyüzü 2.1 ile çizilir
+      expect(s.contains('JuzzioDoodleSkyPainter('), isTrue); // v2.2.0: referanstaki doodle gökyüzü
     });
   });
 
