@@ -514,7 +514,7 @@ class JuzzioDesktopSceneBackdrop extends StatelessWidget {
   final bool dark;
   final Color accent;
 
-  static const String _cloud = 'assets/weather_hd/cloud_white.webp';
+  static const String _cloud = 'assets/weather_hd/cloud_puff.webp';
 
   Widget _img(String a, double w, {double opacity = 1, Color? tint}) {
     Widget i = Image.asset(a, width: w, fit: BoxFit.contain, filterQuality: FilterQuality.high, errorBuilder: (_, __, ___) => const SizedBox.shrink());
@@ -522,19 +522,8 @@ class JuzzioDesktopSceneBackdrop extends StatelessWidget {
     return Opacity(opacity: opacity, child: i);
   }
 
-  /// Paketteki bulutun bir kenarı düz kesik: aynası ile üst üste bindirilerek iki ucu da doğal,
-  /// yumuşak bir bulut elde edilir (GM-037 kesik bulut kuralı).
-  Widget _puff(double w, {required double opacity, Color? tint}) => SizedBox(
-        width: w,
-        height: w * 0.36,
-        child: Stack(clipBehavior: Clip.none, children: [
-          Positioned(left: 0, top: 0, child: _img(_cloud, w * 0.62, opacity: opacity, tint: tint)),
-          Positioned(
-              left: w * 0.38,
-              top: w * 0.02,
-              child: Transform.flip(flipX: true, child: _img(_cloud, w * 0.62, opacity: opacity, tint: tint))),
-        ]),
-      );
+  /// GM-037: kenarları yumuşatılmış tek parça HD bulut (kesik/ayna dikişi yok)
+  Widget _puff(double w, {required double opacity, Color? tint}) => _img(_cloud, w, opacity: opacity, tint: tint);
 
   @override
   Widget build(BuildContext context) {
@@ -568,10 +557,10 @@ class JuzzioDesktopSceneBackdrop extends StatelessWidget {
               ),
             ] else ...[
               // gündüz: güneş ressamda; güneşin altına binen bulut + dağınık yumuşak bulutlar
-              Positioned(left: w * 0.055, top: h * 0.135, child: _puff(w * 0.17, opacity: 0.9)),
-              Positioned(left: w * 0.565, top: h * 0.155, child: _puff(w * 0.22, opacity: 0.95)),
-              Positioned(left: w * 0.75, top: h * 0.335, child: _puff(w * 0.20, opacity: 0.9)),
-              Positioned(left: w * 0.06, top: h * 0.555, child: _puff(w * 0.16, opacity: 0.8)),
+              Positioned(left: w * 0.06, top: h * 0.14, child: _puff(w * 0.13, opacity: 0.9)),
+              Positioned(left: w * 0.57, top: h * 0.17, child: _puff(w * 0.20, opacity: 0.95)),
+              Positioned(left: w * 0.76, top: h * 0.33, child: _puff(w * 0.18, opacity: 0.9)),
+              Positioned(left: w * 0.07, top: h * 0.56, child: _puff(w * 0.14, opacity: 0.8)),
             ],
           ]);
         },
@@ -789,7 +778,7 @@ class JuzzioDesktopScenePainter extends CustomPainter {
           sc,
           sr,
           Paint()
-            ..shader = const RadialGradient(center: Alignment(-0.2, -0.25), colors: [Color(0xFFFFFDF0), Color(0xFFFCEFBE), Color(0xFFF7E3A0)], stops: [0.0, 0.7, 1.0])
+            ..shader = const RadialGradient(center: Alignment(-0.2, -0.25), colors: [Color(0xFFFFFEF4), Color(0xFFFDF6D6), Color(0xFFF8EBBE)], stops: [0.0, 0.7, 1.0])
                 .createShader(Rect.fromCircle(center: sc, radius: sr))
             ..maskFilter = MaskFilter.blur(BlurStyle.normal, sr * 0.06));
     }

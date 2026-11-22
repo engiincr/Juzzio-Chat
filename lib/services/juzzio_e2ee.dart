@@ -26,9 +26,11 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
+import 'package:flutter/foundation.dart' show ValueNotifier;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../core/pq/juzzio_pq.dart';
+import 'juzzio_key_sync.dart';
 import 'juzzio_media_crypto.dart';
 import 'supabase_service.dart';
 
@@ -146,6 +148,8 @@ class JuzzioE2ee {
       _plainCache.clear();
       _mediaKeys.clear(); // hesap değişince medya anahtarları unutulur
       _publishPending = false;
+      linkPending = false;
+      JuzzioKeySync.instance.resetForAccount();
     }
     final init = _init ??= _load(uid);
     return init.then((_) => _retryPublishIfNeeded(uid));
@@ -177,8 +181,23 @@ class JuzzioE2ee {
       }
       final raw = await _secure.read(key: '$_v2Prefix$uid');
       if (raw != null && raw.isNotEmpty) importKeyring(raw, persist: false);
+      // GM-039: hesabın yayınlanmış anahtarı başka cihazdaysa (bu cihazda yoksa) rakip anahtar
+      // ÜRETİLMEZ / YAYINLANMAZ; anahtarlık o cihazdan uçtan uca şifreli zarfla istenir.
+      final published = headless ? null : await _publishedKeyId(uid);
+      if (published != null && published.isNotEmpty && !_keys.containsKey(published)) {
+        final ring = await JuzzioKeySync.instance.requestAndReceive(uid);
+        if (ring != null) {
+          importKeyring(ring, adoptCurrent: true);
+        } else if (JuzzioKeySync.instance.serverReady) {
+          linkPending = true;
+          if (_current != null) await _materialize(_current!);
+          JuzzioKeySync.instance.startPolling();
+          return; // anahtarlık gelene kadar yayın/yenileme yok; yeni mesajlar beklemede
+        }
+      }
       final cur = _current;
-      if (cur == null || DateTime.now().difference(cur.created) > _identityRotation) {
+      final inSync = published == null || published.isEmpty || published == cur?.id;
+      if (cur == null || (inSync && DateTime.now().difference(cur.created) > _identityRotation)) {
         await _rotateIdentity(uid, firstFromV1: cur == null ? v1 : null);
       }
       await _materialize(_current!);
@@ -200,6 +219,45 @@ class JuzzioE2ee {
     } catch (_) {
       _publishPending = true;
     }
+    // GM-039: diğer cihazlarımın anahtar isteklerini dinle (onay / güvenilen cihaza otomatik)
+    JuzzioKeySync.instance.startPolling();
+  }
+
+  /// GM-039: bu cihaz anahtarlığı başka cihazından bekliyor
+  bool linkPending = false;
+
+  /// Anahtarlık değişince (bağlı cihazdan geldi / yedekten döndü) artar → sohbetler yeniden çözülür
+  final ValueNotifier<int> keyringVersion = ValueNotifier<int>(0);
+
+  Future<String?> _publishedKeyId(String uid) async {
+    try {
+      final row = await SupabaseService.instance.client.from('profiles').select('e2ee_key_id').eq('id', uid).maybeSingle();
+      return (row?['e2ee_key_id'] ?? '').toString();
+    } catch (_) {
+      return null; // çevrimdışı: yerel anahtarlarla devam
+    }
+  }
+
+  /// GM-039: başka cihazdan gelen anahtarlık benimsenir (yayın yapılmaz; aynı anahtar zaten yayında)
+  Future<void> adoptLinkedKeyring(String raw) async {
+    importKeyring(raw, adoptCurrent: true);
+    if (_current != null) await _materialize(_current!);
+    _sendEpochs.clear();
+    _plainCache.clear();
+    linkPending = false;
+    keyringVersion.value++;
+  }
+
+  /// GM-039 kurtarma: diğer cihaz yok ve yedek de yoksa bu cihazda yeni anahtar oluşturulur
+  /// (eski mesajlar bu cihazda açılmaz; diğer cihazlar sonra bu cihazdan anahtar ister).
+  Future<void> createFreshIdentity() async {
+    final uid = _owner;
+    if (uid.isEmpty) return;
+    await _rotateIdentity(uid);
+    await _publish(uid);
+    linkPending = false;
+    JuzzioKeySync.instance.state = JuzzioKeySyncState.ready;
+    keyringVersion.value++;
   }
 
   /// Ekransız (bildirim çözme / hızlı yanıt) motorlarda true: ağ yayını yapılmaz.
@@ -280,6 +338,8 @@ class JuzzioE2ee {
     if (uid.isEmpty || _current == null) return;
     await _materialize(_current!);
     await _publish(uid);
+    linkPending = false;
+    keyringVersion.value++;
   }
 
   bool get hasKeys => _keys.isNotEmpty;
@@ -596,7 +656,9 @@ class JuzzioE2ee {
   }
 
   String _lockedText() =>
-      '🔒 Bu mesajın anahtarı bu cihazda yok. Ayarlar → Sohbet yedeği → Yedeği geri yükle ile açabilirsin.';
+      linkPending
+          ? '🔒 Bu cihaz eşleştiriliyor. Diğer cihazında "Bu benim" de; mesajların burada da açılır.'
+          : '🔒 Bu mesajın anahtarı bu cihazda yok. Ayarlar → Sohbet yedeği → Yedeği geri yükle ile açabilirsin.';
 }
 
 /// v0.9.5: kullanıcı kimliği sıralı (iki tarafta aynı sonuç), SHA-256 → 60 hane (12 × 5).

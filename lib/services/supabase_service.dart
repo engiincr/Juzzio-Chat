@@ -1132,6 +1132,12 @@ class SupabaseService {
             'This person\'s app does not support end-to-end encryption yet. The message was not sent.',
             'Die App dieser Person unterstützt noch keine Ende-zu-Ende-Verschlüsselung. Die Nachricht wurde nicht gesendet.');
       }
+      if (JuzzioE2ee.instance.linkPending && !JuzzioE2ee.instance.hasKeys) {
+        // GM-039: bu cihaz henüz eşleşmedi
+        return _app.trEn('Bu cihaz henüz eşleşmedi. Diğer cihazında "Bu benim" onayını ver; sonra mesaj gönderebilirsin.',
+            'This device is not linked yet. Confirm "It\'s me" on your other device, then you can send messages.',
+            'Dieses Gerät ist noch nicht verknüpft. Bestätige auf deinem anderen Gerät.');
+      }
       return _app.trEn('Mesaj uçtan uca şifrelenemedi ve güvenlik için gönderilmedi. Bağlantınızı kontrol edip tekrar deneyin.',
           'The message could not be end-to-end encrypted and was not sent for your security. Check your connection and try again.',
           'Die Nachricht konnte nicht Ende-zu-Ende-verschlüsselt werden und wurde zu deiner Sicherheit nicht gesendet. Prüfe deine Verbindung und versuche es erneut.');

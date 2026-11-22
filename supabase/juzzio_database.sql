@@ -19693,3 +19693,100 @@ END;
 $$;
 REVOKE ALL ON FUNCTION public.admin_activity_series(TEXT, INTEGER) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.admin_activity_series(TEXT, INTEGER) TO authenticated;
+
+-- =============================================================================
+-- 10.57 (v2.2.0, GM-039) — Çoklu cihaz: kimlik anahtarlığı cihazlar arasında uçtan uca şifreli zarf
+--   Yeni cihaz rakip anahtar yayınlamaz; "pending" isteği yazar. Anahtarlığı taşıyan cihaz,
+--   kullanıcı "Bu benim" deyince anahtarlığı YALNIZ o cihazın taşıma anahtarına şifreleyip
+--   ("sealed") yazar. Sunucu içeriği açamaz. Satırları yalnız hesabın sahibi görür/yazar.
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS public.e2ee_key_envelopes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    target_device TEXT NOT NULL CHECK (LENGTH(target_device) BETWEEN 8 AND 128),
+    target_pub TEXT NOT NULL CHECK (LENGTH(target_pub) BETWEEN 40 AND 64),
+    label TEXT NOT NULL DEFAULT '' CHECK (LENGTH(label) <= 80),
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'sealed', 'consumed', 'rejected')),
+    sender_pub TEXT CHECK (sender_pub IS NULL OR LENGTH(sender_pub) BETWEEN 40 AND 64),
+    ciphertext TEXT CHECK (ciphertext IS NULL OR LENGTH(ciphertext) <= 262144),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    sealed_at TIMESTAMPTZ,
+    UNIQUE (user_id, target_device)
+);
+CREATE INDEX IF NOT EXISTS idx_e2ee_key_envelopes_user ON public.e2ee_key_envelopes (user_id, status);
+ALTER TABLE public.e2ee_key_envelopes ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.e2ee_key_envelopes FROM anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.e2ee_key_envelopes TO authenticated;
+DROP POLICY IF EXISTS e2ee_key_envelopes_own ON public.e2ee_key_envelopes;
+CREATE POLICY e2ee_key_envelopes_own ON public.e2ee_key_envelopes
+    FOR ALL TO authenticated
+    USING (user_id = auth.uid())
+    WITH CHECK (user_id = auth.uid());
+
+-- Yalnız kayıtlı cihazlarım istek yazabilir (çalınmış belirteçle uydurma cihaz kimliği engellenir;
+-- cihaz kaydı girişte record_login ile yapılır) ve mühür yalnız bekleyen isteğe vurulur.
+CREATE OR REPLACE FUNCTION public.e2ee_key_envelopes_guard()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    IF TG_OP = 'INSERT' OR (TG_OP = 'UPDATE' AND NEW.status = 'pending') THEN
+        IF NOT EXISTS (SELECT 1 FROM public.user_devices d WHERE d.user_id = NEW.user_id AND d.device_id = NEW.target_device) THEN
+            RAISE EXCEPTION 'device_not_registered';
+        END IF;
+        NEW.sender_pub := NULL;
+        NEW.ciphertext := NULL;
+        NEW.sealed_at := NULL;
+        NEW.created_at := NOW();
+    END IF;
+    IF TG_OP = 'UPDATE' AND NEW.status = 'sealed' THEN
+        IF OLD.status <> 'pending' THEN RAISE EXCEPTION 'envelope_not_pending'; END IF;
+        IF NEW.target_pub <> OLD.target_pub OR NEW.target_device <> OLD.target_device THEN RAISE EXCEPTION 'envelope_target_locked'; END IF;
+        IF NEW.ciphertext IS NULL OR NEW.sender_pub IS NULL THEN RAISE EXCEPTION 'envelope_empty'; END IF;
+        NEW.sealed_at := NOW();
+    END IF;
+    -- 15 dakikadan eski bekleyen isteğe mühür vurulmaz (eski istek tekrar onaylatılır)
+    IF TG_OP = 'UPDATE' AND NEW.status = 'sealed' AND OLD.created_at < NOW() - INTERVAL '15 minutes' THEN
+        RAISE EXCEPTION 'envelope_expired';
+    END IF;
+    RETURN NEW;
+END;
+$$;
+DROP TRIGGER IF EXISTS trg_e2ee_key_envelopes_guard ON public.e2ee_key_envelopes;
+CREATE TRIGGER trg_e2ee_key_envelopes_guard BEFORE INSERT OR UPDATE ON public.e2ee_key_envelopes
+    FOR EACH ROW EXECUTE FUNCTION public.e2ee_key_envelopes_guard();
+
+-- Güvenlik olayı: yeni cihaz anahtar istedi (Güvenlik Merkezi'nde görünür)
+CREATE OR REPLACE FUNCTION public.e2ee_key_envelopes_event()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    IF to_regclass('public.security_events') IS NOT NULL THEN
+        IF TG_OP = 'INSERT' OR (TG_OP = 'UPDATE' AND NEW.status = 'pending' AND OLD.status <> 'pending') THEN
+            INSERT INTO public.security_events (user_id, kind, detail)
+            VALUES (NEW.user_id, 'new_device', jsonb_build_object('device', RIGHT(NEW.target_device, 6), 'platform', NEW.label, 'reason', 'e2ee_link'));
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$;
+DROP TRIGGER IF EXISTS trg_e2ee_key_envelopes_event ON public.e2ee_key_envelopes;
+CREATE TRIGGER trg_e2ee_key_envelopes_event AFTER INSERT OR UPDATE ON public.e2ee_key_envelopes
+    FOR EACH ROW EXECUTE FUNCTION public.e2ee_key_envelopes_event();
+
+-- Temizlik: tüketilen / reddedilen / 7 günden eski zarflar
+CREATE OR REPLACE FUNCTION public.e2ee_key_envelopes_cleanup()
+RETURNS VOID
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    DELETE FROM public.e2ee_key_envelopes
+     WHERE status IN ('consumed', 'rejected') OR created_at < NOW() - INTERVAL '7 days';
+$$;
+REVOKE ALL ON FUNCTION public.e2ee_key_envelopes_cleanup() FROM PUBLIC, anon, authenticated;

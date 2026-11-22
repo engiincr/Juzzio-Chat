@@ -61,6 +61,8 @@ import '../widgets/juzzio_copy_feedback.dart';
 import '../widgets/juzzio_gif_stickers.dart';
 import '../widgets/juzzio_weather_ambience.dart';
 import '../widgets/juzzio_weather_hd.dart' show JuzzioHdAnchor, juzzioHdAnchorEnabled;
+import '../widgets/juzzio_device_link_ui.dart';
+import '../services/juzzio_key_sync.dart';
 import '../widgets/juzzio_chat_music.dart';
 import '../core/juzzio_duration_format.dart';
 import '../widgets/juzzio_event_widgets.dart';
@@ -623,6 +625,27 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     }
   }
 
+  // GM-039: başka cihazın anahtar isteği → "Bu sen misin?" (her istek bir kez sorulur)
+  final Set<String> _askedKeyRequests = {};
+  bool _keyPromptOpen = false;
+  void _onKeySyncChanged() {
+    if (!mounted || _keyPromptOpen) return;
+    final pending = JuzzioKeySync.instance.incoming.where((r) => !_askedKeyRequests.contains(r.id)).toList();
+    if (pending.isEmpty) return;
+    final r = pending.first;
+    _askedKeyRequests.add(r.id);
+    _keyPromptOpen = true;
+    showJuzzioDeviceApproveSheet(context, r).whenComplete(() {
+      _keyPromptOpen = false;
+      if (mounted) _onKeySyncChanged();
+    });
+  }
+
+  // GM-039: anahtarlık bağlı cihazdan / yedekten geldi → önizlemeler yeniden çözülür
+  void _onKeyringChanged() {
+    if (mounted) _refreshConversationsNow();
+  }
+
   /// v0.9.7: kumaş yenileme — sohbet listesini ve önizlemeleri sunucudan tazeler.
   Future<void> _refreshConversationsNow() async {
     try {
@@ -803,8 +826,16 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     JuzzioStorySeen.instance.addListener(_onStorySeenChanged);
     // v0.7.0: uçtan uca şifreleme anahtarı (yoksa üretilir, açık anahtar yayınlanır)
     JuzzioE2ee.instance.ensureReady().then((_) {
-      if (mounted) maybeOfferJuzzioRestore(context);
+      if (!mounted) return;
+      // GM-039: anahtarlık başka cihazdaysa önce eşleştirme (yedek önerisi bu sayfada da var)
+      if (JuzzioE2ee.instance.linkPending) {
+        showJuzzioDeviceLinkSheet(context);
+      } else {
+        maybeOfferJuzzioRestore(context);
+      }
     });
+    JuzzioKeySync.instance.addListener(_onKeySyncChanged);
+    JuzzioE2ee.instance.keyringVersion.addListener(_onKeyringChanged);
     // 8. OTA sürüm güncelleme (kalıcı erteleme durumu önce yüklenir)
     // v2.1: GitHub'dan otomatik güncelleme bildirimi yalnız yönetici panelinden açıksa
     // (Yönetici → Ayarlar → "GitHub güncellemelerini kullanıcılara ilet"). Kapalıyken kullanıcı
@@ -1154,6 +1185,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     _voiceRecorder.dispose();
     _audioPlayer.dispose();
     JuzzioStorySeen.instance.removeListener(_onStorySeenChanged);
+    JuzzioKeySync.instance.removeListener(_onKeySyncChanged);
+    JuzzioE2ee.instance.keyringVersion.removeListener(_onKeyringChanged);
     _exitHintTimer?.cancel();
     JuzzioChatLock.instance.removeListener(_onChatLockChanged);
     super.dispose();

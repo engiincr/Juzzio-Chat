@@ -14,7 +14,6 @@ import 'dart:async';
 // =============================================================================
 
 import 'dart:io';
-import 'dart:ui' show ImageFilter;
 
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/material.dart';
@@ -68,6 +67,7 @@ import 'settings/juzzio_settings_v21.dart';
 import '../services/juzzio_mfa_service.dart';
 import '../services/juzzio_data_export.dart';
 import '../widgets/juzzio_brand.dart';
+import '../widgets/juzzio_space_kit.dart' show JuzzioSpaceBrand;
 import '../widgets/juzzio_neon_kit.dart';
 import '../widgets/juzzio_settings_kit.dart';
 
@@ -3871,34 +3871,7 @@ class _JuzzioContactsAndBlockedPageState extends State<JuzzioContactsAndBlockedP
           body: ListView(
             padding: const EdgeInsets.all(20),
             children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: JuzzioGlassTokens.spaceCard,
-                  borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: JuzzioGlassTokens.spaceCardBorder),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    JuzzioSwitchListTile(style: JuzzioToggleStyle.check,
-                      contentPadding: EdgeInsets.zero,
-                      activeColor: p.amberGlow,
-                      title: Text(
-                        JuzzioAppController.instance.loc('WhatsApp / Trawave Kişileri', 'WhatsApp / Trawave Contacts Sync', 'WhatsApp-/Trawave-Kontaktsynchronisation'),
-                        style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w800),
-                      ),
-                      subtitle: Text(
-                        JuzzioAppController.instance.loc('Kişiler, cihazlar genelinde yönetebilmeniz için hesabınıza kaydedilir. Windows / Masaüstü uygulamasında QR kodunuzu okuttuğunuzda engellenen kişiler dahil tüm listeniz senkronize gelir.', 'Contacts and blocked accounts are saved to your account so they stay synced across all devices including Windows / Desktop via QR code.', 'Kontakte und blockierte Konten werden in deinem Konto gespeichert und bleiben auf allen Geräten synchron – auch unter Windows / Desktop per QR-Code.'),
-                        style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textSecondary, fontSize: 12.5, height: 1.4),
-                      ),
-                      value: appCtrl.syncContactsAcrossDevices,
-                      onChanged: appCtrl.setSyncContactsAcrossDevices,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
+              // GM-056: "WhatsApp / Trawave kişileri" düğmesi kaldırıldı (Engin)
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -5096,7 +5069,7 @@ class JuzzioAppearanceSettingsPage extends StatelessWidget {
                     value: appCtrl.followGlobalTheme && appCtrl.activeCustomTheme == null,
                     onChanged: appCtrl.setFollowGlobalTheme,
                     secondary: Icon(Icons.public_rounded, color: JuzzioGlassTokens.glowText),
-                    title: Text(appCtrl.trEn('Trawave\'nun önerdiği tema', 'Trawave recommended theme', 'Empfohlenes Design'), style: title),
+                    title: Text(appCtrl.trEn('Trawave\'in önerdiği tema', 'Trawave recommended theme', 'Empfohlenes Design'), style: title),
                     subtitle: Text('${appCtrl.globalTheme!.name} · v${appCtrl.globalThemeVersion}', style: sub),
                   ),
                 ],
@@ -6064,22 +6037,24 @@ class JuzzioAccessibilitySettingsPage extends StatelessWidget {
 }
 
 // =============================================================================
-// 10. YAPIMCI SAYFASI (Powered by Juzzio • Developer / Coder by Engin)
+// 10. HAKKINDA (GM-042) — resmî ürün sayfası: Trawave logosu, sürüm, özellikler, resmî hesaplar
+//     (@trawaveofficial), sürüm notları, gizlilik/KVKK, açık kaynak lisansları. Yapımcı bilgisi
+//     ve e-posta YOK (Engin).
 // =============================================================================
+const String kTrawaveInstagramUrl = 'https://instagram.com/trawaveofficial';
+const String kTrawaveTelegramUrl = 'https://t.me/trawaveofficial';
+const String kTrawaveOfficialHandle = '@trawaveofficial';
+
 class JuzzioDeveloperPage extends StatelessWidget {
   const JuzzioDeveloperPage({super.key});
 
-  // v0.8.0: Ayarlar → Hakkında. Portföy düzeni, Juzzio yumuşak cam stiliyle.
-  static const String _ig = 'https://ig.me/tugkancr';
-  static const String _tg = 'https://t.me/tugkancr0';
-  static const String _mail = 'engiincr@pm.me';
-
-  Future<void> _open(BuildContext context, String url, String copyValue) async {
+  Future<void> _open(BuildContext context, String url) async {
+    // Instagram/Telegram yüklüyse evrensel bağlantı uygulamada açılır; değilse tarayıcıda
     final ok = await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication).catchError((_) => false);
     if (!ok && context.mounted) {
-      Clipboard.setData(ClipboardData(text: copyValue));
+      Clipboard.setData(ClipboardData(text: url));
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(JuzzioAppController.instance.trEn('Panoya kopyalandı: $copyValue', 'Copied: $copyValue', 'Kopiert: $copyValue')),
+        content: Text(JuzzioAppController.instance.trEn('Bağlantı panoya kopyalandı', 'Link copied', 'Link kopiert')),
       ));
     }
   }
@@ -6092,36 +6067,29 @@ class JuzzioDeveloperPage extends StatelessWidget {
     TextStyle h(double size) => TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: t, fontSize: size, fontWeight: FontWeight.w900, height: 1.1, letterSpacing: -0.4);
 
     Widget stat(String value, String label) => Expanded(
-          child: JuzzioGlass(
-            radius: 20,
-            blur: false,
-            color: JuzzioGlassTokens.surface,
-            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+          child: JuzzioLiquidGlass(
+            radius: 18,
+            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 6),
             child: Column(children: [
-              FittedBox(child: Text(value, style: h(22))),
+              FittedBox(child: Text(value, style: h(20))),
               const SizedBox(height: 4),
-              Text(label, textAlign: TextAlign.center, maxLines: 2, style: TextStyle(color: t2, fontSize: 11.5, fontWeight: FontWeight.w700)),
+              Text(label, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: t2, fontSize: 11, fontWeight: FontWeight.w700)),
             ]),
           ),
         );
 
-    Widget skill(IconData icon, String title, String body) => Padding(
+    Widget feature(IconData icon, String title, String body) => Padding(
           padding: const EdgeInsets.only(bottom: 10),
-          child: JuzzioGlass(
-            radius: 22,
-            blur: false,
-            color: JuzzioGlassTokens.surface,
+          child: JuzzioLiquidGlass(
+            radius: 18,
             padding: const EdgeInsets.all(14),
             child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Container(
                 width: 42,
                 height: 42,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: JuzzioGlassTokens.surfaceStrong,
-                  border: Border.all(color: JuzzioGlassTokens.borderStrong),
-                ),
-                child: Icon(icon, color: t, size: 21),
+                decoration: BoxDecoration(color: JuzzioGlassTokens.glow.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(13)),
+                child: Icon(icon, color: JuzzioGlassTokens.glowText, size: 22),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -6135,20 +6103,24 @@ class JuzzioDeveloperPage extends StatelessWidget {
           ),
         );
 
-    Widget social(IconData icon, String label, String handle, VoidCallback onTap) => Expanded(
-          child: GestureDetector(
-            onTap: onTap,
-            child: JuzzioGlass(
-              radius: 22,
-              blur: false,
-              color: JuzzioGlassTokens.surface,
-              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 6),
-              child: Column(children: [
-                Icon(icon, color: t, size: 24),
-                const SizedBox(height: 6),
-                Text(label, style: TextStyle(color: t, fontWeight: FontWeight.w900, fontSize: 12.5)),
-                Text(handle, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: t2, fontSize: 10.5)),
-              ]),
+    Widget social(Key key, IconData icon, String label, String url) => Expanded(
+          child: JuzzioLiquidGlass(
+            key: key,
+            radius: 18,
+            padding: EdgeInsets.zero,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(18),
+              onTap: () => _open(context, url),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+                child: Column(children: [
+                  Icon(icon, color: JuzzioGlassTokens.glowText, size: 24),
+                  const SizedBox(height: 6),
+                  Text(label, style: TextStyle(color: t, fontWeight: FontWeight.w900, fontSize: 13)),
+                  const SizedBox(height: 2),
+                  Text(kTrawaveOfficialHandle, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: t2, fontSize: 11)),
+                ]),
+              ),
             ),
           ),
         );
@@ -6164,10 +6136,9 @@ class JuzzioDeveloperPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
-            // v2.1 Neon Lime: ortalı başlık + yuvarlak geri düğmesi
-            centerTitle: true,
-            leadingWidth: 64,
-            leading: const JuzzioNeonBackButton(),
+        centerTitle: true,
+        leadingWidth: 64,
+        leading: const JuzzioNeonBackButton(),
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
         foregroundColor: t,
@@ -6177,131 +6148,88 @@ class JuzzioDeveloperPage extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
         children: [
-          // HERO
-          JuzzioGlass(
-            radius: 30,
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(22),
-                  child: AspectRatio(
-                    aspectRatio: 4 / 4.4,
-                    child: Stack(fit: StackFit.expand, children: [
-                      Image.asset('assets/creator/engin.jpg', fit: BoxFit.cover, alignment: Alignment.topCenter),
-                      DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            stops: const [0.55, 1],
-                            colors: [Colors.transparent, Colors.black.withValues(alpha: 0.55)],
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        left: 14,
-                        top: 14,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(999),
-                          child: BackdropFilter(
-                            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                              color: Colors.white.withValues(alpha: 0.18),
-                              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                                Container(width: 8, height: 8, decoration: const BoxDecoration(color: Color(0xFF34C759), shape: BoxShape.circle)),
-                                const SizedBox(width: 6),
-                                Text(app.trEn('Trawave\'nun yapımcısı', 'Creator of Trawave', 'Schöpfer von Trawave'),
-                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 12)),
-                              ]),
-                            ),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        left: 16,
-                        right: 16,
-                        bottom: 14,
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          const Text('Engin ÇIRPAN',
-                              style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: Colors.white, fontSize: 30, fontWeight: FontWeight.w900, letterSpacing: -0.5)),
-                          Text(app.trEn('Tek yapımcı · Yazılım · Tasarım', 'Sole creator · Code · Design', 'Alleiniger Entwickler · Code · Design'),
-                              style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w700, fontSize: 13)),
-                        ]),
-                      ),
-                    ]),
-                  ),
+          // ÜST KART: logo + ad + slogan + sürüm
+          JuzzioLiquidGlass(
+            key: const ValueKey('gm042-hero'),
+            radius: 26,
+            padding: const EdgeInsets.fromLTRB(18, 26, 18, 20),
+            child: Column(children: [
+              const JuzzioLogoTile(size: 92),
+              const SizedBox(height: 14),
+              const JuzzioSpaceBrand(text: 'Trawave', size: 34),
+              const SizedBox(height: 6),
+              Text(app.trEn('MESAJLAŞ • ARAMA • İLETİŞİM', 'MESSAGING • CALLS • CONNECTION', 'NACHRICHTEN • ANRUFE • VERBINDUNG'),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: t2, fontSize: 11.5, fontWeight: FontWeight.w800, letterSpacing: 2.2)),
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: JuzzioGlassTokens.glow.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: JuzzioGlassTokens.glow.withValues(alpha: 0.45)),
                 ),
-                const SizedBox(height: 14),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  child: Text(
-                    app.trEn(
-                      'Trawave\'yu fikirden yayına tek başıma tasarladım, kodladım ve yayınlıyorum. Amacım dil engeli olmadan, reklamsız ve güvenli bir iletişim deneyimi.',
-                      'I designed, coded and ship Trawave on my own — from idea to release. The goal: ad-free, secure communication without language barriers.',
-                      'Ich habe Trawave allein entworfen, programmiert und veröffentlicht.'),
-                    style: TextStyle(color: t2, fontSize: 13.5, height: 1.45),
-                  ),
-                ),
-                const SizedBox(height: 6),
-              ],
-            ),
+                child: Text(app.trEn('Sürüm ${JuzzioConfig.appVersion} · Erken erişim', 'Version ${JuzzioConfig.appVersion} · Early access', 'Version ${JuzzioConfig.appVersion} · Early Access'),
+                    style: TextStyle(color: JuzzioGlassTokens.glowText, fontWeight: FontWeight.w800, fontSize: 12)),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                app.trEn(
+                  'Trawave, dil engeli olmadan mesajlaşmanı ve sesli/görüntülü arama yapmanı sağlar. Mesajların ve aramaların uçtan uca şifrelidir; çeviri gerçek zamanlıdır.',
+                  'Trawave lets you message and call without language barriers. Messages and calls are end-to-end encrypted and translated in real time.',
+                  'Trawave ermöglicht Nachrichten und Anrufe ohne Sprachbarrieren – Ende-zu-Ende-verschlüsselt und in Echtzeit übersetzt.'),
+                textAlign: TextAlign.center,
+                style: TextStyle(color: t2, fontSize: 13.5, height: 1.45),
+              ),
+            ]),
           ),
           const SizedBox(height: 12),
-          // v1.2.4: "Hello…" yapımcı tanıtım videosu (cam düğme → tam ekran oynatıcı)
-          const JuzzioCreatorReelButton(),
-          const SizedBox(height: 10),
-          // v1.2.7: ilk girişte gösterilen 20 sn'lik uygulama tanıtım videosu (tekrar izlenebilir)
+          // uygulama tanıtım videosu (yapımcı videosu kaldırıldı)
           const JuzzioCreatorReelButton(intro: true),
           const SizedBox(height: 12),
           Row(children: [
-            stat('v${JuzzioConfig.appVersion}', app.trEn('Sürüm (BETA)', 'Version (BETA)', 'Version (BETA)')),
+            stat(JuzzioConfig.appVersion, app.trEn('Sürüm', 'Version', 'Version')),
             const SizedBox(width: 8),
-            stat('1', app.trEn('Yapımcı', 'Creator', 'Entwickler')),
+            stat('3', app.trEn('Uygulama dili', 'App languages', 'App-Sprachen')),
             const SizedBox(width: 8),
-            stat('3', app.trEn('Uygulama dili', 'App languages', 'Sprachen')),
-            const SizedBox(width: 8),
-            stat('PQ', app.trEn('Kuantum sonrası şifre', 'Post-quantum crypto', 'Post-Quanten')),
+            stat('E2EE', app.trEn('Uçtan uca şifreli', 'End-to-end encrypted', 'Ende-zu-Ende')),
           ]),
           const SizedBox(height: 18),
-          Text(app.trEn('Uzmanlık', 'Specialist', 'Fachgebiete'), style: h(20)),
+          Text(app.trEn('Trawave ile', 'With Trawave', 'Mit Trawave'), style: h(20)),
           const SizedBox(height: 10),
-          skill(Icons.phone_iphone_rounded, app.trEn('Mobil uygulama', 'Mobile app', 'Mobile App'),
-              app.trEn('Flutter ile Android; sesli/görüntülü arama, canlı çeviri, hikâye ve gönderi.', 'Flutter on Android: calls, live translation, stories and posts.', 'Flutter auf Android.')),
-          skill(Icons.dns_rounded, app.trEn('Sunucu & veritabanı', 'Backend & database', 'Backend & Datenbank'),
-              app.trEn('Supabase (PostgreSQL, RLS), Edge Functions, LiveKit.', 'Supabase (PostgreSQL, RLS), Edge Functions, LiveKit.', 'Supabase, Edge Functions, LiveKit.')),
-          skill(Icons.auto_awesome_rounded, app.trEn('Arayüz & cam tasarım', 'UI & glass design', 'UI & Glas-Design'),
-              app.trEn('Yumuşak glassmorphism, aurora temaları, erişilebilir tipografi.', 'Soft glassmorphism, aurora themes, accessible typography.', 'Glassmorphism & Aurora-Themen.')),
-          skill(Icons.shield_moon_rounded, app.trEn('Güvenlik', 'Security', 'Sicherheit'),
-              app.trEn('ML-KEM-768 + X25519 hibrit uçtan uca şifreleme, anahtar yenileme, ML-DSA imza doğrulama.', 'Hybrid ML-KEM-768 + X25519 end-to-end encryption, rekeying, ML-DSA verification.', 'Hybride Post-Quanten-Verschlüsselung.')),
+          feature(Icons.translate_rounded, app.trEn('Anlık çeviri', 'Instant translation', 'Sofortübersetzung'),
+              app.trEn('Mesajlar ve arama altyazıları karşı tarafın dilinde.', 'Messages and call captions in the other person\'s language.', 'Nachrichten und Untertitel in der Sprache des Gegenübers.')),
+          feature(Icons.call_rounded, app.trEn('Sesli ve görüntülü arama', 'Voice & video calls', 'Sprach- & Videoanrufe'),
+              app.trEn('Canlı altyazılı HD aramalar, ekran paylaşımı.', 'HD calls with live captions and screen sharing.', 'HD-Anrufe mit Live-Untertiteln.')),
+          feature(Icons.shield_moon_rounded, app.trEn('Uçtan uca şifreleme', 'End-to-end encryption', 'Ende-zu-Ende-Verschlüsselung'),
+              app.trEn('Kuantum sonrası (ML-KEM-768 + X25519) hibrit şifreleme; anahtarlar cihazında.', 'Post-quantum hybrid (ML-KEM-768 + X25519); keys stay on your devices.', 'Post-Quanten-Hybrid; Schlüssel bleiben auf deinen Geräten.')),
+          feature(Icons.lock_person_rounded, app.trEn('Gizlilik senin elinde', 'Your privacy, your rules', 'Deine Privatsphäre'),
+              app.trEn('Reklam yok; verilerini dilediğin an indirebilir veya silebilirsin.', 'No ads; download or delete your data any time.', 'Keine Werbung; Daten jederzeit laden oder löschen.')),
           const SizedBox(height: 8),
-          Text(app.trEn('İletişim', 'Contact', 'Kontakt'), style: h(20)),
+          Text(app.trEn('Resmî hesaplarımız', 'Official accounts', 'Offizielle Kanäle'), style: h(20)),
           const SizedBox(height: 10),
           Row(children: [
-            social(Icons.camera_alt_rounded, 'Instagram', '@tugkancr', () => _open(context, _ig, 'ig.me/tugkancr')),
-            const SizedBox(width: 8),
-            social(Icons.send_rounded, 'Telegram', '@tugkancr0', () => _open(context, _tg, 't.me/tugkancr0')),
-            const SizedBox(width: 8),
-            social(Icons.alternate_email_rounded, app.trEn('E-posta', 'Email', 'E-Mail'), _mail, () => _open(context, 'mailto:$_mail', _mail)),
+            social(const ValueKey('gm042-instagram'), Icons.camera_alt_rounded, 'Instagram', kTrawaveInstagramUrl),
+            const SizedBox(width: 10),
+            social(const ValueKey('gm042-telegram'), Icons.send_rounded, 'Telegram', kTrawaveTelegramUrl),
           ]),
           const SizedBox(height: 16),
-          JuzzioGlass(
-            radius: 24,
-            blur: false,
-            color: JuzzioGlassTokens.surface,
+          JuzzioLiquidGlass(
+            radius: 20,
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             child: Column(children: [
-              link(Icons.new_releases_rounded, app.trEn('Güncelleme notları', 'Release notes', 'Versionshinweise'),
+              link(Icons.new_releases_rounded, app.trEn('Sürüm notları', 'Release notes', 'Versionshinweise'),
                   () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const JuzzioReleaseNotesPage()))),
               Divider(height: 1, color: JuzzioGlassTokens.border),
-              link(Icons.gavel_rounded, app.trEn('Gizlilik, KVKK ve yasal', 'Privacy, KVKK & legal', 'Datenschutz & Recht'),
+              link(Icons.gavel_rounded, app.trEn('Gizlilik, KVKK ve yasal metinler', 'Privacy, KVKK & legal', 'Datenschutz & Recht'),
                   () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const JuzzioLegalPage()))),
               Divider(height: 1, color: JuzzioGlassTokens.border),
-              // v2.1 (Faz 9.2): açık kaynak lisansları
               link(Icons.workspace_premium_outlined, app.trEn('Açık kaynak lisansları', 'Open-source licences', 'Open-Source-Lizenzen'),
-                  () => showLicensePage(context: context, applicationName: 'Trawave', applicationVersion: 'v${JuzzioConfig.appVersion}')),
+                  () => showLicensePage(
+                      context: context,
+                      applicationName: 'Trawave',
+                      applicationVersion: 'v${JuzzioConfig.appVersion}',
+                      applicationLegalese: '© ${DateTime.now().year} Trawave')),
               Divider(height: 1, color: JuzzioGlassTokens.border),
               link(Icons.bug_report_rounded, app.trEn('Hata bildir / Geri bildirim', 'Report a bug / Feedback', 'Feedback'),
                   () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const JuzzioFeedbackPage()))),
@@ -6309,9 +6237,8 @@ class JuzzioDeveloperPage extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            app.trEn('BETA (Erken Erişim) · © ${DateTime.now().year} Engin ÇIRPAN · Tüm hakları saklıdır.',
-                'BETA (Early Access) · © ${DateTime.now().year} Engin ÇIRPAN · All rights reserved.',
-                'BETA · © ${DateTime.now().year} Engin ÇIRPAN'),
+            app.trEn('© ${DateTime.now().year} Trawave · Tüm hakları saklıdır.', '© ${DateTime.now().year} Trawave · All rights reserved.',
+                '© ${DateTime.now().year} Trawave · Alle Rechte vorbehalten.'),
             textAlign: TextAlign.center,
             style: TextStyle(color: t2, fontSize: 11.5),
           ),
@@ -6944,25 +6871,7 @@ class JuzzioBatteryOptimizationPage extends StatelessWidget {
                       value: appCtrl.backgroundPushGuardEnabled,
                       onChanged: appCtrl.setBackgroundPushGuardEnabled,
                     ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: p.amberGlow,
-                          side: BorderSide(color: JuzzioGlassTokens.glow),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-                        ),
-                        onPressed: appCtrl.requestAndroidBatteryExemption,
-                        icon: const Icon(Icons.battery_saver_rounded),
-                        label: Text(
-                          appCtrl.trEn(
-                            'Android Pil Kısıtlamasını Kaldır (Kesintisiz Bildirim İzni)',
-                            'Allow Unrestricted Background Notifications', 'Uneingeschränkte Hintergrundbenachrichtigungen erlauben',
-                          ),
-                        ),
-                      ),
-                    ),
+                    // GM-041: Android kesintisiz bildirim izni düğmesi kaldırıldı (Engin)
                   ],
                 ),
               ),

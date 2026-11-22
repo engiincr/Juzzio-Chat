@@ -111,7 +111,7 @@ class JuzzioSpecialThemeLayer extends StatelessWidget {
                     left: sw * 0.46,
                     top: a + sw * 0.05,
                     child: Transform.flip(flipX: true, child: _img(kHalloweenMoonClouds, sw * 0.60, kHwBandAspect, 0.9 * o))),
-                Positioned(left: sw * 0.40, top: a - sw * 0.30, child: _img(kHalloweenCastle, sw * 0.60, kHwCastleAspect, o)),
+                Positioned(left: sw * 0.40, top: a - sw * 0.27, child: _img(kHalloweenCastle, sw * 0.60, kHwCastleAspect, o)),
                 Positioned(left: -sw * 0.06, top: a - sw * 0.30, child: _img(kHalloweenTree, sw * 0.46, kHwTreeAspect, o)),
               ]);
             }

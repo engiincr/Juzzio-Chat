@@ -197,7 +197,7 @@ const List<JuzzioThirdPartyCredit> kJuzzioThirdPartyCredits = [
       'Resmî talep raporlarının (PDF) yazı tipi.', 'Font of official request reports (PDF).'),
   JuzzioThirdPartyCredit('pdf · archive (Dart paketleri)', 'Apache License 2.0 · MIT',
       'PDF üretimi ve AES-256 şifreli ZIP.', 'PDF generation and AES-256 encrypted ZIP.'),
-  JuzzioThirdPartyCredit('Trawave müzik ve sesleri', 'Trawave\'ya ait',
+  JuzzioThirdPartyCredit('Trawave müzik ve sesleri', 'Trawave\'e ait',
       'Tanıtım videoları, zil ve uyarı sesleri kodla üretilmiş özgün eserlerdir; üçüncü taraf ses kullanılmaz.',
       'Intro videos, ringtones and alert sounds are original works generated in code; no third-party audio is used.'),
 ];

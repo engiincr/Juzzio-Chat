@@ -27,7 +27,7 @@ List<JuzzioBadgeInfo> juzzioBadgeCatalog(JuzzioAppController app) => [
       JuzzioBadgeInfo('social_50', '🌍', app.trEn('Topluluk yıldızı', 'Community star', 'Community-Star'), app.trEn('50 arkadaş', '50 friends', '50 Freunde')),
       JuzzioBadgeInfo('first_post', '✨', app.trEn('İlk paylaşım', 'First post', 'Erster Beitrag'), app.trEn('İlk gönderini paylaş', 'Share your first post', 'Ersten Beitrag teilen')),
       JuzzioBadgeInfo('creator_25', '🎨', app.trEn('İçerik üreticisi', 'Creator', 'Creator'), app.trEn('25 gönderi', '25 posts', '25 Beiträge')),
-      JuzzioBadgeInfo('veteran', '🎖️', app.trEn('Kıdemli', 'Veteran', 'Veteran'), app.trEn('1 yıldır Trawave\'da', '1 year on Trawave', '1 Jahr dabei')),
+      JuzzioBadgeInfo('veteran', '🎖️', app.trEn('Kıdemli', 'Veteran', 'Veteran'), app.trEn('1 yıldır Trawave\'de', '1 year on Trawave', '1 Jahr dabei')),
     ];
 
 class JuzzioBadgesScreen extends StatefulWidget {

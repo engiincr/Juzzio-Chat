@@ -133,7 +133,7 @@ class _JuzzioProfileQrPageState extends State<JuzzioProfileQrPage> {
           children: [
             Text(
               _app.trEn(
-                'Telefonunun kamerasını karekoda tut: bağlantı Trawave\'yu açar. Ya da bağlantıyı / kullanıcı adını buraya yapıştır.',
+                'Telefonunun kamerasını karekoda tut: bağlantı Trawave\'i açar. Ya da bağlantıyı / kullanıcı adını buraya yapıştır.',
                 'Point your phone camera at the code — the link opens Trawave. Or paste the link / username here.',
                 'Richte die Kamera auf den Code oder füge den Link / Benutzernamen hier ein.',
               ),

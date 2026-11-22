@@ -37,6 +37,9 @@ const List<String> kJuzzioHdMoonAssets = [
 
 const String kHdCloudWhite = 'assets/weather_hd/cloud_white.webp';
 const String kHdCloudStorm = 'assets/weather_hd/cloud_storm.webp';
+
+/// GM-037: iki yanı ve altı yumuşatılmış, kesiksiz bulut (paketteki cloud_white'tan üretildi)
+const String kHdCloudPuff = 'assets/weather_hd/cloud_puff.webp';
 const String kHdSunRise = 'assets/weather_hd/sun_rise_clouds.webp';
 const String kHdSunRays = 'assets/weather_hd/sun_rays.webp';
 const String kHdSnowFlakes = 'assets/weather_hd/snow_flakes.webp';
@@ -51,7 +54,7 @@ const String kHdRainHeavy = 'assets/weather_hd/rain_heavy.webp';
 /// Tüm HD görseller (pubspec ve testler için)
 const List<String> kJuzzioHdWeatherAssets = [
   ...kJuzzioHdMoonAssets,
-  kHdCloudWhite, kHdCloudStorm, kHdSunRise, kHdSunRays, kHdSnowFlakes, kHdSnowLight,
+  kHdCloudWhite, kHdCloudStorm, kHdCloudPuff, kHdSunRise, kHdSunRays, kHdSnowFlakes, kHdSnowLight,
   kHdBolt, kHdBoltCloud, kHdFogBank, kHdFogLow, kHdRainCloud, kHdRainHeavy,
 ];
 
@@ -59,6 +62,7 @@ const List<String> kJuzzioHdWeatherAssets = [
 const Map<String, double> kJuzzioHdAspect = {
   kHdCloudWhite: 2048 / 1250,
   kHdCloudStorm: 2048 / 1250,
+  kHdCloudPuff: 1212 / 526,
   kHdSunRise: 2048 / 1536,
   kHdSunRays: 2048 / 1536,
   kHdSnowFlakes: 1.0,
@@ -190,28 +194,28 @@ List<JuzzioHdLayer> juzzioHdWeatherLayers(JuzzioWeatherKind kind, {required bool
         // referans: ay başlık düğmelerinin solunda, arama kutusunun hemen üstünde (yarısı camın ardında)
         return [
           JuzzioHdLayer(moon, left: 0.53, top: -0.135, width: 0.13, anchored: true),
-          JuzzioHdLayer(kHdCloudWhite, left: -0.32, top: 0.62, width: 0.66, opacity: 0.14, drift: 0.02, flip: true),
+          JuzzioHdLayer(kHdCloudPuff, left: -0.32, top: 0.62, width: 0.66, opacity: 0.14, drift: 0.02, flip: true),
         ];
       }
       final dayTint = dark ? const Color(0xFF8E98AC) : null; // referans: koyu temada gri-mavi bulut
       // referans: güneş arama kutusunun üstünde bulutların ardından doğar (merkez ≈ 0.77W)
       return [
-        JuzzioHdLayer(kHdCloudWhite, left: -0.26, top: -0.20, width: 0.60, opacity: 0.45, drift: 0.015, flip: true, tint: dayTint, anchored: true),
+        JuzzioHdLayer(kHdCloudPuff, left: -0.26, top: -0.20, width: 0.60, opacity: 0.45, drift: 0.015, flip: true, tint: dayTint, anchored: true),
         const JuzzioHdLayer(kHdSunRise, left: 0.43, top: -0.27, width: 0.59, anchored: true),
-        JuzzioHdLayer(kHdCloudWhite, left: 0.56, top: 0.17, width: 0.62, opacity: 0.50, drift: 0.02, tint: dayTint, anchored: true),
+        JuzzioHdLayer(kHdCloudPuff, left: 0.56, top: 0.17, width: 0.62, opacity: 0.50, drift: 0.02, tint: dayTint, anchored: true),
       ];
     case JuzzioWeatherKind.clouds:
       if (night) {
         return [
           JuzzioHdLayer(moon, left: 0.535, top: -0.13, width: 0.12, opacity: 0.85, anchored: true),
-          JuzzioHdLayer(kHdCloudStorm, left: -0.22, top: -0.40, width: 1.44, opacity: 0.55 * storm, drift: 0.02, tint: const Color(0xFF6E7A8E), anchored: true),
-          JuzzioHdLayer(kHdCloudStorm, left: -0.12, top: 0.04, width: 1.40, opacity: 0.38 * storm, drift: 0.015, flip: true, tint: const Color(0xFF6E7A8E), anchored: true),
+          JuzzioHdLayer(kHdCloudPuff, left: -0.28, top: -0.34, width: 0.74, opacity: 0.55 * storm, drift: 0.02, flip: true, tint: const Color(0xFF5E6A7C), anchored: true),
+          JuzzioHdLayer(kHdCloudPuff, left: 0.52, top: 0.08, width: 0.74, opacity: 0.45 * storm, drift: 0.015, tint: const Color(0xFF5E6A7C), anchored: true),
         ];
       }
       final cTint = dark ? const Color(0xFF8E98AC) : null;
       return [
-        JuzzioHdLayer(kHdCloudWhite, left: -0.30, top: -0.30, width: 0.84, opacity: 0.80, drift: 0.02, flip: true, tint: cTint, anchored: true),
-        JuzzioHdLayer(kHdCloudWhite, left: 0.40, top: 0.10, width: 0.88, opacity: 0.72, drift: 0.02, tint: cTint, anchored: true),
+        JuzzioHdLayer(kHdCloudPuff, left: -0.30, top: -0.30, width: 0.84, opacity: 0.80, drift: 0.02, flip: true, tint: cTint, anchored: true),
+        JuzzioHdLayer(kHdCloudPuff, left: 0.40, top: 0.10, width: 0.88, opacity: 0.72, drift: 0.02, tint: cTint, anchored: true),
       ];
     case JuzzioWeatherKind.fog:
       return [
@@ -222,22 +226,23 @@ List<JuzzioHdLayer> juzzioHdWeatherLayers(JuzzioWeatherKind kind, {required bool
     case JuzzioWeatherKind.rain:
       final heavy = kind == JuzzioWeatherKind.rain;
       // referans: koyu gri-mavi bulutlar başlıkta (logo ve düğmelerin ardında) ve hikâyelerin yanında
-      final rTint = dark ? const Color(0xFF5E6A7C) : const Color(0xFF9AA6B6);
+      final rTint = dark ? const Color(0xFF55606F) : const Color(0xFF8E9AAB);
       return [
-        JuzzioHdLayer(kHdCloudStorm, left: -0.30, top: -0.42, width: 1.50, opacity: 0.62 * storm, drift: 0.012, tint: rTint, anchored: true),
-        JuzzioHdLayer(kHdCloudStorm, left: -0.12, top: 0.02, width: 1.40, opacity: 0.45 * storm, drift: 0.015, flip: true, tint: rTint, anchored: true),
+        JuzzioHdLayer(kHdCloudPuff, left: -0.26, top: -0.32, width: 0.76, opacity: 0.70 * storm, drift: 0.012, flip: true, tint: rTint, anchored: true),
+        JuzzioHdLayer(kHdCloudPuff, left: 0.46, top: -0.36, width: 0.76, opacity: 0.62 * storm, drift: 0.012, tint: rTint, anchored: true),
+        JuzzioHdLayer(kHdCloudPuff, left: 0.42, top: 0.10, width: 0.76, opacity: 0.55 * storm, drift: 0.015, tint: rTint, anchored: true),
         JuzzioHdLayer(kHdRainHeavy, left: 0, top: 0, width: 0.5, opacity: heavy ? 0.40 : 0.22, fall: true),
       ];
     case JuzzioWeatherKind.snow:
       return [
-        JuzzioHdLayer(kHdCloudWhite, left: -0.30, top: -0.36, width: 0.80, opacity: 0.85, drift: 0.015, flip: true, anchored: true),
-        JuzzioHdLayer(kHdCloudWhite, left: 0.44, top: -0.22, width: 0.80, opacity: 0.80, drift: 0.015, anchored: true),
+        JuzzioHdLayer(kHdCloudPuff, left: -0.30, top: -0.36, width: 0.80, opacity: 0.85, drift: 0.015, flip: true, anchored: true),
+        JuzzioHdLayer(kHdCloudPuff, left: 0.44, top: -0.22, width: 0.80, opacity: 0.80, drift: 0.015, anchored: true),
         const JuzzioHdLayer(kHdSnowLight, left: 0, top: 0, width: 0.17, opacity: 0.60, fall: true),
       ];
     case JuzzioWeatherKind.thunder:
       return [
         JuzzioHdLayer(kHdBoltCloud, left: -0.06, top: -0.50, width: 0.62, opacity: 0.80 * storm, anchored: true),
-        JuzzioHdLayer(kHdCloudStorm, left: -0.20, top: -0.30, width: 1.40, opacity: 0.60 * storm, drift: 0.015, flip: true, tint: const Color(0xFF6E7A8E), anchored: true),
+        JuzzioHdLayer(kHdCloudPuff, left: 0.46, top: -0.34, width: 0.76, opacity: 0.62 * storm, drift: 0.015, tint: const Color(0xFF5E6A7C), anchored: true),
         const JuzzioHdLayer(kHdRainHeavy, left: 0, top: 0, width: 0.5, opacity: 0.38, fall: true),
       ];
   }

@@ -89,10 +89,10 @@ Future<String?> showJuzzioAttachMenu(BuildContext context, {required bool isGrou
     backgroundColor: Colors.transparent,
     builder: (ctx) {
       // GM-020: tek katman liquid glass pano (çift çerçeve yok), ızgara satır yüksekliği sabit → taşma yok
+      // GM-038: Engin — transparan liquid glass (arka plan bulanık seçilir)
       final panel = JuzzioLiquidGlass(
         radius: 30,
-        strong: true,
-        blur: 24,
+        blur: 28,
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Center(

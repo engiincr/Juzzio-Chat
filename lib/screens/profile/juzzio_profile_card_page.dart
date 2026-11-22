@@ -198,7 +198,7 @@ class _JuzzioProfileCardPageState extends State<JuzzioProfileCardPage> with Sing
 
   Future<void> _share() async {
     final ok = await JuzzioNative.shareText(
-      _l('Trawave\'da beni ekle: $_link', 'Add me on Trawave: $_link', 'Füge mich auf Trawave hinzu: $_link'),
+      _l('Trawave\'de beni ekle: $_link', 'Add me on Trawave: $_link', 'Füge mich auf Trawave hinzu: $_link'),
       title: _l('Profili paylaş', 'Share profile', 'Profil teilen'),
     );
     if (!ok) await _copy();
@@ -207,7 +207,7 @@ class _JuzzioProfileCardPageState extends State<JuzzioProfileCardPage> with Sing
   Future<void> _invite() async {
     final ok = await JuzzioNative.shareText(
       _l(
-        'Trawave\'yu dene! Canlı çeviriyle her dilde sohbet et ve görüntülü konuş. Beni ekle: $_link',
+        'Trawave\'i dene! Canlı çeviriyle her dilde sohbet et ve görüntülü konuş. Beni ekle: $_link',
         'Try Trawave! Chat and video call in any language with live translation. Add me: $_link',
         'Probier Trawave! Chatte und telefoniere per Video in jeder Sprache mit Live-Übersetzung. Füge mich hinzu: $_link',
       ),

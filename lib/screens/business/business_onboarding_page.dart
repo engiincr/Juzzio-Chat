@@ -344,7 +344,7 @@ class _JuzzioBusinessOnboardingPageState extends State<JuzzioBusinessOnboardingP
             Text(_t('Trawave Business\'a hoş geldin!', 'Welcome to Trawave Business!', 'Willkommen bei Trawave Business!'),
                 textAlign: TextAlign.center, style: TextStyle(color: p.textPrimary, fontSize: 22, fontWeight: FontWeight.w900)),
             const SizedBox(height: 8),
-            Text(_t('Artık Trawave\'yu profesyonel ihtiyaçlarına göre kullanabilirsin.', 'You can now use Trawave for your professional needs.',
+            Text(_t('Artık Trawave\'i profesyonel ihtiyaçlarına göre kullanabilirsin.', 'You can now use Trawave for your professional needs.',
                 'Du kannst Trawave jetzt beruflich nutzen.'), textAlign: TextAlign.center, style: TextStyle(color: p.textSecondary)),
             const SizedBox(height: 20),
             FilledButton.icon(

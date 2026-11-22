@@ -89,7 +89,7 @@ class _JuzzioMaintenanceScreenState extends State<JuzzioMaintenanceScreen> {
                         : _message.trim().isNotEmpty
                         ? _message.trim()
                         : app.trEn(
-                            'Trawave\'yu daha iyi hâle getiriyoruz. Lütfen birazdan tekrar deneyin.',
+                            'Trawave\'i daha iyi hâle getiriyoruz. Lütfen birazdan tekrar deneyin.',
                             'We are making Trawave better. Please try again shortly.',
                             'Wir verbessern Trawave. Bitte versuche es gleich noch einmal.',
                           ),
