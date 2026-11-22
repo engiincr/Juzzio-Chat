@@ -60,7 +60,7 @@ import '../widgets/juzzio_rich_text.dart';
 import '../widgets/juzzio_copy_feedback.dart';
 import '../widgets/juzzio_gif_stickers.dart';
 import '../widgets/juzzio_weather_ambience.dart';
-import '../widgets/juzzio_weather_hd.dart' show JuzzioHdAnchor;
+import '../widgets/juzzio_weather_hd.dart' show JuzzioHdAnchor, juzzioHdAnchorEnabled;
 import '../widgets/juzzio_chat_music.dart';
 import '../core/juzzio_duration_format.dart';
 import '../widgets/juzzio_event_widgets.dart';
@@ -2621,6 +2621,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     // v1.2.9: hava katmanı sohbet, keşfet ve profilde de görünür (kullanıcı isteği); hikâye ve tam ekran
     // video sayfalarında gizli kalır (JuzzioAmbienceHide / rota izleyici)
     JuzzioAmbienceRouteObserver.instance.hold(_ambienceKey, false);
+    // GM-037: ay/güneş yalnız Sohbetler listesinde (arama kutusuna göre); diğer sekmelerde
+    // ve sohbet içinde başlık düğmelerine binmesin
+    juzzioHdAnchorEnabled(!(_isInsideConversation || _selectedBottomTab != 0 || _selectedFilterIndex == 3));
 
     // v2.0.0: Geniş masaüstü penceresinde 3-panel düzeni (NavigationRail + merkez + sağ panel)
     if (juzzioIsDesktop && MediaQuery.sizeOf(context).width >= kJuzzioDesktopThreePanelMin) {
@@ -3522,6 +3525,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             ),
           ],
         ),
+        // GM-037: referanslardaki gibi başlık ile arama kutusu arasında gök cisimleri için boşluk
+        SizedBox(height: (MediaQuery.sizeOf(context).width * 0.08).clamp(20.0, 36.0)),
         Padding(
           padding: const EdgeInsets.fromLTRB(JuzzioSpaceMetrics.gutter, 0, JuzzioSpaceMetrics.gutter, 16),
           // GM-037: hava sahnesindeki ay/güneş bu kutunun üst kenarına göre yerleşir

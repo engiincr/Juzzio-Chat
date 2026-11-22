@@ -708,6 +708,10 @@ class _JuzzioWatchPartyScreenState extends State<JuzzioWatchPartyScreen> {
   // ---------------------------------------------------------------------------
   Future<void> _start() async {
     final res = await showModalBottomSheet<(String, String)>(
+      // GM-038: şeffaf cam sayfanın arkasında taşan köşe/gölge olmasın
+      elevation: 0,
+      shape: const RoundedRectangleBorder(),
+      clipBehavior: Clip.none,
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -1009,6 +1013,10 @@ class _JuzzioWatchPartyScreenState extends State<JuzzioWatchPartyScreen> {
 
   Future<void> _openRoomMenu(JuzzioWatchSession s) async {
     await showModalBottomSheet<void>(
+      // GM-038: şeffaf cam sayfanın arkasında taşan köşe/gölge olmasın
+      elevation: 0,
+      shape: const RoundedRectangleBorder(),
+      clipBehavior: Clip.none,
       context: context,
       backgroundColor: Colors.transparent,
       builder: (ctx) {

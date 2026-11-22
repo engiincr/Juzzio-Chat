@@ -20,7 +20,7 @@ const List<String> kJuzzioHalloweenAssets = [kHalloweenCastle, kHalloweenTree, k
 
 /// GM-037: paketteki karışık Halloween görsellerinden temiz kırpılıp referansın mor-turuncu
 /// renklerine göre renklendirilmiş parçalar (en/boy oranları)
-const double kHwCastleAspect = 1157 / 622;
+const double kHwCastleAspect = 1200 / 600;
 const double kHwTreeAspect = 1229 / 1152;
 const double kHwBandAspect = 532 / 323;
 
@@ -111,7 +111,7 @@ class JuzzioSpecialThemeLayer extends StatelessWidget {
                     left: sw * 0.46,
                     top: a + sw * 0.05,
                     child: Transform.flip(flipX: true, child: _img(kHalloweenMoonClouds, sw * 0.60, kHwBandAspect, 0.9 * o))),
-                Positioned(left: sw * 0.38, top: a - sw * 0.31, child: _img(kHalloweenCastle, sw * 0.64, kHwCastleAspect, o)),
+                Positioned(left: sw * 0.40, top: a - sw * 0.30, child: _img(kHalloweenCastle, sw * 0.60, kHwCastleAspect, o)),
                 Positioned(left: -sw * 0.06, top: a - sw * 0.30, child: _img(kHalloweenTree, sw * 0.46, kHwTreeAspect, o)),
               ]);
             }
@@ -204,10 +204,10 @@ class JuzzioTurkFlagPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     _swoosh(canvas);
     // Referans (Engin'in görseli): ay-yıldız başlık düğmelerinin altında, ekranın ortasının biraz sağında
-    // ölçü: hilal çapı ≈ 0.136W, merkez ≈ (0.64W, arama üstü − 0.06W)
-    final g = (width * 0.27).clamp(60.0, 150.0);
+    // ölçü: hilal çapı ≈ 0.125W, merkez ≈ (0.60W, arama üstü − 0.07W)
+    final g = (width * 0.25).clamp(60.0, 140.0);
     final geo = JuzzioTurkFlagGeometry(g);
-    final emblemOrigin = Offset(width * 0.64 - g * 0.5, anchor - width * 0.06 - g * 0.5);
+    final emblemOrigin = Offset(width * 0.60 - g * 0.5, anchor - width * 0.07 - g * 0.5);
     if (!dark) {
       // gündüz: emblemin arkasında yumuşak kenarlı, dalgalanan kırmızı bayrak kumaşı
       final fw = width * 0.62, fh = g * 1.05;

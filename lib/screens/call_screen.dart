@@ -2231,6 +2231,10 @@ class _CallScreenState extends State<CallScreen> {
   Future<void> _openQualitySheet() async {
     final saver = _app.dataSaverEnabled;
     await showModalBottomSheet<void>(
+      // GM-038: şeffaf cam sayfanın arkasında taşan köşe/gölge olmasın
+      elevation: 0,
+      shape: const RoundedRectangleBorder(),
+      clipBehavior: Clip.none,
       context: context,
       backgroundColor: Colors.transparent,
       builder: (ctx) => _callSheet(
@@ -2397,6 +2401,10 @@ class _CallScreenState extends State<CallScreen> {
   Future<void> _openCallMoreSheet() async {
     final cfg = JuzzioFeaturesService.instance.lastAppConfig;
     await showModalBottomSheet<void>(
+      // GM-038: şeffaf cam sayfanın arkasında taşan köşe/gölge olmasın
+      elevation: 0,
+      shape: const RoundedRectangleBorder(),
+      clipBehavior: Clip.none,
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
@@ -2592,6 +2600,10 @@ class _CallScreenState extends State<CallScreen> {
 
   Future<void> _openCaptionOptions() async {
     await showModalBottomSheet<void>(
+      // GM-038: şeffaf cam sayfanın arkasında taşan köşe/gölge olmasın
+      elevation: 0,
+      shape: const RoundedRectangleBorder(),
+      clipBehavior: Clip.none,
       context: context,
       backgroundColor: Colors.transparent,
       builder: (ctx) {

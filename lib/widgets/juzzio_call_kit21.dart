@@ -405,6 +405,10 @@ Future<void> showJuzzioAudioOutputSheet(
   final app = JuzzioAppController.instance;
   final route = JuzzioAudioRouteController.instance;
   await showModalBottomSheet<void>(
+    // GM-038: şeffaf cam sayfanın arkasında taşan köşe/gölge olmasın
+    elevation: 0,
+    shape: const RoundedRectangleBorder(),
+    clipBehavior: Clip.none,
     context: context,
     backgroundColor: Colors.transparent,
     builder: (ctx) => ListenableBuilder(
@@ -776,6 +780,10 @@ Future<void> showJuzzioDesktopAudioSheet(BuildContext context) async {
   final audio = JuzzioDesktopAudio.instance;
   unawaited(audio.refresh());
   await showModalBottomSheet<void>(
+    // GM-038: şeffaf cam sayfanın arkasında taşan köşe/gölge olmasın
+    elevation: 0,
+    shape: const RoundedRectangleBorder(),
+    clipBehavior: Clip.none,
     context: context,
     backgroundColor: Colors.transparent,
     isScrollControlled: true,
@@ -915,6 +923,10 @@ Future<String?> showJuzzioScreenSourcePicker(
   final app = JuzzioAppController.instance;
   final future = load();
   return showModalBottomSheet<String>(
+    // GM-038: şeffaf cam sayfanın arkasında taşan köşe/gölge olmasın
+    elevation: 0,
+    shape: const RoundedRectangleBorder(),
+    clipBehavior: Clip.none,
     context: context,
     backgroundColor: Colors.transparent,
     isScrollControlled: true,

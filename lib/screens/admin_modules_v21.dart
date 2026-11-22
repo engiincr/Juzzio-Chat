@@ -383,6 +383,10 @@ class _JuzzioAdminModuleStatsPageState extends State<JuzzioAdminModuleStatsPage>
 
   Future<void> _openDetails(String title, Map<String, dynamic> d) async {
     await showModalBottomSheet<void>(
+      // GM-038: şeffaf cam sayfanın arkasında taşan köşe/gölge olmasın
+      elevation: 0,
+      shape: const RoundedRectangleBorder(),
+      clipBehavior: Clip.none,
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,

@@ -1081,6 +1081,10 @@ Future<String?> showJuzzioQuickReplySheet(BuildContext context,
   final app = JuzzioAppController.instance;
   final custom = TextEditingController();
   return showModalBottomSheet<String>(
+    // GM-038: şeffaf cam sayfanın arkasında taşan köşe/gölge olmasın
+    elevation: 0,
+    shape: const RoundedRectangleBorder(),
+    clipBehavior: Clip.none,
     context: context,
     backgroundColor: Colors.transparent,
     isScrollControlled: true,
@@ -1211,6 +1215,10 @@ Future<int?> showJuzzioRemindLaterSheet(BuildContext context) {
     (60, app.trEn('1 saat sonra', 'In 1 hour', 'In 1 Stunde')),
   ];
   return showModalBottomSheet<int>(
+    // GM-038: şeffaf cam sayfanın arkasında taşan köşe/gölge olmasın
+    elevation: 0,
+    shape: const RoundedRectangleBorder(),
+    clipBehavior: Clip.none,
     context: context,
     backgroundColor: Colors.transparent,
     builder: (ctx) => SafeArea(
