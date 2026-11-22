@@ -117,7 +117,7 @@ void main() {
         'v2.2.0: ay/güneş başlıkta değil, içeriğin arkasındaki gökyüzü katmanında',
         () {
       final amb = _read('lib/widgets/juzzio_weather_ambience.dart');
-      expect(amb, contains('JuzzioDoodleSkyPainter('));
+      expect(amb, contains('JuzzioHdWeatherScene(')); // GM-030
       final chat = _read('lib/screens/chat_screen.dart');
       expect(chat.contains('JuzzioSkyIcon('), isFalse);
     });

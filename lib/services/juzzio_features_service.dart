@@ -17,6 +17,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../core/app_theme_and_locale.dart';
 import '../core/config.dart';
+import 'juzzio_special_themes.dart';
 import 'juzzio_error_reporter.dart';
 import 'juzzio_media_cache.dart';
 import 'supabase_service.dart';
@@ -261,6 +262,11 @@ class JuzzioAppConfig {
   // v0.9.7: cihazdaki medya önbelleği sınırı (MB) ve azami dosya yaşı (gün; 0 = sınırsız)
   final int mediaCacheMaxMb;
   final int mediaCacheMaxAgeDays;
+  /// GM-029 (v2.2.0): Türk bayrağı özel gün teması — YALNIZ yönetici panelinden açılır;
+  /// yalnız Türkiye'den kayıtlı/bağlanan kullanıcılarda görünür.
+  final bool specialThemeTurkey;
+  /// GM-031 (v2.2.0): Halloween özel teması — YALNIZ yönetici panelinden açılır; herkes görür.
+  final bool specialThemeHalloween;
 
   const JuzzioAppConfig({
     this.maintenanceMode = false,
@@ -289,6 +295,8 @@ class JuzzioAppConfig {
     this.githubUpdatesEnabled = false,
     this.mediaCacheMaxMb = 300,
     this.mediaCacheMaxAgeDays = 60,
+    this.specialThemeTurkey = false,
+    this.specialThemeHalloween = false,
   });
 
   factory JuzzioAppConfig.fromMap(Map<String, dynamic> map) {
@@ -324,6 +332,8 @@ class JuzzioAppConfig {
       githubUpdatesEnabled: b('github_updates_enabled', false),
       mediaCacheMaxMb: n('media_cache_max_mb', 300).clamp(50, 4096),
       mediaCacheMaxAgeDays: n('media_cache_max_age_days', 60).clamp(0, 365),
+      specialThemeTurkey: b('special_theme_turkey', false),
+      specialThemeHalloween: b('special_theme_halloween', false),
     );
   }
 }
@@ -860,6 +870,7 @@ class JuzzioFeaturesService {
       JuzzioMediaDiskCache.instance.applyLimits(maxMb: cfg.mediaCacheMaxMb, ageDays: cfg.mediaCacheMaxAgeDays);
       // Yöneticinin seçtiği varsayılan cam teması (kullanıcı kendi temasını seçmediyse)
       JuzzioAppController.instance.applyDefaultGlassPalette(cfg.defaultGlassPalette);
+      JuzzioSpecialThemes.instance.applyConfig(cfg);
       return cfg;
     } catch (_) {
       return lastAppConfig;
@@ -921,6 +932,17 @@ class JuzzioFeaturesService {
       return _asMap(await _svc.client.rpc('admin_stats', params: {'p_token': token}));
     } catch (e) {
       _fail(e);
+    }
+  }
+
+  /// GM-034 (v2.2.0): Aktivite grafiği için [days] günlük (ve karşılaştırma için önceki [days]
+  /// günlük) seri. Sunucuda SQL 10.56 yoksa null döner (panel admin_stats'taki 14 günü kullanır).
+  Future<List<Map<String, dynamic>>?> adminActivitySeries(String token, int days) async {
+    try {
+      final res = await _svc.client.rpc('admin_activity_series', params: {'p_token': token, 'p_days': days});
+      return res is List ? res.whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList() : null;
+    } catch (_) {
+      return null;
     }
   }
 

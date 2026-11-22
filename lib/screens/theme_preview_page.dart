@@ -97,9 +97,28 @@ class _JuzzioThemePreviewPageState extends State<JuzzioThemePreviewPage> {
   bool _applied = false;
 
   @override
+  void initState() {
+    super.initState();
+    _livePreview();
+  }
+
+  /// Uygulama teması önizlemesinde kaydırılan tema tüm arayüze geçici uygulanır
+  void _livePreview() {
+    if (widget.chat) return;
+    final id = _item.palette.id;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _app.previewGlassPalette(id);
+    });
+  }
+
+  @override
   void dispose() {
     // uygulanmadan çıkılırsa canlı önizlemedeki cam yoğunluğu eski hâline döner
     if (!_applied) JuzzioGlassTokens.intensity = _origGlass;
+    if (!widget.chat) {
+      final app = _app;
+      WidgetsBinding.instance.addPostFrameCallback((_) => app.previewGlassPalette(null));
+    }
     _pc.dispose();
     super.dispose();
   }
@@ -130,11 +149,12 @@ class _JuzzioThemePreviewPageState extends State<JuzzioThemePreviewPage> {
     return Row(children: [
       Icon(icon, size: 18, color: JuzzioGlassTokens.glowText),
       const SizedBox(width: 8),
-      SizedBox(
-        width: 150,
+      Flexible(
+        flex: 5,
         child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: t, fontWeight: FontWeight.w800, fontSize: 12.5)),
       ),
       Expanded(
+        flex: 6,
         child: Slider(
           key: key,
           value: value,
@@ -175,6 +195,7 @@ class _JuzzioThemePreviewPageState extends State<JuzzioThemePreviewPage> {
                   onPageChanged: (i) {
                     HapticFeedback.selectionClick();
                     setState(() => _index = i);
+                    _livePreview();
                   },
                   itemBuilder: (_, i) => Opacity(
                     opacity: ((_brightness - 0.6) / 0.8 * 0.45 + 0.55).clamp(0.55, 1.0),

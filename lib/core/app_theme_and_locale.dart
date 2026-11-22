@@ -1539,7 +1539,19 @@ class JuzzioAppController extends ChangeNotifier {
 
   String get glassPaletteId => _glassPaletteId.isEmpty ? _defaultGlassPaletteId : _glassPaletteId;
   JuzzioAuroraPalette get glassPalette =>
-      effectiveCustomTheme?.toPalette() ?? juzzioAuroraPaletteById(glassPaletteId);
+      (_previewPaletteId != null ? juzzioAuroraPaletteById(_previewPaletteId) : null) ??
+      effectiveCustomTheme?.toPalette() ??
+      juzzioAuroraPaletteById(glassPaletteId);
+
+  /// GM-033 (v2.2.0): tema önizlemesinde kaydırılan tema tüm arayüze GEÇİCİ uygulanır
+  /// (kaydedilmez; önizleme kapanınca null ile geri alınır).
+  String? _previewPaletteId;
+  String? get previewPaletteId => _previewPaletteId;
+  void previewGlassPalette(String? id) {
+    if (_previewPaletteId == id) return;
+    _previewPaletteId = id;
+    notifyListeners();
+  }
 
   // ---------------------------------------------------------------------------
   // v0.8.2 TEMA STÜDYOSU (yerel, kullanıcı başına; Drive yedeğine dahil)

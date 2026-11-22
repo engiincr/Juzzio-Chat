@@ -314,7 +314,7 @@ void main() {
       expect(u.queryParameters['daily'], 'sunrise,sunset');
       expect(u.queryParameters['timezone'], 'auto');
       expect(u.queryParameters['latitude'], '41.0');
-      expect(_src('lib/widgets/juzzio_weather_ambience.dart').contains('JuzzioDoodleSkyPainter('), isTrue); // v2.2.0
+      expect(_src('lib/widgets/juzzio_weather_ambience.dart').contains('JuzzioHdWeatherScene('), isTrue); // GM-030
     });
   });
 

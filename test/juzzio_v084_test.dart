@@ -30,7 +30,7 @@ void main() {
       }
     }
     expect(kJuzzioAuroraPalettes.first.id, 'graphite_lime'); // v2.2.0: varsayılan lime (KR-012)
-    expect(juzzioAuroraPaletteById('juzzio_liquid').character.glow, greaterThan(0));
+    expect(juzzioAuroraPaletteById('aurora_borealis').character.glow, greaterThan(0)); // GM-032: neon tema kaldırıldı
   });
 
   test('Cam paleti sohbet teması olarak seçilir, doğrulanır ve kaydedilir', () {

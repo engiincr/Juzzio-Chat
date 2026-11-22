@@ -19553,3 +19553,143 @@ STABLE
 AS $$
     SELECT COALESCE(p_is_online, false) AND p_last_seen IS NOT NULL AND p_last_seen > NOW() - INTERVAL '75 seconds';
 $$;
+
+-- =============================================================================
+-- 10.56 (v2.2.0, GM-029 / GM-031 / GM-032 / GM-034) — Özel gün temaları, tema listesi, panel verisi
+--  A) Türk bayrağı ve Halloween özel temaları YALNIZ yönetici panelinden açılır/kapanır
+--     (app_settings: special_theme_turkey / special_theme_halloween; varsayılan KAPALI).
+--     Her yönetici (TR veya US) iki temanın durumunu panelde görür; değişiklik denetim kaydına yazılır.
+--  B) Bayrak teması yalnız Türkiye'deki kullanıcılara: juzzio_my_country() kullanıcının son
+--     bağlantı ülkesini (giriş IP'sinin ülkesi, user_devices.last_country) döndürür; kayıt yoksa
+--     isteğin ülke başlığı. Başka kullanıcının ülkesi okunamaz.
+--  C) GM-032: aynı renkteki 5 tema kaldırıldı; varsayılan tema listesi güncellendi ve kaldırılan
+--     bir tema varsayılansa en yakın temaya taşınır.
+--  D) GM-034: panel "Aktivite Grafiği" için seçilebilir gün aralığı (7–90 gün) günlük seri.
+-- =============================================================================
+CREATE OR REPLACE FUNCTION public.admin_set_setting(p_token TEXT, p_key TEXT, p_value JSONB)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_num NUMERIC;
+BEGIN
+    PERFORM public._staff_require(p_token, 'settings');
+    IF p_key IN ('maintenance_message', 'announcement_banner') THEN
+        IF jsonb_typeof(p_value) <> 'string' THEN RAISE EXCEPTION 'invalid_setting'; END IF;
+        p_value := to_jsonb(LEFT(p_value #>> '{}', 500));
+    ELSIF p_key = 'default_glass_palette' THEN
+        IF jsonb_typeof(p_value) <> 'string'
+           OR (p_value #>> '{}') NOT IN ('graphite_lime', 'ocean', 'amber_gold', 'juzzio_liquid', 'glass_white', 'amethyst',
+                                        'emerald', 'lagoon', 'lavender_mist', 'rose_quartz', 'aurora_borealis',
+                                        'nordic_frost', 'forest_mint', 'high_contrast') THEN
+            RAISE EXCEPTION 'invalid_setting';
+        END IF;
+    ELSIF p_key IN ('call_moderation_interval_sec', 'voice_max_seconds', 'audio_bitrate_kbps', 'video_max_seconds',
+                    'min_supported_build', 'ai_daily_quota_per_user', 'admin_bruteforce_max_fails', 'admin_bruteforce_window_min',
+                    'media_cache_max_mb', 'media_cache_max_age_days') THEN
+        IF jsonb_typeof(p_value) <> 'number' THEN RAISE EXCEPTION 'invalid_setting'; END IF;
+        v_num := (p_value #>> '{}')::numeric;
+        IF v_num <> trunc(v_num) OR NOT (
+               (p_key = 'call_moderation_interval_sec' AND v_num BETWEEN 3 AND 60)
+            OR (p_key = 'voice_max_seconds' AND v_num BETWEEN 15 AND 900)
+            OR (p_key = 'audio_bitrate_kbps' AND v_num BETWEEN 16 AND 256)
+            OR (p_key = 'video_max_seconds' AND v_num BETWEEN 10 AND 600)
+            OR (p_key = 'min_supported_build' AND v_num BETWEEN 0 AND 100000)
+            OR (p_key = 'ai_daily_quota_per_user' AND v_num BETWEEN 0 AND 100000)
+            OR (p_key = 'admin_bruteforce_max_fails' AND v_num BETWEEN 3 AND 20)
+            OR (p_key = 'admin_bruteforce_window_min' AND v_num BETWEEN 5 AND 1440)
+            OR (p_key = 'media_cache_max_mb' AND v_num BETWEEN 50 AND 4096)
+            OR (p_key = 'media_cache_max_age_days' AND v_num BETWEEN 0 AND 365)) THEN
+            RAISE EXCEPTION 'invalid_setting';
+        END IF;
+        IF p_key IN ('min_supported_build', 'admin_bruteforce_max_fails', 'admin_bruteforce_window_min')
+           AND NOT public.admin_check_token(p_token) THEN
+            RAISE EXCEPTION 'super_admin_required';
+        END IF;
+    ELSIF p_key IN ('maintenance_mode', 'signups_enabled', 'live_translation_enabled', 'chick_game_enabled',
+                    'stories_enabled', 'beauty_filter_enabled', 'call_moderation_enabled',
+                    'speech_moderation_enabled', 'avatar_moderation_enabled', 'posts_enabled', 'calls_enabled',
+                    'group_creation_enabled', 'global_feed_enabled', 'error_reporting_enabled',
+                    'itunes_previews_enabled', 'github_updates_enabled',
+                    'special_theme_turkey', 'special_theme_halloween') THEN
+        IF jsonb_typeof(p_value) <> 'boolean' THEN RAISE EXCEPTION 'invalid_setting'; END IF;
+        IF p_key IN ('maintenance_mode', 'github_updates_enabled') AND NOT public.admin_check_token(p_token) THEN
+            RAISE EXCEPTION 'super_admin_required';
+        END IF;
+    ELSE
+        RAISE EXCEPTION 'invalid_setting';
+    END IF;
+    INSERT INTO public.app_settings (key, value, updated_at) VALUES (p_key, p_value, NOW())
+    ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW();
+    INSERT INTO public.admin_audit_log (admin_id, action, target, details)
+    VALUES (auth.uid(), 'set_setting', p_key, jsonb_build_object('value', p_value));
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.admin_set_setting(TEXT, TEXT, JSONB) TO authenticated;
+
+INSERT INTO public.app_settings (key, value) VALUES ('special_theme_turkey', 'false'::jsonb)
+ON CONFLICT (key) DO NOTHING;
+INSERT INTO public.app_settings (key, value) VALUES ('special_theme_halloween', 'false'::jsonb)
+ON CONFLICT (key) DO NOTHING;
+
+UPDATE public.app_settings
+   SET value = CASE value #>> '{}'
+                   WHEN 'chrome' THEN '"glass_white"'::jsonb
+                   WHEN 'obsidian_oled' THEN '"glass_white"'::jsonb
+                   WHEN 'frosted_pearl' THEN '"glass_white"'::jsonb
+                   WHEN 'cyber_neon' THEN '"juzzio_liquid"'::jsonb
+                   WHEN 'midnight_sapphire' THEN '"ocean"'::jsonb
+                   ELSE value END,
+       updated_at = NOW()
+ WHERE key = 'default_glass_palette'
+   AND value #>> '{}' IN ('chrome', 'obsidian_oled', 'frosted_pearl', 'cyber_neon', 'midnight_sapphire');
+
+CREATE OR REPLACE FUNCTION public.juzzio_my_country()
+RETURNS TEXT
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_cc TEXT;
+BEGIN
+    IF auth.uid() IS NULL THEN RETURN ''; END IF;
+    SELECT upper(LEFT(last_country, 2)) INTO v_cc
+      FROM public.user_devices
+     WHERE user_id = auth.uid() AND last_country <> ''
+     ORDER BY last_seen DESC
+     LIMIT 1;
+    RETURN COALESCE(NULLIF(v_cc, ''), public.juzzio_request_country());
+END;
+$$;
+REVOKE ALL ON FUNCTION public.juzzio_my_country() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.juzzio_my_country() TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.admin_activity_series(p_token TEXT, p_days INTEGER DEFAULT 30)
+RETURNS JSONB
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_days INTEGER := LEAST(GREATEST(COALESCE(p_days, 30), 7), 90);
+BEGIN
+    PERFORM public._staff_require(p_token, 'stats.read');
+    RETURN COALESCE((
+        SELECT jsonb_agg(jsonb_build_object(
+                   'day', to_char(d, 'YYYY-MM-DD'),
+                   'messages', (SELECT COUNT(*) FROM public.messages m WHERE m.created_at >= d AND m.created_at < d + INTERVAL '1 day'),
+                   'active', (SELECT COUNT(DISTINCT m.sender_id) FROM public.messages m WHERE m.created_at >= d AND m.created_at < d + INTERVAL '1 day'),
+                   'signups', (SELECT COUNT(*) FROM public.profiles p WHERE p.created_at >= d AND p.created_at < d + INTERVAL '1 day'),
+                   'calls', (SELECT COUNT(*) FROM public.call_logs c WHERE c.created_at >= d AND c.created_at < d + INTERVAL '1 day'))
+               ORDER BY d)
+          FROM generate_series(date_trunc('day', NOW()) - make_interval(days => v_days * 2 - 1), date_trunc('day', NOW()), INTERVAL '1 day') d
+    ), '[]'::jsonb);
+END;
+$$;
+REVOKE ALL ON FUNCTION public.admin_activity_series(TEXT, INTEGER) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_activity_series(TEXT, INTEGER) TO authenticated;

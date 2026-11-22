@@ -103,6 +103,6 @@ void main() {
   test('16 cam teması; yenileri listede', () {
     final ids = kJuzzioAuroraPalettes.map((p) => p.id).toSet();
     expect(ids, containsAll(['aurora_borealis', 'nordic_frost']));
-    expect(ids.length, 19); // v2.2.0: Amber Altın
+    expect(ids.length, 14); // GM-032: aynı renkteki 5 tema kaldırıldı
   });
 }

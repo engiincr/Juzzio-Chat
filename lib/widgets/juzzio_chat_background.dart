@@ -353,6 +353,7 @@ class _JuzzioChatBackgroundPageState extends State<JuzzioChatBackgroundPage> {
         String name(JuzzioChatBgPreset p) => lang == 'tr' ? p.tr : (lang == 'de' ? p.de : p.en);
         final depth = JuzzioGlassTokens.space.depth;
         return JuzzioAuroraPage(
+          weather: false, // GM-019: önizlemenin üstünde hava doodle'ı görünmesin
           child: Scaffold(
             backgroundColor: Colors.transparent,
             appBar: AppBar(

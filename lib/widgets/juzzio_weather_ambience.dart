@@ -32,8 +32,11 @@ import 'package:flutter/material.dart';
 import '../core/app_theme_and_locale.dart';
 import '../core/theme/juzzio_glass.dart';
 import '../services/juzzio_weather_service.dart';
+import '../services/juzzio_special_themes.dart';
+import 'juzzio_moon_phase.dart' show juzzioMoonPhaseIndex;
 import 'juzzio_sky21.dart';
-import 'juzzio_weather_doodles.dart';
+import 'juzzio_special_theme_layer.dart';
+import 'juzzio_weather_hd.dart';
 
 /// v1.2.8: hava katmanının hangi sayfada görüneceğini izler. Yalnız ana ekranda (yığında tek
 /// tam sayfa varken) görünür; hikâye, video, arama, profil vb. tam sayfalar açılınca söner.
@@ -173,7 +176,6 @@ class _JuzzioWeatherAmbienceState extends State<JuzzioWeatherAmbience> with Tick
   Timer? _hourTick; // saat dilimi değişince (gece → sabah) simgeler yenilenir
   Timer? _boltTimer;
   final math.Random _rnd = math.Random();
-  int _boltSeed = 1;
   JuzzioSkyScene? _cur;
   JuzzioSkyScene? _prev;
 
@@ -184,13 +186,18 @@ class _JuzzioWeatherAmbienceState extends State<JuzzioWeatherAmbience> with Tick
     _svc.addListener(_sync);
     JuzzioAppController.instance.addListener(_sync);
     _route.onHome.addListener(_sync);
+    JuzzioSpecialThemes.instance.addListener(_sync);
     _trackScene();
     _updateLoop();
     // v2.1: güneş/ay yayda ilerlesin diye her dakika yeniden hesaplanır
     _hourTick = Timer.periodic(const Duration(minutes: 1), (_) => _sync());
   }
 
-  bool get _visible => _route.onHome.value && JuzzioAppController.instance.weatherThemeEnabled && _svc.state != null;
+  JuzzioSpecialTheme get _special => JuzzioSpecialThemes.instance.active;
+
+  bool get _visible =>
+      _route.onHome.value &&
+      (_special != JuzzioSpecialTheme.none || (JuzzioAppController.instance.weatherThemeEnabled && _svc.state != null));
 
   /// Yeni sahne geldiyse eskiyi tutup yavaşça yenisine geçer
   void _trackScene() {
@@ -219,11 +226,11 @@ class _JuzzioWeatherAmbienceState extends State<JuzzioWeatherAmbience> with Tick
   void _scheduleBolt() {
     _boltTimer?.cancel();
     final st = _svc.state;
-    if (st == null || !_visible || !_animate || !juzzioWeatherHasLightning(st.kind)) return;
-    final secs = st.kind == JuzzioWeatherKind.thunder ? 14 + _rnd.nextInt(22) : 22 + _rnd.nextInt(34);
+    // GM-030: HD şimşek flaşı yalnız fırtınada (referans); özel temada hava yok
+    if (st == null || !_visible || !_animate || st.kind != JuzzioWeatherKind.thunder || _special != JuzzioSpecialTheme.none) return;
+    final secs = 8 + _rnd.nextInt(14);
     _boltTimer = Timer(Duration(seconds: secs), () {
       if (!mounted || !_visible) return;
-      _boltSeed = _rnd.nextInt(1 << 30);
       _bolt.forward(from: 0);
       _scheduleBolt();
     });
@@ -240,7 +247,9 @@ class _JuzzioWeatherAmbienceState extends State<JuzzioWeatherAmbience> with Tick
   }
 
   bool get _animate =>
-      !JuzzioAppController.instance.reduceMotion && !JuzzioGlassTokens.reducedEffects && _svc.state != null;
+      !JuzzioAppController.instance.reduceMotion &&
+      !JuzzioGlassTokens.reducedEffects &&
+      (_svc.state != null || _special != JuzzioSpecialTheme.none);
 
   void _updateLoop() {
     // v1.2.7: açık havada da simgeler süzülür; v1.2.8: katman görünmüyorsa (tam ekran
@@ -272,6 +281,7 @@ class _JuzzioWeatherAmbienceState extends State<JuzzioWeatherAmbience> with Tick
     _svc.removeListener(_sync);
     JuzzioAppController.instance.removeListener(_sync);
     _route.onHome.removeListener(_sync);
+    JuzzioSpecialThemes.instance.removeListener(_sync);
     _loop.dispose();
     _fade.dispose();
     _bolt.dispose();
@@ -281,21 +291,39 @@ class _JuzzioWeatherAmbienceState extends State<JuzzioWeatherAmbience> with Tick
   // v2.2.0: Engin'in referans görsellerindeki "doodle" gökyüzü — küçük düz bulutlar, ince ışınlı
   // güneşler, hilal ay, mavi damlalar ve ince yağmur çizgileri (JuzzioDoodleSkyPainter).
   // Gökyüzü 2.1'in büyük bulanık bulutları ve fotoğraf ay kaldırıldı.
-  Widget _scenePaint(JuzzioSkyScene sc) => CustomPaint(
-        size: Size.infinite,
-        painter: JuzzioDoodleSkyPainter(
-          t: _loop,
-          kind: sc.kind,
-          night: sc.showMoon,
-          dark: JuzzioAppController.instance.isDark,
-          still: !_animate,
-          moonPhase: sc.moonPhase,
-          topInset: MediaQuery.maybeOf(context)?.padding.top ?? 0,
-        ),
+  // GM-030 (v2.2.0): Sohbetler ekranında Engin'in HD şeffaf hava görselleri (referans yerleşim).
+  // Eski "doodle" gökyüzü (JuzzioDoodleSkyPainter) diğer sayfalardaki küçük katmanda kalır.
+  Widget _scenePaint(JuzzioSkyScene sc) => JuzzioHdWeatherScene(
+        kind: sc.kind,
+        night: sc.showMoon,
+        dark: JuzzioAppController.instance.isDark,
+        moonIndex: juzzioMoonPhaseIndex(sc.moonPhase),
+        loop: _loop,
+        bolt: _bolt,
+        still: !_animate,
       );
 
   @override
   Widget build(BuildContext context) {
+    // GM-029/031: özel gün teması etkinse hava katmanı ÇİZİLMEZ (dekoru örtmesin)
+    final special = _special;
+    if (special != JuzzioSpecialTheme.none) {
+      return IgnorePointer(
+        child: AnimatedOpacity(
+          opacity: _route.onHome.value ? 1 : 0,
+          duration: const Duration(milliseconds: 450),
+          child: RepaintBoundary(
+            child: JuzzioSpecialThemeLayer(
+              key: ValueKey(special),
+              theme: special,
+              dark: JuzzioAppController.instance.isDark,
+              loop: _animate ? _loop : const AlwaysStoppedAnimation<double>(0),
+              accent: JuzzioGlassTokens.glow,
+            ),
+          ),
+        ),
+      );
+    }
     final st = _svc.state;
     if (st == null || !JuzzioAppController.instance.weatherThemeEnabled) return const SizedBox.shrink();
     if (_cur == null) _trackScene(); // ilk sahne: 3 sn'de belirir
@@ -315,9 +343,7 @@ class _JuzzioWeatherAmbienceState extends State<JuzzioWeatherAmbience> with Tick
               final children = <Widget>[];
               if (prev != null && k < 1) children.add(Opacity(opacity: 1 - k, child: _scenePaint(prev)));
               children.add(k >= 1 ? _scenePaint(cur) : Opacity(opacity: k, child: _scenePaint(cur)));
-              if (juzzioWeatherHasLightning(cur.kind) && _animate) {
-                children.add(CustomPaint(size: Size.infinite, painter: JuzzioLightning21Painter(t: _bolt, seed: _boltSeed)));
-              }
+              // GM-030: şimşek flaşı HD sahnenin içinde (juzzioBoltFlash)
               // v2.2.0: katman içeriğin ARKASINDA; simgeler başlık ve alt şerit bölgesine konmaz
               // (juzzioDoodleLayout), yağmur çizgileri referanstaki gibi tüm ekranda.
               return Stack(fit: StackFit.expand, children: children);
