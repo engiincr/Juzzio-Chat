@@ -15,7 +15,6 @@
 
 import 'dart:io' show Platform;
 import 'dart:math' as math;
-import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -506,17 +505,16 @@ class _OrbitPainter extends CustomPainter {
 }
 
 /// GM-028 / GM-035 (v2.2.0): masaüstü sağ panel sahnesi — Engin'in görseline birebir:
-/// gece: gerçek (fotoğraf dokulu) hilal + sıcak parıltı, metalik yıldız, yumuşak HD bulutlar,
-/// sol üstten yükselen ince ışık yayı, vurgu renginde parlayan modern tepe sırtları;
-/// gündüz: bulutların ardından doğan güneş, beyaz HD bulutlar, açık tepeler.
+/// gece: lacivert-antrasit gök, ince limon kenar ışıklı yumuşak hilal + mat yıldız,
+/// sol üstten yükselen ipeksi ışık yayı, koyu HD bulutlar, kenarı yer yer limonla aydınlanan
+/// modern kumul tepeler; gündüz: bulutların ardından doğan güneş, beyaz HD bulutlar, açık tepeler.
+/// Ölçüler referans karesinden (sahne 1142×941) oranlanmıştır.
 class JuzzioDesktopSceneBackdrop extends StatelessWidget {
   const JuzzioDesktopSceneBackdrop({super.key, required this.dark, required this.accent});
   final bool dark;
   final Color accent;
 
-  static const String _moon = 'assets/weather_hd/moon_7_waning_crescent.webp';
   static const String _cloud = 'assets/weather_hd/cloud_white.webp';
-  static const String _sun = 'assets/weather_hd/sun_rise_clouds.webp';
 
   Widget _img(String a, double w, {double opacity = 1, Color? tint}) {
     Widget i = Image.asset(a, width: w, fit: BoxFit.contain, filterQuality: FilterQuality.high, errorBuilder: (_, __, ___) => const SizedBox.shrink());
@@ -545,32 +543,36 @@ class JuzzioDesktopSceneBackdrop extends StatelessWidget {
         key: const ValueKey('gm028-scene'),
         builder: (context, c) {
           final w = c.maxWidth, h = c.maxHeight;
-          final m = math.min(w, h);
-          final cloudTint = dark ? const Color(0xFF6B7380) : null;
-          final cloudOp = dark ? 0.16 : 0.85;
+          final cloudTint = dark ? const Color(0xFF5E6675) : null;
+          final cloudOp = dark ? 0.20 : 0.85;
+          final moonR = h * 0.092;
           return Stack(clipBehavior: Clip.hardEdge, children: [
             Positioned.fill(child: CustomPaint(painter: JuzzioDesktopScenePainter(dark: dark, accent: accent))),
-            Positioned(left: w * 0.02, top: h * 0.17, child: _puff(w * 0.26, opacity: cloudOp * 0.9, tint: cloudTint)),
-            Positioned(right: -w * 0.04, top: h * 0.36, child: _puff(w * 0.30, opacity: cloudOp, tint: cloudTint)),
-            Positioned(left: w * 0.03, top: h * 0.68, child: _puff(w * 0.22, opacity: cloudOp * 0.8, tint: cloudTint)),
             if (dark) ...[
-              // hilalin sıcak parıltısı: aynı şeklin bulanık kopyası (kare gölge değil)
+              Positioned(left: w * 0.06, top: h * 0.205, child: _puff(w * 0.13, opacity: cloudOp, tint: cloudTint)),
+              Positioned(left: w * 0.78, top: h * 0.365, child: _puff(w * 0.19, opacity: cloudOp, tint: cloudTint)),
+              Positioned(left: w * 0.03, top: h * 0.715, child: _puff(w * 0.13, opacity: cloudOp * 0.85, tint: cloudTint)),
               Positioned(
-                right: w * 0.075 - m * 0.02,
-                top: h * 0.06 - m * 0.02,
-                child: ImageFiltered(
-                  imageFilter: ImageFilter.blur(sigmaX: m * 0.025, sigmaY: m * 0.025),
-                  child: _img(_moon, m * 0.24 + m * 0.04, tint: const Color(0xFFF4F1B0), opacity: 0.55),
-                ),
+                key: const ValueKey('gm035-crescent'),
+                left: w * 0.73 - moonR * 1.5,
+                top: h * 0.165 - moonR * 1.5,
+                child: SizedBox(
+                    width: moonR * 3,
+                    height: moonR * 3,
+                    child: CustomPaint(painter: JuzzioCrescentPainter(rim: const Color(0xFFE4F0A0), glow: accent))),
               ),
-              Positioned(right: w * 0.075, top: h * 0.06, child: _img(_moon, m * 0.24)),
               Positioned(
-                right: w * 0.045,
-                top: h * 0.10,
-                child: SizedBox(width: m * 0.07, height: m * 0.07, child: const CustomPaint(painter: _MetalStarPainter())),
+                left: w * 0.784 - h * 0.024,
+                top: h * 0.136 - h * 0.024,
+                child: SizedBox(width: h * 0.048, height: h * 0.048, child: const CustomPaint(painter: _MetalStarPainter())),
               ),
-            ] else
-              Positioned(right: w * 0.02, top: h * 0.02, child: _img(_sun, m * 0.46)),
+            ] else ...[
+              // gündüz: güneş ressamda; güneşin altına binen bulut + dağınık yumuşak bulutlar
+              Positioned(left: w * 0.055, top: h * 0.135, child: _puff(w * 0.17, opacity: 0.9)),
+              Positioned(left: w * 0.565, top: h * 0.155, child: _puff(w * 0.22, opacity: 0.95)),
+              Positioned(left: w * 0.75, top: h * 0.335, child: _puff(w * 0.20, opacity: 0.9)),
+              Positioned(left: w * 0.06, top: h * 0.555, child: _puff(w * 0.16, opacity: 0.8)),
+            ],
           ]);
         },
       ),
@@ -578,7 +580,82 @@ class JuzzioDesktopSceneBackdrop extends StatelessWidget {
   }
 }
 
-/// Görseldeki gri, eğimli (bombeli) yıldız
+/// GM-035: referanstaki hilal — yarı saydam gri-mavi gövde, dış kenarında ince limon ışık,
+/// sol altta yumuşak parıltı; iç (karanlık) taraf gökle aynı, beyaz zemin yok.
+class JuzzioCrescentPainter extends CustomPainter {
+  const JuzzioCrescentPainter({required this.rim, required this.glow});
+  final Color rim;
+  final Color glow;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final c = size.center(Offset.zero);
+    final r = size.shortestSide / 3;
+    final outer = Path()..addOval(Rect.fromCircle(center: c, radius: r));
+    final innerC = c + Offset(r * 0.30, -r * 0.20);
+    final inner = Path()..addOval(Rect.fromCircle(center: innerC, radius: r * 0.86));
+    final crescent = Path.combine(PathOperation.difference, outer, inner);
+    // ışığın geldiği yön: sol-alt (≈ 160°)
+    final sweep = SweepGradient(
+      center: Alignment.center,
+      colors: [
+        glow.withValues(alpha: 0),
+        glow.withValues(alpha: 0.0),
+        rim.withValues(alpha: 0.95),
+        rim.withValues(alpha: 0.95),
+        glow.withValues(alpha: 0.0),
+      ],
+      stops: const [0.0, 0.25, 0.40, 0.56, 0.72],
+    ).createShader(Rect.fromCircle(center: c, radius: r));
+    // 1) dış parıltı
+    canvas.drawCircle(
+        c,
+        r,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = r * 0.16
+          ..shader = sweep
+          ..color = glow
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.14));
+    // 2) gövde: kenarda açık, içe doğru gök rengine karışan yarı saydam gri-mavi
+    canvas.drawPath(
+        crescent,
+        Paint()
+          ..shader = RadialGradient(
+            center: Alignment(-0.30 + 0.0, 0.20),
+            radius: 0.95,
+            colors: const [Color(0x33525C6C), Color(0x667A8494), Color(0x99A2AAB0)],
+            stops: const [0.55, 0.85, 1.0],
+          ).createShader(Rect.fromCircle(center: innerC, radius: r * 1.05)));
+    // 3) ince ışık kenarı (yalnız hilal üzerinde)
+    canvas.save();
+    canvas.clipPath(Path.combine(PathOperation.difference, Path()..addOval(Rect.fromCircle(center: c, radius: r * 1.2)), inner));
+    canvas.drawCircle(
+        c,
+        r - 0.6,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = math.max(1.2, r * 0.022)
+          ..shader = sweep);
+    canvas.restore();
+    // 4) iç kenarda çok hafif soğuk çizgi (görseldeki ikinci, soluk kenar)
+    canvas.save();
+    canvas.clipPath(outer);
+    canvas.drawCircle(
+        innerC,
+        r * 0.86,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1
+          ..color = const Color(0x2EA9B4C2));
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(JuzzioCrescentPainter o) => o.rim != rim || o.glow != glow;
+}
+
+/// Görseldeki mat, hafif bombeli adaçayı-gri yıldız
 class _MetalStarPainter extends CustomPainter {
   const _MetalStarPainter();
   @override
@@ -587,18 +664,17 @@ class _MetalStarPainter extends CustomPainter {
     final r = size.shortestSide / 2;
     final pts = <Offset>[];
     for (var i = 0; i < 10; i++) {
-      final rr = i.isEven ? r : r * 0.45;
-      final a = -math.pi / 2 + i * math.pi / 5;
+      final rr = i.isEven ? r : r * 0.46;
+      final a = -math.pi / 2 + 0.22 + i * math.pi / 5;
       pts.add(Offset(c.dx + rr * math.cos(a), c.dy + rr * math.sin(a)));
     }
-    // her kol iki yüz: açık ve koyu (bombeli görünüm)
     for (var i = 0; i < 10; i++) {
       final tri = Path()
         ..moveTo(c.dx, c.dy)
         ..lineTo(pts[i].dx, pts[i].dy)
         ..lineTo(pts[(i + 1) % 10].dx, pts[(i + 1) % 10].dy)
         ..close();
-      canvas.drawPath(tri, Paint()..color = i.isEven ? const Color(0xFF9EA2A6) : const Color(0xFF6E7378));
+      canvas.drawPath(tri, Paint()..color = i.isEven ? const Color(0xFFA3A898) : const Color(0xFF8A8F82));
     }
   }
 
@@ -611,6 +687,9 @@ class JuzzioDesktopScenePainter extends CustomPainter {
   final bool dark;
   final Color accent;
 
+  /// Referans gök rengi (gece): lacivert-antrasit
+  static const Color kNightSky = Color(0xFF181D27);
+
   void _sparkle(Canvas canvas, Offset c, double r, Color color) {
     final path = Path()
       ..moveTo(c.dx, c.dy - r)
@@ -621,7 +700,6 @@ class JuzzioDesktopScenePainter extends CustomPainter {
     canvas.drawPath(path, Paint()..color = color);
   }
 
-  /// Yumuşak tepe sırtı: (x0,y0) → (x1,y1) arası pürüzsüz eğri, iki kontrol noktasıyla
   Path _ridge(Size s, List<Offset> pts) {
     final p = Path()..moveTo(pts.first.dx * s.width, pts.first.dy * s.height);
     for (var i = 1; i < pts.length; i++) {
@@ -633,36 +711,45 @@ class JuzzioDesktopScenePainter extends CustomPainter {
     return p;
   }
 
-  void _hill(Canvas canvas, Size s, List<Offset> pts, {required List<Color> fill, required double rim, required double peakX}) {
+  /// Kumul tepe: gövde gökten çok az farklı; sırt çizgisi soluk gri-mavi, [litFrom..litTo] arasında
+  /// vurgu renginde ince ışık + yumuşak parıltı (referanstaki gibi yalnız bir bölümü aydınlanır).
+  void _dune(Canvas canvas, Size s, List<Offset> pts,
+      {required Color top, required Color bottom, required double litFrom, required double litPeak, required double litTo, required double lit}) {
     final ridge = _ridge(s, pts);
     final body = Path.from(ridge)
-      ..lineTo(s.width, s.height)
-      ..lineTo(0, s.height)
+      ..lineTo(pts.last.dx * s.width, s.height)
+      ..lineTo(pts.first.dx * s.width, s.height)
       ..close();
-    final top = pts.map((e) => e.dy).reduce(math.min) * s.height;
+    final yTop = pts.map((e) => e.dy).reduce(math.min) * s.height;
     canvas.drawPath(
         body,
         Paint()
-          ..shader = LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: fill)
-              .createShader(Rect.fromLTRB(0, top, s.width, s.height)));
-    if (rim <= 0) return;
-    // ışık sırtı: tepede en parlak, kenarlara doğru söner (görseldeki modern parıltı)
+          ..shader = LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [top, bottom])
+              .createShader(Rect.fromLTRB(0, yTop, s.width, s.height)));
+    final base = dark ? const Color(0xFF7C8698) : const Color(0xFFFFFFFF);
+    canvas.drawPath(
+        ridge,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1
+          ..color = base.withValues(alpha: dark ? 0.16 : 0.55));
+    if (lit <= 0) return;
     final along = LinearGradient(
-      colors: [accent.withValues(alpha: 0), accent.withValues(alpha: rim), accent.withValues(alpha: 0)],
-      stops: [math.max(0, peakX - 0.38), peakX, math.min(1, peakX + 0.38)],
+      colors: [accent.withValues(alpha: 0), accent.withValues(alpha: lit), accent.withValues(alpha: 0)],
+      stops: [litFrom, litPeak, litTo],
     ).createShader(Rect.fromLTWH(0, 0, s.width, s.height));
     canvas.drawPath(
         ridge,
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 10
+          ..strokeWidth = 7
           ..shader = along
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 9));
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7));
     canvas.drawPath(
         ridge,
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.6
+          ..strokeWidth = 1.3
           ..shader = along);
   }
 
@@ -670,43 +757,99 @@ class JuzzioDesktopScenePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final w = size.width, h = size.height;
     if (w <= 0 || h <= 0) return;
-    // sol üstten yükselen ince ışık yayı
-    final arc = Path()
-      ..moveTo(w * 0.04, h * 0.40)
-      ..quadraticBezierTo(w * 0.30, h * 0.16, w * 0.62, -h * 0.02);
-    final arcShader = LinearGradient(
-      colors: [accent.withValues(alpha: 0), (dark ? accent : Colors.white).withValues(alpha: dark ? 0.45 : 0.9)],
-    ).createShader(Rect.fromLTWH(0, 0, w * 0.62, h * 0.4));
-    canvas.drawPath(
-        arc,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 14
-          ..shader = arcShader
-          ..color = Colors.white.withValues(alpha: 0.12)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12));
-    canvas.drawPath(
-        arc,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.2
-          ..shader = arcShader);
     if (dark) {
-      final rnd = math.Random(11);
-      for (var i = 0; i < 14; i++) {
-        _sparkle(canvas, Offset(rnd.nextDouble() * w, rnd.nextDouble() * h * 0.7), 2 + rnd.nextDouble() * 3,
-            Colors.white.withValues(alpha: 0.22 + rnd.nextDouble() * 0.3));
+      // referanstaki lacivert-antrasit gök (temanın zeminini hafifçe bu tona çeker)
+      canvas.drawRect(
+          Offset.zero & size,
+          Paint()
+            ..shader = LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [kNightSky.withValues(alpha: 0.78), const Color(0xFF161B25).withValues(alpha: 0.82)],
+            ).createShader(Offset.zero & size));
+    } else {
+      // referanstaki açık gri-beyaz gök + yumuşak, ışınsız güneş diski (hâle ile)
+      canvas.drawRect(
+          Offset.zero & size,
+          Paint()
+            ..shader = const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xB3E6E9EA), Color(0xB3EEEEEA)],
+            ).createShader(Offset.zero & size));
+      final sc = Offset(w * 0.743, h * 0.17);
+      final sr = h * 0.06;
+      canvas.drawCircle(
+          sc,
+          sr * 3.2,
+          Paint()
+            ..shader = RadialGradient(colors: [const Color(0xFFFFF7D6).withValues(alpha: 0.75), const Color(0xFFFFF7D6).withValues(alpha: 0)])
+                .createShader(Rect.fromCircle(center: sc, radius: sr * 3.2)));
+      canvas.drawCircle(
+          sc,
+          sr,
+          Paint()
+            ..shader = const RadialGradient(center: Alignment(-0.2, -0.25), colors: [Color(0xFFFFFDF0), Color(0xFFFCEFBE), Color(0xFFF7E3A0)], stops: [0.0, 0.7, 1.0])
+                .createShader(Rect.fromCircle(center: sc, radius: sr))
+            ..maskFilter = MaskFilter.blur(BlurStyle.normal, sr * 0.06));
+    }
+    // sol üstten yükselen ipeksi ışık yayı: geniş soluk bant + ortası limonla aydınlanan ince çizgi
+    final arc = Path()
+      ..moveTo(w * 0.05, h * 0.31)
+      ..cubicTo(w * 0.22, h * 0.24, w * 0.40, h * 0.17, w * 0.53, -h * 0.01);
+    final silk = Path()
+      ..moveTo(w * 0.00, h * 0.36)
+      ..cubicTo(w * 0.20, h * 0.26, w * 0.36, h * 0.14, w * 0.47, -h * 0.01);
+    canvas.drawPath(
+        silk,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = h * 0.05
+          ..color = (dark ? const Color(0xFF8C96A8) : Colors.white).withValues(alpha: dark ? 0.035 : 0.25)
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, h * 0.03));
+    final arcLit = LinearGradient(
+      colors: [
+        accent.withValues(alpha: 0),
+        (dark ? accent : Colors.white).withValues(alpha: dark ? 0.55 : 0.9),
+        (dark ? const Color(0xFF8C96A8) : Colors.white).withValues(alpha: dark ? 0.10 : 0.3),
+      ],
+      stops: const [0.10, 0.36, 0.62],
+    ).createShader(Rect.fromLTWH(0, 0, w * 0.55, h * 0.31));
+    canvas.drawPath(
+        arc,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 6
+          ..shader = arcLit
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6));
+    canvas.drawPath(
+        arc,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.1
+          ..shader = arcLit);
+    if (dark) {
+      const spots = [Offset(0.22, 0.155), Offset(0.42, 0.24), Offset(0.62, 0.07), Offset(0.66, 0.39), Offset(0.20, 0.535), Offset(0.80, 0.61), Offset(0.90, 0.52)];
+      for (final o in spots) {
+        _sparkle(canvas, Offset(o.dx * w, o.dy * h), 4.5, const Color(0xFFB8C0CC).withValues(alpha: 0.55));
       }
     }
-    // tepeler: arkadan öne üç katman; orta sırtta vurgu renginde parlayan ışık
-    final base = dark ? const Color(0xFF15181C) : const Color(0xFFEFF3E6);
-    final deep = dark ? const Color(0xFF0C0E11) : const Color(0xFFE2E9D6);
-    _hill(canvas, size, const [Offset(0, 0.86), Offset(0.30, 0.80), Offset(0.62, 0.88), Offset(1, 0.84)],
-        fill: [base.withValues(alpha: 0.55), deep.withValues(alpha: 0.65)], rim: dark ? 0.18 : 0.25, peakX: 0.30);
-    _hill(canvas, size, const [Offset(0, 0.93), Offset(0.40, 0.90), Offset(0.78, 0.84), Offset(1, 0.80)],
-        fill: [base.withValues(alpha: 0.85), deep], rim: dark ? 0.75 : 0.65, peakX: 0.86);
-    _hill(canvas, size, const [Offset(0, 0.90), Offset(0.22, 0.94), Offset(0.55, 0.985), Offset(1, 0.97)],
-        fill: [deep, deep], rim: dark ? 0.30 : 0.35, peakX: 0.12);
+    // kumul tepeler (arkadan öne)
+    final skyT = dark ? const Color(0xFF1A1F2B) : const Color(0xFFF1F2EE);
+    final skyB = dark ? const Color(0xFF151A24) : const Color(0xFFE9ECE6);
+    final front = dark ? const Color(0xFF131722) : const Color(0xFFEEF0EA);
+    // sağ arka tepe: ortası limonla aydınlanır
+    _dune(canvas, size, const [Offset(0.0, 0.99), Offset(0.45, 0.955), Offset(0.66, 0.85), Offset(0.88, 0.775), Offset(1.0, 0.77)],
+        top: skyT, bottom: skyB, litFrom: 0.62, litPeak: 0.79, litTo: 0.95, lit: dark ? 0.75 : 0.6);
+    // sol tepe
+    _dune(canvas, size, const [Offset(0.0, 0.875), Offset(0.20, 0.838), Offset(0.40, 0.89), Offset(0.60, 0.965), Offset(1.0, 1.02)],
+        top: skyT, bottom: skyB, litFrom: 0.20, litPeak: 0.33, litTo: 0.45, lit: dark ? 0.70 : 0.55);
+    // orta tepe (yalnız soluk gri-mavi sırt)
+    _dune(canvas, size, const [Offset(0.0, 1.02), Offset(0.38, 0.935), Offset(0.52, 0.875), Offset(0.70, 0.89), Offset(0.86, 0.94), Offset(1.0, 0.95)],
+        top: front, bottom: front, litFrom: 0, litPeak: 0.5, litTo: 1, lit: 0);
+    // en ön, koyu taban
+    _dune(canvas, size, const [Offset(0.0, 0.97), Offset(0.35, 0.95), Offset(0.70, 0.985), Offset(1.0, 0.975)],
+        top: front, bottom: front, litFrom: 0, litPeak: 0.5, litTo: 1, lit: 0);
   }
 
   @override

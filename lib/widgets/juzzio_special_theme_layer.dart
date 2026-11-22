@@ -11,7 +11,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../services/juzzio_special_themes.dart';
-import 'juzzio_weather_hd.dart' show juzzioHdBandHeight, juzzioHdSceneWidth;
+import 'juzzio_weather_hd.dart' show juzzioHdBandHeight, juzzioHdSceneWidth, kJuzzioHdSearchTop;
 
 const String kHalloweenCastle = 'assets/special/halloween/castle_scene.webp';
 const String kHalloweenTree = 'assets/special/halloween/pumpkin_tree.webp';
@@ -73,50 +73,56 @@ class JuzzioSpecialThemeLayer extends StatelessWidget {
       child: LayoutBuilder(builder: (context, c) {
         final sw = juzzioHdSceneWidth(c.maxWidth);
         final band = juzzioHdBandHeight(c.maxHeight);
-        if (theme == JuzzioSpecialTheme.halloween) {
-          // Referans (Engin'in Halloween ekranı): mor-turuncu gökyüzü bandı, sağda dolunaylı şato +
-          // yarasalar, solda kabaklı ağaç, hikâyelerin arkasında çıplak ağaçlı ikinci şerit.
-          final o = dark ? 1.0 : 0.92;
-          return Stack(clipBehavior: Clip.hardEdge, children: [
-            Positioned(
-              left: 0,
-              top: 0,
-              width: sw,
-              height: band * 1.02,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      const Color(0xFF1A0F24).withValues(alpha: 0.0),
-                      const Color(0xFF3B1E4F).withValues(alpha: 0.55 * o),
-                      const Color(0xFF5A2A3A).withValues(alpha: 0.45 * o),
-                      const Color(0xFF1A0F24).withValues(alpha: 0.0),
-                    ],
-                    stops: const [0.0, 0.35, 0.65, 1.0],
+        return ValueListenableBuilder<double?>(
+          valueListenable: kJuzzioHdSearchTop,
+          builder: (context, top, _) {
+            // GM-037: konumlar Sohbetler arama kutusunun üst kenarına göre (referans ölçüleri, birim = genişlik)
+            // Sohbetler sekmesi görünmüyorsa (başka sekme) dekor çizilmez; düğmelere binmez
+            if (top == null) return const SizedBox.shrink();
+            final a = top;
+            if (theme == JuzzioSpecialTheme.halloween) {
+              // Referans (Engin'in Halloween ekranı): mor-turuncu gök, sağda dolunaylı şato + yarasalar
+              // (alt kısmı arama kutusunun ardında), solda kabaklı ağaç, arama altında çıplak ağaçlar şeridi.
+              final o = dark ? 1.0 : 0.92;
+              return Stack(clipBehavior: Clip.hardEdge, children: [
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  width: sw,
+                  height: a + sw * 0.42,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          const Color(0xFF1A0F24).withValues(alpha: 0.10 * o),
+                          const Color(0xFF3B1E4F).withValues(alpha: 0.60 * o),
+                          const Color(0xFF5A2A3A).withValues(alpha: 0.45 * o),
+                          const Color(0xFF1A0F24).withValues(alpha: 0.0),
+                        ],
+                        stops: const [0.0, 0.45, 0.72, 1.0],
+                      ),
+                    ),
                   ),
                 ),
+                Positioned(left: -sw * 0.04, top: a + sw * 0.06, child: _img(kHalloweenMoonClouds, sw * 0.58, kHwBandAspect, 0.9 * o)),
+                Positioned(
+                    left: sw * 0.46,
+                    top: a + sw * 0.05,
+                    child: Transform.flip(flipX: true, child: _img(kHalloweenMoonClouds, sw * 0.60, kHwBandAspect, 0.9 * o))),
+                Positioned(left: sw * 0.38, top: a - sw * 0.31, child: _img(kHalloweenCastle, sw * 0.64, kHwCastleAspect, o)),
+                Positioned(left: -sw * 0.06, top: a - sw * 0.30, child: _img(kHalloweenTree, sw * 0.46, kHwTreeAspect, o)),
+              ]);
+            }
+            return AnimatedBuilder(
+              animation: loop,
+              builder: (context, _) => CustomPaint(
+                size: Size(sw, band),
+                painter: JuzzioTurkFlagPainter(t: loop.value, dark: dark, accent: accent, band: band, width: sw, anchor: a),
               ),
-            ),
-            // ikinci şerit: hikâyelerin arkasında çıplak ağaçlar (karartılmış, iki kopya aynalı)
-            Positioned(left: -sw * 0.06, top: band * 0.62, child: _img(kHalloweenMoonClouds, sw * 0.60, kHwBandAspect, 0.9 * o)),
-            Positioned(
-                left: sw * 0.46,
-                top: band * 0.60,
-                child: Transform.flip(flipX: true, child: _img(kHalloweenMoonClouds, sw * 0.62, kHwBandAspect, 0.9 * o))),
-            // sağda dolunaylı şato + yarasalar
-            Positioned(left: sw * 0.30, top: band * 0.20, child: _img(kHalloweenCastle, sw * 0.76, kHwCastleAspect, o)),
-            // solda kabaklı ağaç
-            Positioned(left: -sw * 0.08, top: band * 0.22, child: _img(kHalloweenTree, sw * 0.50, kHwTreeAspect, o)),
-          ]);
-        }
-        return AnimatedBuilder(
-          animation: loop,
-          builder: (context, _) => CustomPaint(
-            size: Size(sw, band),
-            painter: JuzzioTurkFlagPainter(t: loop.value, dark: dark, accent: accent, band: band, width: sw),
-          ),
+            );
+          },
         );
       }),
     );
@@ -125,19 +131,23 @@ class JuzzioSpecialThemeLayer extends StatelessWidget {
 
 /// Dalgalanan Türk bayrağı (gündüz) / gümüş ay-yıldız (gece) + vurgu renginde ışık yayı
 class JuzzioTurkFlagPainter extends CustomPainter {
-  JuzzioTurkFlagPainter({required this.t, required this.dark, required this.accent, required this.band, required this.width});
+  JuzzioTurkFlagPainter({required this.t, required this.dark, required this.accent, required this.band, required this.width, double? anchor})
+      : anchor = anchor ?? band * 0.34;
   final double t;
   final bool dark;
   final Color accent;
   final double band;
+
+  /// GM-037: arama kutusunun üst kenarı (global y); amblem ve ışık yayı buna göre yerleşir
+  final double anchor;
   final double width;
 
   static const Color red = Color(0xFFE30A17); // resmî bayrak kırmızısı
 
   void _swoosh(Canvas canvas) {
     final path = Path()
-      ..moveTo(-width * 0.02, band * 0.36)
-      ..cubicTo(width * 0.30, band * 0.40, width * 0.55, band * 0.22, width * 0.92, band * 0.02);
+      ..moveTo(-width * 0.02, anchor - width * 0.05)
+      ..cubicTo(width * 0.30, anchor - width * 0.01, width * 0.55, anchor - width * 0.20, width * 0.92, anchor - width * 0.40);
     for (final (w, a) in [(18.0, 0.10), (8.0, 0.20), (2.2, 0.85)]) {
       canvas.drawPath(
           path,
@@ -194,13 +204,14 @@ class JuzzioTurkFlagPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     _swoosh(canvas);
     // Referans (Engin'in görseli): ay-yıldız başlık düğmelerinin altında, ekranın ortasının biraz sağında
-    final g = (width * 0.20).clamp(54.0, 120.0);
+    // ölçü: hilal çapı ≈ 0.136W, merkez ≈ (0.64W, arama üstü − 0.06W)
+    final g = (width * 0.27).clamp(60.0, 150.0);
     final geo = JuzzioTurkFlagGeometry(g);
-    final emblemOrigin = Offset(width * 0.47, band * 0.27);
+    final emblemOrigin = Offset(width * 0.64 - g * 0.5, anchor - width * 0.06 - g * 0.5);
     if (!dark) {
       // gündüz: emblemin arkasında yumuşak kenarlı, dalgalanan kırmızı bayrak kumaşı
       final fw = width * 0.62, fh = g * 1.05;
-      final fo = Offset(width * 0.44, band * 0.27 - g * 0.05);
+      final fo = Offset(emblemOrigin.dx - width * 0.03, emblemOrigin.dy - g * 0.05);
       const strips = 40;
       final sw = fw / strips;
       for (var i = 0; i < strips; i++) {
@@ -234,5 +245,5 @@ class JuzzioTurkFlagPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(JuzzioTurkFlagPainter o) => o.t != t || o.dark != dark || o.accent != accent || o.band != band || o.width != width;
+  bool shouldRepaint(JuzzioTurkFlagPainter o) => o.t != t || o.dark != dark || o.accent != accent || o.band != band || o.width != width || o.anchor != anchor;
 }

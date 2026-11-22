@@ -60,6 +60,7 @@ import '../widgets/juzzio_rich_text.dart';
 import '../widgets/juzzio_copy_feedback.dart';
 import '../widgets/juzzio_gif_stickers.dart';
 import '../widgets/juzzio_weather_ambience.dart';
+import '../widgets/juzzio_weather_hd.dart' show JuzzioHdAnchor;
 import '../widgets/juzzio_chat_music.dart';
 import '../core/juzzio_duration_format.dart';
 import '../widgets/juzzio_event_widgets.dart';
@@ -3486,10 +3487,12 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-            child: JuzzioSpaceSearchBar(
-              hint: appCtrl.trEn('Sohbetlerde ara', 'Search conversations', 'Unterhaltungen durchsuchen'),
-              onChanged: (v) => setState(() => _searchQuery = v),
-              onShortcutTap: _openMessageSearch,
+            child: JuzzioHdAnchor(
+              child: JuzzioSpaceSearchBar(
+                hint: appCtrl.trEn('Sohbetlerde ara', 'Search conversations', 'Unterhaltungen durchsuchen'),
+                onChanged: (v) => setState(() => _searchQuery = v),
+                onShortcutTap: _openMessageSearch,
+              ),
             ),
           ),
           filterRow(),
@@ -3521,12 +3524,13 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(JuzzioSpaceMetrics.gutter, 0, JuzzioSpaceMetrics.gutter, 16),
-          child: JuzzioSpaceSearchBar(
+          // GM-037: hava sahnesindeki ay/güneş bu kutunun üst kenarına göre yerleşir
+          child: JuzzioHdAnchor(child: JuzzioSpaceSearchBar(
             hint: appCtrl.trEn('Sohbetlerde ara', 'Search conversations', 'Unterhaltungen durchsuchen'),
             onChanged: (v) => setState(() => _searchQuery = v),
             // ⌘K: gelişmiş mesaj araması (filtreler, şifreli içerik cihazda aranır)
             onShortcutTap: _openMessageSearch,
-          ),
+          )),
         ),
         const JuzzioSpaceDivider(),
         ],

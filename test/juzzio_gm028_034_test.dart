@@ -111,7 +111,12 @@ void main() {
       }
       final clearNight = juzzioHdWeatherLayers(JuzzioWeatherKind.clear, night: true, dark: true, moonIndex: 2);
       expect(clearNight.first.asset, kJuzzioHdMoonAssets[2]);
-      expect(juzzioHdWeatherLayers(JuzzioWeatherKind.clear, night: false, dark: true, moonIndex: 0).first.asset, kHdSunRise);
+      final clearDay = juzzioHdWeatherLayers(JuzzioWeatherKind.clear, night: false, dark: true, moonIndex: 0);
+      expect(clearDay.any((l) => l.asset == kHdSunRise && l.anchored), isTrue);
+      // GM-037: ay/güneş arama kutusuna göre (düğmelerin altında, aramanın üstünde)
+      expect(clearNight.first.anchored, isTrue);
+      expect(clearNight.first.top, lessThan(0));
+      expect(juzzioHdFallbackAnchor(24), 120);
       expect(juzzioHdWeatherLayers(JuzzioWeatherKind.rain, night: false, dark: true, moonIndex: 0).any((l) => l.fall), isTrue);
       expect(juzzioHdWeatherLayers(JuzzioWeatherKind.snow, night: false, dark: true, moonIndex: 0).any((l) => l.asset == kHdSnowLight), isTrue);
     });
