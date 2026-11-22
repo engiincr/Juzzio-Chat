@@ -703,6 +703,13 @@ class JuzzioFeaturesService {
     }
   }
 
+  /// GM-027: saklı yönetici belirtecini yalnız cihazdan siler (PIN 5 kez yanlış girildiğinde).
+  Future<void> forgetAdminToken() async {
+    try {
+      await _secure.delete(key: _adminTokenKey);
+    } catch (_) {}
+  }
+
   Future<void> adminLogout(String token) async {
     try {
       await _svc.client.rpc('admin_logout', params: {'p_token': token});

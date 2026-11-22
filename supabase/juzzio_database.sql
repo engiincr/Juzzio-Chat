@@ -19539,3 +19539,17 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
 $$;
 REVOKE ALL ON FUNCTION public.mutual_friends(UUID, INTEGER) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.mutual_friends(UUID, INTEGER) TO authenticated;
+
+
+-- =============================================================================
+-- 10.55 (v2.2.0, GM-022) — Çevrimiçi bilgisi daha hızlı
+--  Uygulama 25 sn'de bir nabız gönderir; 75 sn nabız gelmezse kullanıcı çevrimdışı görünür
+--  (önceki pencere 3 dakikaydı; eski sürümlerin 60 sn nabzı da bu pencereye sığar).
+-- =============================================================================
+CREATE OR REPLACE FUNCTION public.juzzio_effective_online(p_is_online BOOLEAN, p_last_seen TIMESTAMPTZ)
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+AS $$
+    SELECT COALESCE(p_is_online, false) AND p_last_seen IS NOT NULL AND p_last_seen > NOW() - INTERVAL '75 seconds';
+$$;

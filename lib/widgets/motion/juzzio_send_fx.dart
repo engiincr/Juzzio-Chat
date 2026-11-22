@@ -883,7 +883,8 @@ class _JuzzioPopInState extends State<JuzzioPopIn> with SingleTickerProviderStat
       child: widget.child,
       builder: (context, child) {
         final t = _c.value;
-        final k = const JuzzioSpringCurve(damping: 5.5, frequency: 3).transform(t);
+        // GM-021: tek ve yumuşak büyüme (eski yay eğrisi rozeti 2-3 kez zıplatıyordu)
+        final k = Curves.easeOutBack.transform(t);
         return Stack(
           clipBehavior: Clip.none,
           alignment: Alignment.center,

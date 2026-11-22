@@ -130,6 +130,7 @@ Future<String?> showJuzzioPinPad(
   required Future<bool> Function(String pin) verify,
   String? errorText,
   int step = 0,
+  String? altLabel,
 }) =>
     showModalBottomSheet<String>(
       context: context,
@@ -143,8 +144,11 @@ Future<String?> showJuzzioPinPad(
       clipBehavior: Clip.hardEdge,
       shape: const RoundedRectangleBorder(side: BorderSide.none, borderRadius: BorderRadius.zero),
       constraints: const BoxConstraints(minWidth: double.infinity, maxWidth: double.infinity),
-      builder: (_) => _PinPad(title: title, subtitle: subtitle, autoLength: autoLength, verify: verify, errorText: errorText, step: step),
+      builder: (_) => _PinPad(title: title, subtitle: subtitle, autoLength: autoLength, verify: verify, errorText: errorText, step: step, altLabel: altLabel),
     );
+
+/// GM-027: PIN ekranında ikincil eyleme dokunulduğunu belirten dönüş değeri.
+const String kJuzzioPinPadAlt = '\u0000alt';
 
 /// Tasarım renkleri (videodaki "Trending palette": Graphite · Lime · Bone · Smoke · Coral)
 class JuzzioAuthPalette {
@@ -156,7 +160,9 @@ class JuzzioAuthPalette {
 }
 
 class _PinPad extends StatefulWidget {
-  const _PinPad({required this.title, this.subtitle, this.autoLength, required this.verify, this.errorText, this.step = 0});
+  const _PinPad({required this.title, this.subtitle, this.autoLength, required this.verify, this.errorText, this.step = 0, this.altLabel});
+  /// GM-027: isteğe bağlı ikincil eylem (ör. "Şifreyle gir") → [kJuzzioPinPadAlt] döndürür
+  final String? altLabel;
   final String title;
   final String? subtitle;
   final int? autoLength;
@@ -514,6 +520,12 @@ class _PinPadState extends State<_PinPad> with TickerProviderStateMixin {
                   onPressed: () => Navigator.pop(context),
                   child: Text(app.trEn('Vazgeç', 'Cancel', 'Abbrechen'), style: const TextStyle(color: Colors.white60)),
                 ),
+                if (widget.altLabel != null)
+                  TextButton(
+                    key: const ValueKey('gm027-pin-alt'),
+                    onPressed: () => Navigator.pop(context, kJuzzioPinPadAlt),
+                    child: Text(widget.altLabel!, style: const TextStyle(color: JuzzioAuthPalette.lime, fontWeight: FontWeight.w700)),
+                  ),
               ]),
               ),
             ),
@@ -570,7 +582,7 @@ class _JuzzioChatLockTileState extends State<JuzzioChatLockTile> {
     final p = JuzzioPalette(app.isDark);
     return ListenableBuilder(
       listenable: JuzzioChatLock.instance,
-      builder: (context, _) => JuzzioSwitchListTile(style: JuzzioToggleStyle.check,
+      builder: (context, _) => JuzzioSwitchListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 14),
         secondary: Icon(Icons.lock_person_rounded, color: p.textPrimary),
         title: Text(app.trEn('Sohbeti Kilitle', 'Lock chat', 'Chat sperren'),

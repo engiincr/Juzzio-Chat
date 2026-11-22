@@ -48,6 +48,7 @@ import '../widgets/juzzio_desktop_shell.dart'
     show JuzzioDesktopShell, JuzzioDesktopNavRail, JuzzioDesktopRightPlaceholder,
          JuzzioDesktopAction, showJuzzioCommandCenter, kJuzzioDesktopThreePanelMin;
 import '../widgets/juzzio_attach_menu.dart';
+import '../widgets/juzzio_chat_background.dart';
 import '../widgets/juzzio_auto_download.dart';
 import '../services/juzzio_feature_flags.dart';
 import '../widgets/juzzio_space_kit.dart';
@@ -1708,7 +1709,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     if (roomId == null) return;
     FocusScope.of(context).unfocus();
     setState(() => _attachMenuOpen = true);
-    final choice = await showJuzzioAttachMenu(context, isGroup: _isGroupRoomId(roomId));
+    final choice = await showJuzzioAttachMenu(context, isGroup: _isGroupRoomId(roomId), watchParty: !_inCommunity);
     if (mounted) setState(() => _attachMenuOpen = false);
     if (choice == null || !mounted) return;
     await _handleAttachChoice(roomId, choice);
@@ -1724,6 +1725,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   Future<void> _handleAttachChoice(String roomId, String choice) async {
     final app = JuzzioAppController.instance;
     switch (choice) {
+      // GM-018: Sinema Parti artık ek (ataç) menüsünde
+      case 'watch_party':
+        JuzzioWatchPartyScreen.open(context, roomId, autoStart: true);
+        return;
       case 'poll':
         await showJuzzioCreatePollSheet(context, roomId: roomId);
         return;
@@ -4421,6 +4426,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           targetPartnerLang: partner?.preferredLang,
         ),
         onMutedChanged: (v) => setState(() => v ? _mutedConversationIds.add(roomId) : _mutedConversationIds.remove(roomId)),
+        // GM-018: sohbet menüsünden taşınan eylemler (dışa aktar, Güvenli Varış, güvenlik numarası,
+        // civciv oyunu, geçmişi temizle) aynı işleyiciyle çalışır
+        onChatAction: (id) => _runConversationAction(id, partner: partner),
+        chickGameEnabled: JuzzioFeaturesService.instance.lastAppConfig.chickGameEnabled,
         onBlock: () async {
           if (partner == null) return;
           final app = JuzzioAppController.instance;
@@ -4446,9 +4455,12 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     String? myUid,
     String? targetStreamRoomId,
   ) {
+    // GM-019: sohbete özel arka plan (Kişi bilgisi → Sohbet arka planı) gövdenin arkasında
     return Container(
       decoration: JuzzioGlassTokens.backdrop,
-      child: Column(
+      child: Stack(children: [
+        if (targetStreamRoomId != null) Positioned.fill(child: JuzzioChatBackgroundLayer(roomId: targetStreamRoomId)),
+        Column(
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(4, 8, 8, 12),
@@ -4877,6 +4889,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           ),
         ],
       ),
+      ]),
     );
   }
 
@@ -5257,7 +5270,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     }
 
     WidgetsBinding.instance.addPostFrameCallback((_) => tick());
-    _presenceTimer = Timer.periodic(const Duration(seconds: 45), (_) => tick());
+    // GM-022: 45 sn yerine 8 sn (çevrimiçi bilgisi gecikmeli yansıyordu)
+    _presenceTimer = Timer.periodic(kJuzzioPresencePoll, (_) => tick());
   }
 
   String _presenceLabel(JuzzioAppController app, JuzzioUserProfile? partner) {
@@ -5750,7 +5764,18 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       ),
       onSelected: (value) async {
         setState(() => _kebabOpen = false);
-        if (roomId == null) return;
+        await _runConversationAction(value, group: group, partner: partner);
+      },
+      itemBuilder: (_) => _conversationMenuItems(appCtrl, group, item),
+    );
+  }
+
+  /// GM-018: sohbet menüsü ve Kişi bilgisi sayfası aynı eylemleri kullanır.
+  Future<void> _runConversationAction(String value, {JuzzioGroupRoom? group, JuzzioUserProfile? partner}) async {
+    final appCtrl = JuzzioAppController.instance;
+    final roomId = _activeConversationRoomId;
+    if (roomId == null) return;
+    {
         switch (value) {
           case 'search_here':
             _openMessageSearch(inRoomId: roomId);
@@ -5815,6 +5840,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
               JuzzioSafetyWalkScreen.open(context, roomId: rid2, roomTitle: group?.title ?? partner?.displayName ?? 'Juzzio');
             }
             break;
+          case 'contact_info':
+            await _onChatHeaderTap(partner, group, partner?.displayName ?? '', avatar: false);
+            break;
           case 'safety_number':
             if (partner != null) showJuzzioSafetyNumberSheet(context, peerUid: partner.id, peerName: partner.displayName);
             break;
@@ -5829,8 +5857,18 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             }
             break;
         }
-      },
-      itemBuilder: (_) => [
+    }
+  }
+
+  /// GM-018 (v2.2.0): sadeleşmiş sohbet menüsü. Birebir sohbette yalnız Profili gör · Sohbette ara ·
+  /// Kişi bilgisi · Engelle. Sinema Parti ek (ataç) menüsünde; Güvenli Varış, Güvenlik numarası,
+  /// Civciv oyunu, Sohbeti dışa aktar, Sohbet arka planı ve Geçmişi temizle Kişi bilgisi sayfasında.
+  List<PopupMenuEntry<String>> _conversationMenuItems(
+    JuzzioAppController appCtrl,
+    JuzzioGroupRoom? group,
+    PopupMenuEntry<String> Function(String value, IconData icon, String label, {bool danger}) item,
+  ) =>
+      [
         if (group != null) ...[
           if (_inCommunity)
             item('members', Icons.info_outline_rounded, appCtrl.trEn('Kanal bilgisi', 'Channel info', 'Kanalinfo'))
@@ -5838,30 +5876,23 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             item('members', Icons.manage_accounts_outlined, appCtrl.t('group_members_and_roles')),
           if ((_activeConversationData?.isGroupStaff ?? false) && !_inCommunity)
             item('add_members', Icons.person_add_alt_outlined, appCtrl.trEn('Üye ekle', 'Add members', 'Mitglieder hinzufügen')),
-        ] else
+        ] else ...[
           item('profile', Icons.person_outline_rounded, appCtrl.trEn('Profili gör', 'View profile', 'Profil ansehen')),
+          item('contact_info', Icons.info_outline_rounded, appCtrl.trEn('Kişi bilgisi', 'Contact info', 'Kontaktinfo')),
+        ],
         // v1.2.0: yalnız bu sohbette ara
         item('search_here', Icons.manage_search_rounded, appCtrl.trEn('Sohbette ara', 'Search in chat', 'Im Chat suchen')),
-        if (!_inCommunity)
+        if (group != null && !_inCommunity) ...[
           item('export_chat', Icons.ios_share_rounded, appCtrl.trEn('Sohbeti dışa aktar', 'Export chat', 'Chat exportieren')),
-        if (!_inCommunity) ...[
-          item('watch_party', Icons.movie_filter_outlined, appCtrl.trEn('Sinema Parti', 'Cinema Party', 'Kino-Party')),
-          item('safety', Icons.shield_outlined, appCtrl.trEn('Güvenli takip', 'Safety check', 'Sicherheitscheck')),
-        ],
-        if (group == null) ...[
-          item('safety_number', Icons.verified_user_outlined, appCtrl.trEn('Güvenlik numarası', 'Safety number', 'Sicherheitsnummer')),
-          if (JuzzioFeaturesService.instance.lastAppConfig.chickGameEnabled)
-            item('chick', Icons.egg_outlined, appCtrl.trEn('Civciv oyunu', 'Chick game', 'Küken-Spiel')),
+          item('safety', Icons.health_and_safety_outlined, juzzioSafeArrivalLabel(appCtrl)),
         ],
         const PopupMenuDivider(height: 10),
-        item('clear', Icons.cleaning_services_outlined, appCtrl.trEn('Geçmişi temizle', 'Clear history', 'Verlauf löschen'), danger: true),
-        if (group != null)
-          item('leave_group', Icons.logout_rounded, appCtrl.trEn('Gruptan ayrıl', 'Leave group', 'Gruppe verlassen'), danger: true)
-        else
+        if (group != null) ...[
+          item('clear', Icons.cleaning_services_outlined, appCtrl.trEn('Geçmişi temizle', 'Clear history', 'Verlauf löschen'), danger: true),
+          item('leave_group', Icons.logout_rounded, appCtrl.trEn('Gruptan ayrıl', 'Leave group', 'Gruppe verlassen'), danger: true),
+        ] else
           item('block', Icons.block_rounded, appCtrl.trEn('Engelle', 'Block', 'Blockieren'), danger: true),
-      ],
-    );
-  }
+      ];
 
   Future<void> _showAddGroupMembersSheet(JuzzioGroupRoom group) async {
     final appCtrl = JuzzioAppController.instance;
@@ -6029,18 +6060,38 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
+          // GM-023 (v2.2.0): modern köşeli liquid-glass başlık çipi
           Padding(
-            padding: const EdgeInsets.only(bottom: 6, left: 2, right: 2),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.auto_stories_rounded, size: 13, color: isMe ? Colors.white70 : p.textSecondary),
-              const SizedBox(width: 5),
-              Flexible(
-                child: Text(label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: isMe ? Colors.white70 : p.textSecondary, fontSize: 11.5, fontWeight: FontWeight.w700)),
+            padding: const EdgeInsets.only(bottom: 6),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: w + 60),
+              child: JuzzioLiquidGlass(
+                radius: 10,
+                blur: 14,
+                glowBorder: true,
+                padding: const EdgeInsets.fromLTRB(6, 5, 10, 5),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Container(
+                    width: 20,
+                    height: 20,
+                    decoration: BoxDecoration(
+                      color: JuzzioGlassTokens.glow,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Icon(reaction != null ? Icons.favorite_rounded : Icons.chat_bubble_rounded,
+                        size: 11.5, color: JuzzioGlassTokens.onGlow),
+                  ),
+                  const SizedBox(width: 7),
+                  Flexible(
+                    child: Text(label,
+                        key: const ValueKey('gm023-story-reply-label'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: JuzzioGlassTokens.textPrimary, fontSize: 11.5, fontWeight: FontWeight.w800, letterSpacing: 0.1)),
+                  ),
+                ]),
               ),
-            ]),
+            ),
           ),
           GestureDetector(
             onTap: () => _openStoryFromReplyMeta(meta),
@@ -6057,11 +6108,15 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                     height: h,
                     child: DecoratedBox(
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(18),
-                        boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius: 14, offset: Offset(0, 6))],
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: JuzzioGlassTokens.glow.withValues(alpha: 0.55), width: 1.2),
+                        boxShadow: [
+                          const BoxShadow(color: Color(0x33000000), blurRadius: 14, offset: Offset(0, 6)),
+                          BoxShadow(color: JuzzioGlassTokens.glow.withValues(alpha: 0.18), blurRadius: 16, spreadRadius: -4),
+                        ],
                       ),
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(18),
+                        borderRadius: BorderRadius.circular(13),
                         child: Stack(fit: StackFit.expand, children: [
                           media,
                           const DecoratedBox(
@@ -6076,20 +6131,35 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                           ),
                           if (isVideo)
                             const Center(child: Icon(Icons.play_circle_fill_rounded, color: Colors.white, size: 38)),
+                          // GM-023: alt kısımda buzlu cam şerit (kullanıcı adı)
                           Positioned(
-                            left: 8,
-                            right: 8,
-                            bottom: 8,
-                            child: Row(children: [
-                              const Icon(Icons.motion_photos_on_rounded, color: Colors.white, size: 13),
-                              const SizedBox(width: 4),
-                              Expanded(
-                                child: Text(storyOwnerHandle,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.w800)),
+                            left: 6,
+                            right: 6,
+                            bottom: 6,
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(9),
+                              child: BackdropFilter(
+                                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0x52000000),
+                                    borderRadius: BorderRadius.circular(9),
+                                    border: Border.all(color: const Color(0x33FFFFFF)),
+                                  ),
+                                  child: Row(children: [
+                                    Icon(Icons.motion_photos_on_rounded, color: JuzzioGlassTokens.glow, size: 13),
+                                    const SizedBox(width: 5),
+                                    Expanded(
+                                      child: Text(storyOwnerHandle,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.w800)),
+                                    ),
+                                  ]),
+                                ),
                               ),
-                            ]),
+                            ),
                           ),
                         ]),
                       ),
@@ -7038,7 +7108,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       children: [
         KeyedSubtree(key: ValueKey('bubble_${msg.clientMsgId ?? msg.id}'), child: entered),
         // v1.1.0 (#02 Burst ring + #06 Draw-on): kalp çizilerek dolar, halka ve parçacık patlaması
-        if (bursting)
+        // GM-021: ikinci (büyük) emoji artık çizilmez; yalnız rozetin çevresinde kısa halka + parçacık
+        if (bursting && kJuzzioReactionBurstOverlay)
         Positioned(
           right: isMe ? 18 : null,
           left: isMe ? null : 44,
@@ -7080,7 +7151,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       if (!removing) {
         final k = '${msg.id}|$emoji';
         _reactionPopKeys.add(k);
-        Future.delayed(const Duration(milliseconds: 1500), () => _reactionPopKeys.remove(k));
+        // GM-021: rozet yalnız ilk görünüşte bir kez canlanır (sunucu yanıtıyla yeniden kurulunca tekrar zıplamaz)
+        Future.delayed(const Duration(milliseconds: 600), () => _reactionPopKeys.remove(k));
       }
       if (burst && !removing) {
         _burstMessageId = msg.id;
@@ -11252,3 +11324,11 @@ String juzzioInboxEyebrow({
   if (chatCount > 0) return '$inbox · ${chatCount.toString().padLeft(2, '0')} $chatsWord';
   return inbox;
 }
+
+
+/// GM-018: eski "Güvenli takip" özelliğinin yeni adı (SOS + varış bildirimi)
+String juzzioSafeArrivalLabel(JuzzioAppController app) => app.trEn('Güvenli Varış', 'Safe Arrival', 'Sichere Ankunft');
+
+
+/// GM-021: balonun altında ayrıca büyük emoji patlaması gösterilsin mi (kapalı: rozet tek başına canlanır)
+const bool kJuzzioReactionBurstOverlay = false;

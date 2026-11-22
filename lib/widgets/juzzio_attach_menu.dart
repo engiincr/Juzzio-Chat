@@ -8,7 +8,6 @@
 
 import 'dart:async';
 import 'dart:io';
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -33,6 +32,9 @@ class _AttachItem {
   const _AttachItem(this.id, this.icon, this.label, this.hint, this.color);
 }
 
+/// GM-020: kart yüksekliği sabit (simge + ad + açıklama sığar; Windows yazı tipinde de taşmaz)
+const double kJuzzioAttachTileHeight = 118;
+
 /// v2.2.0: ek menüsü renkleri — her temada uyumlu, yumuşak ve birbirinden ayırt edilir (saf; test edilir)
 const Map<String, Color> kJuzzioAttachColors = {
   'document': Color(0xFF8B7CF6),
@@ -45,12 +47,13 @@ const Map<String, Color> kJuzzioAttachColors = {
   'poll': Color(0xFFFBBF24),
   'event': Color(0xFFA3E635),
   'schedule': Color(0xFF94A3B8),
+  'watch_party': Color(0xFFC6F135),
 };
 
 /// Seçilen eklenti kimliğini döner: document, gallery_photo, gallery_video, view_once, location, contact, poll, event, schedule.
 /// v2.2.0: yeniden tasarlandı — tema camında başlıklı pano, her seçenek kendi renginde yumuşak bir
 /// cam kart (renkli simge dairesi + ad + kısa açıklama). Belge / Video / Tek seferlik öne çıkar.
-Future<String?> showJuzzioAttachMenu(BuildContext context, {required bool isGroup}) {
+Future<String?> showJuzzioAttachMenu(BuildContext context, {required bool isGroup, bool watchParty = false}) {
   final app = JuzzioAppController.instance;
   Color c(String id) => kJuzzioAttachColors[id]!;
   final items = <_AttachItem>[
@@ -74,6 +77,10 @@ Future<String?> showJuzzioAttachMenu(BuildContext context, {required bool isGrou
       _AttachItem('poll', Icons.poll_outlined, app.trEn('Anket', 'Poll', 'Umfrage'), app.trEn('Oylama', 'Vote', 'Abstimmung'), c('poll')),
     if (isGroup)
       _AttachItem('event', Icons.event_outlined, app.trEn('Etkinlik', 'Event', 'Termin'), app.trEn('Tarih + hatırlatma', 'Date + reminder', 'Datum + Erinnerung'), c('event')),
+    // GM-018: Sinema Parti sohbet üst menüsünden buraya taşındı
+    if (watchParty)
+      _AttachItem('watch_party', Icons.movie_filter_outlined, app.trEn('Sinema Parti', 'Cinema Party', 'Kino-Party'),
+          app.trEn('Birlikte izleyin', 'Watch together', 'Zusammen schauen'), c('watch_party')),
     _AttachItem('schedule', Icons.schedule_send_outlined, app.trEn('Zamanla', 'Schedule', 'Planen'),
         app.trEn('Sonra gönder', 'Send later', 'Später senden'), c('schedule')),
   ];
@@ -81,13 +88,11 @@ Future<String?> showJuzzioAttachMenu(BuildContext context, {required bool isGrou
     context: context,
     backgroundColor: Colors.transparent,
     builder: (ctx) {
-      final reduced = JuzzioGlassTokens.reducedEffects;
-      final panel = Container(
-        decoration: BoxDecoration(
-          color: JuzzioGlassTokens.sheet,
-          borderRadius: BorderRadius.circular(30),
-          border: Border.all(color: JuzzioGlassTokens.spaceCardBorder, width: 1.1),
-        ),
+      // GM-020: tek katman liquid glass pano (çift çerçeve yok), ızgara satır yüksekliği sabit → taşma yok
+      final panel = JuzzioLiquidGlass(
+        radius: 30,
+        strong: true,
+        blur: 24,
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Center(
@@ -107,13 +112,15 @@ Future<String?> showJuzzioAttachMenu(BuildContext context, {required bool isGrou
           LayoutBuilder(builder: (context, box) {
             // dar ekranda 3, normalde 4 sütun → etiketler taşmaz
             final cols = box.maxWidth < 330 ? 3 : 4;
-            return GridView.count(
-              crossAxisCount: cols,
+            return GridView(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-              childAspectRatio: 0.78,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: cols,
+                mainAxisSpacing: 10,
+                crossAxisSpacing: 10,
+                mainAxisExtent: kJuzzioAttachTileHeight,
+              ),
               children: [
                 for (final it in items)
                   _JuzzioAttachTile(item: it, onTap: () {
@@ -129,10 +136,7 @@ Future<String?> showJuzzioAttachMenu(BuildContext context, {required bool isGrou
         top: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(30),
-            child: reduced ? panel : BackdropFilter(filter: ui.ImageFilter.blur(sigmaX: 24, sigmaY: 24), child: panel),
-          ),
+          child: panel,
         ),
       );
     },
@@ -175,8 +179,8 @@ class _JuzzioAttachTileState extends State<_JuzzioAttachTile> {
               color: it.color.withValues(alpha: dark ? 0.12 : 0.10),
               border: Border.all(color: it.color.withValues(alpha: dark ? 0.30 : 0.35)),
             ),
-            padding: const EdgeInsets.fromLTRB(6, 12, 6, 10),
-            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            padding: const EdgeInsets.fromLTRB(6, 10, 6, 8),
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, mainAxisSize: MainAxisSize.min, children: [
               Container(
                 width: 46,
                 height: 46,

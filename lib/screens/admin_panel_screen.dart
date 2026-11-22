@@ -22,6 +22,9 @@ import '../core/theme/juzzio_colors.dart';
 import '../core/theme/juzzio_glass.dart';
 import '../services/supabase_service.dart';
 import '../services/juzzio_features_service.dart';
+import '../services/juzzio_admin_pin.dart';
+import '../services/juzzio_chat_lock.dart' show JuzzioChatLockMath;
+import '../widgets/chat_lock_ui.dart' show showJuzzioPinPad, kJuzzioPinPadAlt;
 import 'admin_extra_tabs.dart';
 import 'admin_modules_v21.dart';
 import 'admin_story_tab.dart';
@@ -71,18 +74,77 @@ Future<void> openJuzzioAdminPanel(BuildContext context, {int? initialTab}) async
     return;
   }
   var token = await features.storedAdminToken();
-  // v2.1 (Faz 10.1): hatırlanan oturumla girerken telefonda parmak izi / yüz / ekran kilidi istenir.
-  // Doğrulanamazsa şifre ekranı açılır; cihazda kilit yoksa eskisi gibi devam edilir.
-  if (token != null && !await juzzioAdminBiometricOk()) token = null;
+  // GM-027 (v2.2.0): giriş yapan yönetici otomatik bilinir; panel Kilitli sohbetler ile AYNI PIN
+  // ekranıyla açılır. PIN yalnız cihazdaki (sunucuda doğrulanan) belirtecin kilidini açar.
+  final uid = SupabaseService.instance.currentUserId ?? '';
+  final pins = JuzzioAdminPin.instance;
+  var askedPin = false;
+  if (token != null && uid.isNotEmpty && await pins.hasPin(uid)) {
+    if (!context.mounted) return;
+    final me = await SupabaseService.instance.loadCachedMyProfile();
+    final name = (me?.displayName.trim().isNotEmpty ?? false) ? me!.displayName.trim() : '@${me?.username ?? ''}';
+    if (!context.mounted) return;
+    final r = await showJuzzioPinPad(
+      context,
+      title: app.trEn('Yönetici paneli', 'Admin panel', 'Admin-Panel'),
+      subtitle: app.trEn('Hoş geldin, $name · Yönetici PIN\'ini gir', 'Welcome, $name · Enter your admin PIN',
+          'Willkommen, $name · Admin-PIN eingeben'),
+      autoLength: await pins.pinLength(uid),
+      verify: (pin) => pins.verify(uid, pin),
+      errorText: app.trEn('PIN hatalı', 'Wrong PIN', 'Falsche PIN'),
+      altLabel: app.trEn('Şifreyle gir', 'Use password', 'Mit Passwort'),
+    );
+    if (pins.lockedOut) {
+      await features.forgetAdminToken();
+      token = null;
+    } else if (r == kJuzzioPinPadAlt) {
+      token = null;
+    } else if (r == null) {
+      return;
+    }
+    askedPin = true;
+  }
+  // v2.1 (Faz 10.1): PIN yoksa hatırlanan oturumla girerken telefonda biyometrik doğrulama istenir.
+  if (token != null && !askedPin && !await juzzioAdminBiometricOk()) token = null;
   if (token == null) {
     if (!context.mounted) return;
     // v0.8.0: şifre penceresi yerine ayrı, tüm cam temalarla uyumlu giriş sayfası
     token = await navigator.push<String>(
       MaterialPageRoute(fullscreenDialog: true, builder: (_) => const _AdminUnlockDialog()),
     );
+    // GM-027: şifreyle girildi ve PIN yoksa → bir kerelik yönetici PIN'i belirle (sonraki girişler yalnız PIN)
+    if (token != null && uid.isNotEmpty && !await pins.hasPin(uid) && context.mounted) {
+      if (await juzzioAdminCreatePin(context, uid)) await features.rememberAdminToken(token);
+    }
   }
   if (token == null) return;
   await navigator.push(MaterialPageRoute(builder: (_) => JuzzioAdminPanelScreen(token: token!, initialTab: initialTab)));
+}
+
+/// GM-027: yönetici PIN'i oluşturma (Kilitli sohbetler ile aynı iki adımlı PIN ekranı).
+Future<bool> juzzioAdminCreatePin(BuildContext context, String uid) async {
+  final app = JuzzioAppController.instance;
+  final first = await showJuzzioPinPad(
+    context,
+    title: app.trEn('Yönetici PIN\'i belirle', 'Set admin PIN', 'Admin-PIN festlegen'),
+    step: 1,
+    subtitle: app.trEn('Sonraki girişlerde panel yalnız bu PIN ile açılır. 4–8 rakam.',
+        'Next time the panel opens with this PIN only. 4–8 digits.', 'Künftig öffnet sich das Panel nur mit dieser PIN. 4–8 Ziffern.'),
+    verify: (pin) async => JuzzioChatLockMath.validPin(pin) && pin != '0000',
+    errorText: app.trEn('PIN 4–8 rakam olmalı ve 0000 olamaz', 'PIN must be 4–8 digits and not 0000', 'PIN 4–8 Ziffern, nicht 0000'),
+  );
+  if (first == null || !context.mounted) return false;
+  final again = await showJuzzioPinPad(
+    context,
+    title: app.trEn('PIN\'i tekrar gir', 'Repeat the PIN', 'PIN wiederholen'),
+    step: 1,
+    autoLength: first.length,
+    verify: (pin) async => pin == first,
+    errorText: app.trEn('PIN\'ler eşleşmiyor', 'PINs do not match', 'PINs stimmen nicht überein'),
+  );
+  if (again == null) return false;
+  await JuzzioAdminPin.instance.setPin(uid, first);
+  return true;
 }
 
 /// v2.1: "ok"/"unavailable" → devam; "cancel" → şifre istenir. Telefon dışı platformlarda devam.

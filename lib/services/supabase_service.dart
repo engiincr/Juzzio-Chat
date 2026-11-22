@@ -1798,7 +1798,8 @@ class SupabaseService {
     _presenceHeartbeat = null;
     if (currentUserId == null) return;
     if (online) {
-      _presenceHeartbeat = Timer.periodic(const Duration(seconds: 60), (_) async {
+      // GM-022: nabız 25 sn'de bir (sunucu 75 sn nabız almazsa çevrimdışı sayar — SQL 10.55)
+      _presenceHeartbeat = Timer.periodic(kJuzzioPresenceHeartbeat, (_) async {
         if (currentUserId == null) {
           _presenceHeartbeat?.cancel();
           _presenceHeartbeat = null;
@@ -4666,3 +4667,8 @@ String juzzioCommunityKindFor(String path) {
   return 'document';
 }
 
+
+
+/// GM-022: çevrimiçi nabız aralığı ve sohbet açıkken karşı tarafı yoklama aralığı
+const Duration kJuzzioPresenceHeartbeat = Duration(seconds: 25);
+const Duration kJuzzioPresencePoll = Duration(seconds: 8);

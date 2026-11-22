@@ -2,6 +2,8 @@
 // JUZZIO v0.7.0 — Kişiye özel sohbet ayarları
 //  Sohbette kişinin adına dokununca açılır: profili görüntüle, sesli/görüntülü ara,
 //  süreli mesajlar, sessize al, özel bildirim tonu, özel zil sesi, engelle.
+//  GM-018/019 (v2.2.0): sohbet menüsünden taşınanlar (Sohbet arka planı, Sohbeti dışa aktar, Güvenli
+//  Varış, Güvenlik numarası, Civciv oyunu, Geçmişi temizle) "Sohbet araçları" bölümünde.
 // =============================================================================
 
 import 'package:flutter/material.dart';
@@ -12,6 +14,7 @@ import '../core/juzzio_sounds.dart';
 import '../core/theme/juzzio_glass.dart';
 import '../services/supabase_service.dart';
 import '../widgets/chat_notification_prefs.dart';
+import '../widgets/juzzio_chat_background.dart';
 import 'saved_messages_page.dart';
 import '../widgets/chat_lock_ui.dart';
 import 'sound_settings_page.dart';
@@ -30,6 +33,10 @@ class JuzzioContactSettingsPage extends StatefulWidget {
   final VoidCallback onBlock;
   final ValueChanged<bool>? onMutedChanged;
 
+  /// GM-018: sohbet menüsünden taşınan eylemler (export_chat, safety, safety_number, chick, clear)
+  final Future<void> Function(String action)? onChatAction;
+  final bool chickGameEnabled;
+
   const JuzzioContactSettingsPage({
     super.key,
     required this.roomId,
@@ -43,6 +50,8 @@ class JuzzioContactSettingsPage extends StatefulWidget {
     required this.onCall,
     required this.onBlock,
     this.onMutedChanged,
+    this.onChatAction,
+    this.chickGameEnabled = false,
   });
 
   @override
@@ -59,6 +68,21 @@ class _JuzzioContactSettingsPageState extends State<JuzzioContactSettingsPage> {
   void initState() {
     super.initState();
     _sounds.load();
+    JuzzioChatBackgrounds.instance.load();
+  }
+
+  String _bgLabel() {
+    final bg = JuzzioChatBackgrounds.instance.of(widget.roomId);
+    switch (bg.kind) {
+      case JuzzioChatBgKind.none:
+        return _app.trEn('Varsayılan', 'Default', 'Standard');
+      case JuzzioChatBgKind.image:
+        return _app.trEn('Görsel', 'Image', 'Bild');
+      case JuzzioChatBgKind.preset:
+        final p = juzzioChatBgPresetById(bg.presetId);
+        final l = _app.uiLang;
+        return p == null ? '' : (l == 'tr' ? p.tr : (l == 'de' ? p.de : p.en));
+    }
   }
 
   String _timerLabel(String t) {
@@ -175,7 +199,7 @@ class _JuzzioContactSettingsPageState extends State<JuzzioContactSettingsPage> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([_app, _sounds]),
+      listenable: Listenable.merge([_app, _sounds, JuzzioChatBackgrounds.instance]),
       builder: (context, _) {
         final p = JuzzioPalette(_app.isDark);
         Widget action(IconData icon, String label, VoidCallback onTap) {
@@ -280,7 +304,7 @@ class _JuzzioContactSettingsPageState extends State<JuzzioContactSettingsPage> {
                   children: [
                     row(Icons.timer_rounded, _app.trEn('Süreli mesajlar', 'Disappearing messages', 'Selbstlöschend'),
                         _timerLabel(_timer), _pickTimer),
-                    JuzzioSwitchListTile(style: JuzzioToggleStyle.check,
+                    JuzzioSwitchListTile(
                       contentPadding: const EdgeInsets.symmetric(horizontal: 14),
                       secondary: Icon(Icons.notifications_off_rounded, color: p.textPrimary),
                       title: Text(_app.trEn('Bildirimleri sessize al', 'Mute notifications', 'Stummschalten'),
@@ -309,13 +333,46 @@ class _JuzzioContactSettingsPageState extends State<JuzzioContactSettingsPage> {
                 ),
               ),
               const SizedBox(height: 12),
+              // GM-018/019: sohbet araçları (eskiden üst menüdeydi)
               JuzzioGlass(
                 radius: 24,
                 padding: const EdgeInsets.symmetric(vertical: 4),
-                child: row(Icons.block_rounded, _app.trEn('Engelle', 'Block', 'Blockieren'), '', () {
-                  Navigator.of(context).pop();
-                  widget.onBlock();
-                }, color: p.dangerRed),
+                child: Column(
+                  children: [
+                    row(Icons.wallpaper_rounded, _app.trEn('Sohbet arka planı', 'Chat background', 'Chat-Hintergrund'),
+                        _bgLabel(), () => JuzzioChatBackgroundPage.open(context, roomId: widget.roomId, title: widget.partnerName)),
+                    if (widget.onChatAction != null) ...[
+                      row(Icons.ios_share_rounded, _app.trEn('Sohbeti dışa aktar', 'Export chat', 'Chat exportieren'), '',
+                          () => widget.onChatAction!('export_chat')),
+                      row(Icons.health_and_safety_outlined, _app.trEn('Güvenli Varış', 'Safe Arrival', 'Sichere Ankunft'),
+                          _app.trEn('Varamazsan konumunla SOS uyarısı', 'SOS alert with your location if you don\'t arrive',
+                              'SOS-Alarm mit Standort, falls du nicht ankommst'),
+                          () => widget.onChatAction!('safety')),
+                      row(Icons.verified_user_outlined, _app.trEn('Güvenlik numarası', 'Safety number', 'Sicherheitsnummer'),
+                          _app.trEn('Uçtan uca şifrelemeyi doğrula', 'Verify end-to-end encryption', 'Ende-zu-Ende prüfen'),
+                          () => widget.onChatAction!('safety_number')),
+                      if (widget.chickGameEnabled)
+                        row(Icons.egg_outlined, _app.trEn('Civciv oyunu', 'Chick game', 'Küken-Spiel'), '',
+                            () => widget.onChatAction!('chick')),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              JuzzioGlass(
+                radius: 24,
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Column(
+                  children: [
+                    if (widget.onChatAction != null)
+                      row(Icons.cleaning_services_outlined, _app.trEn('Geçmişi temizle', 'Clear history', 'Verlauf löschen'), '',
+                          () => widget.onChatAction!('clear'), color: p.dangerRed),
+                    row(Icons.block_rounded, _app.trEn('Engelle', 'Block', 'Blockieren'), '', () {
+                      Navigator.of(context).pop();
+                      widget.onBlock();
+                    }, color: p.dangerRed),
+                  ],
+                ),
               ),
             ],
           ),

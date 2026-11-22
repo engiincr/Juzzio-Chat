@@ -221,20 +221,10 @@ class _JuzzioMessageSearchPageState extends State<JuzzioMessageSearchPage> {
       return next;
     }
 
+    // GM-026 (v2.2.0): Material chip yerine sade, köşeli cam çip (çift kenarlık / kaba görünüm giderildi)
     Widget chip(IconData icon, String label, bool on, VoidCallback onTap) => Padding(
           padding: const EdgeInsetsDirectional.only(end: 8),
-          child: FilterChip(
-            showCheckmark: false,
-            avatar: Icon(icon, size: 16, color: on ? JuzzioGlassTokens.onAccent : p.textSecondary),
-            label: Text(label),
-            labelStyle: TextStyle(color: on ? JuzzioGlassTokens.onAccent : p.textPrimary, fontWeight: FontWeight.w700, fontSize: 12.5),
-            selected: on,
-            selectedColor: accent,
-            backgroundColor: JuzzioGlassTokens.surfaceStrong,
-            side: BorderSide(color: on ? accent : JuzzioGlassTokens.border),
-            shape: const StadiumBorder(),
-            onSelected: (_) => onTap(),
-          ),
+          child: JuzzioSearchChip(icon: icon, label: label, selected: on, onTap: onTap),
         );
 
     // tarih başlıklı liste
@@ -315,15 +305,14 @@ class _JuzzioMessageSearchPageState extends State<JuzzioMessageSearchPage> {
               child: Row(children: [
                 IconButton(icon: Icon(Icons.arrow_back_rounded, color: p.textPrimary), onPressed: () => Navigator.of(context).pop()),
                 Expanded(
-                  child: Container(
-                    height: 48,
+                  child: JuzzioLiquidGlass(
+                    key: const ValueKey('gm026-search-field'),
+                    radius: 14,
+                    blur: 14,
                     padding: const EdgeInsets.symmetric(horizontal: 14),
-                    decoration: BoxDecoration(
-                      color: JuzzioGlassTokens.surfaceStrong,
-                      borderRadius: BorderRadius.circular(99),
-                      border: Border.all(color: JuzzioGlassTokens.border),
-                    ),
-                    child: Row(children: [
+                    child: SizedBox(
+                      height: 46,
+                      child: Row(children: [
                       Icon(Icons.search_rounded, color: p.textSecondary, size: 21),
                       const SizedBox(width: 8),
                       Expanded(
@@ -332,8 +321,14 @@ class _JuzzioMessageSearchPageState extends State<JuzzioMessageSearchPage> {
                           autofocus: true,
                           textInputAction: TextInputAction.search,
                           style: TextStyle(color: p.textPrimary, fontSize: 15.5),
+                          cursorColor: JuzzioGlassTokens.glowText,
                           decoration: InputDecoration(
                             isDense: true,
+                            filled: false,
+                            contentPadding: EdgeInsets.zero,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            disabledBorder: InputBorder.none,
                             hintText: scoped
                                 ? _app.trEn('${_roomName(_f.roomId!)} içinde ara…', 'Search in ${_roomName(_f.roomId!)}…', 'In ${_roomName(_f.roomId!)} suchen…')
                                 : _app.trEn('Tüm mesajlarda ara…', 'Search all messages…', 'Alle Nachrichten durchsuchen…'),
@@ -352,6 +347,7 @@ class _JuzzioMessageSearchPageState extends State<JuzzioMessageSearchPage> {
                           child: Icon(Icons.cancel_rounded, color: p.textSecondary, size: 19),
                         ),
                     ]),
+                    ),
                   ),
                 ),
               ]),
@@ -371,28 +367,24 @@ class _JuzzioMessageSearchPageState extends State<JuzzioMessageSearchPage> {
                   if (widget.initialRoomId == null && widget.rooms.isNotEmpty)
                     Padding(
                       padding: const EdgeInsetsDirectional.only(end: 8),
-                      child: ActionChip(
-                        avatar: Icon(Icons.person_search_rounded, size: 16, color: p.textSecondary),
-                        label: Text(_f.roomId == null ? _app.trEn('Kişi / sohbet seç', 'Pick a chat', 'Chat wählen') : _roomName(_f.roomId!)),
-                        labelStyle: TextStyle(color: p.textPrimary, fontWeight: FontWeight.w700, fontSize: 12.5),
-                        backgroundColor: JuzzioGlassTokens.surfaceStrong,
-                        side: BorderSide(color: _f.roomId != null ? accent : JuzzioGlassTokens.border),
-                        shape: const StadiumBorder(),
-                        onPressed: _pickRoom,
+                      child: JuzzioSearchChip(
+                        icon: Icons.person_search_rounded,
+                        label: _f.roomId == null ? _app.trEn('Kişi / sohbet seç', 'Pick a chat', 'Chat wählen') : _roomName(_f.roomId!),
+                        selected: false,
+                        outlined: _f.roomId != null,
+                        onTap: _pickRoom,
                       ),
                     ),
                   Padding(
                     padding: const EdgeInsetsDirectional.only(end: 8),
-                    child: ActionChip(
-                      avatar: Icon(Icons.date_range_rounded, size: 16, color: p.textSecondary),
-                      label: Text(_f.from == null
+                    child: JuzzioSearchChip(
+                      icon: Icons.date_range_rounded,
+                      label: _f.from == null
                           ? _app.trEn('Tarih', 'Date', 'Datum')
-                          : '${_f.from!.day}.${_f.from!.month}–${_f.to?.day ?? ''}.${_f.to?.month ?? ''}'),
-                      labelStyle: TextStyle(color: p.textPrimary, fontWeight: FontWeight.w700, fontSize: 12.5),
-                      backgroundColor: JuzzioGlassTokens.surfaceStrong,
-                      side: BorderSide(color: _f.from != null ? accent : JuzzioGlassTokens.border),
-                      shape: const StadiumBorder(),
-                      onPressed: () async {
+                          : '${_f.from!.day}.${_f.from!.month}–${_f.to?.day ?? ''}.${_f.to?.month ?? ''}',
+                      selected: false,
+                      outlined: _f.from != null,
+                      onTap: () async {
                         if (_f.from != null) {
                           _update(_f.copyWith(clearDates: true));
                           return;
@@ -499,5 +491,55 @@ class _JuzzioMessageSearchPageState extends State<JuzzioMessageSearchPage> {
       ),
     );
     if (picked != null) _update(_f.copyWith(roomId: picked));
+  }
+}
+
+
+/// GM-026 (v2.2.0): arama ekranları için köşeli cam filtre çipi.
+class JuzzioSearchChip extends StatelessWidget {
+  const JuzzioSearchChip({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.outlined = false,
+  });
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final bool outlined;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final g = JuzzioGlassTokens.glow;
+    final fg = selected ? JuzzioGlassTokens.onGlow : (outlined ? JuzzioGlassTokens.glowText : JuzzioGlassTokens.textPrimary);
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          height: 34,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: selected ? g : JuzzioGlassTokens.textPrimary.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: selected ? g : (outlined ? g.withValues(alpha: 0.7) : JuzzioGlassTokens.textPrimary.withValues(alpha: 0.10)),
+            ),
+            boxShadow: selected ? [BoxShadow(color: g.withValues(alpha: 0.28), blurRadius: 12, spreadRadius: -3)] : null,
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(icon, size: 15, color: selected ? JuzzioGlassTokens.onGlow : (outlined ? g : JuzzioGlassTokens.textSecondary)),
+            const SizedBox(width: 6),
+            Text(label, style: TextStyle(color: fg, fontWeight: FontWeight.w700, fontSize: 12.5)),
+          ]),
+        ),
+      ),
+    );
   }
 }

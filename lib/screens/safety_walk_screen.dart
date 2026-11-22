@@ -205,7 +205,7 @@ class _JuzzioSafetyWalkScreenState extends State<JuzzioSafetyWalkScreen> {
     final left = _endsAt?.difference(DateTime.now());
     return Scaffold(
       backgroundColor: p.bgPrimary,
-      appBar: AppBar(title: Text(_app.trEn('Güvenli takip', 'Safety check', 'Sicherheitscheck'))),
+      appBar: AppBar(title: Text(_app.trEn('Güvenli Varış', 'Safe Arrival', 'Sichere Ankunft'))), // GM-018: eski adı "Güvenli takip"
       body: ListView(padding: const EdgeInsets.all(20), children: [
         Text('${_app.trEn('Uyarı gidecek sohbet', 'Alerts go to', 'Warnungen an')}: ${widget.roomTitle}', style: TextStyle(color: p.textSecondary)),
         const SizedBox(height: 16),

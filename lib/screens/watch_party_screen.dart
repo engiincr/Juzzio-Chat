@@ -1026,7 +1026,7 @@ class _JuzzioWatchPartyScreenState extends State<JuzzioWatchPartyScreen> {
             margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
             padding: const EdgeInsets.symmetric(vertical: 10),
             decoration: BoxDecoration(
-              color: Color.lerp(JuzzioCallColors.depth.last, Colors.black, 0.35),
+              color: juzzioWatchPartySheetColor(),
               borderRadius: BorderRadius.circular(26),
               border: Border.all(color: JuzzioCallColors.glassBorder),
             ),
@@ -1079,10 +1079,12 @@ class _JuzzioWatchPartyScreenState extends State<JuzzioWatchPartyScreen> {
     final title = s?.title.isNotEmpty == true ? s!.title : _app.trEn('Sinema Parti', 'Cinema Party', 'Kino-Party');
     // v2.1 — Sinema Parti odası (yeni tasarım): temanın koyu derinliği, vurgu renkli yuvarlak sinema
     // kartı, oda başlığı + CANLI rozeti, cam kontrol rafı, "Sinemadakiler" koltukları.
+    // GM-025 (v2.2.0): AMOLED siyah yerine temalı derinlik + vurgu ışıması (liquid glass zemin)
     return Scaffold(
       backgroundColor: JuzzioCallColors.depth.last,
       body: DecoratedBox(
-        decoration: JuzzioCallColors.backdrop(),
+        key: const ValueKey('gm025-watch-party-backdrop'),
+        decoration: juzzioWatchPartyBackdrop(),
         child: SafeArea(
           child: Column(
             children: [
@@ -1165,10 +1167,10 @@ class _JuzzioWatchPartyScreenState extends State<JuzzioWatchPartyScreen> {
                             children: [
                               // Sinema kartı
                               ClipRRect(
-                                borderRadius: BorderRadius.circular(26),
+                                borderRadius: BorderRadius.circular(20),
                                 child: DecoratedBox(
                                   decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(26),
+                                    borderRadius: BorderRadius.circular(20),
                                     border: Border.all(color: accent.withValues(alpha: 0.45), width: 1.4),
                                   ),
                                   child: AspectRatio(
@@ -1243,13 +1245,11 @@ class _JuzzioWatchPartyScreenState extends State<JuzzioWatchPartyScreen> {
                                   child: Text(_error!, style: const TextStyle(color: Colors.redAccent), textAlign: TextAlign.center),
                                 ),
                               const SizedBox(height: 14),
-                              Container(
+                              JuzzioLiquidGlass(
+                                radius: 20,
+                                forceDark: true,
+                                glowBorder: true,
                                 padding: const EdgeInsets.fromLTRB(14, 12, 14, 16),
-                                decoration: BoxDecoration(
-                                  color: JuzzioCallColors.glass,
-                                  borderRadius: BorderRadius.circular(26),
-                                  border: Border.all(color: JuzzioCallColors.glassBorder),
-                                ),
                                 child: _controls(s),
                               ),
                               const SizedBox(height: 22),
@@ -1267,13 +1267,10 @@ class _JuzzioWatchPartyScreenState extends State<JuzzioWatchPartyScreen> {
                                 ],
                               ),
                               const SizedBox(height: 12),
-                              Container(
+                              JuzzioLiquidGlass(
+                                radius: 20,
+                                forceDark: true,
                                 padding: const EdgeInsets.symmetric(vertical: 12),
-                                decoration: BoxDecoration(
-                                  color: JuzzioCallColors.glass,
-                                  borderRadius: BorderRadius.circular(24),
-                                  border: Border.all(color: JuzzioCallColors.glassBorder),
-                                ),
                                 child: _viewerStrip(),
                               ),
                             ],
@@ -1403,7 +1400,7 @@ class _WatchLinkSheetState extends State<_WatchLinkSheet> {
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
         decoration: BoxDecoration(
-          color: Color.lerp(JuzzioCallColors.depth.last, Colors.black, 0.3),
+          color: juzzioWatchPartySheetColor(),
           borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           border: Border.all(color: JuzzioCallColors.glassBorder),
         ),
@@ -1578,3 +1575,27 @@ bool juzzioWatchNavigationAllowed(String url) {
   if (u.isEmpty || u == 'about:blank') return true;
   return u.startsWith('https://') || u.startsWith('http://');
 }
+
+
+/// GM-025 (v2.2.0): Sinema Parti zemini — temanın derinlik renkleri (siyaha boğulmadan) + vurgu ışıması.
+BoxDecoration juzzioWatchPartyBackdrop() {
+  final d = JuzzioCallColors.depth;
+  final g = JuzzioCallColors.accent;
+  final mid = d.length > 1 ? d[1] : d.first;
+  return BoxDecoration(
+    gradient: LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [
+        Color.lerp(d.first, g, 0.10)!,
+        Color.lerp(mid, Colors.black, 0.12)!,
+        Color.lerp(d.last, g, 0.06)!,
+      ],
+      stops: const [0, 0.55, 1],
+    ),
+  );
+}
+
+/// GM-025: alt sayfalar (oda menüsü, kaynak seçimi) — temalı koyu cam.
+Color juzzioWatchPartySheetColor() =>
+    Color.lerp(JuzzioCallColors.depth.last, JuzzioCallColors.accent, 0.06)!.withValues(alpha: 0.97);

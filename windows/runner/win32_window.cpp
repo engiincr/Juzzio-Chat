@@ -150,7 +150,8 @@ bool Win32Window::Create(const std::wstring& title,
 }
 
 bool Win32Window::Show() {
-  return ShowWindow(window_handle_, SW_SHOWNORMAL);
+  // GM-017 (v2.2.0): open maximized (full-screen window) on Windows
+  return ShowWindow(window_handle_, SW_SHOWMAXIMIZED);
 }
 
 // static

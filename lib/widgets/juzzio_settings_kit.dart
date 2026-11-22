@@ -296,13 +296,15 @@ class JuzzioSettingsSearchField extends StatelessWidget {
     final dark = JuzzioGlassTokens.isDarkResolver();
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 4, 18, 4),
+      // GM-026 (v2.2.0): köşeli cam arama kutusu (tüm aramalarla aynı dil; tek kenarlık)
       child: Container(
+        key: const ValueKey('gm026-settings-search'),
         height: 46,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(
-          color: JuzzioGlassTokens.textPrimary.withValues(alpha: dark ? 0.06 : 0.05),
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: JuzzioGlassTokens.border.withValues(alpha: 0.6)),
+          color: JuzzioGlassTokens.textPrimary.withValues(alpha: dark ? 0.07 : 0.05),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: JuzzioGlassTokens.textPrimary.withValues(alpha: dark ? 0.12 : 0.10)),
         ),
         child: Row(children: [
           Icon(Icons.search_rounded, size: 20, color: JuzzioGlassTokens.textSecondary),
@@ -321,6 +323,7 @@ class JuzzioSettingsSearchField extends StatelessWidget {
                 border: InputBorder.none,
                 enabledBorder: InputBorder.none,
                 focusedBorder: InputBorder.none,
+                disabledBorder: InputBorder.none,
                 hintText: hint,
                 hintStyle: TextStyle(color: JuzzioGlassTokens.textMuted, fontSize: 15),
               ),
