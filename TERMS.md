@@ -1,4 +1,4 @@
-# 📜 Juzzio Terms of Use
+# 📜 Trawave Terms of Use
 
 Last updated: November 10, 2026 · v1.2.3 (BETA · Early Access)
 
@@ -6,11 +6,11 @@ Last updated: November 10, 2026 · v1.2.3 (BETA · Early Access)
 
 ## 1. Acceptance
 
-By ticking the required box on the sign-up and sign-in screen you accept these terms. How your personal data is processed is explained separately in the Privacy Notice (Privacy Policy). Juzzio is a **BETA (Early Access)** app; features may change and bugs may occur.
+By ticking the required box on the sign-up and sign-in screen you accept these terms. How your personal data is processed is explained separately in the Privacy Notice (Privacy Policy). Trawave is a **BETA (Early Access)** app; features may change and bugs may occur.
 
 ## 2. Account
 
-- You must be **at least 15 years old** to use Juzzio and you confirm this at sign-up. If you are under 18, use Juzzio with your parent's or guardian's knowledge.
+- You must be **at least 15 years old** to use Trawave and you confirm this at sign-up. If you are under 18, use Trawave with your parent's or guardian's knowledge.
 - You must provide accurate information when signing up; you are responsible for the security of your account.
 - Inappropriate usernames, names or profile photos may not be used; creating fake or troll accounts is prohibited.
 
@@ -24,13 +24,13 @@ By ticking the required box on the sign-up and sign-in screen you accept these t
 
 - You are responsible for the content you share. You keep the rights to your content and allow it to be processed to the extent needed to run the service (storing, delivering, displaying).
 - Content that violates the rules may be removed and accounts may be suspended.
-- **Copyright:** You may not share, or open in Cinema Party, music, films, series, sports streams or other protected content you do not have the rights to. Juzzio hosts no content; Cinema Party only synchronizes the link you open between participants. Domains offering pirated content are blocked.
+- **Copyright:** You may not share, or open in Cinema Party, music, films, series, sports streams or other protected content you do not have the rights to. Trawave hosts no content; Cinema Party only synchronizes the link you open between participants. Domains offering pirated content are blocked.
 - **Copyright notices:** If you believe your rights are infringed, use "Report → Copyright" on the content or e-mail engiincr@pm.me with links to the work and the infringement. Content may be hidden while the notice is reviewed; repeat infringers' accounts are closed.
 - **Files:** Sending malware, scripts or executable files (e.g. .php, .jsp, .exe, .apk) is prohibited; such files are blocked automatically.
 
 ## 5. Consumer rights
 
-- Juzzio is free; there are no in-app purchases, subscriptions or payments.
+- Trawave is free; there are no in-app purchases, subscriptions or payments.
 - Your rights under Turkish Consumer Protection Law No. 6502 and related legislation are reserved.
 
 ## 6. Limitation of liability
@@ -39,13 +39,13 @@ The service is provided "as is". Uninterrupted or error-free operation is not gu
 
 ## 7. Intellectual property
 
-Juzzio's source code, design, name and logo are protected by copyright. Copying, reproducing, distributing, selling or creating derivative apps without written permission is prohibited. Details: `LICENSE`.
+Trawave's source code, design, name and logo are protected by copyright. Copying, reproducing, distributing, selling or creating derivative apps without written permission is prohibited. Details: `LICENSE`.
 
 ## 8. Security breaches, attacks and unauthorized access
 
 The following actions are strictly prohibited. When detected, the account and device are permanently banned, records (IP, device ID, timestamp) are kept as evidence and a criminal complaint is filed with the competent authorities:
 
-- Accessing or attempting to access Juzzio servers, the database, storage or other users' accounts without authorization (**Turkish Penal Code Art. 243 – unauthorized access to an information system**),
+- Accessing or attempting to access Trawave servers, the database, storage or other users' accounts without authorization (**Turkish Penal Code Art. 243 – unauthorized access to an information system**),
 - Obstructing or disrupting the system, deleting, altering or making data inaccessible; denial of service (DoS/DDoS), automated request flooding, brute-force attempts (**Turkish Penal Code Art. 244**),
 - Using someone else's identity, session token or keys; phishing (**Turkish Penal Code Art. 245** and **Art. 158/1-f**),
 - Unlawfully obtaining, recording or disseminating personal data (**Turkish Penal Code Art. 135–136**, **Personal Data Protection Law No. 6698 Art. 12 and 17**),

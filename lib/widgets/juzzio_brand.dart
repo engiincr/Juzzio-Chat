@@ -2,7 +2,7 @@
 // JUZZIO 2.1 — Marka: resmî limon "J" logosu, kelime markası ve ortak ekran başlığı
 //  • Logo vektör yol olarak çizilir (her boyutta keskin); kaynak assets/brand/juzzio_logo_source.png,
 //    platform ikonları tools/brand_logo.py ile aynı kaynaktan üretilir.
-//  • JuzzioScreenHeader: tasarımdaki "geri · J Juzzio · Başlık · menü" düzeni (tüm alt sayfalar)
+//  • JuzzioScreenHeader: tasarımdaki "geri · J Trawave · Başlık · menü" düzeni (tüm alt sayfalar)
 // =============================================================================
 
 import 'package:flutter/material.dart';
@@ -99,7 +99,13 @@ class _LogoPainter extends CustomPainter {
   bool shouldRepaint(covariant _LogoPainter old) => old.mono != mono;
 }
 
-/// Yalnız logo "J" (saydam zemin)
+/// GM-036 (v2.2.0): Trawave logosu — beyaz "T" + limon dalga (Engin'in logo dosyasından,
+/// saydam zemin). Gündüz temasında "T" koyu mürekkep tonunda çizilir (açık zeminde okunur).
+const String kTrawaveGlyphAsset = 'assets/brand/trawave_glyph.png';
+const String kTrawaveGlyphInkAsset = 'assets/brand/trawave_glyph_ink.png';
+const String kTrawaveIconAsset = 'assets/brand/trawave_icon.png';
+const double kTrawaveGlyphAspect = 368 / 292;
+
 class JuzzioLogoGlyph extends StatelessWidget {
   const JuzzioLogoGlyph({super.key, this.size = 28, this.mono});
   final double size;
@@ -107,10 +113,17 @@ class JuzzioLogoGlyph extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Semantics(
-      label: 'Juzzio',
-      child: SizedBox(width: size, height: size, child: CustomPaint(painter: _LogoPainter(mono: mono))),
+    final dark = JuzzioGlassTokens.isDarkResolver();
+    Widget img = Image.asset(
+      dark || mono != null ? kTrawaveGlyphAsset : kTrawaveGlyphInkAsset,
+      width: size * kTrawaveGlyphAspect,
+      height: size,
+      fit: BoxFit.contain,
+      filterQuality: FilterQuality.high,
+      errorBuilder: (_, __, ___) => SizedBox(width: size, height: size, child: CustomPaint(painter: _LogoPainter(mono: mono))),
     );
+    if (mono != null) img = ColorFiltered(colorFilter: ColorFilter.mode(mono!, BlendMode.srcIn), child: img);
+    return Semantics(label: 'Trawave', child: img);
   }
 }
 
@@ -134,12 +147,12 @@ class JuzzioLogoTile extends StatelessWidget {
             ? [BoxShadow(color: JuzzioBrandColors.lime.withValues(alpha: 0.28), blurRadius: size * 0.5, spreadRadius: -size * 0.08)]
             : null,
       ),
-      child: JuzzioLogoGlyph(size: size * 0.62),
+      child: FittedBox(child: JuzzioLogoGlyph(size: size * 0.62)),
     );
   }
 }
 
-/// Kelime markası: logo J + "Juzzio" (tasarımdaki başlık logosu)
+/// Kelime markası: logo J + "Trawave" (tasarımdaki başlık logosu)
 class JuzzioWordmark extends StatelessWidget {
   const JuzzioWordmark({super.key, this.size = 22, this.color});
   final double size;
@@ -154,7 +167,7 @@ class JuzzioWordmark extends StatelessWidget {
         JuzzioLogoGlyph(size: size * 1.15),
         SizedBox(width: size * 0.12),
         Text(
-          'Juzzio',
+          'Trawave',
           maxLines: 1,
           style: TextStyle(
             fontFamily: JuzzioConfig.fontRegularBold,
@@ -197,7 +210,7 @@ class JuzzioHeaderCircleButton extends StatelessWidget {
   }
 }
 
-/// Tasarımdaki alt sayfa başlığı: solda geri, ortada "J Juzzio" + büyük başlık (+ alt açıklama),
+/// Tasarımdaki alt sayfa başlığı: solda geri, ortada "J Trawave" + büyük başlık (+ alt açıklama),
 /// sağda isteğe bağlı eylem. Kaydırılabilir sayfaların en üstüne konur.
 class JuzzioScreenHeader extends StatelessWidget {
   const JuzzioScreenHeader({

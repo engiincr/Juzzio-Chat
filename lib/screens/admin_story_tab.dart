@@ -1,6 +1,6 @@
 // =============================================================================
-// JUZZIO v0.9.3 — Admin Paneli → "Juzzio Story"
-//  Uygulama tanıtım (teaser) görsel/video hikâyelerini "Juzzio Official" (mavi tik) adına
+// JUZZIO v0.9.3 — Admin Paneli → "Trawave Story"
+//  Uygulama tanıtım (teaser) görsel/video hikâyelerini "Trawave Official" (mavi tik) adına
 //  paylaşır. Bu hikâyeler Durumlar şeridinde HERKESTE ilk sırada görünür (arkadaşlık gerekmez);
 //  başlıktaki isme dokunulunca @tugkancr profiline gidilir.
 //  Sunucu: admin_post_official_story / admin_delete_official_story (yalnız @tugkancr).
@@ -107,7 +107,7 @@ class _JuzzioAdminStoryTabState extends State<JuzzioAdminStoryTab> {
         _file = null;
         _caption.clear();
       });
-      _snack(_l('Juzzio Official hikâyesi yayınlandı ✔', 'Juzzio Official story published ✔', 'Juzzio-Official-Story veröffentlicht ✔'));
+      _snack(_l('Trawave Official hikâyesi yayınlandı ✔', 'Trawave Official story published ✔', 'Trawave-Official-Story veröffentlicht ✔'));
       await _load();
     } catch (e) {
       _snack(e.toString(), error: true);
@@ -154,15 +154,15 @@ class _JuzzioAdminStoryTabState extends State<JuzzioAdminStoryTab> {
                 Row(children: [
                   const Icon(Icons.auto_awesome_rounded, color: Color(0xFF1D9BF0)),
                   const SizedBox(width: 8),
-                  Text('Juzzio Story', style: TextStyle(color: tc, fontSize: 18, fontWeight: FontWeight.w900)),
+                  Text('Trawave Story', style: TextStyle(color: tc, fontSize: 18, fontWeight: FontWeight.w900)),
                   const SizedBox(width: 6),
                   const Icon(Icons.verified_rounded, color: Color(0xFF1D9BF0), size: 18),
                 ]),
                 const SizedBox(height: 6),
                 Text(
-                  _l('Tanıtım görseli veya videosu "Juzzio Official" adına, Durumlar şeridinde herkeste ilk sırada görünür. İsme dokunan @tugkancr profiline gider.',
-                      'Teaser image or video posted as "Juzzio Official" — shown first in everyone\'s Stories. Tapping the name opens @tugkancr.',
-                      'Teaser-Bild oder -Video als „Juzzio Official" – bei allen zuerst in den Storys. Tippen auf den Namen öffnet @tugkancr.'),
+                  _l('Tanıtım görseli veya videosu "Trawave Official" adına, Durumlar şeridinde herkeste ilk sırada görünür. İsme dokunan @tugkancr profiline gider.',
+                      'Teaser image or video posted as "Trawave Official" — shown first in everyone\'s Stories. Tapping the name opens @tugkancr.',
+                      'Teaser-Bild oder -Video als „Trawave Official" – bei allen zuerst in den Storys. Tippen auf den Namen öffnet @tugkancr.'),
                   style: TextStyle(color: t2, fontSize: 13, height: 1.4),
                 ),
                 const SizedBox(height: 6),
@@ -233,7 +233,7 @@ class _JuzzioAdminStoryTabState extends State<JuzzioAdminStoryTab> {
                 ]),
                 const SizedBox(height: 14),
                 JuzzioGlassButton(
-                  label: _l('Juzzio Official olarak paylaş', 'Post as Juzzio Official', 'Als Juzzio Official posten'),
+                  label: _l('Trawave Official olarak paylaş', 'Post as Trawave Official', 'Als Trawave Official posten'),
                   icon: Icons.send_rounded,
                   expand: true,
                   loading: _busy,

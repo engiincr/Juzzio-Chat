@@ -367,7 +367,7 @@ class _JuzzioWatchPartyScreenState extends State<JuzzioWatchPartyScreen> {
       setState(() {
         _viewers
           ..clear()
-          ..addAll(ids.map((id) => _profileCache[id] ?? _Viewer(id, 'Juzzio', null)));
+          ..addAll(ids.map((id) => _profileCache[id] ?? _Viewer(id, 'Trawave', null)));
       });
     }, onError: (_) {});
   }
@@ -379,7 +379,7 @@ class _JuzzioWatchPartyScreenState extends State<JuzzioWatchPartyScreen> {
       final rows = await _db.from('profiles').select('id, display_name, username, avatar_url').inFilter('id', missing);
       for (final r in rows) {
         final id = '${r['id']}';
-        final name = '${r['display_name'] ?? ''}'.trim().isNotEmpty ? '${r['display_name']}' : '${r['username'] ?? 'Juzzio'}';
+        final name = '${r['display_name'] ?? ''}'.trim().isNotEmpty ? '${r['display_name']}' : '${r['username'] ?? 'Trawave'}';
         _profileCache[id] = _Viewer(id, name, r['avatar_url']?.toString());
       }
     } catch (_) {}
@@ -1532,9 +1532,9 @@ class _WatchLinkSheetState extends State<_WatchLinkSheet> {
                     Expanded(
                       child: Text(
                         _app.trEn(
-                            'Bu içeriği izleme hakkım var (abonelik, ücretsiz yayın veya kendi videom). Korsan içerik paylaşmıyorum; Juzzio içerik barındırmaz, yalnız bağlantıyı eş zamanlar.',
-                            'I have the right to watch this (subscription, free stream or my own video). I am not sharing pirated content; Juzzio hosts nothing and only syncs the link.',
-                            'Ich habe das Recht, dies anzusehen. Keine Raubkopien; Juzzio hostet nichts und synchronisiert nur den Link.'),
+                            'Bu içeriği izleme hakkım var (abonelik, ücretsiz yayın veya kendi videom). Korsan içerik paylaşmıyorum; Trawave içerik barındırmaz, yalnız bağlantıyı eş zamanlar.',
+                            'I have the right to watch this (subscription, free stream or my own video). I am not sharing pirated content; Trawave hosts nothing and only syncs the link.',
+                            'Ich habe das Recht, dies anzusehen. Keine Raubkopien; Trawave hostet nichts und synchronisiert nur den Link.'),
                         style: const TextStyle(color: Colors.white70, fontSize: 12, height: 1.35),
                       ),
                     ),

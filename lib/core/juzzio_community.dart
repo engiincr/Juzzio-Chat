@@ -1,12 +1,12 @@
 // =============================================================================
 // JUZZIO v1.2.0 — Juzzio Topluluğu (resmî duyuru kanalı)
-//  • Sunucuda tek bir kanal odası (rooms.is_community) vardır; adı "Juzzio Community"
+//  • Sunucuda tek bir kanal odası (rooms.is_community) vardır; adı "Trawave Community"
 //    olarak saklanır ve istemcide uygulama diline göre gösterilir
-//    (TR "Juzzio Topluluğu", EN/DE/diğer "Juzzio Community").
+//    (TR "Trawave Topluluğu", EN/DE/diğer "Trawave Community").
 //  • Tüm mevcut kullanıcılar ve her yeni kayıt otomatik üye olur (SQL tetikleyicisi).
-//  • Paylaşımlar "Juzzio Official" adıyla ve uygulama logosuyla görünür; kanala yalnız
+//  • Paylaşımlar "Trawave Official" adıyla ve uygulama logosuyla görünür; kanala yalnız
 //    yöneticiler yazabilir (RLS). Her sürüm yayınında CI otomatik duyuru gönderir.
-//  • Ad sunucuda rezervedir: başka bir oda "Juzzio Community/Topluluğu" adını alamaz.
+//  • Ad sunucuda rezervedir: başka bir oda "Trawave Community/Topluluğu" adını alamaz.
 //  • v1.2.6: logo sabittir (uygulama logosu). Üyeler birbirini göremez, mesaj/tepki
 //    gönderemez; kanala yalnız sürüm güncellemesi duyuruları düşer. Tek yetkili @tugkancr.
 // =============================================================================
@@ -14,10 +14,10 @@
 import 'app_theme_and_locale.dart';
 
 /// Sunucuda saklanan kanonik ad
-const String kJuzzioCommunityTitle = 'Juzzio Community';
+const String kJuzzioCommunityTitle = 'Trawave Community';
 
 /// Kanaldaki paylaşımların gönderen adı
-const String kJuzzioOfficialName = 'Juzzio Official';
+const String kJuzzioOfficialName = 'Trawave Official';
 
 /// v1.2.6: kanalın tek yetkilisi (sunucu da yalnız bu hesabı sahip yapar)
 const String kJuzzioCommunityAdminUsername = 'tugkancr';
@@ -34,7 +34,7 @@ bool juzzioIsCommunityTitle(String? raw) {
 /// Uygulama diline göre topluluk adı
 String juzzioCommunityDisplayTitle([String? lang]) {
   final l = (lang ?? JuzzioAppController.instance.uiLang).toLowerCase();
-  return l.startsWith('tr') ? 'Juzzio Topluluğu' : kJuzzioCommunityTitle;
+  return l.startsWith('tr') ? 'Trawave Topluluğu' : kJuzzioCommunityTitle;
 }
 
 /// Oda başlığını gösterime çevirir (yalnız topluluk kanalı yerelleştirilir)

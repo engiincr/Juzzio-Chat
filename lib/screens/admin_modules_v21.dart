@@ -77,7 +77,7 @@ const List<JuzzioAdminModule> kJuzzioAdminModules = [
   JuzzioAdminModule(31, Icons.backup_rounded, 'Yedekleme ve Felaket Kurtarma', 'Backup & Recovery', info: 'backup'),
   JuzzioAdminModule(32, Icons.ads_click_rounded, 'Reklam ve Gelir', 'Ads & Revenue', info: 'ads'),
   JuzzioAdminModule(33, Icons.payments_rounded, 'Ödeme ve Abonelikler', 'Payments & Subscriptions', info: 'billing'),
-  JuzzioAdminModule(34, Icons.auto_awesome_rounded, 'Juzzio Story', 'Juzzio Story', tab: 13),
+  JuzzioAdminModule(34, Icons.auto_awesome_rounded, 'Trawave Story', 'Trawave Story', tab: 13),
 ];
 
 /// Modül verisini düz CSV satırlarına çevirir (saf; test edilir). İç içe değerler "a.b" anahtarıyla.
@@ -112,7 +112,7 @@ Future<Uint8List> juzzioAdminModulePdf({
   final regular = pw.Font.ttf(fontRegular ?? await rootBundle.load(kJuzzioPdfFontRegular));
   final bold = pw.Font.ttf(fontBold ?? await rootBundle.load(kJuzzioPdfFontBold));
   final rows = juzzioFlattenForCsv(data).skip(1).toList();
-  final doc = pw.Document(theme: pw.ThemeData.withFont(base: regular, bold: bold), title: 'Juzzio — $title', author: 'Juzzio');
+  final doc = pw.Document(theme: pw.ThemeData.withFont(base: regular, bold: bold), title: 'Trawave — $title', author: 'Trawave');
   doc.addPage(pw.MultiPage(
     pageFormat: PdfPageFormat.a4,
     margin: const pw.EdgeInsets.all(32),
@@ -120,7 +120,7 @@ Future<Uint8List> juzzioAdminModulePdf({
       padding: const pw.EdgeInsets.only(bottom: 6),
       decoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(width: 1))),
       child: pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
-        pw.Text(juzzioPdfSafeText('Juzzio · $title'), style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 13)),
+        pw.Text(juzzioPdfSafeText('Trawave · $title'), style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 13)),
         pw.Text('${english ? 'Page' : 'Sayfa'} ${ctx.pageNumber}/${ctx.pagesCount}', style: const pw.TextStyle(fontSize: 9)),
       ]),
     ),
@@ -159,7 +159,7 @@ Future<String?> juzzioSaveAdminPdf(String name, Uint8List bytes) async {
     try {
       await f.delete();
     } catch (_) {}
-    return ok ? 'Download/Juzzio/$name' : null;
+    return ok ? 'Download/Trawave/$name' : null;
   }
   Directory? dir;
   try {

@@ -51,7 +51,7 @@ class JuzzioBackupService {
   static final JuzzioBackupService instance = JuzzioBackupService._();
 
   static const String _scope = 'https://www.googleapis.com/auth/drive.appdata';
-  static const String _magic = 'JUZZIO-BACKUP';
+  static const String _magic = 'TRAWAVE-BACKUP';
   static const FlutterSecureStorage _secure = FlutterSecureStorage();
 
   final GoogleSignIn _google = GoogleSignIn(scopes: const [_scope]);
@@ -346,9 +346,9 @@ class JuzzioBackupService {
         return app.trEn('Hesabınız için yedekleme bulunamadı.', 'No backup was found for your account.',
             'Für dein Konto wurde kein Backup gefunden.');
       case 'unsupported_platform':
-        return app.trEn('Google Drive yedeği bilgisayar sürümünde yok; yedeklemeyi telefondaki Juzzio\x27dan yap.',
-            'Google Drive backup is not available on the desktop version; back up from Juzzio on your phone.',
-            'Google-Drive-Backup gibt es in der Desktop-Version nicht; sichere über Juzzio auf dem Handy.');
+        return app.trEn('Google Drive yedeği bilgisayar sürümünde yok; yedeklemeyi telefondaki Trawave\x27dan yap.',
+            'Google Drive backup is not available on the desktop version; back up from Trawave on your phone.',
+            'Google-Drive-Backup gibt es in der Desktop-Version nicht; sichere über Trawave auf dem Handy.');
       case 'corrupt':
         return app.trEn('Yedek dosyası okunamadı.', 'The backup file could not be read.', 'Backup-Datei unlesbar.');
       // v0.9.3: "erişim reddedildi" türü hatalar ayrıştırıldı

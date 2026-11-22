@@ -20,7 +20,7 @@ bool juzzioTempIsShared({required bool isWeb, required String os}) =>
 Future<Directory> juzzioTempDir() async {
   final base = await getTemporaryDirectory();
   if (!juzzioTempIsShared(isWeb: kIsWeb, os: Platform.operatingSystem)) return base;
-  final dir = Directory('${base.path}${Platform.pathSeparator}Juzzio');
+  final dir = Directory('${base.path}${Platform.pathSeparator}Trawave');
   if (!dir.existsSync()) {
     try {
       dir.createSync(recursive: true);

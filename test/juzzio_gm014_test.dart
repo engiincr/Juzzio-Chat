@@ -163,7 +163,7 @@ void main() {
 
   group('GM-014-F Keşfet (referans görsel)', () {
     final v = _read('lib/screens/social/juzzio_discover_view.dart');
-    test('üst şerit: J Juzzio + filtre · konum · şimşek; 3 sekme', () {
+    test('üst şerit: J Trawave + filtre · konum · şimşek; 3 sekme', () {
       expect(v, contains('JuzzioSpaceBrand(size: 26)'));
       for (final k in [
         'Icons.tune_rounded',
@@ -263,7 +263,7 @@ void main() {
       final body = src.substring(a, src.indexOf('\n}\n', a));
       expect(body.contains('Color(0xFF080A0F)'), isFalse);
       expect(body.contains('space.depth'), isFalse);
-      expect(body.contains('Juzzio 2.0'), isFalse);
+      expect(body.contains('Trawave 2.0'), isFalse);
       expect(body, contains('JuzzioGlassTokens.onGlow'));
     });
     test('Görünüm: gece/gündüz tek kontrol', () {
@@ -278,7 +278,7 @@ void main() {
 
   group('GM-014-K3 masaüstü geçici klasör güvenliği', () {
     test(
-        'masaüstünde geçici klasör ortak sayılır (Juzzio alt klasörü kullanılır)',
+        'masaüstünde geçici klasör ortak sayılır (Trawave alt klasörü kullanılır)',
         () {
       expect(juzzioTempIsShared(isWeb: false, os: 'windows'), isTrue);
       expect(juzzioTempIsShared(isWeb: false, os: 'macos'), isTrue);

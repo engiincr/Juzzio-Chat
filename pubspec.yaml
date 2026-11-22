@@ -112,6 +112,10 @@ flutter:
     - assets/weather/sun.png
     - assets/weather/cloud_a.png
     - assets/weather/cloud_b.png
+    # GM-036 (v2.2.0): Trawave logosu
+    - assets/brand/trawave_glyph.png
+    - assets/brand/trawave_glyph_ink.png
+    - assets/brand/trawave_icon.png
     # GM-030 (v2.2.0): HD şeffaf hava görselleri (Engin'in paketi; WebP kalite 92, özgün çözünürlük)
     - assets/weather_hd/
     # GM-031 (v2.2.0): Halloween özel teması görselleri

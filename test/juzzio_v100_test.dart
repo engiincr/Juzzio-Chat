@@ -20,7 +20,7 @@ double _contrast(Color a, Color b) {
 }
 
 void main() {
-  group('Juzzio Space tema motoru', () {
+  group('Trawave Space tema motoru', () {
     test('16 temanın hepsinde parlayan vurgu ve okunur vurgu metni var', () {
       expect(kJuzzioAuroraPalettes.length, 14); // GM-032: aynı renkli 5 tema kaldırıldı
       for (final p in kJuzzioAuroraPalettes) {
@@ -70,7 +70,7 @@ void main() {
   });
 
   group('Konum kartı', () {
-    test('Juzzio konum mesajı çözülür', () {
+    test('Trawave konum mesajı çözülür', () {
       final p = juzzioParseLocation('📍 Konumum\nhttps://maps.google.com/?q=41.008240,28.978359');
       expect(p, isNotNull);
       expect(p!.lat, closeTo(41.00824, 1e-6));

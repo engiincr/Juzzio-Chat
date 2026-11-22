@@ -939,7 +939,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       final locked = JuzzioChatLock.instance.isLocked(msg.roomId);
       final who = locked
           ? app.trEn('Kilitli sohbet', 'Locked chat', 'Gesperrter Chat')
-          : (conv == null ? 'Juzzio' : (conv.isGroup ? conv.title : (conv.partnerDisplayName ?? conv.partnerUsername ?? conv.title)));
+          : (conv == null ? 'Trawave' : (conv.isGroup ? conv.title : (conv.partnerDisplayName ?? conv.partnerUsername ?? conv.title)));
       unawaited(app.triggerSystemNotification(
         title: who,
         body: app.trEn('Yeni mesaj', 'New message', 'Neue Nachricht'),
@@ -996,7 +996,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       JuzzioNotificationStack.instance.show(
         context,
         JuzzioStackItem(
-          title: payload.title.isNotEmpty ? payload.title : 'Juzzio',
+          title: payload.title.isNotEmpty ? payload.title : 'Trawave',
           body: body,
           icon: switch (et) {
             'message' || 'group_activity' => Icons.chat_bubble_rounded,
@@ -1235,7 +1235,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     for (final c in _conversations) {
       if (c.partnerId == senderId) return c.partnerDisplayName ?? c.title;
     }
-    return JuzzioAppController.instance.trEn('Juzzio Kullanıcısı', 'Juzzio User', 'Juzzio-Nutzer');
+    return JuzzioAppController.instance.trEn('Trawave Kullanıcısı', 'Trawave User', 'Trawave-Nutzer');
   }
 
   String? _resolveAvatar(String userId) {
@@ -1574,9 +1574,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       builder: (ctx) => AlertDialog(
         title: Text(app.trEn('Şifresiz gönderilsin mi?', 'Send without encryption?', 'Ohne Verschlüsselung senden?')),
         content: Text(app.trEn(
-          'Bu kişinin uygulaması uçtan uca şifrelemeyi henüz desteklemiyor. Mesajınız ŞİFRELENMEDEN gönderilir ve sohbette "şifresiz" olarak işaretlenir. Juzzio sunucusu bu mesajın içeriğini görebilir.',
-          'This person\'s app does not support end-to-end encryption yet. Your message will be sent WITHOUT encryption and marked as "unencrypted" in the chat. The Juzzio server can see its content.',
-          'Die App dieser Person unterstützt noch keine Ende-zu-Ende-Verschlüsselung. Deine Nachricht wird OHNE Verschlüsselung gesendet und im Chat als „unverschlüsselt“ markiert. Der Juzzio-Server kann den Inhalt sehen.',
+          'Bu kişinin uygulaması uçtan uca şifrelemeyi henüz desteklemiyor. Mesajınız ŞİFRELENMEDEN gönderilir ve sohbette "şifresiz" olarak işaretlenir. Trawave sunucusu bu mesajın içeriğini görebilir.',
+          'This person\'s app does not support end-to-end encryption yet. Your message will be sent WITHOUT encryption and marked as "unencrypted" in the chat. The Trawave server can see its content.',
+          'Die App dieser Person unterstützt noch keine Ende-zu-Ende-Verschlüsselung. Deine Nachricht wird OHNE Verschlüsselung gesendet und im Chat als „unverschlüsselt“ markiert. Der Trawave-Server kann den Inhalt sehen.',
         )),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(app.trEn('Vazgeç', 'Cancel', 'Abbrechen'))),
@@ -3385,7 +3385,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
     // v0.5.0: halka yalnızca aktif (24 saat) hikâyesi olan kişide görünür
     final myHasStory = myUid != null && stories24h.any((st) => st.userId == myUid && !st.isOfficial);
-    // v0.9.3: "Juzzio Official" hikâyeleri herkeste ilk sırada, ayrı halkada
+    // v0.9.3: "Trawave Official" hikâyeleri herkeste ilk sırada, ayrı halkada
     final officialStories = stories24h.where((st) => st.isOfficial).toList()..sort((a, b) => a.createdAt.compareTo(b.createdAt));
     final officialSeen = officialStories.isNotEmpty && JuzzioStorySeen.instance.allSeen(officialStories.map((e) => e.id).toList());
     final storyOwners = <String, JuzzioStory>{};
@@ -3590,7 +3590,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                                 ),
                                 if (officialStories.isNotEmpty)
                                   JuzzioSpaceStoryAvatar(
-                                    label: 'Juzzio',
+                                    label: 'Trawave',
                                     avatar: const JuzzioOfficialAvatar(radius: 31),
                                     ring: officialSeen ? JuzzioSpaceRing.seen : JuzzioSpaceRing.story,
                                     badge: const CircleAvatar(radius: 10, backgroundColor: Colors.white, child: Icon(Icons.verified_rounded, color: Color(0xFF1D9BF0), size: 18)),
@@ -5836,7 +5836,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           case 'safety':
             final rid2 = _activeConversationRoomId;
             if (rid2 != null) {
-              JuzzioSafetyWalkScreen.open(context, roomId: rid2, roomTitle: group?.title ?? partner?.displayName ?? 'Juzzio');
+              JuzzioSafetyWalkScreen.open(context, roomId: rid2, roomTitle: group?.title ?? partner?.displayName ?? 'Trawave');
             }
             break;
           case 'contact_info':
@@ -6454,7 +6454,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     final isSwiped = _swipedMessageId == msg.id;
     final currentRoomKey = _activeConversationRoomId ?? 'no_room';
     final isRoomMuted = _mutedConversationIds.contains(currentRoomKey);
-    // v1.2.0: Juzzio Topluluğu kanalında paylaşımlar "Juzzio Official" adı ve logosuyla görünür
+    // v1.2.0: Juzzio Topluluğu kanalında paylaşımlar "Trawave Official" adı ve logosuyla görünür
     final official = _inCommunity;
     final senderLabel = official ? kJuzzioOfficialName : (msg.senderName.isNotEmpty ? msg.senderName : _resolveSenderName(msg.senderId));
     _messageCache[msg.id] = msg;
@@ -7132,9 +7132,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     if (myUid == null || msg.isDeleted) return;
     // v1.2.6: Juzzio Community resmî duyuru kanalıdır — tepki kapalı (sunucu da reddeder)
     if (_inCommunity || (_activeConversationData?.isCommunity ?? false)) {
-      _showSnack(JuzzioAppController.instance.trEn('Juzzio Topluluğu bir duyuru kanalıdır: tepki gönderilemez.',
-          'Juzzio Community is an announcement channel: reactions cannot be sent.',
-          'Die Juzzio Community ist ein Ankündigungskanal: Reaktionen sind nicht möglich.'));
+      _showSnack(JuzzioAppController.instance.trEn('Trawave Topluluğu bir duyuru kanalıdır: tepki gönderilemez.',
+          'Trawave Community is an announcement channel: reactions cannot be sent.',
+          'Die Trawave Community ist ein Ankündigungskanal: Reaktionen sind nicht möglich.'));
       return;
     }
     HapticFeedback.lightImpact();
@@ -7544,7 +7544,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     }
     final conv = _activeConversationData;
     final b = StringBuffer()
-      ..writeln('Juzzio — ${app.trEn('Sohbet dökümü', 'Chat export', 'Chat-Export')}')
+      ..writeln('Trawave — ${app.trEn('Sohbet dökümü', 'Chat export', 'Chat-Export')}')
       ..writeln('${app.trEn('Sohbet', 'Chat', 'Chat')}: ${conv?.title ?? roomId}')
       ..writeln('${app.trEn('Oluşturan', 'Exported by', 'Exportiert von')}: @${_myProfile?.username ?? ''}')
       ..writeln('${app.trEn('Tarih (UTC)', 'Date (UTC)', 'Datum (UTC)')}: ${DateTime.now().toUtc().toIso8601String()}')
@@ -10913,7 +10913,7 @@ class _JuzzioStoryViewerModalState extends State<JuzzioStoryViewerModal> {
                                 children: [
                                   Flexible(
                                     child: Text(
-                                      st.isOfficial ? 'Juzzio Official' : st.displayName,
+                                      st.isOfficial ? 'Trawave Official' : st.displayName,
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(
@@ -11281,7 +11281,7 @@ String juzzioMessagePreviewText(JuzzioMessage m, JuzzioAppController app) {
   return juzzioEllipsize(text, 121);
 }
 
-/// v0.9.3: "Juzzio Official" hesabının logolu yuvarlak avatarı
+/// v0.9.3: "Trawave Official" hesabının logolu yuvarlak avatarı
 class JuzzioOfficialAvatar extends StatelessWidget {
   final double radius;
   const JuzzioOfficialAvatar({super.key, this.radius = 20});

@@ -291,7 +291,7 @@ String _text(String code) {
     case 'chick_stage_too_low':
       return app.trEn('Bunun için civcivin biraz daha büyümeli.', 'Your chick needs to grow a bit more.');
     case 'community_read_only':
-      return app.trEn('Juzzio Topluluğu yalnız duyuru kanalıdır.', 'Juzzio Community is announcement-only.');
+      return app.trEn('Trawave Topluluğu yalnız duyuru kanalıdır.', 'Trawave Community is announcement-only.');
     case 'edit_window_expired':
       return app.trEn('Düzenleme süresi (15 dk) doldu.', 'The 15-minute edit window has passed.');
     case 'invalid_fingerprint':

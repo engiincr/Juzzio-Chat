@@ -58,7 +58,7 @@ class JuzzioPushEventPayload {
       eventType:
           (map['event_type'] ?? map['type'] ?? data['event_type'] ?? 'system')
               .toString(),
-      title: (map['title'] ?? 'Juzzio').toString(),
+      title: (map['title'] ?? 'Trawave').toString(),
       body: (map['body'] ?? '').toString(),
       targetId: (map['target_id'] ?? data['target_id'] ?? '').toString(),
       targetSecondaryId:
@@ -431,8 +431,8 @@ class JuzzioFcmPushService {
       await _channel.invokeMethod('showRichSocialNotification', {
         'id': DateTime.now().millisecondsSinceEpoch.remainder(100000),
         'title': app.trEn(
-          'Juzzio Yerel Cihaz Bildirimi',
-          'Juzzio Local Device Notification', 'Juzzio – lokale Gerätebenachrichtigung',
+          'Trawave Yerel Cihaz Bildirimi',
+          'Trawave Local Device Notification', 'Trawave – lokale Gerätebenachrichtigung',
         ),
         'body': app.trEn(
           'Bu bildirim yalnızca cihazınızdaki yerel Android bildirim kanalını doğrulamak için gösterildi (Uzaktan FCM testi değildir).',

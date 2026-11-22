@@ -11,23 +11,23 @@
 
 /// Birebir şifreli içeriğin sunulamamasının teknik ve hukuki açıklaması (rapora eklenir)
 const String juzzioTechnicalImpossibilityStatement =
-    'Juzzio birebir sohbetlerde ve aramalarda uçtan uca şifreleme kullanır (X25519 + ML-KEM-768, AES-256-GCM). '
+    'Trawave birebir sohbetlerde ve aramalarda uçtan uca şifreleme kullanır (X25519 + ML-KEM-768, AES-256-GCM). '
     'Şifre çözme anahtarları yalnız konuşmanın taraflarının cihazlarında üretilir ve saklanır; sunucuya hiçbir zaman '
-    'gönderilmez. Bu nedenle Juzzio, kurucusu ve yöneticileri dahil hiç kimse, sunucudaki birebir mesaj içeriklerini '
+    'gönderilmez. Bu nedenle Trawave, kurucusu ve yöneticileri dahil hiç kimse, sunucudaki birebir mesaj içeriklerini '
     'okuyamaz veya resmî makamlara okunur hâlde sunamaz; bu, bilginin saklanması ya da talebin reddedilmesi değil, '
-    'sistemin teknik yapısından doğan bir imkânsızlıktır. Juzzio elindeki tüm verileri (hesap, telefon, e-posta, IP, '
+    'sistemin teknik yapısından doğan bir imkânsızlıktır. Trawave elindeki tüm verileri (hesap, telefon, e-posta, IP, '
     'cihaz, giriş/çıkış ve hesap silme kayıtları, grup üyelikleri, bildirim belirteçleri, arama trafik kaydı, '
     'şifresiz grup içerikleri, şikâyet kanıtları ve dondurulmuş arşiv) eksiksiz sunar. Birebir içerik; konuşmanın '
     'taraflarından birinin cihazından (Sohbeti dışa aktar özelliği veya adli bilişim incelemesi) elde edilebilir.';
 
 /// v2.1: İngilizce sürüm (yabancı uyruklu yönetici ve yabancı makamlar için)
 const String juzzioTechnicalImpossibilityStatementEn =
-    'Juzzio uses end-to-end encryption for one-to-one chats and calls (X25519 + ML-KEM-768, AES-256-GCM). '
+    'Trawave uses end-to-end encryption for one-to-one chats and calls (X25519 + ML-KEM-768, AES-256-GCM). '
     'Decryption keys are generated and stored only on the devices of the parties to the conversation and are never '
-    'sent to the server. Therefore no one, including Juzzio, its founder and its administrators, can read one-to-one '
+    'sent to the server. Therefore no one, including Trawave, its founder and its administrators, can read one-to-one '
     'message contents on the server or provide them to authorities in readable form; this is not withholding of '
     'information or refusal of the request, but a technical impossibility arising from the design of the system. '
-    'Juzzio provides all data it holds in full (account, phone, e-mail, IP, device, sign-in/sign-out and account '
+    'Trawave provides all data it holds in full (account, phone, e-mail, IP, device, sign-in/sign-out and account '
     'deletion records, group memberships, notification tokens, call traffic records, unencrypted group content, '
     'report evidence and the preserved archive). One-to-one content can be obtained from the device of one of the '
     'parties (chat export or forensic examination).';
@@ -65,7 +65,7 @@ List<JuzzioLegalSection> juzzioLegalSections(Map<String, dynamic> b, {Map<String
   final profile = b['profile'] is Map ? Map<String, dynamic>.from(b['profile'] as Map) : const <String, dynamic>{};
   final account = b['account'] is Map ? Map<String, dynamic>.from(b['account'] as Map) : const <String, dynamic>{};
 
-  w('JUZZIO — YASAL BİLGİ TALEBİ RAPORU / LEGAL DATA REQUEST REPORT');
+  w('TRAWAVE — YASAL BİLGİ TALEBİ RAPORU / LEGAL DATA REQUEST REPORT');
   w('${L('Biçim', 'Format')}: ${_s(b['format'])}');
   w('${L('Oluşturulma (UTC)', 'Generated (UTC)')}: ${_s(b['generated_at'])}');
   w('${L('Talep gerekçesi / resmî yazı', 'Reason for request / official letter')}: ${_s(b['reason'])}');
@@ -223,8 +223,8 @@ List<JuzzioLegalSection> juzzioLegalSections(Map<String, dynamic> b, {Map<String
   h(L('ÖNEMLİ TEKNİK SINIRLAR', 'IMPORTANT TECHNICAL LIMITATIONS'));
   w(L('1) Birebir sohbet ve arama içerikleri uçtan uca şifrelidir; anahtarlar yalnız kullanıcıların cihazlarındadır.',
       '1) One-to-one chat and call contents are end-to-end encrypted; keys exist only on the users\' devices.'));
-  w(L('   Juzzio dahil hiç kimse bu içerikleri sunucudan çözemez. İçerik, ancak cihazın kendisinden (adli bilişim) elde edilebilir.',
-      '   No one, including Juzzio, can decrypt this content from the server. It can only be obtained from the device itself (forensics).'));
+  w(L('   Trawave dahil hiç kimse bu içerikleri sunucudan çözemez. İçerik, ancak cihazın kendisinden (adli bilişim) elde edilebilir.',
+      '   No one, including Trawave, can decrypt this content from the server. It can only be obtained from the device itself (forensics).'));
   w(L('2) IMEI toplanmaz: Android 10 ve sonrası uygulamaların IMEI okumasını işletim sistemi düzeyinde yasaklar.',
       '2) IMEI is not collected: Android 10 and later block apps from reading the IMEI at the OS level.'));
   w(L('   Cihaz kimliği olarak uygulamaya özgü cihaz kimliği ve model verilir; IMEI için operatör/üreticiye başvurulmalıdır.',

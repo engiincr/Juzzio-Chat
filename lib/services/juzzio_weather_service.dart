@@ -92,6 +92,10 @@ class JuzzioWeatherState {
 }
 
 class JuzzioWeatherService extends ChangeNotifier {
+  /// GM-037: yalnız hata ayıklama derlemesinde (Görünüm → "Hava önizleme") her hava türünü
+  /// gece/gündüz denemek için; yayın sürümünde hiç ayarlanmaz.
+  static final ValueNotifier<(JuzzioWeatherKind, bool)?> debugPreview = ValueNotifier(null);
+
   JuzzioWeatherService._();
   static final JuzzioWeatherService instance = JuzzioWeatherService._();
 

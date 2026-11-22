@@ -1,4 +1,4 @@
-// GM-015 — Ayarlar sayfası yeni tasarımı ("Juzzio Ayarlar" tuvali)
+// GM-015 — Ayarlar sayfası yeni tasarımı ("Trawave Ayarlar" tuvali)
 import 'dart:io';
 
 import 'package:flutter/material.dart';

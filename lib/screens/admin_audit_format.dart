@@ -335,8 +335,8 @@ JuzzioAuditLine juzzioFormatAudit(Map<String, dynamic> a, String lang) {
       // v1.2.0: Juzzio Topluluğu kanalına yönetici duyurusu
       icon = Icons.campaign_outlined;
       tone = 1;
-      sentence = t('$who Juzzio Topluluğu\'nda duyuru paylaştı', '$who posted an announcement to Juzzio Community',
-          '$who hat eine Ankündigung in der Juzzio Community geteilt');
+      sentence = t('$who Trawave Topluluğu\'nda duyuru paylaştı', '$who posted an announcement to Trawave Community',
+          '$who hat eine Ankündigung in der Trawave Community geteilt');
       add(t('Tür', 'Type', 'Typ'), d['kind']);
     case 'orphan_media_scan':
       icon = Icons.cleaning_services_outlined;

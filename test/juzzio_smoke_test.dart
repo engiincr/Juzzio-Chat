@@ -10,7 +10,7 @@ import 'package:juzzio/services/supabase_service.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('Juzzio Core Smoke Test — Config, Security, Theme & Locale Pack', () {
+  test('Trawave Core Smoke Test — Config, Security, Theme & Locale Pack', () {
     expect(JuzzioConfig.appVersion.isNotEmpty, isTrue);
     expect(JuzzioConfig.supabaseUrl.startsWith('https://'), isTrue);
     // Güvenlik: APK içine gömülü Deepgram/LiveKit gizli anahtarı bulunmamalıdır
@@ -41,7 +41,7 @@ void main() {
     expect(isNeutral(darkPalette.bgPrimary), isTrue);
   });
 
-  test('Juzzio Turkish Normalizer & Hashtag Extraction Test (Bölüm 10 & 23.2)', () {
+  test('Trawave Turkish Normalizer & Hashtag Extraction Test (Bölüm 10 & 23.2)', () {
     expect(JuzzioTurkishNormalizer.toLowerTurkish('İSTANBUL IŞIK'), equals('istanbul ışık'));
     expect(JuzzioTurkishNormalizer.matchesQuery('İstanbul Boğazı', 'istanbul'), isTrue);
     expect(JuzzioTurkishNormalizer.matchesQuery('Iğdır Doğa', 'ığdır'), isTrue);
@@ -52,7 +52,7 @@ void main() {
     expect(tags, containsAll(<String>['istanbul', 'doğa', 'seyahat2026']));
   });
 
-  test('Juzzio Social Models & State Machines Test (Bölüm 34)', () {
+  test('Trawave Social Models & State Machines Test (Bölüm 34)', () {
     final post = JuzzioPost.fromMap({
       'id': 'post_001',
       'author_id': 'user_001',
@@ -88,7 +88,7 @@ void main() {
     expect(follow.relationState, equals(JuzzioFollowRelationState.pending));
   });
 
-  test('Juzzio Settings Controller Toggles & Accessibility Test (Bölüm 29)', () {
+  test('Trawave Settings Controller Toggles & Accessibility Test (Bölüm 29)', () {
     final ctrl = JuzzioAppController.instance;
     ctrl.setReduceMotion(true);
     expect(ctrl.reduceMotion, isTrue);
@@ -108,7 +108,7 @@ void main() {
     expect(ctrl.notifySystem, isTrue);
   });
 
-  test('Juzzio FCM & Push Webhook Payload & Application ID Test (com.juzzio.app)', () {
+  test('Trawave FCM & Push Webhook Payload & Application ID Test (com.juzzio.app)', () {
     final payload = JuzzioPushEventPayload.fromMap({
       'notification_id': 'notif_001',
       'event_type': 'like',
@@ -129,7 +129,7 @@ void main() {
     expect(JuzzioFcmPushService.instance.hasRealFcmToken, isFalse);
   });
 
-  test('Juzzio özel sohbet, hikâye yanıtı ve arama modelleri', () {
+  test('Trawave özel sohbet, hikâye yanıtı ve arama modelleri', () {
     final conv = JuzzioConversation.fromMap({
       'room_id': 'room_1',
       'title': 'Ali',

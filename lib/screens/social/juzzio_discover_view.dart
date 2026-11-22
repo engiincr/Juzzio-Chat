@@ -1,7 +1,7 @@
 // =============================================================================
 // JUZZIO 2.1 — Keşfet sekmesi (tasarım: "KEŞFET")
 //  Üst: "Keşfet" başlığı · "Yeni insanlarla tanış, sohbet et, dünyayı keşfet."
-//  GM-014 (Engin'in gönderdiği KEŞFET görseli esas alındı): üstte "J Juzzio" + filtre · konum ·
+//  GM-014 (Engin'in gönderdiği KEŞFET görseli esas alındı): üstte "J Trawave" + filtre · konum ·
 //  mor şimşek düğmeleri; altında 3 sekme: Keşfet · Eşleşmeler · Beğeniler. Küresel Akış şimşek
 //  düğmesiyle açılır (özellik korunur). Filtre: yalnız çevrimiçi / dil. Konum: Keşfet görünürlüğü.
 //  Kart eylemleri: geri al · geç · süper beğeni · beğen · mesaj (profil)
@@ -255,13 +255,13 @@ class _JuzzioExploreHubState extends State<JuzzioExploreHub> {
     final feedOpen = _tab == 3;
     return Column(
       children: [
-        // GM-014: "J Juzzio" + filtre · konum · şimşek (Akış)
+        // GM-014: "J Trawave" + filtre · konum · şimşek (Akış)
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 10, 16, 0),
           child: Row(
             children: [
               // v2.2.0: marka kalan genişliğin tamamını alır (önce Spacer ile yarıya bölünüp
-              // "Juzzio" yazısının sonu siliniyordu)
+              // "Trawave" yazısının sonu siliniyordu)
               const Expanded(child: Align(alignment: Alignment.centerLeft, child: JuzzioSpaceBrand(size: 26))),
               const SizedBox(width: 8),
               JuzzioSpaceIconButton(

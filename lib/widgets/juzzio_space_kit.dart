@@ -1,5 +1,5 @@
 // =============================================================================
-// JUZZIO v1.0.0 — "Juzzio Space" bileşen kiti (Figma tasarımı)
+// JUZZIO v1.0.0 — "Trawave Space" bileşen kiti (Figma tasarımı)
 //
 //  Derin tema gradyanı üzerinde buzlu cam yüzeyler, parlayan vurgu (temaya göre lime,
 //  cyan, ametist …) ve yuvarlatılmış kare (squircle) dili. Tüm renkler
@@ -102,9 +102,9 @@ class JuzzioSpaceEyebrow extends StatelessWidget {
   }
 }
 
-/// "Juzzio." — vurgu renkli nokta ile marka yazısı
+/// "Trawave." — vurgu renkli nokta ile marka yazısı
 class JuzzioSpaceBrand extends StatelessWidget {
-  const JuzzioSpaceBrand({super.key, this.text = 'Juzzio', this.size = 36, this.dot = true});
+  const JuzzioSpaceBrand({super.key, this.text = 'Trawave', this.size = 36, this.dot = true});
   final String text;
   final double size;
   final bool dot;
@@ -113,7 +113,7 @@ class JuzzioSpaceBrand extends StatelessWidget {
   Widget build(BuildContext context) {
     // v2.1: marka adı yazılırken önüne yeşil şerit "J" logosu gelir (tasarımdaki başlık)
     final word = _word();
-    if (text != 'Juzzio') return FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: word);
+    if (text != 'Trawave') return FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: word);
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [

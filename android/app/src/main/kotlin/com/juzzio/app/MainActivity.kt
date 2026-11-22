@@ -166,7 +166,7 @@ class MainActivity : FlutterActivity() {
 
                 val msgChannel = NotificationChannel(
                     NOTIF_CHANNEL_ID,
-                    "Juzzio Anlık Mesaj & Grup Bildirimleri",
+                    "Trawave Anlık Mesaj & Grup Bildirimleri",
                     NotificationManager.IMPORTANCE_HIGH
                 ).apply {
                     description = "Birebir ve grup sohbeti bildirimleri"
@@ -178,7 +178,7 @@ class MainActivity : FlutterActivity() {
 
                 val callChannel = NotificationChannel(
                     CALL_CHANNEL_ID,
-                    "Juzzio Gelen Sesli & Görüntülü Aramalar",
+                    "Trawave Gelen Sesli & Görüntülü Aramalar",
                     NotificationManager.IMPORTANCE_HIGH
                 ).apply {
                     description = "Sesli ve görüntülü konferans arama bildirimleri"
@@ -190,7 +190,7 @@ class MainActivity : FlutterActivity() {
 
                 val socialChannel = NotificationChannel(
                     SOCIAL_CHANNEL_ID,
-                    "Juzzio Sosyal Etkileşimler (Beğeni, Yorum, Takip)",
+                    "Trawave Sosyal Etkileşimler (Beğeni, Yorum, Takip)",
                     NotificationManager.IMPORTANCE_HIGH
                 ).apply {
                     description = "Beğeni, yorum, yanıt, hikâye yanıtı ve takip isteği bildirimleri"
@@ -202,10 +202,10 @@ class MainActivity : FlutterActivity() {
 
                 val updateChannel = NotificationChannel(
                     UPDATE_CHANNEL_ID,
-                    "Juzzio OTA Sürüm Güncellemeleri",
+                    "Trawave OTA Sürüm Güncellemeleri",
                     NotificationManager.IMPORTANCE_HIGH
                 ).apply {
-                    description = "Yeni Juzzio sürümü güncelleme bildirimleri"
+                    description = "Yeni Trawave sürümü güncelleme bildirimleri"
                     enableVibration(true)
                     lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
                     setSound(defaultSoundUri, audioAttr)
@@ -224,9 +224,9 @@ class MainActivity : FlutterActivity() {
                 for (tone in MESSAGE_TONES) {
                     val uri = rawSoundUri(context, tone) ?: continue
                     nm.createNotificationChannel(NotificationChannel(
-                        "juzzio_msg_$tone", "Juzzio mesaj tonu: ${tone.removePrefix("juzzio_tone_")}", NotificationManager.IMPORTANCE_HIGH
+                        "juzzio_msg_$tone", "Trawave mesaj tonu: ${tone.removePrefix("juzzio_tone_")}", NotificationManager.IMPORTANCE_HIGH
                     ).apply {
-                        description = "Juzzio'ya özel mesaj bildirimi tonu"
+                        description = "Trawave'ya özel mesaj bildirimi tonu"
                         enableVibration(true)
                         lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
                         setSound(uri, audioAttr)
@@ -235,9 +235,9 @@ class MainActivity : FlutterActivity() {
                 for (ring in RINGTONES) {
                     val uri = rawSoundUri(context, ring) ?: continue
                     nm.createNotificationChannel(NotificationChannel(
-                        "juzzio_call_$ring", "Juzzio zil sesi: ${ring.removePrefix("juzzio_ring_")}", NotificationManager.IMPORTANCE_HIGH
+                        "juzzio_call_$ring", "Trawave zil sesi: ${ring.removePrefix("juzzio_ring_")}", NotificationManager.IMPORTANCE_HIGH
                     ).apply {
-                        description = "Juzzio'ya özel gelen arama zil sesi"
+                        description = "Trawave'ya özel gelen arama zil sesi"
                         enableVibration(true)
                         lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
                         setSound(uri, ringAttr)
@@ -364,7 +364,7 @@ class MainActivity : FlutterActivity() {
                     builder.setPublicVersion(
                         NotificationCompat.Builder(context, resolvedChannelId)
                             .setSmallIcon(smallIconRes)
-                            .setContentTitle("Juzzio")
+                            .setContentTitle("Trawave")
                             .setContentText(lockScreenBody)
                             .build()
                     )
@@ -386,7 +386,7 @@ class MainActivity : FlutterActivity() {
                 //  • gönderen fotoğrafı + adı, grupta sohbet adı başlıkta
                 //  • aynı sohbetten gelen mesajlar tek bildirimde alt alta birikir
                 val isChatEvent = (eventType == "message" || eventType == "group_activity") && targetId.isNotBlank()
-                if (isChatEvent && title != "Juzzio") {
+                if (isChatEvent && title != "Trawave") {
                     try {
                         val lang = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                             .getString(PREF_UI_LANG, null) ?: java.util.Locale.getDefault().language
@@ -533,8 +533,8 @@ class MainActivity : FlutterActivity() {
                     try {
                         val summary = NotificationCompat.Builder(context, resolvedChannelId)
                             .setSmallIcon(smallIconRes)
-                            .setContentTitle("Juzzio")
-                            .setStyle(NotificationCompat.InboxStyle().setSummaryText("Juzzio"))
+                            .setContentTitle("Trawave")
+                            .setStyle(NotificationCompat.InboxStyle().setSummaryText("Trawave"))
                             .setGroup(JUZZIO_NOTIF_GROUP)
                             .setGroupSummary(true)
                             .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_CHILDREN)
@@ -706,7 +706,7 @@ class MainActivity : FlutterActivity() {
             "intent_event_id" to rawEventId,
             "notification_id" to notifId,
             "event_type" to eventType,
-            "title" to (intent.getStringExtra("juzzio_title") ?: intent.getStringExtra("title") ?: "Juzzio"),
+            "title" to (intent.getStringExtra("juzzio_title") ?: intent.getStringExtra("title") ?: "Trawave"),
             "body" to (intent.getStringExtra("juzzio_body") ?: intent.getStringExtra("body") ?: ""),
             "target_id" to targetId,
             "target_secondary_id" to (intent.getStringExtra("juzzio_target_secondary_id") ?: intent.getStringExtra("target_secondary_id") ?: ""),
@@ -820,7 +820,7 @@ class MainActivity : FlutterActivity() {
                 "biometricAuth" -> {
                     JuzzioBiometric.prompt(
                         this,
-                        call.argument<String>("title") ?: "Juzzio",
+                        call.argument<String>("title") ?: "Trawave",
                         call.argument<String>("subtitle") ?: ""
                     ) { r -> result.success(r) }
                 }
@@ -851,7 +851,7 @@ class MainActivity : FlutterActivity() {
                 "setScreenShareForeground" -> {
                     val on = call.argument<Boolean>("on") ?: false
                     if (callActive) {
-                        JuzzioCallService.start(this, call.argument<String>("title") ?: "Juzzio", callVideo, on)
+                        JuzzioCallService.start(this, call.argument<String>("title") ?: "Trawave", callVideo, on)
                     }
                     result.success(callActive)
                 }
@@ -860,7 +860,7 @@ class MainActivity : FlutterActivity() {
                     callVideo = call.argument<Boolean>("video") ?: false
                     callActive = active
                     if (active) {
-                        JuzzioCallService.start(this, call.argument<String>("title") ?: "Juzzio", callVideo)
+                        JuzzioCallService.start(this, call.argument<String>("title") ?: "Trawave", callVideo)
                     } else {
                         JuzzioCallService.stop(this)
                     }
@@ -898,7 +898,7 @@ class MainActivity : FlutterActivity() {
                     result.success(auto)
                 }
                 "showSystemNotification" -> {
-                    val title = call.argument<String>("title") ?: "Juzzio"
+                    val title = call.argument<String>("title") ?: "Trawave"
                     val body = call.argument<String>("body") ?: ""
                     val id = call.argument<Int>("id") ?: (System.currentTimeMillis() % 100000).toInt()
                     val isUpdate = call.argument<Boolean>("isUpdate") ?: false
@@ -925,7 +925,7 @@ class MainActivity : FlutterActivity() {
                 }
                 "showRichSocialNotification" -> {
                     val id = call.argument<Int>("id") ?: (System.currentTimeMillis() % 100000).toInt()
-                    val title = call.argument<String>("title") ?: "Juzzio"
+                    val title = call.argument<String>("title") ?: "Trawave"
                     val body = call.argument<String>("body") ?: ""
                     val channelId = call.argument<String>("channelId")
                     val eventType = call.argument<String>("eventType") ?: "system"
@@ -1193,7 +1193,7 @@ class MainActivity : FlutterActivity() {
                 }
                 "shareText" -> {
                     val text = call.argument<String>("text") ?: ""
-                    val title = call.argument<String>("title") ?: "Juzzio"
+                    val title = call.argument<String>("title") ?: "Trawave"
                     try {
                         val send = Intent(Intent.ACTION_SEND).apply {
                             type = "text/plain"
@@ -1298,7 +1298,7 @@ class MainActivity : FlutterActivity() {
             if (wakeLock == null) {
                 wakeLock = pm.newWakeLock(
                     PowerManager.PARTIAL_WAKE_LOCK,
-                    "Juzzio::RealtimeBackgroundWakeLock"
+                    "Trawave::RealtimeBackgroundWakeLock"
                 ).apply {
                     setReferenceCounted(false)
                 }
@@ -1316,7 +1316,7 @@ class MainActivity : FlutterActivity() {
                     @Suppress("DEPRECATION")
                     WifiManager.WIFI_MODE_FULL_HIGH_PERF
                 }
-                wifiLock = wm.createWifiLock(lockMode, "Juzzio::RealtimeWifiLock").apply {
+                wifiLock = wm.createWifiLock(lockMode, "Trawave::RealtimeWifiLock").apply {
                     setReferenceCounted(false)
                 }
             }

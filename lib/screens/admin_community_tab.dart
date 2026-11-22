@@ -1,6 +1,6 @@
 // =============================================================================
-// JUZZIO v1.2.0 — Admin Paneli → "Juzzio Community"
-//  Juzzio Topluluğu resmî kanalına "Juzzio Official" (uygulama logosu) adına paylaşım:
+// JUZZIO v1.2.0 — Admin Paneli → "Trawave Community"
+//  Juzzio Topluluğu resmî kanalına "Trawave Official" (uygulama logosu) adına paylaşım:
 //  metin, bağlantı (URL), görsel, video, müzik veya herhangi bir dosya. "Paylaş" tüm
 //  kullanıcılara (hepsi otomatik üye) bildirimle ulaşır. Sürüm duyuruları CI tarafından
 //  otomatik gönderilir; bu sayfa elle duyurular içindir.
@@ -109,7 +109,7 @@ class _JuzzioAdminCommunityTabState extends State<JuzzioAdminCommunityTab> {
         _file = null;
         _sent++;
       });
-      _snack(_l('Juzzio Topluluğu\'nda paylaşıldı ✔', 'Shared to Juzzio Community ✔', 'In der Juzzio Community geteilt ✔'));
+      _snack(_l('Trawave Topluluğu\'nda paylaşıldı ✔', 'Shared to Trawave Community ✔', 'In der Trawave Community geteilt ✔'));
     } catch (e) {
       _snack(e.toString(), error: true);
     } finally {
@@ -156,9 +156,9 @@ class _JuzzioAdminCommunityTabState extends State<JuzzioAdminCommunityTab> {
             ]),
             const SizedBox(height: 10),
             Text(
-              _l('Buradan paylaştığın her şey Juzzio Topluluğu kanalında tüm kullanıcılara bildirimle ulaşır. Sürüm duyuruları her güncellemede otomatik gönderilir.',
-                  'Everything you share here reaches every user in the Juzzio Community channel with a notification. Release announcements are posted automatically on every update.',
-                  'Alles, was du hier teilst, erreicht alle Nutzer im Juzzio-Community-Kanal. Release-Ankündigungen werden automatisch gepostet.'),
+              _l('Buradan paylaştığın her şey Trawave Topluluğu kanalında tüm kullanıcılara bildirimle ulaşır. Sürüm duyuruları her güncellemede otomatik gönderilir.',
+                  'Everything you share here reaches every user in the Trawave Community channel with a notification. Release announcements are posted automatically on every update.',
+                  'Alles, was du hier teilst, erreicht alle Nutzer im Trawave-Community-Kanal. Release-Ankündigungen werden automatisch gepostet.'),
               style: TextStyle(color: t2, fontSize: 13, height: 1.4),
             ),
           ]),

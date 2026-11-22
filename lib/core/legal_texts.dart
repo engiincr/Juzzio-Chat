@@ -1,14 +1,14 @@
 // Otomatik üretildi: scripts/gen_legal.py — elle düzenlemeyin.
 
-const String kJuzzioPrivacyMd = r'''# Juzzio Gizlilik Politikası ve KVKK Aydınlatma Metni
+const String kJuzzioPrivacyMd = r'''# Trawave Gizlilik Politikası ve KVKK Aydınlatma Metni
 
 Son güncelleme: 15 Kasım 2026 · Uygulama sürümü: v1.2.9 (BETA · Erken Erişim)
 
-Bu metin, Juzzio mobil uygulamasının hangi kişisel verileri hangi amaçla işlediğini, kimlerle paylaştığını ve haklarınızı **olduğu gibi** açıklar. Uygulamanın kaynak kodu GitHub'da açıktır; buradaki her ifade koddan doğrulanabilir.
+Bu metin, Trawave mobil uygulamasının hangi kişisel verileri hangi amaçla işlediğini, kimlerle paylaştığını ve haklarınızı **olduğu gibi** açıklar. Uygulamanın kaynak kodu GitHub'da açıktır; buradaki her ifade koddan doğrulanabilir.
 
 ## 1. Veri sorumlusu
 
-- Juzzio, bağımsız bir geliştirici (Engin ÇIRPAN) tarafından geliştirilen bir BETA uygulamadır.
+- Trawave, bağımsız bir geliştirici (Engin ÇIRPAN) tarafından geliştirilen bir BETA uygulamadır.
 - İletişim ve başvurular: engiincr@pm.me
 - Uygulama içinden: Ayarlar → Yardım ve Destek → Hata bildir / Geri bildirim
 
@@ -68,7 +68,7 @@ Bu metin, Juzzio mobil uygulamasının hangi kişisel verileri hangi amaçla iş
 
 ## 4f. Güvenli takip, tek seferlik medya, soru kutusu, rozetler (v0.9.5)
 
-- **Güvenli takip (SOS):** Yalnız siz başlattığınızda, uygulama açıkken dakikada bir konumunuz ve pil seviyeniz sunucuya yazılır ve yalnız seçtiğiniz sohbetin üyeleri görür. Takip bitince yeni konum yazılmaz. Uyarı bildirimleri son konum bağlantısını içerir. Acil durumlarda resmî acil çağrı numarasını arayın; Juzzio bir acil durum hizmeti değildir.
+- **Güvenli takip (SOS):** Yalnız siz başlattığınızda, uygulama açıkken dakikada bir konumunuz ve pil seviyeniz sunucuya yazılır ve yalnız seçtiğiniz sohbetin üyeleri görür. Takip bitince yeni konum yazılmaz. Uyarı bildirimleri son konum bağlantısını içerir. Acil durumlarda resmî acil çağrı numarasını arayın; Trawave bir acil durum hizmeti değildir.
 - **Tek seferlik medya:** Alıcı açıp kapattığında (veya açıldıktan 5 dakika sonra, açılmazsa 14 gün sonra) dosya sunucudan kalıcı olarak silinir. Görüntülerken Android'de ekran görüntüsü engellenir; başka bir cihazla fotoğrafının çekilmesi engellenemez.
 - **Anonim soru kutusu:** Anonim soranın kimliği kutu sahibine gösterilmez. Kötüye kullanım şikâyetinde yalnız yetkili personel, erişimi kayıt altına alınarak gönderen kimliğini görebilir.
 - **Rozetler, seriler ve güven puanı:** Uygulamayı açtığınız günler ve civciv besleme günleri seri için sayılır. Güven puanı; hesap yaşı, son 30 gündeki farklı şikâyetçi sayısı ve son 90 gündeki ihlallerden şeffaf kurallarla hesaplanır, yalnız moderasyon için kullanılır.
@@ -95,7 +95,7 @@ Bu metin, Juzzio mobil uygulamasının hangi kişisel verileri hangi amaçla iş
 ## 4b. Sohbet yedeği (Google Drive)
 
 - Ayarlar → Mesajları / Sohbetleri yedekle bölümünden isteğe bağlı olarak yedek alabilirsiniz.
-- Yedek, sizin seçtiğiniz Google hesabının Drive'ındaki **gizli uygulama klasörüne** (appDataFolder) yazılır. Juzzio yalnızca bu klasöre erişim ister; Drive'daki diğer dosyalarınızı göremez.
+- Yedek, sizin seçtiğiniz Google hesabının Drive'ındaki **gizli uygulama klasörüne** (appDataFolder) yazılır. Trawave yalnızca bu klasöre erişim ister; Drive'daki diğer dosyalarınızı göremez.
 - İçerik, belirlediğiniz en az 8 karakterlik şifreden **Argon2id** ile türetilen anahtarla **AES-256-GCM** ile şifrelenir. Şifre hiçbir yere gönderilmez ve saklanmaz; unutulursa yedek açılamaz.
 - Yedek hesap kimliğinize bağlıdır; hesap silinip yeniden açılırsa eski yedek yüklenmez.
 
@@ -117,7 +117,7 @@ Bu metin, Juzzio mobil uygulamasının hangi kişisel verileri hangi amaçla iş
 
 - **Çevrimdışı önbellek:** İnternet varken Keşfet'in ilk sayfası, arama geçmişi, bildirimler, profil (gönderiler, kaydedilenler, sayaçlar), arkadaşlık listesi, görevler/hatırlatıcılar, hikâyeler ve dinlediğin profil müziği yalnız **senin cihazında, hesabına özel klasörde** saklanır; internet yokken bu kopyalar gösterilir. Oturumu kapatınca silinir. Uçtan uca şifreli içerik diske şifreli hâliyle yazılır.
 - **Çevrimdışı değişiklikler:** İnternet yokken yaptığın profil ve ayar değişiklikleri cihazda bekletilir, bağlantı gelince sunucuya yazılır.
-- **Galeriye kaydetme (varsayılan açık):** Sohbette sana gönderilen fotoğraf, video ve belgeler cihazının galerisine (Resimler/Filmler/İndirilenler › Juzzio) kaydedilir. Bu dosyalar artık cihazının ortak depolamasındadır ve galeriye erişimi olan diğer uygulamalar görebilir. Tek görüntülemelik medya **asla** kaydedilmez. Ayarlar → Sohbetler → "Medyayı galeriye kaydet" ile kapatabilirsin.
+- **Galeriye kaydetme (varsayılan açık):** Sohbette sana gönderilen fotoğraf, video ve belgeler cihazının galerisine (Resimler/Filmler/İndirilenler › Trawave) kaydedilir. Bu dosyalar artık cihazının ortak depolamasındadır ve galeriye erişimi olan diğer uygulamalar görebilir. Tek görüntülemelik medya **asla** kaydedilmez. Ayarlar → Sohbetler → "Medyayı galeriye kaydet" ile kapatabilirsin.
 - **Sohbet bildirimleri:** Bildirimde gönderenin adı, herkese açık profil fotoğrafı ve grup adı gösterilir. Bildirim önizlemesini "gizli" yaptıysan bunlar gönderilmez. "Okundu olarak işaretle" yalnız o sohbeti okundu yapar.
 
 ## 4k. Keşfet (yeni insanlarla tanışma), arkadaşlık istekleri ve "Beni hatırla" (v2.1)
@@ -129,7 +129,7 @@ Bu metin, Juzzio mobil uygulamasının hangi kişisel verileri hangi amaçla iş
 
 ## 5. Verilerin aktarıldığı hizmet sağlayıcılar
 
-Juzzio'nun çalışması için aşağıdaki hizmetler kullanılır. Bunların bir kısmı yurt dışında bulunduğundan veriler yurt dışına aktarılır; aktarım KVKK m.9 kapsamında uygun güvencelere (standart sözleşme) dayanır.
+Trawave'nun çalışması için aşağıdaki hizmetler kullanılır. Bunların bir kısmı yurt dışında bulunduğundan veriler yurt dışına aktarılır; aktarım KVKK m.9 kapsamında uygun güvencelere (standart sözleşme) dayanır.
 
 - **Supabase** (veritabanı, dosya depolama, kimlik doğrulama): hesap, mesaj ve medya verileri.
 - **LiveKit Cloud** (sesli/görüntülü arama sunucusu): arama sırasında ses ve görüntü akışı. Kayıt yapılmaz.
@@ -151,7 +151,7 @@ Juzzio'nun çalışması için aşağıdaki hizmetler kullanılır. Bunların bi
 ## 5b. Giriş kayıtları, cihaz bilgisi ve yasal talepler (v1.2.9)
 
 - **Ne kaydedilir:** her girişte ve uygulama açılışında; IP adresi, ağın ülkesi (barındırma sağlayıcısının bağlantı başlığından), cihaz markası/modeli, işletim sistemi ve uygulama sürümü, uygulamaya özgü cihaz kimliği ve zaman. Hesabınızdaki e-posta ve (varsa) telefon numarası zaten kayıtlıdır.
-- **Ne kaydedilmez:** IMEI (Android 10 ve sonrası uygulamaların IMEI okumasına izin vermez; Juzzio bunu istemez), şehir veya GPS konumu (konum yalnız siz konum paylaştığınızda mesajın içinde, uçtan uca şifreli gider), uçtan uca şifreli mesaj ve arama içerikleri.
+- **Ne kaydedilmez:** IMEI (Android 10 ve sonrası uygulamaların IMEI okumasına izin vermez; Trawave bunu istemez), şehir veya GPS konumu (konum yalnız siz konum paylaştığınızda mesajın içinde, uçtan uca şifreli gider), uçtan uca şifreli mesaj ve arama içerikleri.
 - **Amaç ve hukuki sebep:** hesap güvenliği ve kötüye kullanımın önlenmesi, hukuki yükümlülük ve yetkili makamların usulüne uygun talepleri (5651 sayılı Kanun, 5271 sayılı CMK, KVKK m.5/2-ç ve m.5/2-e). Bu kayıtlar yalnız kurucu süper yönetici tarafından, resmî talep gerekçesi girilerek ve her işlem denetim kaydına yazılarak dışa aktarılabilir.
 - **Paylaşım:** yalnız mahkeme, savcılık veya kanunen yetkili kolluk birimlerinin yazılı talebi üzerine; talepte belirtilen hesapla sınırlı olarak. Paket bütünlük özeti (SHA-256) ile verilir.
 - **Saklama:** giriş kayıtları 2 yıla kadar saklanır, sonra silinir.
@@ -190,24 +190,24 @@ Kişisel verilerinizin işlenip işlenmediğini öğrenme, işlenmişse buna ili
 
 ## 10. Çocuklar
 
-Juzzio 15 yaşından küçükler için tasarlanmamıştır. Kayıt sırasında 15 yaşından büyük olduğunuzu beyan edersiniz; yaş doğrulaması yapılmaz, beyanınız esas alınır. 18 yaşından küçükseniz Juzzio'yu veli veya vasinizin bilgisi dahilinde kullanmalısınız. 15 yaşından küçük olduğu anlaşılan hesaplar kapatılır ve verileri silinir; bunu bildirmek için engiincr@pm.me adresine yazabilirsiniz.
+Trawave 15 yaşından küçükler için tasarlanmamıştır. Kayıt sırasında 15 yaşından büyük olduğunuzu beyan edersiniz; yaş doğrulaması yapılmaz, beyanınız esas alınır. 18 yaşından küçükseniz Trawave'yu veli veya vasinizin bilgisi dahilinde kullanmalısınız. 15 yaşından küçük olduğu anlaşılan hesaplar kapatılır ve verileri silinir; bunu bildirmek için engiincr@pm.me adresine yazabilirsiniz.
 
 ## 11. Değişiklikler
 
 Bu politika değiştiğinde uygulamadaki "Güncelleme notları" bölümünde ve GitHub'da duyurulur.
 ''';
 
-const String kJuzzioTermsMd = r'''# Juzzio Kullanım Koşulları
+const String kJuzzioTermsMd = r'''# Trawave Kullanım Koşulları
 
 Son güncelleme: 10 Kasım 2026 · v1.2.3 (BETA · Erken Erişim)
 
 ## 1. Kabul
 
-Kayıt ve giriş ekranındaki zorunlu kutuyu işaretleyerek bu koşulları kabul etmiş olursunuz. Kişisel verilerinizin işlenmesine ilişkin bilgiler ayrı bir metin olan Aydınlatma Metni'nde (Gizlilik Politikası) yer alır. Juzzio bir **BETA (Erken Erişim)** uygulamasıdır; özellikler değişebilir, hatalar olabilir.
+Kayıt ve giriş ekranındaki zorunlu kutuyu işaretleyerek bu koşulları kabul etmiş olursunuz. Kişisel verilerinizin işlenmesine ilişkin bilgiler ayrı bir metin olan Aydınlatma Metni'nde (Gizlilik Politikası) yer alır. Trawave bir **BETA (Erken Erişim)** uygulamasıdır; özellikler değişebilir, hatalar olabilir.
 
 ## 2. Hesap
 
-- Juzzio'yu kullanmak için **en az 15 yaşında** olmalısınız; kayıt sırasında bunu beyan edersiniz. 18 yaşından küçükseniz Juzzio'yu veli veya vasinizin bilgisi dahilinde kullanmalısınız.
+- Trawave'yu kullanmak için **en az 15 yaşında** olmalısınız; kayıt sırasında bunu beyan edersiniz. 18 yaşından küçükseniz Trawave'yu veli veya vasinizin bilgisi dahilinde kullanmalısınız.
 - Kayıt olurken doğru bilgi vermelisiniz; hesabınızın güvenliğinden siz sorumlusunuz.
 - Uygunsuz kullanıcı adı, ad veya profil fotoğrafı kullanılamaz; sahte veya trol hesap açmak yasaktır.
 
@@ -221,13 +221,13 @@ Kayıt ve giriş ekranındaki zorunlu kutuyu işaretleyerek bu koşulları kabul
 
 - Paylaştığınız içerikten siz sorumlusunuz. İçeriğinizin hakları sizde kalır; hizmetin çalışması için gereken ölçüde (saklama, iletme, gösterme) işlenmesine izin vermiş olursunuz.
 - Kurallara aykırı içerikler kaldırılabilir, hesaplar askıya alınabilir.
-- **Telif hakkı:** Hakkına sahip olmadığınız müzik, film, dizi, maç yayını veya başka korunan içeriği paylaşamaz, Sinema Parti'de açamazsınız. Juzzio içerik barındırmaz; Sinema Parti yalnız sizin açtığınız bağlantıyı katılımcılar arasında eş zamanlar. Korsan içerik sunan alan adları engellenir.
+- **Telif hakkı:** Hakkına sahip olmadığınız müzik, film, dizi, maç yayını veya başka korunan içeriği paylaşamaz, Sinema Parti'de açamazsınız. Trawave içerik barındırmaz; Sinema Parti yalnız sizin açtığınız bağlantıyı katılımcılar arasında eş zamanlar. Korsan içerik sunan alan adları engellenir.
 - **Telif bildirimi:** Hakkınızın ihlal edildiğini düşünüyorsanız içerikteki "Şikâyet et → Telif hakkı" seçeneğiyle ya da engiincr@pm.me adresine eserin ve ihlalin bağlantısıyla bildirin. Bildirim incelenene kadar içerik gizlenebilir; tekrarlayan ihlallerde hesap kapatılır.
 - **Dosyalar:** Zararlı yazılım, betik veya çalıştırılabilir dosya (ör. .php, .jsp, .exe, .apk) göndermek yasaktır; bu dosyalar otomatik olarak engellenir.
 
 ## 5. Tüketici hakları
 
-- Juzzio ücretsizdir; uygulama içi satın alma, abonelik veya ödeme yoktur.
+- Trawave ücretsizdir; uygulama içi satın alma, abonelik veya ödeme yoktur.
 - 6502 sayılı Tüketicinin Korunması Hakkında Kanun ve ilgili mevzuattan doğan haklarınız saklıdır.
 
 ## 6. Sorumluluğun sınırlandırılması
@@ -236,13 +236,13 @@ Hizmet "olduğu gibi" sunulur. Kesintisiz veya hatasız çalışacağı garanti 
 
 ## 7. Fikri mülkiyet
 
-Juzzio'nun kaynak kodu, tasarımı, adı ve logosu telif hakkıyla korunur. Kopyalanması, çoğaltılması, dağıtılması, satılması ve türev uygulama yapılması yazılı izin olmadan yasaktır. Ayrıntılar: `LICENSE`.
+Trawave'nun kaynak kodu, tasarımı, adı ve logosu telif hakkıyla korunur. Kopyalanması, çoğaltılması, dağıtılması, satılması ve türev uygulama yapılması yazılı izin olmadan yasaktır. Ayrıntılar: `LICENSE`.
 
 ## 8. Güvenlik ihlalleri, saldırılar ve izinsiz erişim
 
 Aşağıdaki eylemler kesinlikle yasaktır ve tespit edildiğinde hesap ve cihaz kalıcı olarak engellenir, kayıtlar (IP, cihaz kimliği, zaman damgası) delil olarak saklanır ve yetkili makamlara suç duyurusunda bulunulur:
 
-- Juzzio sunucularına, veritabanına, depolama alanına veya diğer kullanıcıların hesaplarına izinsiz erişmek ya da erişmeye çalışmak (**TCK m.243 – bilişim sistemine girme**),
+- Trawave sunucularına, veritabanına, depolama alanına veya diğer kullanıcıların hesaplarına izinsiz erişmek ya da erişmeye çalışmak (**TCK m.243 – bilişim sistemine girme**),
 - Sistemin işleyişini engellemek, bozmak, verileri silmek, değiştirmek veya erişilmez kılmak; hizmet engelleme (DoS/DDoS), otomatik istek bombardımanı, kaba kuvvet denemeleri (**TCK m.244**),
 - Başkasına ait kimlik, oturum belirteci veya anahtarları kullanmak; kimlik avı (phishing) yapmak (**TCK m.245** ve **TCK m.158/1-f**),
 - Kişisel verileri hukuka aykırı olarak ele geçirmek, kaydetmek, yaymak (**TCK m.135–136**, **6698 sayılı KVKK m.12 ve m.17**),
@@ -261,16 +261,16 @@ Bu koşullar Türkiye Cumhuriyeti hukukuna tabidir. Uyuşmazlıklarda İstanbul 
 engiincr@pm.me
 ''';
 
-const String kJuzzioLicenseText = r'''JUZZIO TESCİLLİ YAZILIM LİSANSI (Tüm Hakları Saklıdır)
-Juzzio Proprietary Software License (All Rights Reserved)
+const String kJuzzioLicenseText = r'''TRAWAVE TESCİLLİ YAZILIM LİSANSI (Tüm Hakları Saklıdır)
+Trawave Proprietary Software License (All Rights Reserved)
 
-Telif Hakkı (c) 2026 Engin (@tugkancr) — Juzzio. Tüm hakları saklıdır.
-Copyright (c) 2026 Engin (@tugkancr) — Juzzio. All rights reserved.
+Telif Hakkı (c) 2026 Engin (@tugkancr) — Trawave. Tüm hakları saklıdır.
+Copyright (c) 2026 Engin (@tugkancr) — Trawave. All rights reserved.
 
 1. KAPSAM
-Bu lisans; Juzzio uygulamasının kaynak kodunu, derlenmiş uygulama paketlerini (APK
+Bu lisans; Trawave uygulamasının kaynak kodunu, derlenmiş uygulama paketlerini (APK
 dahil), veritabanı şemasını, sunucu fonksiyonlarını, tasarımını, arayüzünü, ses ve
-görsel varlıklarını, "Juzzio" adını ve logosunu ("Yazılım") kapsar. Yazılım 5846
+görsel varlıklarını, "Trawave" adını ve logosunu ("Yazılım") kapsar. Yazılım 5846
 sayılı Fikir ve Sanat Eserleri Kanunu ve uluslararası telif hakkı anlaşmalarıyla
 korunmaktadır.
 
@@ -329,17 +329,17 @@ engineering are criminal offences under Turkish law and will be prosecuted. Prov
 the Republic of Türkiye.
 ''';
 
-const String kJuzzioPrivacyMdEn = r'''# 🔐 Juzzio Privacy Policy
+const String kJuzzioPrivacyMdEn = r'''# 🔐 Trawave Privacy Policy
 
 Last updated: November 15, 2026 · App version: v1.2.9 (BETA · Early Access)
 
 > 🇹🇷 The legally binding Turkish version (Privacy Policy and KVKK Disclosure Notice) is in [docs/legal/tr/PRIVACY.md](docs/legal/tr/PRIVACY.md). In the app, the Turkish text is shown when the app language is Turkish.
 
-This document explains, **exactly as it is**, which personal data the Juzzio mobile app processes, why, who it is shared with, and what your rights are. The source code is public on GitHub, so every statement here can be verified against the code.
+This document explains, **exactly as it is**, which personal data the Trawave mobile app processes, why, who it is shared with, and what your rights are. The source code is public on GitHub, so every statement here can be verified against the code.
 
 ## 1. Data controller
 
-- Juzzio is a BETA app built by an independent developer (Engin ÇIRPAN).
+- Trawave is a BETA app built by an independent developer (Engin ÇIRPAN).
 - Contact and requests: engiincr@pm.me
 - In the app: Settings → Help & Support → Report a bug / Feedback
 
@@ -385,7 +385,7 @@ This document explains, **exactly as it is**, which personal data the Juzzio mob
 ## 4b. Chat backup (Google Drive)
 
 - You can optionally create a backup from Settings → Back up messages / chats.
-- The backup is written to the **hidden app folder** (appDataFolder) in the Google Drive of the account you choose. Juzzio only requests access to this folder and cannot see your other Drive files.
+- The backup is written to the **hidden app folder** (appDataFolder) in the Google Drive of the account you choose. Trawave only requests access to this folder and cannot see your other Drive files.
 - The content is encrypted with **AES-256-GCM** using a key derived with **Argon2id** from a password of at least 8 characters that you choose. The password is never sent or stored anywhere; if you forget it, the backup cannot be opened.
 - The backup is tied to your account ID; if the account is deleted and recreated, the old backup will not load.
 
@@ -409,7 +409,7 @@ This document explains, **exactly as it is**, which personal data the Juzzio mob
 
 ## 4f. Safety Check, view-once media, question box, badges (v0.9.5)
 
-- **Safety Check (SOS):** only when you start it, and while the app is open, your location and battery level are written to the server once a minute and are visible only to members of the chat you selected. No new location is written once it ends. Alert notifications include the last location link. In an emergency, call your official emergency number; Juzzio is not an emergency service.
+- **Safety Check (SOS):** only when you start it, and while the app is open, your location and battery level are written to the server once a minute and are visible only to members of the chat you selected. No new location is written once it ends. Alert notifications include the last location link. In an emergency, call your official emergency number; Trawave is not an emergency service.
 - **View-once media:** once the recipient opens and closes it (or 5 minutes after opening, or 14 days if never opened) the file is permanently deleted from the server. Screenshots are blocked on Android while viewing; photographing the screen with another device cannot be prevented.
 - **Anonymous question box:** the identity of an anonymous asker is never shown to the box owner. In an abuse report, only authorized staff can see the sender, and that access is logged.
 - **Badges, streaks and trust score:** the days you open the app and the days you feed your chick count toward streaks. The trust score is calculated with transparent rules from account age, distinct reporters in the last 30 days and violations in the last 90 days, and is used only for moderation.
@@ -448,7 +448,7 @@ This document explains, **exactly as it is**, which personal data the Juzzio mob
 
 - **Offline cache:** While online, the first page of Explore, call history, notifications, your profile (posts, saved, counters), friends list, tasks/reminders, stories and profile music you listened to are stored **only on your device, in a per-account folder**, and shown when you are offline. They are deleted when you sign out. End-to-end encrypted content is stored encrypted.
 - **Offline changes:** Profile and settings changes made offline are kept on the device and written to the server when you reconnect.
-- **Save to gallery (on by default):** Photos, videos and documents you receive in chats are saved to your device gallery (Pictures/Movies/Downloads › Juzzio). These files are then in shared storage and other apps with gallery access can see them. View-once media is **never** saved. Turn it off in Settings → Chats → "Save media to gallery".
+- **Save to gallery (on by default):** Photos, videos and documents you receive in chats are saved to your device gallery (Pictures/Movies/Downloads › Trawave). These files are then in shared storage and other apps with gallery access can see them. View-once media is **never** saved. Turn it off in Settings → Chats → "Save media to gallery".
 - **Chat notifications:** Notifications show the sender's name, public profile photo and group name. If your notification preview is set to hidden, none of these are sent. "Mark as read" only marks that chat as read.
 
 ## 4k. Explore (meeting new people), friend requests and "Remember me" (v2.1)
@@ -460,7 +460,7 @@ This document explains, **exactly as it is**, which personal data the Juzzio mob
 
 ## 5. Service providers that receive data
 
-The following services are used to run Juzzio. Some are located abroad, so data is transferred abroad based on appropriate safeguards (standard contractual clauses, KVKK Art. 9).
+The following services are used to run Trawave. Some are located abroad, so data is transferred abroad based on appropriate safeguards (standard contractual clauses, KVKK Art. 9).
 
 - **Supabase** (database, file storage, authentication): account, message and media data.
 - **LiveKit Cloud** (voice/video call server): audio and video streams during calls. Nothing is recorded.
@@ -482,7 +482,7 @@ The following services are used to run Juzzio. Some are located abroad, so data 
 ## 5b. Login records, device information and legal requests (v1.2.9)
 
 - **What is recorded:** at each sign-in and app start: IP address, network country (from the hosting provider's connection header), device brand/model, operating system and app version, an app-specific device ID and the time. Your account email and phone number (if any) are already stored.
-- **What is not recorded:** IMEI (Android 10+ does not allow apps to read it and Juzzio never asks), city or GPS location (location is only sent inside a message, end-to-end encrypted, when you share it), end-to-end encrypted message and call content.
+- **What is not recorded:** IMEI (Android 10+ does not allow apps to read it and Trawave never asks), city or GPS location (location is only sent inside a message, end-to-end encrypted, when you share it), end-to-end encrypted message and call content.
 - **Purpose and legal basis:** account security and abuse prevention, legal obligations and lawful requests by competent authorities (Turkish Law No. 5651, Code of Criminal Procedure No. 5271, KVKK art. 5/2-ç and 5/2-e). Only the founding super administrator can export these records, after entering the official request reference; every export is audit-logged.
 - **Disclosure:** only upon a written request from a court, prosecutor or legally authorised law-enforcement unit, limited to the account named in the request. Bundles are delivered with a SHA-256 integrity hash.
 - **Retention:** login records are kept for up to 2 years and then deleted.
@@ -519,14 +519,14 @@ You have the right to learn whether your personal data is processed, request inf
 
 ## 10. Children
 
-Juzzio is not designed for children under 15. At sign-up you confirm that you are over 15; no age verification is performed and your statement is relied on. If you are under 18, use Juzzio with your parent's or guardian's knowledge. Accounts found to belong to children under 15 are closed and their data deleted; you can report this to engiincr@pm.me.
+Trawave is not designed for children under 15. At sign-up you confirm that you are over 15; no age verification is performed and your statement is relied on. If you are under 18, use Trawave with your parent's or guardian's knowledge. Accounts found to belong to children under 15 are closed and their data deleted; you can report this to engiincr@pm.me.
 
 ## 11. Changes
 
 Changes to this policy are announced in the in-app "Release notes" section and on GitHub.
 ''';
 
-const String kJuzzioTermsMdEn = r'''# 📜 Juzzio Terms of Use
+const String kJuzzioTermsMdEn = r'''# 📜 Trawave Terms of Use
 
 Last updated: November 10, 2026 · v1.2.3 (BETA · Early Access)
 
@@ -534,11 +534,11 @@ Last updated: November 10, 2026 · v1.2.3 (BETA · Early Access)
 
 ## 1. Acceptance
 
-By ticking the required box on the sign-up and sign-in screen you accept these terms. How your personal data is processed is explained separately in the Privacy Notice (Privacy Policy). Juzzio is a **BETA (Early Access)** app; features may change and bugs may occur.
+By ticking the required box on the sign-up and sign-in screen you accept these terms. How your personal data is processed is explained separately in the Privacy Notice (Privacy Policy). Trawave is a **BETA (Early Access)** app; features may change and bugs may occur.
 
 ## 2. Account
 
-- You must be **at least 15 years old** to use Juzzio and you confirm this at sign-up. If you are under 18, use Juzzio with your parent's or guardian's knowledge.
+- You must be **at least 15 years old** to use Trawave and you confirm this at sign-up. If you are under 18, use Trawave with your parent's or guardian's knowledge.
 - You must provide accurate information when signing up; you are responsible for the security of your account.
 - Inappropriate usernames, names or profile photos may not be used; creating fake or troll accounts is prohibited.
 
@@ -552,13 +552,13 @@ By ticking the required box on the sign-up and sign-in screen you accept these t
 
 - You are responsible for the content you share. You keep the rights to your content and allow it to be processed to the extent needed to run the service (storing, delivering, displaying).
 - Content that violates the rules may be removed and accounts may be suspended.
-- **Copyright:** You may not share, or open in Cinema Party, music, films, series, sports streams or other protected content you do not have the rights to. Juzzio hosts no content; Cinema Party only synchronizes the link you open between participants. Domains offering pirated content are blocked.
+- **Copyright:** You may not share, or open in Cinema Party, music, films, series, sports streams or other protected content you do not have the rights to. Trawave hosts no content; Cinema Party only synchronizes the link you open between participants. Domains offering pirated content are blocked.
 - **Copyright notices:** If you believe your rights are infringed, use "Report → Copyright" on the content or e-mail engiincr@pm.me with links to the work and the infringement. Content may be hidden while the notice is reviewed; repeat infringers' accounts are closed.
 - **Files:** Sending malware, scripts or executable files (e.g. .php, .jsp, .exe, .apk) is prohibited; such files are blocked automatically.
 
 ## 5. Consumer rights
 
-- Juzzio is free; there are no in-app purchases, subscriptions or payments.
+- Trawave is free; there are no in-app purchases, subscriptions or payments.
 - Your rights under Turkish Consumer Protection Law No. 6502 and related legislation are reserved.
 
 ## 6. Limitation of liability
@@ -567,13 +567,13 @@ The service is provided "as is". Uninterrupted or error-free operation is not gu
 
 ## 7. Intellectual property
 
-Juzzio's source code, design, name and logo are protected by copyright. Copying, reproducing, distributing, selling or creating derivative apps without written permission is prohibited. Details: `LICENSE`.
+Trawave's source code, design, name and logo are protected by copyright. Copying, reproducing, distributing, selling or creating derivative apps without written permission is prohibited. Details: `LICENSE`.
 
 ## 8. Security breaches, attacks and unauthorized access
 
 The following actions are strictly prohibited. When detected, the account and device are permanently banned, records (IP, device ID, timestamp) are kept as evidence and a criminal complaint is filed with the competent authorities:
 
-- Accessing or attempting to access Juzzio servers, the database, storage or other users' accounts without authorization (**Turkish Penal Code Art. 243 – unauthorized access to an information system**),
+- Accessing or attempting to access Trawave servers, the database, storage or other users' accounts without authorization (**Turkish Penal Code Art. 243 – unauthorized access to an information system**),
 - Obstructing or disrupting the system, deleting, altering or making data inaccessible; denial of service (DoS/DDoS), automated request flooding, brute-force attempts (**Turkish Penal Code Art. 244**),
 - Using someone else's identity, session token or keys; phishing (**Turkish Penal Code Art. 245** and **Art. 158/1-f**),
 - Unlawfully obtaining, recording or disseminating personal data (**Turkish Penal Code Art. 135–136**, **Personal Data Protection Law No. 6698 Art. 12 and 17**),
@@ -592,16 +592,16 @@ These terms are governed by the laws of the Republic of Türkiye. Istanbul (Cent
 engiincr@pm.me
 ''';
 
-const String kJuzzioLicenseTextEn = r'''JUZZIO PROPRIETARY SOFTWARE LICENSE (All Rights Reserved)
+const String kJuzzioLicenseTextEn = r'''TRAWAVE PROPRIETARY SOFTWARE LICENSE (All Rights Reserved)
 
-Copyright (c) 2026 Engin (@tugkancr) — Juzzio. All rights reserved.
+Copyright (c) 2026 Engin (@tugkancr) — Trawave. All rights reserved.
 
 The legally binding Turkish version of this license is in docs/legal/tr/LICENSE.txt.
 
 1. SCOPE
-This license covers the source code of the Juzzio application, compiled application
+This license covers the source code of the Trawave application, compiled application
 packages (including APKs), the database schema, server functions, design, user
-interface, audio and visual assets, and the "Juzzio" name and logo (the "Software").
+interface, audio and visual assets, and the "Trawave" name and logo (the "Software").
 The Software is protected by Turkish Law No. 5846 on Intellectual and Artistic Works
 and by international copyright treaties.
 

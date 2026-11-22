@@ -259,7 +259,7 @@ Widget _resolveInitialHome() {
   final user = auth.currentUser;
   if (auth.currentSession != null && user != null) {
     final meta = user.userMetadata ?? {};
-    final uname = (meta['username'] ?? meta['display_name'] ?? user.email?.split('@').first ?? 'Juzzio User')
+    final uname = (meta['username'] ?? meta['display_name'] ?? user.email?.split('@').first ?? 'Trawave User')
         .toString()
         .replaceAll('@', '');
     final lang = (meta['preferred_lang'] ?? JuzzioAppController.instance.subtitleLang).toString();
@@ -287,7 +287,7 @@ class JuzzioApp extends StatelessWidget {
           systemNavigationBarIconBrightness: appCtrl.isDark ? Brightness.light : Brightness.dark,
         ));
         return MaterialApp(
-          title: 'Juzzio',
+          title: 'Trawave',
           // v1.3.2 masaüstü: fare/dokunmatik yüzeyle sürükleyerek kaydırma
           scrollBehavior: const JuzzioScrollBehavior(),
           // v1.2.8: hava katmanı yalnız ana ekranda (tam ekran sayfaların üstüne binmez)
@@ -426,7 +426,7 @@ class _JuzzioRootFlowState extends State<JuzzioRootFlow> {
       final uname = (meta['username'] ??
               meta['display_name'] ??
               user.email?.split('@').first ??
-              'Juzzio User')
+              'Trawave User')
           .toString()
           .replaceAll('@', '');
       final lang = (meta['preferred_lang'] ?? JuzzioAppController.instance.subtitleLang).toString();

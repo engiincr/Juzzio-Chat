@@ -157,8 +157,8 @@ class JuzzioAuthView extends StatelessWidget {
         Center(
           child: reg
               ? JuzzioAuthTitle(
-                  prefix: t('Juzzio’ya ', 'Join ', 'Willkommen bei '),
-                  mark: t('Katıl', 'Juzzio', 'Juzzio'),
+                  prefix: t('Trawave’ya ', 'Join ', 'Willkommen bei '),
+                  mark: t('Katıl', 'Trawave', 'Trawave'),
                 )
               : JuzzioAuthTitle(
                   prefix: t('Tekrar Hoş ', 'Welcome ', 'Willkommen '),
@@ -178,9 +178,9 @@ class JuzzioAuthView extends StatelessWidget {
                       'Verbinde dich mit Freunden und chatte weltweit.',
                     )
                   : t(
-                      'Juzzio hesabına giriş yap, arkadaşlarınla kaldığın yerden devam et.',
-                      'Sign in to Juzzio and pick up where you left off with your friends.',
-                      'Melde dich bei Juzzio an und mach weiter, wo du aufgehört hast.',
+                      'Trawave hesabına giriş yap, arkadaşlarınla kaldığın yerden devam et.',
+                      'Sign in to Trawave and pick up where you left off with your friends.',
+                      'Melde dich bei Trawave an und mach weiter, wo du aufgehört hast.',
                     ),
               textAlign: TextAlign.center,
               style: const TextStyle(

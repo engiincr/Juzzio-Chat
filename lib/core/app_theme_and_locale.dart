@@ -492,7 +492,7 @@ class JuzzioAppController extends ChangeNotifier {
   int _darkStartMin = 20 * 60; // 20:00
   int _darkEndMin = 7 * 60; // 07:00
   Timer? _scheduleTimer;
-  // v1.0.0: yeni kullanıcıların ilk görünümü Figma "Juzzio Space" — Zümrüt
+  // v1.0.0: yeni kullanıcıların ilk görünümü Figma "Trawave Space" — Zümrüt
   String _defaultGlassPaletteId = 'graphite_lime'; // v2.2.0 (KR-012): varsayılan tema Grafit Limon
   double _chatThemeIntensity = 1.0;
 
@@ -1576,7 +1576,7 @@ class JuzzioAppController extends ChangeNotifier {
   JuzzioCustomTheme? get globalTheme => _globalTheme;
   int get globalThemeVersion => _globalThemeVersion;
 
-  /// "Juzzio'nun önerdiği temayı kullan" (kullanıcı seçimi; kalıcı)
+  /// "Trawave'nun önerdiği temayı kullan" (kullanıcı seçimi; kalıcı)
   void setFollowGlobalTheme(bool v) {
     _followGlobalTheme = v;
     if (v) {
@@ -2264,7 +2264,7 @@ class JuzzioAppController extends ChangeNotifier {
     'Şifre değişikliği yapıldı ve başarıyla onaylandı.': 'Password has been changed and verified.',
     'Güvenlik bildirimleri': 'Security notifications',
     'Sohbetleriniz ve aramalarınız gizlidir': 'Your chats and calls are private',
-    'Uçtan uca şifreleme özelliği sayesinde kişisel mesajlarınız ve aramalarınız seçtiğiniz kişilerle aranızda kalır. JUZZIO da dahil olmak üzere sohbet dışındaki hiç kimse bu içerikleri okuyamaz, dinleyemez veya paylaşamaz. Bu içerikler arasında aşağıdakiler bulunur:': 'End-to-end encryption keeps your personal messages and calls between you and the people you choose. Not even JUZZIO can read, listen to, or share them. This includes:',
+    'Uçtan uca şifreleme özelliği sayesinde kişisel mesajlarınız ve aramalarınız seçtiğiniz kişilerle aranızda kalır. TRAWAVE da dahil olmak üzere sohbet dışındaki hiç kimse bu içerikleri okuyamaz, dinleyemez veya paylaşamaz. Bu içerikler arasında aşağıdakiler bulunur:': 'End-to-end encryption keeps your personal messages and calls between you and the people you choose. Not even TRAWAVE can read, listen to, or share them. This includes:',
     'Yazılı ve sesli mesajlarınız': 'Your text and voice messages',
     'Sesli ve görüntülü aramalarınız': 'Your audio and video calls',
     'Fotoğraf, video ve belgeleriniz': 'Your photos, videos, and documents',
@@ -2284,9 +2284,9 @@ class JuzzioAppController extends ChangeNotifier {
     'Bu işlem geri alınamaz. Hesabınız, mesaj geçmişiniz, oluşturduğunuz gruplar ve kanallar veritabanından kalıcı olarak silinecektir.': 'This action cannot be undone. Your account, chat history, and all created groups and channels will be permanently deleted from the database.',
     'Onaylıyorum': 'I Confirm',
     'Bu hesabı silerseniz:': 'If you delete this account:',
-    'Bu hesabı silerseniz hesap hem JUZZIO hem de tüm cihazlarınızdan silinir.': 'Deleting this account removes it from both JUZZIO and all your devices.',
+    'Bu hesabı silerseniz hesap hem TRAWAVE hem de tüm cihazlarınızdan silinir.': 'Deleting this account removes it from both TRAWAVE and all your devices.',
     'Sohbet geçmişiniz silinecek.': 'Your chat history will be erased.',
-    'Üyesi olduğunuz tüm JUZZIO gruplarından çıkarılırsınız.': 'You will be removed from all your JUZZIO groups.',
+    'Üyesi olduğunuz tüm TRAWAVE gruplarından çıkarılırsınız.': 'You will be removed from all your TRAWAVE groups.',
     'Oluşturduğunuz tüm grup ve tüm kanallar silinir.': 'All groups and channels you created will be deleted.',
     'Onaylamak için şifrenizi iki kez girin:': 'Enter your password twice to confirm:',
     'Şifreniz (1. Kez)': 'Your Password (1st Time)',
@@ -2331,14 +2331,14 @@ class JuzzioAppController extends ChangeNotifier {
     'Hiç kimse (Yalnızca özel davet bağlantısı gönderilebilir)': 'Nobody (Only private group invite link can be sent via message)',
     'Hiç kimse seçeneğini seçtiğinizde, sizi gruba eklemek isteyen yönetici yalnızca mesaj olarak grup davet bağlantısını gönderebilir. Bağlantıya tıkladığınızda kendi isteğiniz ile gruba katılım sağlayabilirsiniz.': 'When Nobody is selected, admins trying to add you can only send a group invite link as a chat message so you can join on your own terms.',
     'Kişiler': 'Contacts',
-    'WhatsApp / Juzzio Kişileri': 'WhatsApp / Juzzio Contacts Sync',
+    'WhatsApp / Trawave Kişileri': 'WhatsApp / Trawave Contacts Sync',
     'Kişiler, cihazlar genelinde yönetebilmeniz için hesabınıza kaydedilir. Windows / Masaüstü uygulamasında QR kodunuzu okuttuğunuzda engellenen kişiler dahil tüm listeniz senkronize gelir.': 'Contacts and blocked accounts are saved to your account so they stay synced across all devices including Windows / Desktop via QR code.',
     'Engelle': 'Block',
     'Engeli Kaldır': 'Unblock',
     'Bilinmeyen hesaplardan gelen mesajları engelle': 'Block messages from unknown accounts',
-    'Juzzio hesabınızı korumak ve cihazınızın performansını iyileştirmek için bilinmeyen hesaplardan belirli bir hacmin üzerine gelen mesajları engeller.': 'To protect your Juzzio account and device performance, blocks high-volume messages from unknown accounts.',
+    'Trawave hesabınızı korumak ve cihazınızın performansını iyileştirmek için bilinmeyen hesaplardan belirli bir hacmin üzerine gelen mesajları engeller.': 'To protect your Trawave account and device performance, blocks high-volume messages from unknown accounts.',
     'Aramalarda IP adresini koru': 'Protect IP address in calls',
-    'Konumunuzun başka kişiler tarafından tahmin edilmesini zorlaştırmak amacıyla bu cihazdan yapılan aramalar sunucuları üzerinden güvenli bir şekilde aktarılır. Bu işlem arama kalitesini düşürür.': 'To make it harder for others to infer your location, calls on this device are securely relayed through Juzzio servers. This reduces call quality.',
+    'Konumunuzun başka kişiler tarafından tahmin edilmesini zorlaştırmak amacıyla bu cihazdan yapılan aramalar sunucuları üzerinden güvenli bir şekilde aktarılır. Bu işlem arama kalitesini düşürür.': 'To make it harder for others to infer your location, calls on this device are securely relayed through Trawave servers. This reduces call quality.',
     'Bağlantı önizlemelerini devre dışı bırak': 'Disable link previews',
     'IP adresinizi üçüncü taraf web siteleri tarafından anlaşılmaya karşı korumaya yardımcı olmak için bundan böyle sohbetlerde paylaştığınız bağlantıların önizlemelerini oluşturmayacağız.': 'To help protect your IP address from being inferred by third-party websites, previews will no longer be generated for links shared in chats.',
     'Katı hesap ayarları': 'Strict account settings',
@@ -2731,8 +2731,8 @@ class JuzzioAppController extends ChangeNotifier {
             _asInt(data['versionCode']) ??
             JuzzioConfig.appVersionCode;
         final changelog = data['changelog'] is Map ? (data['changelog'] as Map) : const {};
-        final notesTr = (data['changelog_tr'] ?? changelog['tr'] ?? 'Yeni Juzzio sürümü v$remoteVer hazır!').toString();
-        final notesEn = (data['changelog_en'] ?? changelog['en'] ?? 'New Juzzio version v$remoteVer is ready!').toString();
+        final notesTr = (data['changelog_tr'] ?? changelog['tr'] ?? 'Yeni Trawave sürümü v$remoteVer hazır!').toString();
+        final notesEn = (data['changelog_en'] ?? changelog['en'] ?? 'New Trawave version v$remoteVer is ready!').toString();
         final apkUrl = (data['url'] ?? data['apkUrl'] ?? data['apkDownloadUrl'] ?? JuzzioConfig.otaDirectApkUrl).toString();
         final details = data['details'] is Map ? Map<String, dynamic>.from(data['details'] as Map) : const <String, dynamic>{};
 
@@ -3088,9 +3088,9 @@ class JuzzioAppController extends ChangeNotifier {
         await _notifChannel.invokeMethod('openInstallPermissionSettings');
       } catch (_) {}
       return trEn(
-        'Juzzio için "Bilinmeyen uygulamaları yükle" iznini açın, sonra tekrar "Güncelle"ye basın.',
-        'Allow "Install unknown apps" for Juzzio, then tap "Update" again.',
-        'Erlaube „Unbekannte Apps installieren“ für Juzzio und tippe dann erneut auf „Aktualisieren“.',
+        'Trawave için "Bilinmeyen uygulamaları yükle" iznini açın, sonra tekrar "Güncelle"ye basın.',
+        'Allow "Install unknown apps" for Trawave, then tap "Update" again.',
+        'Erlaube „Unbekannte Apps installieren“ für Trawave und tippe dann erneut auf „Aktualisieren“.',
       );
     }
     return trEn(
@@ -3380,7 +3380,7 @@ class JuzzioStrings {
 
   static final Map<String, Map<String, String>> _dict = {
     'tr': {
-      'app_name': 'Juzzio',
+      'app_name': 'Trawave',
       'skip': 'Başka zaman',
       'hey_prefix': 'Hey ',
       'new_messages_sub': '5 yeni mesajınız var',
@@ -3457,7 +3457,7 @@ class JuzzioStrings {
       'accept_req': 'Onayla',
       'reject_req': 'Reddet',
       'create_call_link': 'Arama bağlantısı oluştur',
-      'create_call_link_sub': 'Juzzio konferans aramanız için bir bağlantı paylaşın',
+      'create_call_link_sub': 'Trawave konferans aramanız için bir bağlantı paylaşın',
       'recent_calls': 'Son Aramalar',
       'call_info_title': 'Arama Bilgisi',
       'incoming_voice_call': 'Gelen Sesli Arama',
@@ -3479,8 +3479,8 @@ class JuzzioStrings {
       'accept_call': 'Aramaya Katıl',
       'decline_call': 'Reddet',
       'you_badge': 'Ben',
-      'hd_audio_call': 'Juzzio HD Sesli Görüşme',
-      'instant_translate_title': 'Juzzio Canlı Çeviri',
+      'hd_audio_call': 'Trawave HD Sesli Görüşme',
+      'instant_translate_title': 'Trawave Canlı Çeviri',
       'translation_label': 'Canlı Çeviri',
       'drag_to_move_hint': 'Taşımak için sürükleyin',
       'minimized_prefix': 'Canlı Çeviri',
@@ -3507,7 +3507,7 @@ class JuzzioStrings {
       'message_friend': 'Mesaj Gönder',
     },
     'en': {
-      'app_name': 'Juzzio',
+      'app_name': 'Trawave',
       'skip': 'Another time',
       'hey_prefix': 'Hey ',
       'new_messages_sub': 'You have 5 new messages',
@@ -3584,7 +3584,7 @@ class JuzzioStrings {
       'accept_req': 'Accept',
       'reject_req': 'Decline',
       'create_call_link': 'Create call link',
-      'create_call_link_sub': 'Share a link for your Juzzio conference call',
+      'create_call_link_sub': 'Share a link for your Trawave conference call',
       'recent_calls': 'Recent Calls',
       'call_info_title': 'Call Info',
       'incoming_voice_call': 'Incoming Voice Call',
@@ -3606,8 +3606,8 @@ class JuzzioStrings {
       'accept_call': 'Join Call',
       'decline_call': 'Decline',
       'you_badge': 'You',
-      'hd_audio_call': 'Juzzio HD Audio Call',
-      'instant_translate_title': 'Juzzio Live Translation',
+      'hd_audio_call': 'Trawave HD Audio Call',
+      'instant_translate_title': 'Trawave Live Translation',
       'translation_label': 'Live Translation',
       'drag_to_move_hint': 'Drag to move',
       'minimized_prefix': 'Live Translation',
@@ -3634,7 +3634,7 @@ class JuzzioStrings {
       'message_friend': 'Send Message',
     },
     'de': {
-      'app_name': 'Juzzio',
+      'app_name': 'Trawave',
       'skip': 'Später',
       'hey_prefix': 'Hey ',
       'new_messages_sub': 'Du hast 5 neue Nachrichten',
@@ -3711,7 +3711,7 @@ class JuzzioStrings {
       'accept_req': 'Annehmen',
       'reject_req': 'Ablehnen',
       'create_call_link': 'Anruflink erstellen',
-      'create_call_link_sub': 'Teile einen Link für deinen Juzzio-Konferenzanruf',
+      'create_call_link_sub': 'Teile einen Link für deinen Trawave-Konferenzanruf',
       'recent_calls': 'Letzte Anrufe',
       'call_info_title': 'Anrufinfo',
       'incoming_voice_call': 'Eingehender Sprachanruf',
@@ -3733,8 +3733,8 @@ class JuzzioStrings {
       'accept_call': 'Anruf beitreten',
       'decline_call': 'Ablehnen',
       'you_badge': 'Du',
-      'hd_audio_call': 'Juzzio HD-Sprachanruf',
-      'instant_translate_title': 'Juzzio Live-Übersetzung',
+      'hd_audio_call': 'Trawave HD-Sprachanruf',
+      'instant_translate_title': 'Trawave Live-Übersetzung',
       'translation_label': 'Live-Übersetzung',
       'drag_to_move_hint': 'Zum Verschieben ziehen',
       'minimized_prefix': 'Live-Übersetzung',

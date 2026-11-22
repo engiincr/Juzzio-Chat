@@ -276,9 +276,9 @@ class _JuzzioDocumentBubbleState extends State<JuzzioDocumentBubble> {
           icon: const Icon(Icons.warning_amber_rounded, color: Color(0xFFFFB020), size: 34),
           title: Text(app.trEn('Riskli dosya uyarısı', 'Risky file warning', 'Warnung: riskante Datei')),
           content: Text(app.trEn(
-            'Bu dosya, mesaj isteğini henüz kabul etmediğin, tanımadığın birinden geldi. Juzzio dosyayı açmadan önce otomatik olarak denetler; ancak hiçbir denetim tüm riskleri ortadan kaldıramaz. Dosyayı indirip açmanın sorumluluğu sana aittir.',
-            'This file comes from someone you do not know and whose message request you have not accepted yet. Juzzio checks files automatically before opening them, but no check can remove every risk. Downloading and opening the file is your own responsibility.',
-            'Diese Datei stammt von einer unbekannten Person, deren Nachrichtenanfrage du noch nicht angenommen hast. Juzzio prüft Dateien automatisch vor dem Öffnen, aber keine Prüfung schließt alle Risiken aus. Herunterladen und Öffnen geschieht auf eigene Verantwortung.',
+            'Bu dosya, mesaj isteğini henüz kabul etmediğin, tanımadığın birinden geldi. Trawave dosyayı açmadan önce otomatik olarak denetler; ancak hiçbir denetim tüm riskleri ortadan kaldıramaz. Dosyayı indirip açmanın sorumluluğu sana aittir.',
+            'This file comes from someone you do not know and whose message request you have not accepted yet. Trawave checks files automatically before opening them, but no check can remove every risk. Downloading and opening the file is your own responsibility.',
+            'Diese Datei stammt von einer unbekannten Person, deren Nachrichtenanfrage du noch nicht angenommen hast. Trawave prüft Dateien automatisch vor dem Öffnen, aber keine Prüfung schließt alle Risiken aus. Herunterladen und Öffnen geschieht auf eigene Verantwortung.',
           )),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(app.trEn('Vazgeç', 'Cancel', 'Abbrechen'))),

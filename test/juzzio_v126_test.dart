@@ -25,7 +25,7 @@ void main() {
     expect(juzzioHasRoomLogo('javascript:alert(1)'), isFalse);
   });
 
-  test('Juzzio Community: logo uygulama logosu, tek yetkili @tugkancr', () {
+  test('Trawave Community: logo uygulama logosu, tek yetkili @tugkancr', () {
     expect(kJuzzioLogoAvatar, 'asset:assets/logo/juzzio_logo.png');
     expect(File('assets/logo/juzzio_logo.png').existsSync(), isTrue);
     expect(kJuzzioCommunityAdminUsername, 'tugkancr');

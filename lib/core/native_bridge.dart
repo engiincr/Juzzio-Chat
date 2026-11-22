@@ -44,7 +44,7 @@ class JuzzioNative {
   }
 
   /// Sistem paylaşım menüsünü açar (WhatsApp, Instagram, SMS ...). Başarısızsa false.
-  static Future<bool> shareText(String text, {String title = 'Juzzio'}) async {
+  static Future<bool> shareText(String text, {String title = 'Trawave'}) async {
     try {
       final ok = await _channel.invokeMethod<bool>('shareText', {'text': text, 'title': title});
       return ok == true;

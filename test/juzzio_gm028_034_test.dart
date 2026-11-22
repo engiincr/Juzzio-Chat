@@ -113,7 +113,7 @@ void main() {
       expect(clearNight.first.asset, kJuzzioHdMoonAssets[2]);
       expect(juzzioHdWeatherLayers(JuzzioWeatherKind.clear, night: false, dark: true, moonIndex: 0).first.asset, kHdSunRise);
       expect(juzzioHdWeatherLayers(JuzzioWeatherKind.rain, night: false, dark: true, moonIndex: 0).any((l) => l.fall), isTrue);
-      expect(juzzioHdWeatherLayers(JuzzioWeatherKind.snow, night: false, dark: true, moonIndex: 0).any((l) => l.asset == kHdSnowFlakes), isTrue);
+      expect(juzzioHdWeatherLayers(JuzzioWeatherKind.snow, night: false, dark: true, moonIndex: 0).any((l) => l.asset == kHdSnowLight), isTrue);
     });
     test('şimşek kısa flaşlar (100–160 ms aralığı, 1100 ms animasyonda)', () {
       expect(juzzioBoltFlash(0), 0);

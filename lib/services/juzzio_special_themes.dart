@@ -44,7 +44,16 @@ class JuzzioSpecialThemes extends ChangeNotifier {
   bool _countryAsked = false;
   JuzzioSpecialTheme _active = JuzzioSpecialTheme.none;
 
-  JuzzioSpecialTheme get active => _active;
+  JuzzioSpecialTheme get active => _force ?? _active;
+
+  /// GM-037: yalnız hata ayıklama derlemesinde önizleme (yayında kullanılmaz)
+  JuzzioSpecialTheme? _force;
+  JuzzioSpecialTheme? get debugForced => _force;
+  void debugForce(JuzzioSpecialTheme? t) {
+    if (!kDebugMode) return;
+    _force = t;
+    notifyListeners();
+  }
   bool get turkeyEnabled => _turkeyOn;
   bool get halloweenEnabled => _halloweenOn;
 

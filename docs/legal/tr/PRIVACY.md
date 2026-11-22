@@ -1,12 +1,12 @@
-# Juzzio Gizlilik Politikası ve KVKK Aydınlatma Metni
+# Trawave Gizlilik Politikası ve KVKK Aydınlatma Metni
 
 Son güncelleme: 15 Kasım 2026 · Uygulama sürümü: v1.2.9 (BETA · Erken Erişim)
 
-Bu metin, Juzzio mobil uygulamasının hangi kişisel verileri hangi amaçla işlediğini, kimlerle paylaştığını ve haklarınızı **olduğu gibi** açıklar. Uygulamanın kaynak kodu GitHub'da açıktır; buradaki her ifade koddan doğrulanabilir.
+Bu metin, Trawave mobil uygulamasının hangi kişisel verileri hangi amaçla işlediğini, kimlerle paylaştığını ve haklarınızı **olduğu gibi** açıklar. Uygulamanın kaynak kodu GitHub'da açıktır; buradaki her ifade koddan doğrulanabilir.
 
 ## 1. Veri sorumlusu
 
-- Juzzio, bağımsız bir geliştirici (Engin ÇIRPAN) tarafından geliştirilen bir BETA uygulamadır.
+- Trawave, bağımsız bir geliştirici (Engin ÇIRPAN) tarafından geliştirilen bir BETA uygulamadır.
 - İletişim ve başvurular: engiincr@pm.me
 - Uygulama içinden: Ayarlar → Yardım ve Destek → Hata bildir / Geri bildirim
 
@@ -66,7 +66,7 @@ Bu metin, Juzzio mobil uygulamasının hangi kişisel verileri hangi amaçla iş
 
 ## 4f. Güvenli takip, tek seferlik medya, soru kutusu, rozetler (v0.9.5)
 
-- **Güvenli takip (SOS):** Yalnız siz başlattığınızda, uygulama açıkken dakikada bir konumunuz ve pil seviyeniz sunucuya yazılır ve yalnız seçtiğiniz sohbetin üyeleri görür. Takip bitince yeni konum yazılmaz. Uyarı bildirimleri son konum bağlantısını içerir. Acil durumlarda resmî acil çağrı numarasını arayın; Juzzio bir acil durum hizmeti değildir.
+- **Güvenli takip (SOS):** Yalnız siz başlattığınızda, uygulama açıkken dakikada bir konumunuz ve pil seviyeniz sunucuya yazılır ve yalnız seçtiğiniz sohbetin üyeleri görür. Takip bitince yeni konum yazılmaz. Uyarı bildirimleri son konum bağlantısını içerir. Acil durumlarda resmî acil çağrı numarasını arayın; Trawave bir acil durum hizmeti değildir.
 - **Tek seferlik medya:** Alıcı açıp kapattığında (veya açıldıktan 5 dakika sonra, açılmazsa 14 gün sonra) dosya sunucudan kalıcı olarak silinir. Görüntülerken Android'de ekran görüntüsü engellenir; başka bir cihazla fotoğrafının çekilmesi engellenemez.
 - **Anonim soru kutusu:** Anonim soranın kimliği kutu sahibine gösterilmez. Kötüye kullanım şikâyetinde yalnız yetkili personel, erişimi kayıt altına alınarak gönderen kimliğini görebilir.
 - **Rozetler, seriler ve güven puanı:** Uygulamayı açtığınız günler ve civciv besleme günleri seri için sayılır. Güven puanı; hesap yaşı, son 30 gündeki farklı şikâyetçi sayısı ve son 90 gündeki ihlallerden şeffaf kurallarla hesaplanır, yalnız moderasyon için kullanılır.
@@ -93,7 +93,7 @@ Bu metin, Juzzio mobil uygulamasının hangi kişisel verileri hangi amaçla iş
 ## 4b. Sohbet yedeği (Google Drive)
 
 - Ayarlar → Mesajları / Sohbetleri yedekle bölümünden isteğe bağlı olarak yedek alabilirsiniz.
-- Yedek, sizin seçtiğiniz Google hesabının Drive'ındaki **gizli uygulama klasörüne** (appDataFolder) yazılır. Juzzio yalnızca bu klasöre erişim ister; Drive'daki diğer dosyalarınızı göremez.
+- Yedek, sizin seçtiğiniz Google hesabının Drive'ındaki **gizli uygulama klasörüne** (appDataFolder) yazılır. Trawave yalnızca bu klasöre erişim ister; Drive'daki diğer dosyalarınızı göremez.
 - İçerik, belirlediğiniz en az 8 karakterlik şifreden **Argon2id** ile türetilen anahtarla **AES-256-GCM** ile şifrelenir. Şifre hiçbir yere gönderilmez ve saklanmaz; unutulursa yedek açılamaz.
 - Yedek hesap kimliğinize bağlıdır; hesap silinip yeniden açılırsa eski yedek yüklenmez.
 
@@ -115,7 +115,7 @@ Bu metin, Juzzio mobil uygulamasının hangi kişisel verileri hangi amaçla iş
 
 - **Çevrimdışı önbellek:** İnternet varken Keşfet'in ilk sayfası, arama geçmişi, bildirimler, profil (gönderiler, kaydedilenler, sayaçlar), arkadaşlık listesi, görevler/hatırlatıcılar, hikâyeler ve dinlediğin profil müziği yalnız **senin cihazında, hesabına özel klasörde** saklanır; internet yokken bu kopyalar gösterilir. Oturumu kapatınca silinir. Uçtan uca şifreli içerik diske şifreli hâliyle yazılır.
 - **Çevrimdışı değişiklikler:** İnternet yokken yaptığın profil ve ayar değişiklikleri cihazda bekletilir, bağlantı gelince sunucuya yazılır.
-- **Galeriye kaydetme (varsayılan açık):** Sohbette sana gönderilen fotoğraf, video ve belgeler cihazının galerisine (Resimler/Filmler/İndirilenler › Juzzio) kaydedilir. Bu dosyalar artık cihazının ortak depolamasındadır ve galeriye erişimi olan diğer uygulamalar görebilir. Tek görüntülemelik medya **asla** kaydedilmez. Ayarlar → Sohbetler → "Medyayı galeriye kaydet" ile kapatabilirsin.
+- **Galeriye kaydetme (varsayılan açık):** Sohbette sana gönderilen fotoğraf, video ve belgeler cihazının galerisine (Resimler/Filmler/İndirilenler › Trawave) kaydedilir. Bu dosyalar artık cihazının ortak depolamasındadır ve galeriye erişimi olan diğer uygulamalar görebilir. Tek görüntülemelik medya **asla** kaydedilmez. Ayarlar → Sohbetler → "Medyayı galeriye kaydet" ile kapatabilirsin.
 - **Sohbet bildirimleri:** Bildirimde gönderenin adı, herkese açık profil fotoğrafı ve grup adı gösterilir. Bildirim önizlemesini "gizli" yaptıysan bunlar gönderilmez. "Okundu olarak işaretle" yalnız o sohbeti okundu yapar.
 
 ## 4k. Keşfet (yeni insanlarla tanışma), arkadaşlık istekleri ve "Beni hatırla" (v2.1)
@@ -127,7 +127,7 @@ Bu metin, Juzzio mobil uygulamasının hangi kişisel verileri hangi amaçla iş
 
 ## 5. Verilerin aktarıldığı hizmet sağlayıcılar
 
-Juzzio'nun çalışması için aşağıdaki hizmetler kullanılır. Bunların bir kısmı yurt dışında bulunduğundan veriler yurt dışına aktarılır; aktarım KVKK m.9 kapsamında uygun güvencelere (standart sözleşme) dayanır.
+Trawave'nun çalışması için aşağıdaki hizmetler kullanılır. Bunların bir kısmı yurt dışında bulunduğundan veriler yurt dışına aktarılır; aktarım KVKK m.9 kapsamında uygun güvencelere (standart sözleşme) dayanır.
 
 - **Supabase** (veritabanı, dosya depolama, kimlik doğrulama): hesap, mesaj ve medya verileri.
 - **LiveKit Cloud** (sesli/görüntülü arama sunucusu): arama sırasında ses ve görüntü akışı. Kayıt yapılmaz.
@@ -149,7 +149,7 @@ Juzzio'nun çalışması için aşağıdaki hizmetler kullanılır. Bunların bi
 ## 5b. Giriş kayıtları, cihaz bilgisi ve yasal talepler (v1.2.9)
 
 - **Ne kaydedilir:** her girişte ve uygulama açılışında; IP adresi, ağın ülkesi (barındırma sağlayıcısının bağlantı başlığından), cihaz markası/modeli, işletim sistemi ve uygulama sürümü, uygulamaya özgü cihaz kimliği ve zaman. Hesabınızdaki e-posta ve (varsa) telefon numarası zaten kayıtlıdır.
-- **Ne kaydedilmez:** IMEI (Android 10 ve sonrası uygulamaların IMEI okumasına izin vermez; Juzzio bunu istemez), şehir veya GPS konumu (konum yalnız siz konum paylaştığınızda mesajın içinde, uçtan uca şifreli gider), uçtan uca şifreli mesaj ve arama içerikleri.
+- **Ne kaydedilmez:** IMEI (Android 10 ve sonrası uygulamaların IMEI okumasına izin vermez; Trawave bunu istemez), şehir veya GPS konumu (konum yalnız siz konum paylaştığınızda mesajın içinde, uçtan uca şifreli gider), uçtan uca şifreli mesaj ve arama içerikleri.
 - **Amaç ve hukuki sebep:** hesap güvenliği ve kötüye kullanımın önlenmesi, hukuki yükümlülük ve yetkili makamların usulüne uygun talepleri (5651 sayılı Kanun, 5271 sayılı CMK, KVKK m.5/2-ç ve m.5/2-e). Bu kayıtlar yalnız kurucu süper yönetici tarafından, resmî talep gerekçesi girilerek ve her işlem denetim kaydına yazılarak dışa aktarılabilir.
 - **Paylaşım:** yalnız mahkeme, savcılık veya kanunen yetkili kolluk birimlerinin yazılı talebi üzerine; talepte belirtilen hesapla sınırlı olarak. Paket bütünlük özeti (SHA-256) ile verilir.
 - **Saklama:** giriş kayıtları 2 yıla kadar saklanır, sonra silinir.
@@ -188,7 +188,7 @@ Kişisel verilerinizin işlenip işlenmediğini öğrenme, işlenmişse buna ili
 
 ## 10. Çocuklar
 
-Juzzio 15 yaşından küçükler için tasarlanmamıştır. Kayıt sırasında 15 yaşından büyük olduğunuzu beyan edersiniz; yaş doğrulaması yapılmaz, beyanınız esas alınır. 18 yaşından küçükseniz Juzzio'yu veli veya vasinizin bilgisi dahilinde kullanmalısınız. 15 yaşından küçük olduğu anlaşılan hesaplar kapatılır ve verileri silinir; bunu bildirmek için engiincr@pm.me adresine yazabilirsiniz.
+Trawave 15 yaşından küçükler için tasarlanmamıştır. Kayıt sırasında 15 yaşından büyük olduğunuzu beyan edersiniz; yaş doğrulaması yapılmaz, beyanınız esas alınır. 18 yaşından küçükseniz Trawave'yu veli veya vasinizin bilgisi dahilinde kullanmalısınız. 15 yaşından küçük olduğu anlaşılan hesaplar kapatılır ve verileri silinir; bunu bildirmek için engiincr@pm.me adresine yazabilirsiniz.
 
 ## 11. Değişiklikler
 

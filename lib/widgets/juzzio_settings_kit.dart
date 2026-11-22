@@ -5,7 +5,7 @@
 //  • Harf aralıklı BÜYÜK HARF bölüm etiketleri (SOHBETLER VE BİLDİRİMLER, GÖRÜNÜM VE DİL…)
 //  • Satırlar kartsız: yuvarlak ikon dairesi · kalın başlık · altında açıklama/değer · sağda ok
 //  • Arkada hava katmanı (bulut/güneş/yağmur/ay) — sayfa JuzzioAuroraPage ile gelir
-// Önceki GM-015 kiti ("Juzzio Ayarlar" tuvali, GM-011 Ana çizim tahtası)
+// Önceki GM-015 kiti ("Trawave Ayarlar" tuvali, GM-011 Ana çizim tahtası)
 //  • Sola hizalı büyük başlık + cam geri / QR düğmeleri
 //  • Güçlü cam profil kartı: tema vurgulu halkalı avatar, ad + onay, "@kullanıcı · Profili ve hesabı düzenle"
 //  • "Ayarlarda ara" cam arama kutusu (satır başlığı ve açıklamasında arar)

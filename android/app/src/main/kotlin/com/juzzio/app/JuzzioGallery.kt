@@ -27,9 +27,9 @@ object JuzzioGallery {
             val safeMime = if (Regex("^[a-z]+/[a-z0-9.+-]+$").matches(mime)) mime else "application/octet-stream"
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 val (collection, rel) = when (kind) {
-                    "image" -> MediaStore.Images.Media.EXTERNAL_CONTENT_URI to "${Environment.DIRECTORY_PICTURES}/Juzzio"
-                    "video" -> MediaStore.Video.Media.EXTERNAL_CONTENT_URI to "${Environment.DIRECTORY_MOVIES}/Juzzio"
-                    else -> MediaStore.Downloads.EXTERNAL_CONTENT_URI to "${Environment.DIRECTORY_DOWNLOADS}/Juzzio"
+                    "image" -> MediaStore.Images.Media.EXTERNAL_CONTENT_URI to "${Environment.DIRECTORY_PICTURES}/Trawave"
+                    "video" -> MediaStore.Video.Media.EXTERNAL_CONTENT_URI to "${Environment.DIRECTORY_MOVIES}/Trawave"
+                    else -> MediaStore.Downloads.EXTERNAL_CONTENT_URI to "${Environment.DIRECTORY_DOWNLOADS}/Trawave"
                 }
                 val values = ContentValues().apply {
                     put(MediaStore.MediaColumns.DISPLAY_NAME, safeName)
@@ -61,7 +61,7 @@ object JuzzioGallery {
                         else -> Environment.DIRECTORY_DOWNLOADS
                     }
                 )
-                val dir = File(base, "Juzzio")
+                val dir = File(base, "Trawave")
                 if (!dir.exists() && !dir.mkdirs()) return false
                 val dst = File(dir, safeName)
                 src.inputStream().use { input -> dst.outputStream().use { input.copyTo(it) } }

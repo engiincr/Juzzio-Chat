@@ -215,7 +215,7 @@ class _JuzzioDownloadActionState extends State<JuzzioDownloadAction> {
     final app = JuzzioAppController.instance;
     ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(
       content: Text(ok
-          ? app.trEn('Galeriye kaydedildi (Juzzio klasörü).', 'Saved to your gallery (Juzzio folder).', 'In der Galerie gespeichert (Ordner Juzzio).')
+          ? app.trEn('Galeriye kaydedildi (Trawave klasörü).', 'Saved to your gallery (Trawave folder).', 'In der Galerie gespeichert (Ordner Trawave).')
           : app.trEn('Kaydedilemedi. Lütfen tekrar deneyin.', 'Could not be saved. Please try again.', 'Konnte nicht gespeichert werden.')),
     ));
   }

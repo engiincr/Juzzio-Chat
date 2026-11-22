@@ -25,6 +25,7 @@ import '../core/app_theme_and_locale.dart';
 import '../core/config.dart';
 import '../core/notification_text.dart';
 import '../main.dart';
+import '../widgets/juzzio_weather_hd.dart' show JuzzioWeatherDebugPreview;
 import '../widgets/juzzio_consent.dart';
 import 'creator_reel_page.dart';
 import '../services/juzzio_weather_service.dart';
@@ -135,7 +136,7 @@ class _JuzzioSettingsMainPageState extends State<JuzzioSettingsMainPage> {
     return JuzzioFeaturesService.permissionSet(perms).isNotEmpty;
   }();
 
-  // GM-015 (tasarım: "Juzzio Ayarlar" tuvali, GM-011 Ana) — sola hizalı başlık, güçlü cam profil
+  // GM-015 (tasarım: "Trawave Ayarlar" tuvali, GM-011 Ana) — sola hizalı başlık, güçlü cam profil
   // kartı, "Ayarlarda ara", BÜYÜK HARF bölümler, ikon karolu cam satırlar. Tüm temalar + gece/gündüz.
   final TextEditingController _search = TextEditingController();
   String _query = '';
@@ -399,7 +400,7 @@ class _JuzzioSettingsMainPageState extends State<JuzzioSettingsMainPage> {
             ),
             const SizedBox(height: 12),
             Text(
-              _l3('Hesap: @$uname\nWindows için Juzzio uygulamasında QR kodunuzu okuttuğunuzda sohbetleriniz, kişileriniz ve engellenenler listeniz anında senkronize olur.', 'Account: @$uname\nWhen you scan your QR code in the Juzzio app for Windows, your chats, contacts and block list sync instantly.', 'Konto: @$uname\nWenn du deinen QR-Code in der Juzzio-App für Windows scannst, werden Chats, Kontakte und Blockierliste sofort synchronisiert.'),
+              _l3('Hesap: @$uname\nWindows için Trawave uygulamasında QR kodunuzu okuttuğunuzda sohbetleriniz, kişileriniz ve engellenenler listeniz anında senkronize olur.', 'Account: @$uname\nWhen you scan your QR code in the Trawave app for Windows, your chats, contacts and block list sync instantly.', 'Konto: @$uname\nWenn du deinen QR-Code in der Trawave-App für Windows scannst, werden Chats, Kontakte und Blockierliste sofort synchronisiert.'),
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontFamily: JuzzioConfig.fontRegularBold,
@@ -2524,7 +2525,7 @@ class JuzzioSecurityNotificationsPage extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      JuzzioAppController.instance.loc('Uçtan uca şifreleme özelliği sayesinde kişisel mesajlarınız ve aramalarınız seçtiğiniz kişilerle aranızda kalır. JUZZIO da dahil olmak üzere sohbet dışındaki hiç kimse bu içerikleri okuyamaz, dinleyemez veya paylaşamaz. Bu içerikler arasında aşağıdakiler bulunur:', 'End-to-end encryption keeps your personal messages and calls between you and the people you choose. Not even JUZZIO can read, listen to, or share them. This includes:', 'Ende-zu-Ende-Verschlüsselung hält deine persönlichen Nachrichten und Anrufe zwischen dir und den Personen, die du auswählst. Nicht einmal JUZZIO kann sie lesen, anhören oder weitergeben. Dazu gehören:'),
+                      JuzzioAppController.instance.loc('Uçtan uca şifreleme özelliği sayesinde kişisel mesajlarınız ve aramalarınız seçtiğiniz kişilerle aranızda kalır. TRAWAVE da dahil olmak üzere sohbet dışındaki hiç kimse bu içerikleri okuyamaz, dinleyemez veya paylaşamaz. Bu içerikler arasında aşağıdakiler bulunur:', 'End-to-end encryption keeps your personal messages and calls between you and the people you choose. Not even TRAWAVE can read, listen to, or share them. This includes:', 'Ende-zu-Ende-Verschlüsselung hält deine persönlichen Nachrichten und Anrufe zwischen dir und den Personen, die du auswählst. Nicht einmal TRAWAVE kann sie lesen, anhören oder weitergeben. Dazu gehören:'),
                       textAlign: TextAlign.left,
                       style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textSecondary,
                         fontSize: 13.5,
@@ -2986,9 +2987,9 @@ class _JuzzioDeleteAccountPageState extends State<JuzzioDeleteAccountPage> {
                   ],
                 ),
                 const SizedBox(height: 14),
-                _dangerBullet(p, _l3('Bu hesabı silerseniz hesap hem JUZZIO hem de tüm cihazlarınızdan silinir.', 'If you delete this account, it will be removed from JUZZIO and all your devices.', 'Wenn du dieses Konto löschst, wird es aus JUZZIO und von all deinen Geräten entfernt.')),
+                _dangerBullet(p, _l3('Bu hesabı silerseniz hesap hem TRAWAVE hem de tüm cihazlarınızdan silinir.', 'If you delete this account, it will be removed from TRAWAVE and all your devices.', 'Wenn du dieses Konto löschst, wird es aus TRAWAVE und von all deinen Geräten entfernt.')),
                 _dangerBullet(p, _l3('Sohbet geçmişiniz silinecek.', 'Your chat history will be deleted.', 'Dein Chatverlauf wird gelöscht.')),
-                _dangerBullet(p, _l3('Üyesi olduğunuz tüm JUZZIO gruplarından çıkarılırsınız.', 'You will be removed from all JUZZIO groups you belong to.', 'Du wirst aus allen JUZZIO-Gruppen entfernt, in denen du Mitglied bist.')),
+                _dangerBullet(p, _l3('Üyesi olduğunuz tüm TRAWAVE gruplarından çıkarılırsınız.', 'You will be removed from all TRAWAVE groups you belong to.', 'Du wirst aus allen TRAWAVE-Gruppen entfernt, in denen du Mitglied bist.')),
                 _dangerBullet(p, _l3('Oluşturduğunuz tüm grup ve tüm kanallar silinir.', 'All groups and channels you created will be deleted.', 'Alle von dir erstellten Gruppen und Kanäle werden gelöscht.')),
                 const Divider(height: 28),
                 Text(
@@ -3884,7 +3885,7 @@ class _JuzzioContactsAndBlockedPageState extends State<JuzzioContactsAndBlockedP
                       contentPadding: EdgeInsets.zero,
                       activeColor: p.amberGlow,
                       title: Text(
-                        JuzzioAppController.instance.loc('WhatsApp / Juzzio Kişileri', 'WhatsApp / Juzzio Contacts Sync', 'WhatsApp-/Juzzio-Kontaktsynchronisation'),
+                        JuzzioAppController.instance.loc('WhatsApp / Trawave Kişileri', 'WhatsApp / Trawave Contacts Sync', 'WhatsApp-/Trawave-Kontaktsynchronisation'),
                         style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w800),
                       ),
                       subtitle: Text(
@@ -4033,7 +4034,7 @@ class JuzzioAdvancedPrivacyPage extends StatelessWidget {
                         style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w800),
                       ),
                       subtitle: Text(
-                        JuzzioAppController.instance.loc('Juzzio hesabınızı korumak ve cihazınızın performansını iyileştirmek için bilinmeyen hesaplardan belirli bir hacmin üzerine gelen mesajları engeller.', 'To protect your Juzzio account and device performance, blocks high-volume messages from unknown accounts.', 'Zum Schutz deines Juzzio-Kontos und der Geräteleistung werden massenhafte Nachrichten von unbekannten Konten blockiert.'),
+                        JuzzioAppController.instance.loc('Trawave hesabınızı korumak ve cihazınızın performansını iyileştirmek için bilinmeyen hesaplardan belirli bir hacmin üzerine gelen mesajları engeller.', 'To protect your Trawave account and device performance, blocks high-volume messages from unknown accounts.', 'Zum Schutz deines Trawave-Kontos und der Geräteleistung werden massenhafte Nachrichten von unbekannten Konten blockiert.'),
                         style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textSecondary, fontSize: 12),
                       ),
                       value: appCtrl.blockUnknownVolumeMessages,
@@ -4047,7 +4048,7 @@ class JuzzioAdvancedPrivacyPage extends StatelessWidget {
                         style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w800),
                       ),
                       subtitle: Text(
-                        JuzzioAppController.instance.loc('Konumunuzun başka kişiler tarafından tahmin edilmesini zorlaştırmak amacıyla bu cihazdan yapılan aramalar sunucuları üzerinden güvenli bir şekilde aktarılır. Bu işlem arama kalitesini düşürür.', 'To make it harder for others to infer your location, calls on this device are securely relayed through Juzzio servers. This reduces call quality.', 'Damit andere deinen Standort schwerer ermitteln können, werden Anrufe auf diesem Gerät sicher über Juzzio-Server geleitet. Dadurch sinkt die Anrufqualität.'),
+                        JuzzioAppController.instance.loc('Konumunuzun başka kişiler tarafından tahmin edilmesini zorlaştırmak amacıyla bu cihazdan yapılan aramalar sunucuları üzerinden güvenli bir şekilde aktarılır. Bu işlem arama kalitesini düşürür.', 'To make it harder for others to infer your location, calls on this device are securely relayed through Trawave servers. This reduces call quality.', 'Damit andere deinen Standort schwerer ermitteln können, werden Anrufe auf diesem Gerät sicher über Trawave-Server geleitet. Dadurch sinkt die Anrufqualität.'),
                         style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textSecondary, fontSize: 12),
                       ),
                       value: appCtrl.protectIpInCalls,
@@ -4500,9 +4501,9 @@ class JuzzioChatsSettingsPage extends StatelessWidget {
                         style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textPrimary, fontWeight: FontWeight.w700),
                       ),
                       subtitle: Text(
-                        _l3('Sohbette gelen fotoğraf, video ve belgeler Galeri › Juzzio klasörüne kaydedilir ve internet yokken de açılır. Tek görüntülemelik medya kaydedilmez.',
-                            'Photos, videos and documents you receive are saved to Gallery › Juzzio and open offline too. View-once media is never saved.',
-                            'Empfangene Fotos, Videos und Dokumente werden in Galerie › Juzzio gespeichert und sind offline verfügbar.'),
+                        _l3('Sohbette gelen fotoğraf, video ve belgeler Galeri › Trawave klasörüne kaydedilir ve internet yokken de açılır. Tek görüntülemelik medya kaydedilmez.',
+                            'Photos, videos and documents you receive are saved to Gallery › Trawave and open offline too. View-once media is never saved.',
+                            'Empfangene Fotos, Videos und Dokumente werden in Galerie › Trawave gespeichert und sind offline verfügbar.'),
                         style: TextStyle(fontFamily: JuzzioConfig.fontRegularBold, color: p.textSecondary, fontSize: 12),
                       ),
                     ),
@@ -4856,9 +4857,9 @@ class JuzzioChatBackupPage extends StatelessWidget {
                   Icons.cloud_rounded,
                   app.trEn('Mesajların nerede saklanır?', 'Where are messages stored?', 'Wo werden Nachrichten gespeichert?'),
                   app.trEn(
-                    'Mesajlar, fotoğraflar ve sesli mesajlar Juzzio sunucusunda (Supabase) saklanır. Bu yüzden ayrıca "yedekle" demene gerek yoktur.',
-                    'Messages, photos and voice notes are stored on the Juzzio server (Supabase), so there is no separate "back up" step.',
-                    'Nachrichten, Fotos und Sprachnachrichten liegen auf dem Juzzio-Server (Supabase); ein separates Backup ist nicht nötig.',
+                    'Mesajlar, fotoğraflar ve sesli mesajlar Trawave sunucusunda (Supabase) saklanır. Bu yüzden ayrıca "yedekle" demene gerek yoktur.',
+                    'Messages, photos and voice notes are stored on the Trawave server (Supabase), so there is no separate "back up" step.',
+                    'Nachrichten, Fotos und Sprachnachrichten liegen auf dem Trawave-Server (Supabase); ein separates Backup ist nicht nötig.',
                   ),
                 ),
                 item(
@@ -5063,6 +5064,7 @@ class JuzzioAppearanceSettingsPage extends StatelessWidget {
                     );
                   },
                 ),
+                const JuzzioWeatherDebugPreview(), // GM-037: yalnız hata ayıklama derlemesinde
               ]),
               // ---- 2) UYGULAMA TEMASI ----
               _section(p, _l3('Uygulama teması', 'App theme', 'App-Design'), Icons.palette_rounded, [
@@ -5094,7 +5096,7 @@ class JuzzioAppearanceSettingsPage extends StatelessWidget {
                     value: appCtrl.followGlobalTheme && appCtrl.activeCustomTheme == null,
                     onChanged: appCtrl.setFollowGlobalTheme,
                     secondary: Icon(Icons.public_rounded, color: JuzzioGlassTokens.glowText),
-                    title: Text(appCtrl.trEn('Juzzio\'nun önerdiği tema', 'Juzzio recommended theme', 'Empfohlenes Design'), style: title),
+                    title: Text(appCtrl.trEn('Trawave\'nun önerdiği tema', 'Trawave recommended theme', 'Empfohlenes Design'), style: title),
                     subtitle: Text('${appCtrl.globalTheme!.name} · v${appCtrl.globalThemeVersion}', style: sub),
                   ),
                 ],
@@ -5481,8 +5483,8 @@ class JuzzioNotificationsSettingsPage extends StatelessWidget {
                         ),
                         subtitle: Text(
                           appCtrl.trEn(
-                            'Android sistem ayarlarından Juzzio için bildirim iznini açın.',
-                            'Enable notification permission for Juzzio in Android system settings.', 'Aktiviere die Benachrichtigungsberechtigung für Juzzio in den Android-Systemeinstellungen.',
+                            'Android sistem ayarlarından Trawave için bildirim iznini açın.',
+                            'Enable notification permission for Trawave in Android system settings.', 'Aktiviere die Benachrichtigungsberechtigung für Trawave in den Android-Systemeinstellungen.',
                           ),
                           style: TextStyle(color: p.textSecondary, fontSize: 12),
                         ),
@@ -5621,7 +5623,7 @@ class JuzzioNotificationsSettingsPage extends StatelessWidget {
                       (
                         'hidden',
                         appCtrl.trEn('Gizli', 'Hidden', 'Verborgen'),
-                        appCtrl.trEn('"Juzzio: Yeni mesaj" — gönderen adı da gösterilmez.', '"Juzzio: New message" — sender name hidden too.', '"Juzzio: Neue Nachricht" — auch der Absender ist verborgen.'),
+                        appCtrl.trEn('"Trawave: Yeni mesaj" — gönderen adı da gösterilmez.', '"Trawave: New message" — sender name hidden too.', '"Trawave: Neue Nachricht" — auch der Absender ist verborgen.'),
                       ),
                     ])
                       RadioListTile<String>(
@@ -5957,7 +5959,7 @@ class JuzzioHelpAndSupportPage extends StatelessWidget {
                       trailing: Icon(Icons.copy_rounded, color: JuzzioGlassTokens.glowText, size: 19),
                       onTap: () {
                         final inviteText =
-                            _l3('Juzzio uygulamasında beni @$username kullanıcı adımla ekle! Canlı çevirili görüntülü konuşalım. Uygulama: https://github.com/engiincr/Juzzio-Chat/releases/latest', 'Add me on Juzzio with my username @$username! Let\'s video chat with live translation. App: https://github.com/engiincr/Juzzio-Chat/releases/latest', 'Füge mich auf Juzzio mit meinem Benutzernamen @$username hinzu! Lass uns per Video mit Live-Übersetzung sprechen. App: https://github.com/engiincr/Juzzio-Chat/releases/latest');
+                            _l3('Trawave uygulamasında beni @$username kullanıcı adımla ekle! Canlı çevirili görüntülü konuşalım. Uygulama: https://github.com/engiincr/Juzzio-Chat/releases/latest', 'Add me on Trawave with my username @$username! Let\'s video chat with live translation. App: https://github.com/engiincr/Juzzio-Chat/releases/latest', 'Füge mich auf Trawave mit meinem Benutzernamen @$username hinzu! Lass uns per Video mit Live-Übersetzung sprechen. App: https://github.com/engiincr/Juzzio-Chat/releases/latest');
                         Clipboard.setData(ClipboardData(text: inviteText));
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
@@ -6211,7 +6213,7 @@ class JuzzioDeveloperPage extends StatelessWidget {
                               child: Row(mainAxisSize: MainAxisSize.min, children: [
                                 Container(width: 8, height: 8, decoration: const BoxDecoration(color: Color(0xFF34C759), shape: BoxShape.circle)),
                                 const SizedBox(width: 6),
-                                Text(app.trEn('Juzzio\'nun yapımcısı', 'Creator of Juzzio', 'Schöpfer von Juzzio'),
+                                Text(app.trEn('Trawave\'nun yapımcısı', 'Creator of Trawave', 'Schöpfer von Trawave'),
                                     style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 12)),
                               ]),
                             ),
@@ -6237,9 +6239,9 @@ class JuzzioDeveloperPage extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 6),
                   child: Text(
                     app.trEn(
-                      'Juzzio\'yu fikirden yayına tek başıma tasarladım, kodladım ve yayınlıyorum. Amacım dil engeli olmadan, reklamsız ve güvenli bir iletişim deneyimi.',
-                      'I designed, coded and ship Juzzio on my own — from idea to release. The goal: ad-free, secure communication without language barriers.',
-                      'Ich habe Juzzio allein entworfen, programmiert und veröffentlicht.'),
+                      'Trawave\'yu fikirden yayına tek başıma tasarladım, kodladım ve yayınlıyorum. Amacım dil engeli olmadan, reklamsız ve güvenli bir iletişim deneyimi.',
+                      'I designed, coded and ship Trawave on my own — from idea to release. The goal: ad-free, secure communication without language barriers.',
+                      'Ich habe Trawave allein entworfen, programmiert und veröffentlicht.'),
                     style: TextStyle(color: t2, fontSize: 13.5, height: 1.45),
                   ),
                 ),
@@ -6299,7 +6301,7 @@ class JuzzioDeveloperPage extends StatelessWidget {
               Divider(height: 1, color: JuzzioGlassTokens.border),
               // v2.1 (Faz 9.2): açık kaynak lisansları
               link(Icons.workspace_premium_outlined, app.trEn('Açık kaynak lisansları', 'Open-source licences', 'Open-Source-Lizenzen'),
-                  () => showLicensePage(context: context, applicationName: 'Juzzio', applicationVersion: 'v${JuzzioConfig.appVersion}')),
+                  () => showLicensePage(context: context, applicationName: 'Trawave', applicationVersion: 'v${JuzzioConfig.appVersion}')),
               Divider(height: 1, color: JuzzioGlassTokens.border),
               link(Icons.bug_report_rounded, app.trEn('Hata bildir / Geri bildirim', 'Report a bug / Feedback', 'Feedback'),
                   () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const JuzzioFeedbackPage()))),

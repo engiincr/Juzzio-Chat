@@ -28,7 +28,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   Win32Window::Point origin(10, 10);
   // Juzzio telefon için tasarlandı: pencere telefon oranında açılır (yeniden boyutlandırılabilir)
   Win32Window::Size size(440, 900);
-  if (!window.Create(L"Juzzio", origin, size)) {
+  if (!window.Create(L"Trawave", origin, size)) {
     return EXIT_FAILURE;
   }
   window.SetQuitOnClose(true);

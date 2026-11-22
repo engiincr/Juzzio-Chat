@@ -51,7 +51,7 @@ class JuzzioCallColors {
 
 bool get _reduceMotion => JuzzioAppController.instance.reduceMotion;
 
-/// Ortadaki "J Juzzio" marka başlığı (koyu zemin üstünde)
+/// Ortadaki "J Trawave" marka başlığı (koyu zemin üstünde)
 class JuzzioCallBrand extends StatelessWidget {
   const JuzzioCallBrand({super.key, this.size = 20, this.caption});
   final double size;
@@ -559,7 +559,7 @@ class JuzzioCallActionButton extends StatelessWidget {
 }
 
 /// GM-9276 — Tam ekran gelen arama (design/references/gm9276_gelen_arama.png):
-/// "J Juzzio · sesli arama", eş merkezli halkalı vurgu kenarlı avatar, ad, "seni arıyor…",
+/// "J Trawave · sesli arama", eş merkezli halkalı vurgu kenarlı avatar, ad, "seni arıyor…",
 /// "Canlı çeviri hazır" + "EN → TR" cam hapları, "Mesajla yanıtla" / "Sonra hatırlat",
 /// kırmızı Reddet / vurgu Yanıtla. Zemin temanın aurora sahnesi, yüzeyler Liquid Glass (KR-009).
 class JuzzioIncomingCallView extends StatelessWidget {

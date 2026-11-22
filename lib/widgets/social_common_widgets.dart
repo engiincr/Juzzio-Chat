@@ -648,9 +648,9 @@ Future<bool?> showJuzzioReportModalSheet({
                       style: TextStyle(color: JuzzioSocialTokens.textPrimary(isDark), fontSize: 13.5, fontWeight: FontWeight.w700),
                     ),
                     subtitle: Text(
-                      app.loc('Sohbet uçtan uca şifrelidir; Juzzio içeriği yalnız sen eklersen görebilir. Eklenen mesajlar inceleme ve yasal süreçlerde kullanılabilir.',
-                          'The chat is end-to-end encrypted; Juzzio can only see the content if you attach it. Attached messages may be used for review and legal proceedings.',
-                          'Der Chat ist Ende-zu-Ende-verschlüsselt; Juzzio sieht den Inhalt nur, wenn du ihn anhängst.'),
+                      app.loc('Sohbet uçtan uca şifrelidir; Trawave içeriği yalnız sen eklersen görebilir. Eklenen mesajlar inceleme ve yasal süreçlerde kullanılabilir.',
+                          'The chat is end-to-end encrypted; Trawave can only see the content if you attach it. Attached messages may be used for review and legal proceedings.',
+                          'Der Chat ist Ende-zu-Ende-verschlüsselt; Trawave sieht den Inhalt nur, wenn du ihn anhängst.'),
                       style: TextStyle(color: JuzzioSocialTokens.textSecondary(isDark), fontSize: 11.5),
                     ),
                   ),

@@ -94,8 +94,8 @@ class JuzzioCallSettingsPage extends StatelessWidget {
                   JuzzioNeonRow.toggle(
                     icon: Icons.shield_outlined,
                     title: app.trEn('Aramalarda IP adresini koru', 'Protect IP address in calls', 'IP-Adresse in Anrufen schützen'),
-                    subtitle: app.trEn('Bağlantı Juzzio sunucusu üzerinden aktarılır', 'Calls are relayed through Juzzio servers',
-                        'Anrufe laufen über Juzzio-Server'),
+                    subtitle: app.trEn('Bağlantı Trawave sunucusu üzerinden aktarılır', 'Calls are relayed through Trawave servers',
+                        'Anrufe laufen über Trawave-Server'),
                     value: app.protectIpInCalls,
                     onChanged: app.setProtectIpInCalls,
                   ),
@@ -1105,9 +1105,9 @@ class _JuzzioConsentCenterPageState extends State<JuzzioConsentCenterPage> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      app.trEn('Juzzio 15 yaş ve üzeri içindir. Kayıtta yaş beyanı alınır; 15 yaşından küçük olduğu anlaşılan hesaplar kapatılır.',
-                          'Juzzio is for ages 15 and over. Age is declared at sign-up; accounts found to be under 15 are closed.',
-                          'Juzzio ist ab 15 Jahren. Konten unter 15 werden geschlossen.'),
+                      app.trEn('Trawave 15 yaş ve üzeri içindir. Kayıtta yaş beyanı alınır; 15 yaşından küçük olduğu anlaşılan hesaplar kapatılır.',
+                          'Trawave is for ages 15 and over. Age is declared at sign-up; accounts found to be under 15 are closed.',
+                          'Trawave ist ab 15 Jahren. Konten unter 15 werden geschlossen.'),
                       style: TextStyle(color: JuzzioGlassTokens.heading, fontSize: 13.5, height: 1.35),
                     ),
                   ),
@@ -1161,7 +1161,7 @@ class JuzzioFaqCard extends StatelessWidget {
     final app = JuzzioAppController.instance;
     final items = <(String, String)>[
       (
-        app.trEn('Mesajlarımı Juzzio okuyabilir mi?', 'Can Juzzio read my messages?', 'Kann Juzzio meine Nachrichten lesen?'),
+        app.trEn('Mesajlarımı Trawave okuyabilir mi?', 'Can Trawave read my messages?', 'Kann Trawave meine Nachrichten lesen?'),
         app.trEn('Hayır. Mesajlar uçtan uca şifrelidir; anahtarlar yalnız cihazlarındadır. Çeviriyi açtığında metin yalnız çeviri için çeviri hizmetine gönderilir.',
             'No. Messages are end-to-end encrypted; keys stay on your devices. When you use translation, text is sent to the translation service only to translate it.',
             'Nein. Nachrichten sind Ende-zu-Ende-verschlüsselt. Bei Übersetzung wird Text nur dafür an den Übersetzungsdienst gesendet.'),

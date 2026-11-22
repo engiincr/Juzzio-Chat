@@ -382,7 +382,7 @@ void main() {
       }
       final pdf = _src('lib/services/juzzio_legal_pdf.dart');
       expect(pdf.contains('juzzio_logo.png\','), isFalse);
-      expect(pdf.contains('Bu belge Juzzio Sistemleri tarafından resmi makamların talebi üzerine otomatik olarak oluşturulmuştur.'), isTrue);
+      expect(pdf.contains('Bu belge Trawave Sistemleri tarafından resmi makamların talebi üzerine otomatik olarak oluşturulmuştur.'), isTrue);
       expect(pdf.contains('Uçtan uca şifreleme sebebiyle birebir sohbet içerikleri sunucuda barındırılmamakta ve okunamamaktadır.'), isTrue);
       final tab = _src('lib/screens/admin_god_tab.dart');
       expect(tab.contains('juzzioBuildEncryptedZip(files, password)'), isTrue);
@@ -394,7 +394,7 @@ void main() {
     test('hata bildirimi yönetici paneline gider (güncelleme sayfasına değil)', () {
       expect(juzzioIsAdminSystemNotice('admin_error|TimeoutException: LiveKit'), isTrue);
       expect(juzzioIsAdminSystemNotice('🛠 Yeni hata kaydı TimeoutException'), isTrue);
-      expect(juzzioIsAdminSystemNotice('Juzzio v1.2.9 yayınlandı'), isFalse);
+      expect(juzzioIsAdminSystemNotice('Trawave v1.2.9 yayınlandı'), isFalse);
       expect(_src('lib/screens/settings_suite_screens.dart').contains('openJuzzioAdminPanel(context, initialTab: kJuzzioAdminErrorsTab)'), isTrue);
     });
     test('yedek aktarıcı kalıcı tercih edilmez; mikrofon yayını yeniden denenir', () {

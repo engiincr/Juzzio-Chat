@@ -159,7 +159,7 @@ class _JuzzioBusinessOnboardingPageState extends State<JuzzioBusinessOnboardingP
       (Icons.lock_outline_rounded, _t('Kişisel sohbetlerin ve uçtan uca şifrelemen DEĞİŞMEZ', 'Your personal chats and end-to-end encryption stay unchanged', 'Private Chats und E2EE bleiben unverändert')),
     ];
     return ListView(padding: const EdgeInsets.all(20), children: [
-      Text(_t('Juzzio Business', 'Juzzio Business', 'Juzzio Business'),
+      Text(_t('Trawave Business', 'Trawave Business', 'Trawave Business'),
           style: TextStyle(color: p.textPrimary, fontSize: 26, fontWeight: FontWeight.w900)),
       const SizedBox(height: 6),
       Text(_t('Aynı hesap, aynı uygulama. Business ücretsizdir; istediğin an Personal görünüme dönebilirsin.',
@@ -286,8 +286,8 @@ class _JuzzioBusinessOnboardingPageState extends State<JuzzioBusinessOnboardingP
   Widget _preparing(JuzzioPalette p) {
     final st = _svc.state;
     final screens = <(IconData, String, String)>[
-      (Icons.rocket_launch_rounded, _t('Juzzio Business yolculuğun başlıyor.', 'Your Juzzio Business journey begins.', 'Deine Business-Reise beginnt.'),
-          _t('Profesyonel deneyimini hazırlıyoruz. Birkaç küçük ayarlamadan sonra Juzzio Business dünyasına hoş geldin diyeceğiz.',
+      (Icons.rocket_launch_rounded, _t('Trawave Business yolculuğun başlıyor.', 'Your Trawave Business journey begins.', 'Deine Business-Reise beginnt.'),
+          _t('Profesyonel deneyimini hazırlıyoruz. Birkaç küçük ayarlamadan sonra Trawave Business dünyasına hoş geldin diyeceğiz.',
               'We are preparing your professional experience.', 'Wir bereiten dein Erlebnis vor.')),
       (Icons.badge_rounded, _t('Profesyonel profilin hazırlanıyor.', 'Preparing your professional profile.', 'Profil wird vorbereitet.'),
           _t('Profil bilgilerini ve profesyonel çalışma alanını düzenliyoruz.', 'Arranging your profile and workspace.', 'Profil und Arbeitsbereich.')),
@@ -341,11 +341,11 @@ class _JuzzioBusinessOnboardingPageState extends State<JuzzioBusinessOnboardingP
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Icon(Icons.celebration_rounded, size: 90, color: p.amberGlow),
             const SizedBox(height: 16),
-            Text(_t('Juzzio Business\'a hoş geldin!', 'Welcome to Juzzio Business!', 'Willkommen bei Juzzio Business!'),
+            Text(_t('Trawave Business\'a hoş geldin!', 'Welcome to Trawave Business!', 'Willkommen bei Trawave Business!'),
                 textAlign: TextAlign.center, style: TextStyle(color: p.textPrimary, fontSize: 22, fontWeight: FontWeight.w900)),
             const SizedBox(height: 8),
-            Text(_t('Artık Juzzio\'yu profesyonel ihtiyaçlarına göre kullanabilirsin.', 'You can now use Juzzio for your professional needs.',
-                'Du kannst Juzzio jetzt beruflich nutzen.'), textAlign: TextAlign.center, style: TextStyle(color: p.textSecondary)),
+            Text(_t('Artık Trawave\'yu profesyonel ihtiyaçlarına göre kullanabilirsin.', 'You can now use Trawave for your professional needs.',
+                'Du kannst Trawave jetzt beruflich nutzen.'), textAlign: TextAlign.center, style: TextStyle(color: p.textSecondary)),
             const SizedBox(height: 20),
             FilledButton.icon(
               icon: const Icon(Icons.arrow_forward_rounded),

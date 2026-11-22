@@ -1,6 +1,6 @@
 // =============================================================================
 // JUZZIO v2.2.0 — GM-034: Yönetici Paneli "Genel Bakış" (Engin'in referans görseli)
-//  Başlık: "J Juzzio | Admin Panel" + arama · bildirim · çıkış
+//  Başlık: "J Trawave | Admin Panel" + arama · bildirim · çıkış
 //  Karşılama: fotoğraf (ışıklı halka), "Hoş geldin," ad + mavi tik, "Sistem Yöneticisi" rozeti;
 //  özel gün teması açıksa sağda dekor (Halloween şatosu / Türk bayrağı)
 //  Üst sekmeler: Genel Bakış · Kullanıcılar · Raporlar · Yasaklamalar · Güvenlik · Sistem Sağlığı · Ayarlar

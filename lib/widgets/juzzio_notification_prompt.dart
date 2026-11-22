@@ -64,11 +64,11 @@ class JuzzioNotificationPrompt {
           ),
           content: Text(
             t(
-              'Yeni mesajları ve gelen aramaları kaçırmaman için Juzzio bildirim göndermek istiyor. '
+              'Yeni mesajları ve gelen aramaları kaçırmaman için Trawave bildirim göndermek istiyor. '
                   'İstediğin zaman Ayarlar’dan değiştirebilirsin; izin vermesen de uygulama çalışmaya devam eder.',
-              'Juzzio would like to notify you about new messages and incoming calls. '
+              'Trawave would like to notify you about new messages and incoming calls. '
                   'You can change this anytime in Settings; the app keeps working either way.',
-              'Juzzio möchte dich über neue Nachrichten und eingehende Anrufe informieren. '
+              'Trawave möchte dich über neue Nachrichten und eingehende Anrufe informieren. '
                   'Du kannst das jederzeit in den Einstellungen ändern; die App funktioniert so oder so.',
             ),
           ),

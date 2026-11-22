@@ -1,14 +1,14 @@
-# 🔐 Juzzio Privacy Policy
+# 🔐 Trawave Privacy Policy
 
 Last updated: November 15, 2026 · App version: v1.2.9 (BETA · Early Access)
 
 > 🇹🇷 The legally binding Turkish version (Privacy Policy and KVKK Disclosure Notice) is in [docs/legal/tr/PRIVACY.md](docs/legal/tr/PRIVACY.md). In the app, the Turkish text is shown when the app language is Turkish.
 
-This document explains, **exactly as it is**, which personal data the Juzzio mobile app processes, why, who it is shared with, and what your rights are. The source code is public on GitHub, so every statement here can be verified against the code.
+This document explains, **exactly as it is**, which personal data the Trawave mobile app processes, why, who it is shared with, and what your rights are. The source code is public on GitHub, so every statement here can be verified against the code.
 
 ## 1. Data controller
 
-- Juzzio is a BETA app built by an independent developer (Engin ÇIRPAN).
+- Trawave is a BETA app built by an independent developer (Engin ÇIRPAN).
 - Contact and requests: engiincr@pm.me
 - In the app: Settings → Help & Support → Report a bug / Feedback
 
@@ -54,7 +54,7 @@ This document explains, **exactly as it is**, which personal data the Juzzio mob
 ## 4b. Chat backup (Google Drive)
 
 - You can optionally create a backup from Settings → Back up messages / chats.
-- The backup is written to the **hidden app folder** (appDataFolder) in the Google Drive of the account you choose. Juzzio only requests access to this folder and cannot see your other Drive files.
+- The backup is written to the **hidden app folder** (appDataFolder) in the Google Drive of the account you choose. Trawave only requests access to this folder and cannot see your other Drive files.
 - The content is encrypted with **AES-256-GCM** using a key derived with **Argon2id** from a password of at least 8 characters that you choose. The password is never sent or stored anywhere; if you forget it, the backup cannot be opened.
 - The backup is tied to your account ID; if the account is deleted and recreated, the old backup will not load.
 
@@ -78,7 +78,7 @@ This document explains, **exactly as it is**, which personal data the Juzzio mob
 
 ## 4f. Safety Check, view-once media, question box, badges (v0.9.5)
 
-- **Safety Check (SOS):** only when you start it, and while the app is open, your location and battery level are written to the server once a minute and are visible only to members of the chat you selected. No new location is written once it ends. Alert notifications include the last location link. In an emergency, call your official emergency number; Juzzio is not an emergency service.
+- **Safety Check (SOS):** only when you start it, and while the app is open, your location and battery level are written to the server once a minute and are visible only to members of the chat you selected. No new location is written once it ends. Alert notifications include the last location link. In an emergency, call your official emergency number; Trawave is not an emergency service.
 - **View-once media:** once the recipient opens and closes it (or 5 minutes after opening, or 14 days if never opened) the file is permanently deleted from the server. Screenshots are blocked on Android while viewing; photographing the screen with another device cannot be prevented.
 - **Anonymous question box:** the identity of an anonymous asker is never shown to the box owner. In an abuse report, only authorized staff can see the sender, and that access is logged.
 - **Badges, streaks and trust score:** the days you open the app and the days you feed your chick count toward streaks. The trust score is calculated with transparent rules from account age, distinct reporters in the last 30 days and violations in the last 90 days, and is used only for moderation.
@@ -117,7 +117,7 @@ This document explains, **exactly as it is**, which personal data the Juzzio mob
 
 - **Offline cache:** While online, the first page of Explore, call history, notifications, your profile (posts, saved, counters), friends list, tasks/reminders, stories and profile music you listened to are stored **only on your device, in a per-account folder**, and shown when you are offline. They are deleted when you sign out. End-to-end encrypted content is stored encrypted.
 - **Offline changes:** Profile and settings changes made offline are kept on the device and written to the server when you reconnect.
-- **Save to gallery (on by default):** Photos, videos and documents you receive in chats are saved to your device gallery (Pictures/Movies/Downloads › Juzzio). These files are then in shared storage and other apps with gallery access can see them. View-once media is **never** saved. Turn it off in Settings → Chats → "Save media to gallery".
+- **Save to gallery (on by default):** Photos, videos and documents you receive in chats are saved to your device gallery (Pictures/Movies/Downloads › Trawave). These files are then in shared storage and other apps with gallery access can see them. View-once media is **never** saved. Turn it off in Settings → Chats → "Save media to gallery".
 - **Chat notifications:** Notifications show the sender's name, public profile photo and group name. If your notification preview is set to hidden, none of these are sent. "Mark as read" only marks that chat as read.
 
 ## 4k. Explore (meeting new people), friend requests and "Remember me" (v2.1)
@@ -129,7 +129,7 @@ This document explains, **exactly as it is**, which personal data the Juzzio mob
 
 ## 5. Service providers that receive data
 
-The following services are used to run Juzzio. Some are located abroad, so data is transferred abroad based on appropriate safeguards (standard contractual clauses, KVKK Art. 9).
+The following services are used to run Trawave. Some are located abroad, so data is transferred abroad based on appropriate safeguards (standard contractual clauses, KVKK Art. 9).
 
 - **Supabase** (database, file storage, authentication): account, message and media data.
 - **LiveKit Cloud** (voice/video call server): audio and video streams during calls. Nothing is recorded.
@@ -151,7 +151,7 @@ The following services are used to run Juzzio. Some are located abroad, so data 
 ## 5b. Login records, device information and legal requests (v1.2.9)
 
 - **What is recorded:** at each sign-in and app start: IP address, network country (from the hosting provider's connection header), device brand/model, operating system and app version, an app-specific device ID and the time. Your account email and phone number (if any) are already stored.
-- **What is not recorded:** IMEI (Android 10+ does not allow apps to read it and Juzzio never asks), city or GPS location (location is only sent inside a message, end-to-end encrypted, when you share it), end-to-end encrypted message and call content.
+- **What is not recorded:** IMEI (Android 10+ does not allow apps to read it and Trawave never asks), city or GPS location (location is only sent inside a message, end-to-end encrypted, when you share it), end-to-end encrypted message and call content.
 - **Purpose and legal basis:** account security and abuse prevention, legal obligations and lawful requests by competent authorities (Turkish Law No. 5651, Code of Criminal Procedure No. 5271, KVKK art. 5/2-ç and 5/2-e). Only the founding super administrator can export these records, after entering the official request reference; every export is audit-logged.
 - **Disclosure:** only upon a written request from a court, prosecutor or legally authorised law-enforcement unit, limited to the account named in the request. Bundles are delivered with a SHA-256 integrity hash.
 - **Retention:** login records are kept for up to 2 years and then deleted.
@@ -188,7 +188,7 @@ You have the right to learn whether your personal data is processed, request inf
 
 ## 10. Children
 
-Juzzio is not designed for children under 15. At sign-up you confirm that you are over 15; no age verification is performed and your statement is relied on. If you are under 18, use Juzzio with your parent's or guardian's knowledge. Accounts found to belong to children under 15 are closed and their data deleted; you can report this to engiincr@pm.me.
+Trawave is not designed for children under 15. At sign-up you confirm that you are over 15; no age verification is performed and your statement is relied on. If you are under 18, use Trawave with your parent's or guardian's knowledge. Accounts found to belong to children under 15 are closed and their data deleted; you can report this to engiincr@pm.me.
 
 ## 11. Changes
 

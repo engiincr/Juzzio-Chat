@@ -131,16 +131,16 @@ void main() {
     expect(juzzioParseStoryReplyPreview('📸 Hikâye yanıtı: x'), isNull);
   });
 
-  test('Juzzio Topluluğu adı ve logo', () {
-    expect(juzzioIsCommunityTitle('Juzzio Community'), isTrue);
-    expect(juzzioIsCommunityTitle('Juzzio Topluluğu'), isTrue);
+  test('Trawave Topluluğu adı ve logo', () {
+    expect(juzzioIsCommunityTitle('Trawave Community'), isTrue);
+    expect(juzzioIsCommunityTitle('Trawave Topluluğu'), isTrue);
     expect(juzzioIsCommunityTitle('Benim grubum'), isFalse);
-    expect(juzzioCommunityDisplayTitle('tr'), 'Juzzio Topluluğu');
-    expect(juzzioCommunityDisplayTitle('en'), 'Juzzio Community');
-    expect(juzzioCommunityDisplayTitle('de'), 'Juzzio Community');
+    expect(juzzioCommunityDisplayTitle('tr'), 'Trawave Topluluğu');
+    expect(juzzioCommunityDisplayTitle('en'), 'Trawave Community');
+    expect(juzzioCommunityDisplayTitle('de'), 'Trawave Community');
     expect(kJuzzioLogoAvatar.startsWith('asset:'), isTrue);
     expect(File(kJuzzioLogoAvatar.substring(6)).existsSync(), isTrue);
-    final c = JuzzioConversation.fromMap({'room_id': 'r', 'title': 'Juzzio Community', 'is_group': true, 'is_channel': true});
+    final c = JuzzioConversation.fromMap({'room_id': 'r', 'title': 'Trawave Community', 'is_group': true, 'is_channel': true});
     expect(c.isCommunity, isTrue);
     expect(c.isChannel, isTrue);
     expect(c.avatarUrl, kJuzzioLogoAvatar);

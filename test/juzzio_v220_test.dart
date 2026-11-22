@@ -63,7 +63,7 @@ void main() {
 
     test('katman içerik arkasında; başlıkta ay simgesi yok, Gökyüzü 2.1 bulutları kullanılmıyor', () {
       final amb = _src('lib/widgets/juzzio_weather_ambience.dart');
-      expect(amb, contains('JuzzioDoodleSkyPainter('));
+      expect(amb, contains('JuzzioHdWeatherScene(')); // GM-030: HD görseller
       expect(amb.contains('JuzzioSky21Painter('), isFalse);
       expect(_src('lib/screens/chat_screen.dart').contains('JuzzioSkyIcon('), isFalse);
       expect(_src('lib/main.dart'), contains('JuzzioAuroraPage.weatherLayerBuilder'));

@@ -163,7 +163,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
     mandatory: false,
     sections: const {
       'tr': JuzzioReleaseSection(
-        reason: "Juzzio 2.2: Engin'in gönderdiği ekranlara göre yenilendi — bulut, güneş, yağmur ve hilal aylı yeni hava görünümü, birebir yeni Ayarlar sayfası, tek sayfada Arkadaşlar, profilde ortak arkadaşlar, yeni Amber Altın tema ve varsayılan Grafit Limon.",
+        reason: "Trawave 2.2: Engin'in gönderdiği ekranlara göre yenilendi — bulut, güneş, yağmur ve hilal aylı yeni hava görünümü, birebir yeni Ayarlar sayfası, tek sayfada Arkadaşlar, profilde ortak arkadaşlar, yeni Amber Altın tema ve varsayılan Grafit Limon.",
         features: [
           "🌦️ Yeni hava görünümü: küçük bulutlar, ince ışınlı güneşler, mavi damlalar, ince yağmur çizgileri ve gerçek evreli hilal ay — içeriğin arkasında, her temada",
           "⚙️ Ayarlar baştan: tek büyük cam panel, BÜYÜK HARF bölümler (Sohbetler ve Bildirimler, Görünüm ve Dil, Depolama ve Pil, Destek), yuvarlak simgeli satırlar ve ayrı Dil satırı",
@@ -176,7 +176,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
           "📎 Sohbet ek menüsü yenilendi: Belge, Fotoğraf, Video, Tek gösterim, Konum, Kişi kartı… renkli cam kartlar ve kısa açıklamalar",
         ],
         fixes: [
-          "Keşfet ve Sohbetler başlığında \"Juzzio\" yazısının sonu silinmiyor",
+          "Keşfet ve Sohbetler başlığında \"Trawave\" yazısının sonu silinmiyor",
           "Başlıktaki ikinci ay ve arama kutusuna binen ay kaldırıldı",
           "Arkadaşlık İstekleri sayfası her temaya uyumlu",
           "Bağlanırken kapatılan aramada \"Null check\" hatası giderildi",
@@ -188,7 +188,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
         ],
       ),
       'en': JuzzioReleaseSection(
-        reason: "Juzzio 2.2: refreshed from Engin's screenshots — a new weather look with clouds, suns, rain and a crescent moon, a brand-new Settings page, Friends on one page, mutual friends on profiles, the new Amber Gold theme and Graphite Lime as default.",
+        reason: "Trawave 2.2: refreshed from Engin's screenshots — a new weather look with clouds, suns, rain and a crescent moon, a brand-new Settings page, Friends on one page, mutual friends on profiles, the new Amber Gold theme and Graphite Lime as default.",
         features: [
           "🌦️ New weather look: small clouds, thin-rayed suns, blue drops, fine rain streaks and a real-phase crescent moon — behind the content, in every theme",
           "⚙️ Settings redesigned: one large glass panel, UPPERCASE sections (Chats & notifications, Appearance & language, Storage & battery, Support), round-icon rows and a separate Language row",
@@ -201,7 +201,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
           "📎 Chat attach menu redesigned: Document, Photo, Video, View once, Location, Contact… colourful glass cards with short hints",
         ],
         fixes: [
-          "The end of the \"Juzzio\" title no longer fades out on Explore and Chats",
+          "The end of the \"Trawave\" title no longer fades out on Explore and Chats",
           "Removed the second moon in the header and the moon overlapping the search box",
           "Friend Requests page matches every theme",
           "Fixed the \"Null check\" error when a call is ended while connecting",
@@ -213,7 +213,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
         ],
       ),
       'de': JuzzioReleaseSection(
-        reason: "Juzzio 2.2: nach Engins Screenshots überarbeitet — neues Wetterbild mit Wolken, Sonnen, Regen und Mondsichel, neue Einstellungen, Freunde auf einer Seite, gemeinsame Freunde im Profil, neues Design Bernsteingold und Graphit Limette als Standard.",
+        reason: "Trawave 2.2: nach Engins Screenshots überarbeitet — neues Wetterbild mit Wolken, Sonnen, Regen und Mondsichel, neue Einstellungen, Freunde auf einer Seite, gemeinsame Freunde im Profil, neues Design Bernsteingold und Graphit Limette als Standard.",
         features: [
           "🌦️ Neues Wetterbild: kleine Wolken, Sonnen, blaue Tropfen, feine Regenstriche und eine Mondsichel mit echter Phase — hinter den Inhalten, in jedem Design",
           "⚙️ Neue Einstellungen: ein großes Glaspanel, Abschnitte in GROSSBUCHSTABEN, Zeilen mit runden Symbolen und eigene Zeile für Sprache",
@@ -226,7 +226,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
           "📎 Neues Anhang-Menü mit farbigen Glaskarten",
         ],
         fixes: [
-          "\"Juzzio\"-Titel wird auf Entdecken und Chats nicht mehr abgeschnitten",
+          "\"Trawave\"-Titel wird auf Entdecken und Chats nicht mehr abgeschnitten",
           "Zweiter Mond im Kopfbereich entfernt",
           "Fehler beim Beenden eines Anrufs während des Verbindens behoben",
           "Videoanruf ohne Kamera bricht nicht mehr ab",
@@ -244,7 +244,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
     mandatory: false,
     sections: const {
       'tr': JuzzioReleaseSection(
-        reason: "Juzzio 2.1: yeni yeşil şerit J logosu ve tasarım dosyalarıyla birebir Neon Lime görünüm. Yeni Kayıt/Giriş ekranı, Arkadaşlık İstekleri sayfası, kişi keşfetme (kart, eşleşme, beğeni), Profil Karekodum ve veritabanı güvenlik sıkılaştırması.",
+        reason: "Trawave 2.1: yeni yeşil şerit J logosu ve tasarım dosyalarıyla birebir Neon Lime görünüm. Yeni Kayıt/Giriş ekranı, Arkadaşlık İstekleri sayfası, kişi keşfetme (kart, eşleşme, beğeni), Profil Karekodum ve veritabanı güvenlik sıkılaştırması.",
         features: [
           "🟢 Yeni marka: yeşil şerit J logosu (uygulama ikonu dahil) ve Neon Lime renkleri",
           "🔐 Yeni Kayıt Ol / Giriş Yap ekranı: Beni hatırla, Şifremi unuttum",
@@ -253,7 +253,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
           "🔳 Profil Karekodum: bağlantı kopyala, paylaş, galeriye indir, karekod/kullanıcı adıyla profil aç",
           "🔔 Bildirimlerde İstekler, Bahsetmeler ve Sistem filtreleri",
           "🌐 Görüntülü aramada \"Canlı Çeviri · Aktif\" rozeti",
-          "🟢 Yeni resmî Juzzio logosu: uygulama ikonu, açılış ekranı, bildirim simgesi ve tüm sayfalar",
+          "🟢 Yeni resmî Trawave logosu: uygulama ikonu, açılış ekranı, bildirim simgesi ve tüm sayfalar",
           "🎥 Görüntülü arama: en yüksek 1080p · 60 fps, en düşük 480p · 60 fps; kamera açılınca ve kamera çevrilince yaşanan donma giderildi",
           "🖥️ Aramada ekran paylaşımı (Android ve masaüstü): üst çubuktaki düğmeyle başlat/durdur",
           "📷 Karekodu kamerayla tara (Android/iOS), fener düğmesi ve bağlantı yapıştırma yedeği",
@@ -275,7 +275,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
         ],
       ),
       'en': JuzzioReleaseSection(
-        reason: "Juzzio 2.1: the new green ribbon J logo and a Neon Lime look that matches the design files. New sign-in/sign-up, Friend Requests page, people discovery (cards, matches, likes), My Profile QR and database hardening.",
+        reason: "Trawave 2.1: the new green ribbon J logo and a Neon Lime look that matches the design files. New sign-in/sign-up, Friend Requests page, people discovery (cards, matches, likes), My Profile QR and database hardening.",
         features: [
           "🟢 New brand: green ribbon J logo (incl. app icon) and Neon Lime colours",
           "🔐 New Sign up / Sign in screen: Remember me, Forgot password",
@@ -284,7 +284,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
           "🔳 My Profile QR: copy link, share, save to gallery, open a profile from a code or username",
           "🔔 Requests, Mentions and System filters in notifications",
           "🌐 \"Live Translation · Active\" badge in video calls",
-          "🟢 New official Juzzio logo: app icon, splash screen, notification icon and every screen",
+          "🟢 New official Trawave logo: app icon, splash screen, notification icon and every screen",
           "🎥 Video calls: up to 1080p · 60 fps, never below 480p · 60 fps; freezing when turning on or flipping the camera is fixed",
           "🖥️ Screen sharing in calls (Android and desktop): start/stop from the top bar",
           "📷 Scan QR codes with the camera (Android/iOS), torch button and paste fallback",
@@ -306,7 +306,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
         ],
       ),
       'de': JuzzioReleaseSection(
-        reason: "Juzzio 2.1: neues grünes Band-J-Logo und ein Neon-Lime-Design nach den Entwürfen. Neue Anmeldung/Registrierung, Freundschaftsanfragen, Leute entdecken (Karten, Matches, Likes), Mein Profil-QR und Datenbank-Härtung.",
+        reason: "Trawave 2.1: neues grünes Band-J-Logo und ein Neon-Lime-Design nach den Entwürfen. Neue Anmeldung/Registrierung, Freundschaftsanfragen, Leute entdecken (Karten, Matches, Likes), Mein Profil-QR und Datenbank-Härtung.",
         features: [
           "🟢 Neue Marke: grünes Band-J-Logo (inkl. App-Symbol) und Neon-Lime-Farben",
           "🔐 Neuer Anmelde-/Registrierungsbildschirm: Angemeldet bleiben, Passwort vergessen",
@@ -315,7 +315,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
           "🔳 Mein Profil-QR: Link kopieren, teilen, in der Galerie speichern, Profil per Code oder Benutzername öffnen",
           "🔔 Filter Anfragen, Erwähnungen und System in den Benachrichtigungen",
           "🌐 Abzeichen „Live-Übersetzung · Aktiv“ im Videoanruf",
-          "🟢 Neues offizielles Juzzio-Logo: App-Symbol, Startbildschirm, Benachrichtigungssymbol und alle Seiten",
+          "🟢 Neues offizielles Trawave-Logo: App-Symbol, Startbildschirm, Benachrichtigungssymbol und alle Seiten",
           "🎥 Videoanrufe: bis 1080p · 60 fps, nie unter 480p · 60 fps; Einfrieren beim Einschalten/Wechseln der Kamera behoben",
           "🖥️ Bildschirmfreigabe im Anruf (Android und Desktop): Start/Stopp über die obere Leiste",
           "📷 QR-Codes mit der Kamera scannen (Android/iOS), Taschenlampe und Einfügen als Alternative",
@@ -345,9 +345,9 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
     mandatory: false,
     sections: const {
       'tr': JuzzioReleaseSection(
-        reason: "Juzzio 2.0 ile tamamen yenilenen arayüz geliyor: Obsidian Lime temasıyla çarpıcı karanlık görünüm. Windows aramalarında mikrofon çalışmıyordu ve karşı tarafın sesi kulaklığa gelmiyordu — ikisi de giderildi.",
+        reason: "Trawave 2.0 ile tamamen yenilenen arayüz geliyor: Obsidian Lime temasıyla çarpıcı karanlık görünüm. Windows aramalarında mikrofon çalışmıyordu ve karşı tarafın sesi kulaklığa gelmiyordu — ikisi de giderildi.",
         features: [
-          "🎨 Juzzio 2.0 Obsidian Lime tasarım sistemi: limon-siyah tema varsayılan",
+          "🎨 Trawave 2.0 Obsidian Lime tasarım sistemi: limon-siyah tema varsayılan",
           "🖥️ Windows aramalarında mikrofon artık çalışıyor; karşı tarafın sesi kulaklığa geliyor",
           "🍎 macOS ve iOS arama uyumluluğu iyileştirildi",
           "🔊 Speakerphone API yalnızca mobil cihazlarda kullanılıyor artık",
@@ -360,9 +360,9 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
         security: [],
       ),
       'en': JuzzioReleaseSection(
-        reason: "Juzzio 2.0 brings a completely redesigned interface with the Obsidian Lime theme. Microphone wasn't working in Windows calls and the other party's audio wasn't reaching headphones — both fixed.",
+        reason: "Trawave 2.0 brings a completely redesigned interface with the Obsidian Lime theme. Microphone wasn't working in Windows calls and the other party's audio wasn't reaching headphones — both fixed.",
         features: [
-          "🎨 Juzzio 2.0 Obsidian Lime design system: lime-black theme as default",
+          "🎨 Trawave 2.0 Obsidian Lime design system: lime-black theme as default",
           "🖥️ Microphone now works in Windows calls; other party's audio comes through headphones",
           "🍎 Improved macOS and iOS call compatibility",
           "🔊 Speakerphone API now only used on mobile devices",
@@ -375,9 +375,9 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
         security: [],
       ),
       'de': JuzzioReleaseSection(
-        reason: "Juzzio 2.0 bringt eine komplett überarbeitete Oberfläche mit dem Obsidian Lime-Thema. Das Mikrofon funktionierte bei Windows-Anrufen nicht und der Ton der Gegenseite kam nicht aus den Kopfhörern — beides behoben.",
+        reason: "Trawave 2.0 bringt eine komplett überarbeitete Oberfläche mit dem Obsidian Lime-Thema. Das Mikrofon funktionierte bei Windows-Anrufen nicht und der Ton der Gegenseite kam nicht aus den Kopfhörern — beides behoben.",
         features: [
-          "🎨 Juzzio 2.0 Obsidian Lime-Designsystem: Limette-Schwarz-Thema als Standard",
+          "🎨 Trawave 2.0 Obsidian Lime-Designsystem: Limette-Schwarz-Thema als Standard",
           "🖥️ Mikrofon funktioniert jetzt bei Windows-Anrufen; Gegenseite hörbar über Kopfhörer",
           "🍎 Verbesserte macOS- und iOS-Anrufkompatibilität",
           "🔊 Lautsprecher-API wird nur noch auf mobilen Geräten verwendet",
@@ -397,7 +397,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
     publishedAt: DateTime(2026, 11, 20),
     sections: const {
       'tr': JuzzioReleaseSection(
-        reason: "Juzzio artık Windows'ta da var. Bilgisayarda giriş yapılamıyordu (doğru şifre \"hatalı\" görünüyordu); rakamlar ve boşluklar emoji yazı tipiyle bozuk görünüyordu; sunucu hataları da \"şifre hatalı\" diye gösteriliyordu.",
+        reason: "Trawave artık Windows'ta da var. Bilgisayarda giriş yapılamıyordu (doğru şifre \"hatalı\" görünüyordu); rakamlar ve boşluklar emoji yazı tipiyle bozuk görünüyordu; sunucu hataları da \"şifre hatalı\" diye gösteriliyordu.",
         features: [
           "🖥️ Windows sürümü: sesli/görüntülü arama, mesajlaşma, çeviri, hikâyeler ve tüm sayfalar bilgisayarda",
           "🪟 Geniş pencerede içerik ortada okunaklı bir panelde; dar pencerede tam ekran",
@@ -414,7 +414,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
         ],
       ),
       'en': JuzzioReleaseSection(
-        reason: "Juzzio is now available on Windows. Sign-in failed on desktop (a correct password showed as \"wrong\"); digits and spaces were drawn with the emoji font; server errors were also shown as \"wrong password\".",
+        reason: "Trawave is now available on Windows. Sign-in failed on desktop (a correct password showed as \"wrong\"); digits and spaces were drawn with the emoji font; server errors were also shown as \"wrong password\".",
         features: [
           "🖥️ Windows version: voice/video calls, messaging, translation, stories and every page on your PC",
           "🪟 Wide windows show the app in a centred, readable panel; narrow windows fill the screen",
@@ -431,7 +431,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
         ],
       ),
       'de': JuzzioReleaseSection(
-        reason: "Juzzio gibt es jetzt auch für Windows. Die Anmeldung am PC schlug fehl (ein richtiges Passwort galt als \"falsch\"); Ziffern und Leerzeichen wurden mit der Emoji-Schrift gezeichnet; Serverfehler wurden ebenfalls als \"falsches Passwort\" angezeigt.",
+        reason: "Trawave gibt es jetzt auch für Windows. Die Anmeldung am PC schlug fehl (ein richtiges Passwort galt als \"falsch\"); Ziffern und Leerzeichen wurden mit der Emoji-Schrift gezeichnet; Serverfehler wurden ebenfalls als \"falsches Passwort\" angezeigt.",
         features: [
           "🖥️ Windows-Version: Sprach-/Videoanrufe, Chats, Übersetzung, Storys und alle Seiten am PC",
           "🪟 Breite Fenster zeigen die App in einem zentrierten, gut lesbaren Bereich; schmale Fenster füllen den Bildschirm",
@@ -520,7 +520,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
           "🎨 Yeni temalar: Orman Nane ve Grafit Limon",
           "🔔 Bildirimlerde büyük okunmamış sayacı ve tek dokunuşla \"Tümünü okundu yap\"",
           "📞 Aramalar sayfasında hızlı \"Sesli arama\" ve \"Görüntülü\" kartları",
-          "⛅ Juzzio yazısının yanındaki simge hava bulutluysa bulutlu görünür",
+          "⛅ Trawave yazısının yanındaki simge hava bulutluysa bulutlu görünür",
           "👋 Sohbetler başlığında günün saatine göre selam",
         ],
         fixes: [
@@ -549,7 +549,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
           "🎨 New themes: Forest Mint and Graphite Lime",
           "🔔 Large unread counter in Notifications with one-tap \"Mark all as read\"",
           "📞 Quick \"Voice call\" and \"Video\" cards on the Calls page",
-          "⛅ The icon next to Juzzio shows clouds when the weather is cloudy",
+          "⛅ The icon next to Trawave shows clouds when the weather is cloudy",
           "👋 Time-of-day greeting on the Chats header",
         ],
         fixes: [
@@ -578,7 +578,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
           "🎨 Neue Designs: Waldminze und Graphit Limette",
           "🔔 Großer Zähler für ungelesene Benachrichtigungen mit \"Alle als gelesen markieren\" per Tipp",
           "📞 Schnellkarten \"Sprachanruf\" und \"Video\" auf der Anrufe-Seite",
-          "⛅ Das Symbol neben Juzzio zeigt Wolken, wenn es bewölkt ist",
+          "⛅ Das Symbol neben Trawave zeigt Wolken, wenn es bewölkt ist",
           "👋 Begrüßung je nach Tageszeit im Chats-Kopf",
         ],
         fixes: [
@@ -611,7 +611,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
         features: [
           "✨ Yeni cam bağlam menüsü: 7 hızlı tepki + tüm emojiler; Yanıtla, Kopyala, Çevir, Bağlantıyı kopyala, İlet, Adı gizleyerek ilet, Buluta kaydet, Bildir, Seç ve Yazardan seç",
           "☑️ Çoklu seçim: birden çok mesajı seç, kopyala, ilet veya sil (geri tuşu seçimi kapatır)",
-          "🎞️ 42 komik, sözsüz hareketli GIF (uykulu, kahkaha, dans, utanç…) — Juzzio'nun kendi çizimi; kendi dilinde aranır. Emoji panelinde yeni \"GIF\" sekmesi",
+          "🎞️ 42 komik, sözsüz hareketli GIF (uykulu, kahkaha, dans, utanç…) — Trawave'nun kendi çizimi; kendi dilinde aranır. Emoji panelinde yeni \"GIF\" sekmesi",
           "✉️ Mesaj istekleri: arkadaşın olmayan biri sen yanıtlayana kadar en fazla 3 mesaj atabilir (\"2 mesaj hakkınız kaldı\"); sende İstek Kutusu ve Spam kutusu; kabul edince karşı tarafa \"beklemedeki mesajınızı kabul etti\" bildirimi. Gizli hesaba önce arkadaşlık isteği gerekir",
           "⚠️ Tanımadığın birinden gelen dosyayı indirmeden önce açık risk uyarısı",
           "🔎 Kullanıcı adıyla ara ve profili eklemeden görüntüle",
@@ -619,7 +619,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
           "📞 Aramalarda kim bağlantısını kaybettiyse iki tarafta da yazar (\"… bekleniyor\"), yeniden bağlanırken yumuşak bir ton çalar; görüntü kalitesi internete göre 720p → 480p → 360p arasında kendiliğinden ayarlanır; ana sunucuya ulaşılamazsa yedek sunucuya geçilir",
           "🔐 Kilitli sohbetler yeni yeşil doğrulama ekranıyla açılır (adım göstergesi, kod kutuları, \"Doğrulandı\")",
           "👉 Sohbet listesinde sağa çek → sabitle; silmeden sonra 5 sn \"Geri al\"",
-          "🌙 \"Senin alanın\" başlığında Juzzio yazısının yanında bugünkü gerçek Ay evresi; hava teması daha gerçekçi (gölgeli bulut, kraterli ay, ışıltılı güneş)",
+          "🌙 \"Senin alanın\" başlığında Trawave yazısının yanında bugünkü gerçek Ay evresi; hava teması daha gerçekçi (gölgeli bulut, kraterli ay, ışıltılı güneş)",
           "🎨 Varsayılan tema artık Gece Mavisi",
           "🎬 Giriş ve kayıt sayfaları arasında akıcı sayfa geçişleri",
           "📎 Ataş menüsü yeni Liquid Glass görünümünde; yazma alanında ataş ve beyaz mikrofon",
@@ -634,20 +634,20 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
           "Mesaj gönderirken görünen sarı çizgi tamamen kaldırıldı; metin mesajları da emojiler gibi yaylı animasyonla gelir",
           "Arama gelince açık hikâye ve hikâye müziği durur; profil müziği de hemen susar",
           "Hava teması hikâyelerin, videoların ve sohbet penceresinin üstüne binmez",
-          "Juzzio Topluluğu görselleri tam boyutta gönderilir; görsel yüklenemese bile alan kaybolmaz, kayma olmaz",
+          "Trawave Topluluğu görselleri tam boyutta gönderilir; görsel yüklenemese bile alan kaybolmaz, kayma olmaz",
           "Uygulama arka plandayken \"çevrimiçi\" görünmezsin",
           "Bildirimden yanıt verince gönderenin fotoğrafı kaybolmuyor",
           "Yönetici başlığındaki taşma ve \"Hoş geldin\" taşması giderildi; uzun adlar her yerde düzgün kısaltılır",
           "Hikâyeler 24 saat sonra medya dosyalarıyla birlikte kalıcı olarak silinir",
           "Aramalarda donma ve takılma azaltıldı: ekran her ağ olayında değil aralıklı yenilenir; canlı çeviri daha akıcı, geç gelen eski çeviri yenisinin üstüne yazmaz",
-          "Juzzio Topluluğu duyuruları seçtiğin dile çevrilir",
+          "Trawave Topluluğu duyuruları seçtiğin dile çevrilir",
           "Açık temada giriş, kayıt ve ayar sayfalarındaki renk uyumsuzlukları giderildi",
           "Kilitli sohbet PIN ekranı tam ekran; kenar çizgisi ve taşma yok",
           "Profildeki Görevlerim ve Hatırlatıcılar kısayolu varsayılan olarak gizli; Ayarlar › Erişilebilirlik'ten açılır",
           "Birebir (şifreli) sohbette sesli mesajın altında artık dökümün çevirisi de görünür",
           "Aramada karşı taraf uzun konuştuğunda kendi konuşmanın altyazısı ve çevirisinin birkaç kelimeden sonra durması giderildi",
           "Görüntülü aramada kendi görüntünün karşı tarafta donması giderildi: görüntü güzelleştirme artık telefonu yormuyor, yük artarsa kendiliğinden hafifliyor",
-          "\"Juzzio.\" yanındaki simge artık senin yerel saatine göre değişir: gece gerçek Ay evresi, gündüz Güneş",
+          "\"Trawave.\" yanındaki simge artık senin yerel saatine göre değişir: gece gerçek Ay evresi, gündüz Güneş",
         ],
         security: [
           "Dosya güvenliği: .php, .jsp, .exe, .apk, .html, .svg, .js gibi çalıştırılabilir/betik dosyaları, gizli çift uzantılar ve içeriği uzantısıyla uyuşmayan dosyalar hem gönderirken hem açarken cihazda engellenir; sunucu da yalnız izinli türleri kabul eder",
@@ -655,7 +655,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
           "Kimlik avı bağlantı uyarısı: kısaltılmış, IP adresli, harf benzetmeli veya çalıştırılabilir dosya indiren bağlantılar açılmadan önce uyarılır",
           "Yorum, biyografi ve açıklamalarda betik kalıpları sunucuda temizlenir (XSS)",
           "Yönetici güvenliği: tek kurucu yönetici kilidi, değiştirilemez (zincirleme özetli) denetim kaydı ve toplu yıkıcı işlemlere otomatik fren",
-          "Telif denetimi: tüm müzik ve videolar Juzzio'nun kendi üretimi; üçüncü taraf atıfları ve açık kaynak lisansları Yasal sayfasında",
+          "Telif denetimi: tüm müzik ve videolar Trawave'nun kendi üretimi; üçüncü taraf atıfları ve açık kaynak lisansları Yasal sayfasında",
           "Hata raporları yalnız kurucu yöneticiye bildirilir",
         ],
       ),
@@ -664,7 +664,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
         features: [
           "✨ New glass context menu: 7 quick reactions + every emoji; Reply, Copy, Translate, Copy link, Forward, Forward without name, Save to cloud, Report, Select and Select from author",
           "☑️ Multi-select: select several messages, copy, forward or delete them (back closes the selection)",
-          "🎞️ 42 funny, wordless animated GIFs (sleepy, laughing, dancing, shy…) — drawn by Juzzio itself; searchable in your language. New \"GIF\" tab in the emoji panel",
+          "🎞️ 42 funny, wordless animated GIFs (sleepy, laughing, dancing, shy…) — drawn by Trawave itself; searchable in your language. New \"GIF\" tab in the emoji panel",
           "✉️ Message requests: someone who is not your friend can send at most 3 messages until you reply (\"2 messages left\"); you get a Request box and a Spam box; accepting notifies them \"accepted your pending message\". Private accounts require a friend request first",
           "⚠️ A clear risk warning before downloading a file from someone you don't know",
           "🔎 Search by username and view a profile without adding the person",
@@ -672,7 +672,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
           "📞 In calls both sides see who lost connection (\"… waiting\"), a soft tone plays while reconnecting; video quality adapts to the network 720p → 480p → 360p; if the main server is unreachable a backup server is used",
           "🔐 Locked chats open with the new green verification screen (step indicator, code boxes, \"Verified\")",
           "👉 Swipe right in the chat list → pin; 5-second \"Undo\" after deleting",
-          "🌙 The real moon phase of today next to Juzzio under \"Your space\"; a more realistic weather theme (shaded clouds, cratered moon, glowing sun)",
+          "🌙 The real moon phase of today next to Trawave under \"Your space\"; a more realistic weather theme (shaded clouds, cratered moon, glowing sun)",
           "🎨 The default theme is now Midnight Blue",
           "🎬 Smooth page transitions between the welcome, sign-in and sign-up pages",
           "📎 The attach menu has a new Liquid Glass look; paperclip and a white mic in the composer",
@@ -687,20 +687,20 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
           "The yellow line while sending is gone; text messages now arrive with the same springy animation as emojis",
           "An incoming call pauses the open story and its music; profile music stops immediately",
           "The weather theme no longer draws over stories, videos or the chat window",
-          "Juzzio Community images are sent at full size; even if an image fails to load its space stays visible, with no jumping",
+          "Trawave Community images are sent at full size; even if an image fails to load its space stays visible, with no jumping",
           "You no longer appear \"online\" while the app is in the background",
           "Replying from a notification no longer removes the sender's photo",
           "Fixed the admin header and \"Welcome\" overflow; long names are shortened neatly everywhere",
           "Stories are permanently deleted together with their media files after 24 hours",
           "Fewer freezes and stutters in calls: the screen refreshes at intervals instead of on every network event; live translation is smoother and a late, older translation can no longer overwrite a newer one",
-          "Juzzio Community announcements are translated into your language",
+          "Trawave Community announcements are translated into your language",
           "Fixed colour mismatches on the sign-in, sign-up and settings pages in the light theme",
           "The locked-chat PIN screen is full screen, with no edge lines or overflow",
           "The My tasks & reminders shortcut on Profile is hidden by default; turn it on in Settings › Accessibility",
           "In one-to-one (encrypted) chats the translation of the transcript now appears under voice messages",
           "Fixed your own live captions and translation stopping after a few words in calls when the other person talks a lot",
           "Fixed your own video freezing for the other person in video calls: beauty mode no longer overloads the phone and lightens itself automatically under load",
-          "The icon next to \"Juzzio.\" now follows your local time: the real moon phase at night, the sun during the day",
+          "The icon next to \"Trawave.\" now follows your local time: the real moon phase at night, the sun during the day",
         ],
         security: [
           "File security: executable/script files like .php, .jsp, .exe, .apk, .html, .svg, .js, hidden double extensions and files whose content doesn't match their extension are blocked on the device both when sending and opening; the server also accepts only allowed types",
@@ -708,7 +708,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
           "Phishing link warning: shortened, IP-address, look-alike or executable-download links are flagged before opening",
           "Script patterns in comments, bios and captions are stripped on the server (XSS)",
           "Admin security: single founder admin lock, tamper-evident (hash-chained) audit log and an automatic brake on mass destructive actions",
-          "Copyright audit: all music and videos are Juzzio's own; third-party attributions and open-source licenses are on the Legal page",
+          "Copyright audit: all music and videos are Trawave's own; third-party attributions and open-source licenses are on the Legal page",
           "Error reports are notified only to the founding administrator",
         ],
       ),
@@ -717,7 +717,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
         features: [
           "✨ New glass context menu: 7 quick reactions + every emoji; Reply, Copy, Translate, Copy link, Forward, Forward without name, Save to cloud, Report, Select and Select from author",
           "☑️ Multi-select: select several messages, copy, forward or delete them (back closes the selection)",
-          "🎞️ 42 funny, wordless animated GIFs (sleepy, laughing, dancing, shy…) — drawn by Juzzio itself; searchable in your language. New \"GIF\" tab in the emoji panel",
+          "🎞️ 42 funny, wordless animated GIFs (sleepy, laughing, dancing, shy…) — drawn by Trawave itself; searchable in your language. New \"GIF\" tab in the emoji panel",
           "✉️ Message requests: someone who is not your friend can send at most 3 messages until you reply (\"2 messages left\"); you get a Request box and a Spam box; accepting notifies them \"accepted your pending message\". Private accounts require a friend request first",
           "⚠️ A clear risk warning before downloading a file from someone you don't know",
           "🔎 Search by username and view a profile without adding the person",
@@ -725,7 +725,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
           "📞 In calls both sides see who lost connection (\"… waiting\"), a soft tone plays while reconnecting; video quality adapts to the network 720p → 480p → 360p; if the main server is unreachable a backup server is used",
           "🔐 Locked chats open with the new green verification screen (step indicator, code boxes, \"Verified\")",
           "👉 Swipe right in the chat list → pin; 5-second \"Undo\" after deleting",
-          "🌙 The real moon phase of today next to Juzzio under \"Your space\"; a more realistic weather theme (shaded clouds, cratered moon, glowing sun)",
+          "🌙 The real moon phase of today next to Trawave under \"Your space\"; a more realistic weather theme (shaded clouds, cratered moon, glowing sun)",
           "🎨 The default theme is now Midnight Blue",
           "🎬 Smooth page transitions between the welcome, sign-in and sign-up pages",
           "📎 The attach menu has a new Liquid Glass look; paperclip and a white mic in the composer",
@@ -740,20 +740,20 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
           "The yellow line while sending is gone; text messages now arrive with the same springy animation as emojis",
           "An incoming call pauses the open story and its music; profile music stops immediately",
           "The weather theme no longer draws over stories, videos or the chat window",
-          "Juzzio Community images are sent at full size; even if an image fails to load its space stays visible, with no jumping",
+          "Trawave Community images are sent at full size; even if an image fails to load its space stays visible, with no jumping",
           "You no longer appear \"online\" while the app is in the background",
           "Replying from a notification no longer removes the sender's photo",
           "Fixed the admin header and \"Welcome\" overflow; long names are shortened neatly everywhere",
           "Stories are permanently deleted together with their media files after 24 hours",
           "Weniger Einfrieren und Ruckeln in Anrufen: Der Bildschirm wird in Intervallen statt bei jedem Netzwerkereignis aktualisiert; die Live-Übersetzung läuft flüssiger und eine verspätete ältere Übersetzung überschreibt keine neuere mehr",
-          "Ankündigungen der Juzzio Community werden in deine Sprache übersetzt",
+          "Ankündigungen der Trawave Community werden in deine Sprache übersetzt",
           "Farbabweichungen auf den Anmelde-, Registrierungs- und Einstellungsseiten im hellen Design behoben",
           "Der PIN-Bildschirm für gesperrte Chats ist bildschirmfüllend, ohne Randlinien oder Überlauf",
           "Die Verknüpfung „Aufgaben & Erinnerungen“ im Profil ist standardmäßig ausgeblendet; aktivierbar unter Einstellungen › Barrierefreiheit",
           "In Einzelchats (verschlüsselt) erscheint unter Sprachnachrichten jetzt auch die Übersetzung des Transkripts",
           "Behoben: Eigene Live-Untertitel und Übersetzung brachen im Anruf nach wenigen Wörtern ab, wenn die andere Person viel sprach",
           "Behoben: Dein eigenes Bild fror im Videoanruf beim Gegenüber ein — der Schönheitsfilter überlastet das Telefon nicht mehr und wird bei Last automatisch leichter",
-          "Das Symbol neben „Juzzio.“ folgt jetzt deiner Ortszeit: nachts die echte Mondphase, tagsüber die Sonne",
+          "Das Symbol neben „Trawave.“ folgt jetzt deiner Ortszeit: nachts die echte Mondphase, tagsüber die Sonne",
         ],
         security: [
           "File security: executable/script files like .php, .jsp, .exe, .apk, .html, .svg, .js, hidden double extensions and files whose content doesn't match their extension are blocked on the device both when sending and opening; the server also accepts only allowed types",
@@ -761,7 +761,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
           "Phishing link warning: shortened, IP-address, look-alike or executable-download links are flagged before opening",
           "Script patterns in comments, bios and captions are stripped on the server (XSS)",
           "Admin security: single founder admin lock, tamper-evident (hash-chained) audit log and an automatic brake on mass destructive actions",
-          "Copyright audit: all music and videos are Juzzio's own; third-party attributions and open-source licenses are on the Legal page",
+          "Copyright audit: all music and videos are Trawave's own; third-party attributions and open-source licenses are on the Legal page",
           "Error reports are notified only to the founding administrator",
         ],
       ),
@@ -879,7 +879,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
     publishedAt: DateTime(2026, 11, 10),
     sections: const {
       'tr': JuzzioReleaseSection(
-        reason: "Uygulamayı ilk kez açanlar Juzzio'yu tanıyamıyordu; doğum günü kutlaması düz ve kısa kalıyordu; mesaj gönderirken uçan metnin altında sarı çizgi çıkıyordu; aşağı çekip yenilemede el ancak ikinci denemede sayfayı tutuyordu. Bu güncelleme hepsini düzeltir ve hava durumu temasına saate göre minik simgeler ekler.",
+        reason: "Uygulamayı ilk kez açanlar Trawave'yu tanıyamıyordu; doğum günü kutlaması düz ve kısa kalıyordu; mesaj gönderirken uçan metnin altında sarı çizgi çıkıyordu; aşağı çekip yenilemede el ancak ikinci denemede sayfayı tutuyordu. Bu güncelleme hepsini düzeltir ve hava durumu temasına saate göre minik simgeler ekler.",
         features: [
           "🎬 20 saniyelik tanıtım videosu (müzikli): uygulamayı ilk kez açanlara ve yeni hesap açanlara bir kez gösterilir; bu güncellemede herkes bir kez görür. \"Atla\" ile geçilebilir, Yapımcı sayfasındaki \"Uygulama Tanıtımı\" düğmesiyle istediğin zaman yeniden izlenir (Türkçe ve İngilizce)",
           "🎂 Doğum günü kutlaması 3 boyutlu: patlatıcı eller perspektifle döner, konfeti 3B uzayda döner ve ışığa göre parlar, kurdeleler bükülür, parlak küreler ve yıldızlar saçılır; iki patlama, toplam 7 saniye",
@@ -897,7 +897,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
         ],
       ),
       'en': JuzzioReleaseSection(
-        reason: "First-time users had no introduction to Juzzio; the birthday celebration felt flat and short; a yellow line appeared under the flying text while sending; and the pull-to-refresh hand only grabbed the page on the second try. This update fixes all of that and adds tiny time-of-day icons to the weather theme.",
+        reason: "First-time users had no introduction to Trawave; the birthday celebration felt flat and short; a yellow line appeared under the flying text while sending; and the pull-to-refresh hand only grabbed the page on the second try. This update fixes all of that and adds tiny time-of-day icons to the weather theme.",
         features: [
           "🎬 A 20-second intro video with music: shown once to anyone opening the app for the first time and to new accounts; everyone sees it once with this update. Skip it with \"Skip\", or replay it any time from the \"App Introduction\" button on the Creator page (Turkish and English)",
           "🎂 3D birthday celebration: the popper hands turn in perspective, confetti spins in 3D space and catches the light, ribbons twist, glossy orbs and stars burst out; two pops, 7 seconds in total",
@@ -915,7 +915,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
         ],
       ),
       'de': JuzzioReleaseSection(
-        reason: "First-time users had no introduction to Juzzio; the birthday celebration felt flat and short; a yellow line appeared under the flying text while sending; and the pull-to-refresh hand only grabbed the page on the second try. This update fixes all of that and adds tiny time-of-day icons to the weather theme.",
+        reason: "First-time users had no introduction to Trawave; the birthday celebration felt flat and short; a yellow line appeared under the flying text while sending; and the pull-to-refresh hand only grabbed the page on the second try. This update fixes all of that and adds tiny time-of-day icons to the weather theme.",
         features: [
           "🎬 A 20-second intro video with music: shown once to anyone opening the app for the first time and to new accounts; everyone sees it once with this update. Skip it with \"Skip\", or replay it any time from the \"App Introduction\" button on the Creator page (Turkish and English)",
           "🎂 3D birthday celebration: the popper hands turn in perspective, confetti spins in 3D space and catches the light, ribbons twist, glossy orbs and stars burst out; two pops, 7 seconds in total",
@@ -940,16 +940,16 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
     publishedAt: DateTime(2026, 11, 10),
     sections: const {
       'tr': JuzzioReleaseSection(
-        reason: "Juzzio Topluluğu bir sohbet grubu gibi davranıyordu: üyeler birbirinin adını görebiliyor, tepki bırakabiliyor ve kanalda başka yetkili tanımlanabiliyordu. Topluluk artık gerçek bir resmî duyuru KANALI: logosu uygulama logosu, üyeler birbirini göremez, kanala mesaj atılamaz, yalnız güncelleme duyuruları düşer ve tek yetkili @tugkancr. Ayrıca tüm gruplara ve kanallara logo ekleme özelliği geldi.",
+        reason: "Trawave Topluluğu bir sohbet grubu gibi davranıyordu: üyeler birbirinin adını görebiliyor, tepki bırakabiliyor ve kanalda başka yetkili tanımlanabiliyordu. Topluluk artık gerçek bir resmî duyuru KANALI: logosu uygulama logosu, üyeler birbirini göremez, kanala mesaj atılamaz, yalnız güncelleme duyuruları düşer ve tek yetkili @tugkancr. Ayrıca tüm gruplara ve kanallara logo ekleme özelliği geldi.",
         features: [
           "🖼️ Gruplara ve kanallara logo: yönetici/moderatör, grup bilgisindeki fotoğrafa dokunup galeriden ya da kameradan logo koyar veya kaldırır; logo sohbet listesinde ve sohbet başlığında görünür",
-          "📣 Juzzio Topluluğu resmî kanal: uygulama logosu, onay rozeti ve \"Resmî kanal · Yalnız güncelleme duyuruları\" başlığı",
+          "📣 Trawave Topluluğu resmî kanal: uygulama logosu, onay rozeti ve \"Resmî kanal · Yalnız güncelleme duyuruları\" başlığı",
           "ℹ️ \"Kanal bilgisi\" sayfası: kanalın kuralları ve tek yetkilisi (@tugkancr) açıkça yazılı",
         ],
         fixes: [
           "Toplulukta üye sayısı ve üye adları artık gösterilmiyor; üye listesi yalnız yetkiliye açık",
           "Toplulukta tepki, \"kim tepki verdi\" listesi, sesli/görüntülü arama, izleme partisi ve elle üye ekleme kaldırıldı",
-          "Topluluk duyuruları her zaman @tugkancr adına (Juzzio Official) gönderiliyor",
+          "Topluluk duyuruları her zaman @tugkancr adına (Trawave Official) gönderiliyor",
         ],
         security: [
           "Üyelerin birbirini görmemesi SUNUCUDA zorunlu: katılımcı satırları, üye önbelleği, üye listesi, okundu bilgisi ve canlı \"yazıyor\" yayını yalnız kişinin kendisine ve yetkiliye açık",
@@ -958,16 +958,16 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
         ],
       ),
       'en': JuzzioReleaseSection(
-        reason: "Juzzio Community behaved like a chat group: members could see each other's names, leave reactions, and extra admins could be assigned. The community is now a real official announcement CHANNEL: the app logo is its logo, members cannot see each other, nobody can post, only update announcements appear, and @tugkancr is the only admin. Groups and channels can now also have a logo.",
+        reason: "Trawave Community behaved like a chat group: members could see each other's names, leave reactions, and extra admins could be assigned. The community is now a real official announcement CHANNEL: the app logo is its logo, members cannot see each other, nobody can post, only update announcements appear, and @tugkancr is the only admin. Groups and channels can now also have a logo.",
         features: [
           "🖼️ Logos for groups and channels: an admin/moderator taps the photo in group info to set a logo from the gallery or camera, or remove it; the logo shows in the chat list and chat header",
-          "📣 Juzzio Community is an official channel: app logo, verified badge and an \"Official channel · Update announcements only\" header",
+          "📣 Trawave Community is an official channel: app logo, verified badge and an \"Official channel · Update announcements only\" header",
           "ℹ️ \"Channel info\" page clearly lists the channel rules and its only admin (@tugkancr)",
         ],
         fixes: [
           "The community no longer shows the member count or member names; the member list is visible only to the admin",
           "Reactions, the \"who reacted\" list, voice/video calls, watch party and manual member adding were removed from the community",
-          "Community announcements are always sent as @tugkancr (Juzzio Official)",
+          "Community announcements are always sent as @tugkancr (Trawave Official)",
         ],
         security: [
           "Members not seeing each other is enforced ON THE SERVER: participant rows, the member cache, the member list, read receipts and the live \"typing\" broadcast are visible only to the person themselves and the admin",
@@ -976,16 +976,16 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
         ],
       ),
       'de': JuzzioReleaseSection(
-        reason: "Juzzio Community behaved like a chat group: members could see each other's names, leave reactions, and extra admins could be assigned. The community is now a real official announcement CHANNEL: the app logo is its logo, members cannot see each other, nobody can post, only update announcements appear, and @tugkancr is the only admin. Groups and channels can now also have a logo.",
+        reason: "Trawave Community behaved like a chat group: members could see each other's names, leave reactions, and extra admins could be assigned. The community is now a real official announcement CHANNEL: the app logo is its logo, members cannot see each other, nobody can post, only update announcements appear, and @tugkancr is the only admin. Groups and channels can now also have a logo.",
         features: [
           "🖼️ Logos for groups and channels: an admin/moderator taps the photo in group info to set a logo from the gallery or camera, or remove it; the logo shows in the chat list and chat header",
-          "📣 Juzzio Community is an official channel: app logo, verified badge and an \"Official channel · Update announcements only\" header",
+          "📣 Trawave Community is an official channel: app logo, verified badge and an \"Official channel · Update announcements only\" header",
           "ℹ️ \"Channel info\" page clearly lists the channel rules and its only admin (@tugkancr)",
         ],
         fixes: [
           "The community no longer shows the member count or member names; the member list is visible only to the admin",
           "Reactions, the \"who reacted\" list, voice/video calls, watch party and manual member adding were removed from the community",
-          "Community announcements are always sent as @tugkancr (Juzzio Official)",
+          "Community announcements are always sent as @tugkancr (Trawave Official)",
         ],
         security: [
           "Members not seeing each other is enforced ON THE SERVER: participant rows, the member cache, the member list, read receipts and the live \"typing\" broadcast are visible only to the person themselves and the admin",
@@ -1007,7 +1007,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
           "🔁 Bilgi henüz yoksa uygulama 20 dakikaya kadar kendisi tekrar dener ve hazır olunca \"✅ Güncelleme hazır\" bildirimi gönderir",
         ],
         fixes: [
-          "Juzzio Topluluğu sürüm duyurusu artık APK ve imzalı doğrulama bilgisi yayınlandıktan SONRA gönderiliyor",
+          "Trawave Topluluğu sürüm duyurusu artık APK ve imzalı doğrulama bilgisi yayınlandıktan SONRA gönderiliyor",
           "İmzalı version.json her sürüme ayrıca ekleniyor (önbelleğe takılmayan sabit adres)",
         ],
         security: [
@@ -1022,7 +1022,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
           "🔁 If the data is not out yet, the app retries for up to 20 minutes and sends a \"✅ Update ready\" notification",
         ],
         fixes: [
-          "The Juzzio Community release announcement is now sent AFTER the APK and signed verification data are published",
+          "The Trawave Community release announcement is now sent AFTER the APK and signed verification data are published",
           "The signed version.json is also attached to every release (a fixed, cache-free address)",
         ],
         security: [
@@ -1037,7 +1037,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
           "🔁 If the data is not out yet, the app retries for up to 20 minutes and sends a \"✅ Update ready\" notification",
         ],
         fixes: [
-          "The Juzzio Community release announcement is now sent AFTER the APK and signed verification data are published",
+          "The Trawave Community release announcement is now sent AFTER the APK and signed verification data are published",
           "The signed version.json is also attached to every release (a fixed, cache-free address)",
         ],
         security: [
@@ -1061,7 +1061,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
           "🎵 Profildeki müzik dinlendikten sonra cihazda saklanır, internetsiz çalar; 📖 hikâyeler arka planda indirilir ve internetsiz izlenir",
           "✏️ İnternet yokken yapılan profil ve ayar değişiklikleri kaybolmaz; bağlantı gelince sunucuya yazılır",
           "💬 Genişletilebilir sohbet bildirimi: gönderen fotoğrafı ve adı, grup/kanal adı, aynı sohbetin mesajları alt alta; Yanıtla ve Okundu olarak işaretle (uygulamayı açmadan)",
-          "🖼 Sohbette gelen fotoğraf, video ve belgeler galeriye (Juzzio klasörü) kaydedilir ve internetsiz açılır (Ayarlar → Sohbetler'den kapatılabilir; tek görüntülemelik kaydedilmez)",
+          "🖼 Sohbette gelen fotoğraf, video ve belgeler galeriye (Trawave klasörü) kaydedilir ve internetsiz açılır (Ayarlar → Sohbetler'den kapatılabilir; tek görüntülemelik kaydedilmez)",
           "⚡ Fotoğraf, video ve belge gönderirken bekleme yok: anında sohbette görünür, yükleme arka planda sürer",
           "😍 Tepki rozetine dokununca kimin hangi tepkiyi verdiği görünür (herkesin tek tepkisi)",
           "📤 Küresel gönderiler ve hikâyeler birebir sohbetlere ve gruplara iletilir; sohbette \"Gönderiyi aç / Hikâyeyi aç\" düğmesi",
@@ -1097,7 +1097,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
           "🎵 Profile music plays offline after the first listen; 📖 stories are pre-downloaded and watchable offline",
           "✏️ Profile and settings changes made offline are kept and applied when you reconnect",
           "💬 Expandable chat notifications: sender photo and name, group/channel name, stacked messages; Reply and Mark as read without opening the app",
-          "🖼 Received photos, videos and documents are saved to the gallery (Juzzio folder) and open offline (toggle in Settings → Chats; view-once never saved)",
+          "🖼 Received photos, videos and documents are saved to the gallery (Trawave folder) and open offline (toggle in Settings → Chats; view-once never saved)",
           "⚡ No waiting when sending photos, videos and documents: they appear instantly and upload in the background",
           "😍 Tap a reaction badge to see who reacted with what (one reaction per person)",
           "📤 Forward Explore posts and stories to 1:1 chats and groups; \"Open post / Open story\" button in chat",
@@ -1133,7 +1133,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
           "🎵 Profile music plays offline after the first listen; 📖 stories are pre-downloaded and watchable offline",
           "✏️ Profile and settings changes made offline are kept and applied when you reconnect",
           "💬 Expandable chat notifications: sender photo and name, group/channel name, stacked messages; Reply and Mark as read without opening the app",
-          "🖼 Received photos, videos and documents are saved to the gallery (Juzzio folder) and open offline (toggle in Settings → Chats; view-once never saved)",
+          "🖼 Received photos, videos and documents are saved to the gallery (Trawave folder) and open offline (toggle in Settings → Chats; view-once never saved)",
           "⚡ No waiting when sending photos, videos and documents: they appear instantly and upload in the background",
           "😍 Tap a reaction badge to see who reacted with what (one reaction per person)",
           "📤 Forward Explore posts and stories to 1:1 chats and groups; \"Open post / Open story\" button in chat",
@@ -1308,7 +1308,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
           "Onaylar sunucuda sürümüyle birlikte kayıt altına alınır (yalnız kendi kaydını görürsün; istemci onay sütunlarını doğrudan değiştiremez)",
           "Sunucu tarafı istek sınırları: mesaj 40/dk ve 3000/gün, yorum 20/dk, gönderi 30/saat, hikâye 60/gün, arkadaşlık isteği 40/saat, şikâyet 20/saat, grup oluşturma 20/saat, onay kaydı 20/saat",
           "Girdi doğrulama: kontrol ve görünmez/yön değiştiren karakterler temizlenir, uzunluk sınırları sunucuda zorunlu; javascript:, data:, file: gibi tehlikeli bağlantılar reddedilir; kullanıcı arama terimi yalnız harf/rakam/_/- ile sınırlanır",
-          "Hava durumu için konum ~10 km'ye yuvarlanır, yalnız Open-Meteo'ya gönderilir; Juzzio sunucusuna gitmez ve saklanmaz. Konum izni yalnız bir kez istenir",
+          "Hava durumu için konum ~10 km'ye yuvarlanır, yalnız Open-Meteo'ya gönderilir; Trawave sunucusuna gitmez ve saklanmaz. Konum izni yalnız bir kez istenir",
           "Uçtan uca şifreleme davranışı değişmedi (fail-closed); RLS gevşetilmedi, depolama alanları herkese açılmadı",
         ],
       ),
@@ -1334,7 +1334,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
           "Consents are recorded on the server with their version (you only see your own; clients can't write the consent columns directly)",
           "Server-side rate limits: messages 40/min and 3000/day, comments 20/min, posts 30/hour, stories 60/day, friend requests 40/hour, reports 20/hour, group creation 20/hour, consent records 20/hour",
           "Input validation: control and invisible/bidi characters are stripped, length limits enforced on the server; dangerous links such as javascript:, data:, file: are rejected; user search terms are limited to letters/digits/_/-",
-          "For the weather theme your location is rounded to ~10 km and sent only to Open-Meteo — never to Juzzio's server and never stored. Location permission is asked only once",
+          "For the weather theme your location is rounded to ~10 km and sent only to Open-Meteo — never to Trawave's server and never stored. Location permission is asked only once",
           "End-to-end encryption behaviour unchanged (fail-closed); RLS not weakened; storage buckets not made public",
         ],
       ),
@@ -1360,7 +1360,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
           "Consents are recorded on the server with their version (you only see your own; clients can't write the consent columns directly)",
           "Server-side rate limits: messages 40/min and 3000/day, comments 20/min, posts 30/hour, stories 60/day, friend requests 40/hour, reports 20/hour, group creation 20/hour, consent records 20/hour",
           "Input validation: control and invisible/bidi characters are stripped, length limits enforced on the server; dangerous links such as javascript:, data:, file: are rejected; user search terms are limited to letters/digits/_/-",
-          "For the weather theme your location is rounded to ~10 km and sent only to Open-Meteo — never to Juzzio's server and never stored. Location permission is asked only once",
+          "For the weather theme your location is rounded to ~10 km and sent only to Open-Meteo — never to Trawave's server and never stored. Location permission is asked only once",
           "End-to-end encryption behaviour unchanged (fail-closed); RLS not weakened; storage buckets not made public",
         ],
       ),
@@ -1372,13 +1372,13 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
     publishedAt: DateTime(2026, 11, 10),
     sections: const {
       'tr': JuzzioReleaseSection(
-        reason: "Bu güncelleme bildirdiğin 18 eksiğin tamamını kapatıyor: doğum günü kutlaması, gerçek kanallar ve herkesin otomatik üye olduğu Juzzio Topluluğu, tek sayfada toplanan Görünüm ayarları, düzeltilen mesaj ve arama tepkileri, yenilenen mesaj kartları, sohbet içi arama ve çalışan kilitli sohbetler.",
+        reason: "Bu güncelleme bildirdiğin 18 eksiğin tamamını kapatıyor: doğum günü kutlaması, gerçek kanallar ve herkesin otomatik üye olduğu Trawave Topluluğu, tek sayfada toplanan Görünüm ayarları, düzeltilen mesaj ve arama tepkileri, yenilenen mesaj kartları, sohbet içi arama ve çalışan kilitli sohbetler.",
         features: [
           "🎂 Doğum günü kutlaması: \"Happy Birthday\", \"Doğum günün kutlu olsun\", \"İyi ki doğdun\" (ve benzerleri) geçen mesajda soldan ve sağdan konfeti patlatıcılı iki el girip patlatır, 🌸🎂😍⚡🥳💖❤️ yumuşakça yükselip kaybolur, balonun çevresinde elektrik dalgası dolaşır — toplam 4 saniye",
           "📣 Gerçek kanallar: \"Yeni kanal\" artık grup formunu değil kendi akışını açar (ad + açıklama + canlı önizleme → kişi seçimi). Kanalda yalnız sahip ve yöneticiler paylaşır; üyeler okur, tepki verir (sunucuda da zorunlu)",
-          "🌍 Juzzio Topluluğu: uygulama dilinde adlandırılan resmî kanal (TR \"Juzzio Topluluğu\", EN \"Juzzio Community\"). Tüm mevcut kullanıcılar ve her yeni kayıt otomatik üye; paylaşımlar \"Juzzio Official\" adı, mavi tik ve uygulama logosuyla görünür",
-          "🚀 Her güncelleme yayınlandığında sürüm notları Juzzio Topluluğu'nda otomatik paylaşılır (yönetici emeği yok, aynı sürüm iki kez paylaşılmaz)",
-          "🛠 Yönetici paneline \"Juzzio Community\" sayfası: metin, bağlantı, görsel, video, müzik veya herhangi bir dosya seçip \"Paylaş\" ile tüm kullanıcılara duyuru",
+          "🌍 Trawave Topluluğu: uygulama dilinde adlandırılan resmî kanal (TR \"Trawave Topluluğu\", EN \"Trawave Community\"). Tüm mevcut kullanıcılar ve her yeni kayıt otomatik üye; paylaşımlar \"Trawave Official\" adı, mavi tik ve uygulama logosuyla görünür",
+          "🚀 Her güncelleme yayınlandığında sürüm notları Trawave Topluluğu'nda otomatik paylaşılır (yönetici emeği yok, aynı sürüm iki kez paylaşılmaz)",
+          "🛠 Yönetici paneline \"Trawave Community\" sayfası: metin, bağlantı, görsel, video, müzik veya herhangi bir dosya seçip \"Paylaş\" ile tüm kullanıcılara duyuru",
           "🎨 Görünüm tek sayfada: Gece/Gündüz (Gündüz · Gece · Sistem · Zamanlı), uygulama teması, cam teması, Tema Stüdyosu, sohbet teması ve parlaklığı, canlı önizlemeli yazı boyutu, performans modu",
           "🕰 Zamanlı gece/gündüz modu: gece modunun başlayıp biteceği saati seç, uygulama kendisi geçer",
           "🗂 Ayarlar yeniden düzenlendi: Hesap ve güvenlik · Sohbetler ve bildirimler · Görünüm ve dil · Depolama ve pil · Destek",
@@ -1411,13 +1411,13 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
         ],
       ),
       'en': JuzzioReleaseSection(
-        reason: "This update closes all 18 issues you reported: a birthday celebration, real channels and a Juzzio Community everyone joins automatically, all Appearance settings on one page, fixed message and call reactions, redesigned message cards, in-chat search and working locked chats.",
+        reason: "This update closes all 18 issues you reported: a birthday celebration, real channels and a Trawave Community everyone joins automatically, all Appearance settings on one page, fixed message and call reactions, redesigned message cards, in-chat search and working locked chats.",
         features: [
           "🎂 Birthday celebration: when a message contains \"Happy Birthday\", \"Doğum günün kutlu olsun\" (and similar), two hands with party poppers come in from the left and right and pop, 🌸🎂😍⚡🥳💖❤️ rise and fade smoothly and an electric wave runs around the bubble — 4 seconds in total",
           "📣 Real channels: \"New channel\" now opens its own flow (name + description + live preview → pick people). Only owners and admins post; members read and react (enforced on the server)",
-          "🌍 Juzzio Community: an official channel named in your app language. Every existing user and every new sign-up joins automatically; posts appear as \"Juzzio Official\" with a blue tick and the app logo",
-          "🚀 Release notes are posted to Juzzio Community automatically on every update (no admin effort, never twice for the same version)",
-          "🛠 New \"Juzzio Community\" admin page: text, link, image, video, music or any file → \"Share\" to every user",
+          "🌍 Trawave Community: an official channel named in your app language. Every existing user and every new sign-up joins automatically; posts appear as \"Trawave Official\" with a blue tick and the app logo",
+          "🚀 Release notes are posted to Trawave Community automatically on every update (no admin effort, never twice for the same version)",
+          "🛠 New \"Trawave Community\" admin page: text, link, image, video, music or any file → \"Share\" to every user",
           "🎨 Appearance on one page: Light/Dark (Light · Dark · System · Scheduled), app theme, glass theme, Theme Studio, chat theme and brightness, font size with live preview, performance mode",
           "🕰 Scheduled light/dark mode: choose when dark mode starts and ends",
           "🗂 Settings reorganised: Account & security · Chats & notifications · Appearance & language · Storage & battery · Support",
@@ -1494,7 +1494,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
     publishedAt: DateTime(2026, 11, 9),
     sections: const {
       'tr': JuzzioReleaseSection(
-        reason: "Juzzio artık her dokunuşta canlı: sayfa geçişleri, anahtarlar, yükleyiciler, mesaj gönderme, beğeni ve ikon dönüşümleri baştan tasarlandı; yeni logo geldi. Aramalarda kullanıcının söylemediği \"Tamam aşkım\" gibi hayalet altyazılar giderildi ve alıntıya dokununca alıntılanan mesaja gidiliyor.",
+        reason: "Trawave artık her dokunuşta canlı: sayfa geçişleri, anahtarlar, yükleyiciler, mesaj gönderme, beğeni ve ikon dönüşümleri baştan tasarlandı; yeni logo geldi. Aramalarda kullanıcının söylemediği \"Tamam aşkım\" gibi hayalet altyazılar giderildi ve alıntıya dokununca alıntılanan mesaja gidiliyor.",
         features: [
           "🐣 Yeni logo: civciv + cam sohbet balonu kanat + yörünge halkası; Android uyarlanabilir ve tematik (tek renk) ikon, yeni açılış ekranı",
           "🚀 Açılış/yükleme ekranı: logonun etrafında dönen ışıklı yörünge, kıvılcımlı ilerleme çubuğu ve \"Bağlanıyor → Şifreleme doğrulanıyor → Mesajlar eşitleniyor\"",
@@ -1525,7 +1525,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
         ],
       ),
       'en': JuzzioReleaseSection(
-        reason: "Juzzio now feels alive at every touch: page transitions, switches, loaders, message sending, likes and icon morphs were redesigned, and there is a new logo. Phantom captions like \"Okay my love\" that users never said are gone from calls, and tapping a quote jumps to the quoted message.",
+        reason: "Trawave now feels alive at every touch: page transitions, switches, loaders, message sending, likes and icon morphs were redesigned, and there is a new logo. Phantom captions like \"Okay my love\" that users never said are gone from calls, and tapping a quote jumps to the quoted message.",
         features: [
           "🐣 New logo: a chick with a glass chat-bubble wing and an orbit ring; Android adaptive and themed (monochrome) icon, new launch screen",
           "🚀 Launch/loading screen: a glowing orbit around the logo, a sparkler progress bar and \"Connecting → Verifying encryption → Syncing messages\"",
@@ -1563,14 +1563,14 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
     publishedAt: DateTime(2026, 11, 9),
     sections: const {
       'tr': JuzzioReleaseSection(
-        reason: "Juzzio, Figma'da tasarlanan \"Juzzio Space\" arayüzüne taşındı: derin tema gradyanları, buzlu cam kartlar ve her temada parlayan vurgu rengi. Aynı güncellemede mesajlar beklemeden gönderiliyor, konum/bağlantı/anket deneyimi yenilendi, vardiyalar tarih aralığıyla planlanıyor ve yönetici kayıtları okunur hâle geldi.",
+        reason: "Trawave, Figma'da tasarlanan \"Trawave Space\" arayüzüne taşındı: derin tema gradyanları, buzlu cam kartlar ve her temada parlayan vurgu rengi. Aynı güncellemede mesajlar beklemeden gönderiliyor, konum/bağlantı/anket deneyimi yenilendi, vardiyalar tarih aralığıyla planlanıyor ve yönetici kayıtları okunur hâle geldi.",
         features: [
-          "🎨 Juzzio Space tasarımı: \"Senin alanın · Juzzio.\" başlığı, ⌘K kısayollu arama, hikâye halkaları, Gelen kutusu · Mesajlar, sayaçlı filtre hapları, cam sohbet kartları ve yüzen cam alt menü",
+          "🎨 Trawave Space tasarımı: \"Senin alanın · Trawave.\" başlığı, ⌘K kısayollu arama, hikâye halkaları, Gelen kutusu · Mesajlar, sayaçlı filtre hapları, cam sohbet kartları ve yüzen cam alt menü",
           "🌈 16 temanın tamamı aynı tasarım dilini kullanır; vurgu rengi, zemin derinliği ve cam opaklığı seçili temadan gelir (yeni kullanıcılarda varsayılan Zümrüt)",
           "⚡ Mesajlar anında gönderilir: balon hemen görünür, çeviri arka planda yapılır ve hazır olunca mesajın altında belirir (uçtan uca şifreli sohbetlerde çeviri de şifreli eklenir)",
           "📍 Paylaşılan konum harita önizlemeli kart olarak görünür; Android'de Google Haritalar, iOS'ta Apple Haritalar ya da Google Maps ile açılır",
           "🔗 Mesajlar, biyografi, gönderi ve yorumlardaki bağlantılar, e-postalar ve telefon numaraları tıklanabilir; varsayılan tarayıcıda/uygulamada açılır",
-          "🪪 Profil ve yönetici paneli de Juzzio Space düzeninde: büyük başlık, parlayan halkalı kare avatar, cam sayaç karoları, vurgu renkli birincil düğme, kapsül sekmeler ve cam istatistik kartları",
+          "🪪 Profil ve yönetici paneli de Trawave Space düzeninde: büyük başlık, parlayan halkalı kare avatar, cam sayaç karoları, vurgu renkli birincil düğme, kapsül sekmeler ve cam istatistik kartları",
           "📊 Yeni anket kartı: oran çubuklu seçenekler, yüzdeler, kazanan vurgusu ve canlı durum çipi",
           "📅 Vardiya planlayıcıda tarih aralığı: başlangıç–bitiş günü ve saatleri seç (gece vardiyası dahil), hafta içi/sonu filtrele, grupla paylaş ve gruba otomatik plan özeti gönder",
           "🐣 Civciv sevilince prenses gibi sağa dönüp göz kırpar ve cilve yapar; sohbetteki civciv rozeti de aynı animasyonu yapar",
@@ -1589,14 +1589,14 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
         ],
       ),
       'en': JuzzioReleaseSection(
-        reason: "Juzzio moves to the \"Juzzio Space\" interface designed in Figma: deep theme gradients, frosted glass cards and a glowing accent in every theme. In the same update messages send without waiting, location/link/poll experiences were rebuilt, shifts can be planned by date range and admin logs became readable.",
+        reason: "Trawave moves to the \"Trawave Space\" interface designed in Figma: deep theme gradients, frosted glass cards and a glowing accent in every theme. In the same update messages send without waiting, location/link/poll experiences were rebuilt, shifts can be planned by date range and admin logs became readable.",
         features: [
-          "🎨 Juzzio Space design: \"Your space · Juzzio.\" header, search with a ⌘K shortcut, story rings, Inbox · Messages, filter pills with counters, glass chat cards and a floating glass bottom bar",
+          "🎨 Trawave Space design: \"Your space · Trawave.\" header, search with a ⌘K shortcut, story rings, Inbox · Messages, filter pills with counters, glass chat cards and a floating glass bottom bar",
           "🌈 All 16 themes share the same design language; accent, background depth and glass opacity come from the selected theme (Emerald is the default for new users)",
           "⚡ Messages send instantly: the bubble appears right away, translation runs in the background and shows up under the message when ready (in end-to-end encrypted chats the translation is added encrypted too)",
           "📍 Shared locations appear as a card with a map preview and open in Google Maps on Android, Apple Maps on iOS, or Google Maps",
           "🔗 Links, e-mail addresses and phone numbers in messages, bios, posts and comments are tappable and open in the default browser/app",
-          "🪪 Profile and admin panel use the Juzzio Space layout too: large header, square avatar with a glowing ring, glass counter tiles, accent primary button, capsule tabs and glass stat cards",
+          "🪪 Profile and admin panel use the Trawave Space layout too: large header, square avatar with a glowing ring, glass counter tiles, accent primary button, capsule tabs and glass stat cards",
           "📊 New poll card: options with share bars, percentages, winner highlight and a live status chip",
           "📅 Date ranges in the shift planner: pick start–end days and hours (overnight shifts included), filter weekdays/weekends, share with a group and post a plan summary automatically",
           "🐣 When petted, the chick twirls to the right like a princess, winks and flirts; the chick badge in chats does the same animation",
@@ -1984,7 +1984,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
           "Görüşme sırasında gelen mesaj bildirimine dokununca görüşme kesilmeden o sohbet açılır",
           "Bildirimler uygulama dilinize çevrilmiş mesaj içeriğiyle gelir ve uygulama kapalıyken bile yanıtlanabilir",
           "Hikâyeler 30 saniye görünür; hikâyede paylaşanın adına dokununca profili açılır",
-          "Juzzio Official: mavi tikli resmi tanıtım hikâyeleri Durumlar'da herkeste ilk sırada",
+          "Trawave Official: mavi tikli resmi tanıtım hikâyeleri Durumlar'da herkeste ilk sırada",
           "Güzelleştirme yoğunluğu ayarı: görüntülü aramada ve hikâye fotoğraflarında",
           "Yorum yanıtında otomatik @bahsetme; 'yorumunuza yanıt verdi' ve 'yorumunuzu beğendi' bildirimleri",
           "Sesli mesajlarda toplam süre ve oynatılırken geçen süre",
@@ -2002,7 +2002,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
           "Şonaca ve Kirundi dil kodları düzeltildi",
         ],
         security: [
-          "Juzzio Official hikâyesini yalnız yönetici paylaşabilir; sunucu tarafında zorunlu denetim",
+          "Trawave Official hikâyesini yalnız yönetici paylaşabilir; sunucu tarafında zorunlu denetim",
           "Uçtan uca şifreleme değişmedi; bildirim çevirisi cihazda çözülen metinle yapılır",
         ],
       ),
@@ -2013,7 +2013,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
           "Tapping a message notification during a call opens that chat without ending the call",
           "Notifications show the message translated into your app language and can be answered even when the app is closed",
           "Stories are shown for 30 seconds; tap the poster's name to open their profile",
-          "Juzzio Official: blue-tick official teaser stories shown first in everyone's Stories",
+          "Trawave Official: blue-tick official teaser stories shown first in everyone's Stories",
           "Adjustable beauty intensity in video calls and story photos",
           "Automatic @mention when replying to comments; 'replied to your comment' and 'liked your comment' notifications",
           "Total duration on voice messages, elapsed time while playing",
@@ -2031,7 +2031,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
           "Fixed Shona and Kirundi language codes",
         ],
         security: [
-          "Only the admin can post Juzzio Official stories; enforced on the server",
+          "Only the admin can post Trawave Official stories; enforced on the server",
           "End-to-end encryption unchanged; notification translation uses text decrypted on the device",
         ],
       ),
@@ -2233,7 +2233,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
           "Temaları JSON ile içe/dışa aktar, çoğalt, yeniden adlandır, varsayılana dön",
           "Zamanlı gece/gündüz modu",
           "Bildirimden hızlı yanıt: uygulamayı açmadan, uçtan uca şifreli",
-          "Juzzio'nun önerdiği tema (yönetici yayını; tema seçmeyenler için, kapatılabilir)",
+          "Trawave'nun önerdiği tema (yönetici yayını; tema seçmeyenler için, kapatılabilir)",
           "5 yeni tema: Obsidyen OLED, Lavanta Sisi, Gül Kuvars, Siber Neon, Yüksek Kontrast",
           "Cam yoğunluğu ve performans modu",
         ],
@@ -2256,7 +2256,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
           "Import/export themes as JSON, duplicate, rename, reset",
           "Scheduled light/dark mode",
           "Quick reply from notifications, end-to-end encrypted",
-          "Juzzio recommended theme (published by admins, optional)",
+          "Trawave recommended theme (published by admins, optional)",
           "5 new themes",
           "Glass intensity and performance mode",
         ],
@@ -2350,7 +2350,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
         reason: "Kullanıcı geri bildirimlerindeki tüm sorunları tek pakette çözmek, gizliliği güçlendirmek (uçtan uca şifreleme) ve uygulamadaki her şeyi açıkça anlatmak için getirildi.",
         features: [
           "1'e 1 yazılı mesajlarda uçtan uca şifreleme (🔒)",
-          "Zil sesleri ve uyarı tonları: Juzzio'ya özel sesler, varsayılan ve kişiye özel zil sesi/bildirim tonu",
+          "Zil sesleri ve uyarı tonları: Trawave'ya özel sesler, varsayılan ve kişiye özel zil sesi/bildirim tonu",
           "Kişi bilgisi sayfası: profil, arama, süreli mesajlar, sessize al, özel tonlar, engelle",
           "Arama ayrıntısı sayfası (başlangıç/cevap/bitiş saati, süre, ilk kim kapattı) ve arama filtreleri; arama kayıtları sohbette görünür",
           "Müzik: YouTube kaldırıldı; isimle arama, tek dokunuşla ekleme, profilde oynat/durdur, hikâyede otomatik çalma",
@@ -2389,7 +2389,7 @@ final List<JuzzioReleaseNote> kJuzzioBundledReleaseNotes = <JuzzioReleaseNote>[
         reason: "Released to fix every issue from user feedback in one package, strengthen privacy (end-to-end encryption) and explain everything in the app openly.",
         features: [
           "End-to-end encryption for 1:1 text messages (🔒)",
-          "Ringtones & alert tones: Juzzio sounds, default and per-contact",
+          "Ringtones & alert tones: Trawave sounds, default and per-contact",
           "Contact info page: profile, calls, disappearing messages, mute, custom tones, block",
           "Call details page and call filters; call records appear in chats",
           "Music: YouTube removed; search by name, add with one tap, play/stop on profile, auto-play in stories",

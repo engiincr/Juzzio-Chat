@@ -212,6 +212,8 @@ class JuzzioBlurSheetRoute<T> extends ModalBottomSheetRoute<T> {
     super.barrierLabel,
     super.backgroundColor,
     super.shape,
+    super.elevation,
+    super.clipBehavior,
     super.modalBarrierColor,
     super.isDismissible,
     super.enableDrag,
@@ -285,13 +287,19 @@ Future<T?> showJuzzioSheet<T>({
   final nav = Navigator.of(context, rootNavigator: useRootNavigator);
   final loc = MaterialLocalizations.of(context);
   JuzzioHaptics.toggle();
+  // GM-038 (v2.2.0): içerik kendi cam panelini çiziyorsa (saydam zemin) temanın alt sayfa
+  // şekli/kenarlığı/gölgesi ÇİZİLMEZ — aksi halde cam panelin köşelerinden taşan ikinci bir
+  // kenar ve köşe görünüyordu (Paylaş menüsü, arama seçenekleri ve diğer sayfalar).
+  final clear = backgroundColor != null && backgroundColor.a == 0;
   return nav.push(JuzzioBlurSheetRoute<T>(
     builder: builder,
     capturedThemes: InheritedTheme.capture(from: context, to: nav.context),
     isScrollControlled: isScrollControlled,
     barrierLabel: loc.scrimLabel,
     backgroundColor: backgroundColor,
-    shape: shape,
+    shape: shape ?? (clear ? const RoundedRectangleBorder() : null),
+    elevation: clear ? 0 : null,
+    clipBehavior: clear ? Clip.none : null,
     modalBarrierColor: barrierColor ?? Colors.black.withValues(alpha: 0.34),
     isDismissible: isDismissible,
     enableDrag: enableDrag,

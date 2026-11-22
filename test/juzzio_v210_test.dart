@@ -71,7 +71,7 @@ void main() {
         JuzzioWordmark(size: 22),
         JuzzioScreenHeader(title: 'Ayarlar', subtitle: 'Uygulama tercihlerini yönet'),
       ])));
-      expect(find.text('Juzzio'), findsWidgets);
+      expect(find.text('Trawave'), findsWidgets);
       expect(find.text('Ayarlar'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
@@ -126,12 +126,12 @@ void main() {
   group('Faz 3 — giriş akışı', () {
     test('kayıt/giriş: üst sahne, limon düğme, beni hatırla, şifremi unuttum, geçiş bağlantısı', () {
       final m = _src('lib/main.dart');
-      // v2.1.1: tasarım şablonu birebir — limon sahne, "Juzzio'ya Katıl" / "Tekrar Hoş Geldin!" + vurgu çizgisi
+      // v2.1.1: tasarım şablonu birebir — limon sahne, "Trawave'ya Katıl" / "Tekrar Hoş Geldin!" + vurgu çizgisi
       // GM-002 (21.11.2026): arayüz widgets/auth/ altına taşındı (iş mantığı main.dart'ta kaldı, K3)
       final v = _src('lib/widgets/auth/juzzio_auth_view.dart');
       final kit = _src('lib/widgets/auth/juzzio_auth_kit.dart');
       expect(m.contains('JuzzioAuthView('), isTrue);
-      expect(v.contains("t('Katıl', 'Juzzio', 'Juzzio')"), isTrue);
+      expect(v.contains("t('Katıl', 'Trawave', 'Trawave')"), isTrue);
       expect(v.contains("t('Geldin!', 'back!', 'zurück!')"), isTrue);
       expect(v.contains('JuzzioAuthTitle('), isTrue);
       expect(v.contains("static const providers = ['google', 'apple', 'github'];"), isTrue);

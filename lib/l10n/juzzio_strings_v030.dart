@@ -81,7 +81,7 @@ const Map<String, Map<String, String>> kJuzzioV030Strings = {
 
   // ---- Rozetler
   'badge_verified': {'tr': 'Doğrulanmış hesap', 'en': 'Verified account', 'de': 'Verifiziertes Konto'},
-  'badge_verified_desc': {'tr': 'Bu hesap Juzzio tarafından doğrulandı.', 'en': 'This account is verified by Juzzio.', 'de': 'Dieses Konto wurde von Juzzio verifiziert.'},
+  'badge_verified_desc': {'tr': 'Bu hesap Trawave tarafından doğrulandı.', 'en': 'This account is verified by Trawave.', 'de': 'Dieses Konto wurde von Trawave verifiziert.'},
   'badge_voice_chatter': {'tr': 'Çene Kuşu', 'en': 'Chatterbird', 'de': 'Plaudervogel'},
   'badge_voice_chatter_desc': {'tr': '60 dakikadan fazla sesli görüşme yaptı.', 'en': 'Talked for more than 60 minutes in voice calls.', 'de': 'Hat über 60 Minuten in Sprachanrufen geredet.'},
   'badge_voice_storyteller': {'tr': 'Radyocu', 'en': 'Radio Host', 'de': 'Radiomoderator'},
@@ -252,8 +252,8 @@ const Map<String, Map<String, String>> kJuzzioV030Strings = {
   'report_status_reviewed': {'tr': 'İncelendi', 'en': 'Reviewed', 'de': 'Geprüft'},
   'report_status_resolved': {'tr': 'Çözüldü', 'en': 'Resolved', 'de': 'Erledigt'},
   'report_status_dismissed': {'tr': 'Yoksayıldı', 'en': 'Dismissed', 'de': 'Verworfen'},
-  'banned_title': {'tr': 'Bu cihazda Juzzio kullanımı engellendi', 'en': 'Juzzio is blocked on this device', 'de': 'Juzzio ist auf diesem Gerät gesperrt'},
-  'banned_body': {'tr': 'Hesabın ya da cihazın Juzzio kurallarını ihlal ettiği için engellendi. Sebep: {reason}', 'en': 'Your account or device was banned for violating Juzzio rules. Reason: {reason}', 'de': 'Dein Konto oder Gerät wurde wegen Verstößen gegen die Juzzio-Regeln gesperrt. Grund: {reason}'},
+  'banned_title': {'tr': 'Bu cihazda Trawave kullanımı engellendi', 'en': 'Trawave is blocked on this device', 'de': 'Trawave ist auf diesem Gerät gesperrt'},
+  'banned_body': {'tr': 'Hesabın ya da cihazın Trawave kurallarını ihlal ettiği için engellendi. Sebep: {reason}', 'en': 'Your account or device was banned for violating Trawave rules. Reason: {reason}', 'de': 'Dein Konto oder Gerät wurde wegen Verstößen gegen die Trawave-Regeln gesperrt. Grund: {reason}'},
 
   // ---- Dil paketi
   'lang_search_hint': {'tr': 'Dil ara (Türkçe, English, Deutsch, العربية...)', 'en': 'Search languages (Türkçe, English, Deutsch, العربية...)', 'de': 'Sprache suchen (Türkçe, English, Deutsch, العربية...)'},

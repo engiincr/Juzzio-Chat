@@ -1,13 +1,13 @@
-JUZZIO TESCİLLİ YAZILIM LİSANSI (Tüm Hakları Saklıdır)
-Juzzio Proprietary Software License (All Rights Reserved)
+TRAWAVE TESCİLLİ YAZILIM LİSANSI (Tüm Hakları Saklıdır)
+Trawave Proprietary Software License (All Rights Reserved)
 
-Telif Hakkı (c) 2026 Engin (@tugkancr) — Juzzio. Tüm hakları saklıdır.
-Copyright (c) 2026 Engin (@tugkancr) — Juzzio. All rights reserved.
+Telif Hakkı (c) 2026 Engin (@tugkancr) — Trawave. Tüm hakları saklıdır.
+Copyright (c) 2026 Engin (@tugkancr) — Trawave. All rights reserved.
 
 1. KAPSAM
-Bu lisans; Juzzio uygulamasının kaynak kodunu, derlenmiş uygulama paketlerini (APK
+Bu lisans; Trawave uygulamasının kaynak kodunu, derlenmiş uygulama paketlerini (APK
 dahil), veritabanı şemasını, sunucu fonksiyonlarını, tasarımını, arayüzünü, ses ve
-görsel varlıklarını, "Juzzio" adını ve logosunu ("Yazılım") kapsar. Yazılım 5846
+görsel varlıklarını, "Trawave" adını ve logosunu ("Yazılım") kapsar. Yazılım 5846
 sayılı Fikir ve Sanat Eserleri Kanunu ve uluslararası telif hakkı anlaşmalarıyla
 korunmaktadır.
 

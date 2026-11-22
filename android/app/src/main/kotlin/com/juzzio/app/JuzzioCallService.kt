@@ -62,7 +62,7 @@ class JuzzioCallService : Service() {
             }
             return START_NOT_STICKY
         }
-        val title = intent?.getStringExtra(EXTRA_TITLE) ?: "Juzzio"
+        val title = intent?.getStringExtra(EXTRA_TITLE) ?: "Trawave"
         val video = intent?.getBooleanExtra(EXTRA_VIDEO, false) ?: false
         // v2.1: ekran paylaşımı — kullanıcı yansıtma iznini verdikten SONRA servis bu türle
         // yeniden başlatılır (Android 14 bu sırayı zorunlu kılar)

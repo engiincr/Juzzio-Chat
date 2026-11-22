@@ -17,6 +17,7 @@ import '../core/app_theme_and_locale.dart';
 import '../core/theme/juzzio_glass.dart';
 import '../services/juzzio_weather_service.dart';
 import 'juzzio_moon_phase.dart';
+import 'juzzio_weather_ambience.dart' show JuzzioAmbienceRouteObserver;
 
 /// Katmanda çizilen simge türleri
 enum JuzzioDoodleKind { cloud, sun, moon, star, drop, snowflake, bolt }
@@ -334,6 +335,7 @@ class _JuzzioWeatherDoodleLayerState extends State<JuzzioWeatherDoodleLayer> wit
     super.initState();
     _svc.addListener(_sync);
     _app.addListener(_sync);
+    JuzzioAmbienceRouteObserver.instance.onHome.addListener(_sync);
     _tick = Timer.periodic(const Duration(minutes: 1), (_) => _sync());
   }
 
@@ -358,6 +360,7 @@ class _JuzzioWeatherDoodleLayerState extends State<JuzzioWeatherDoodleLayer> wit
     _tick?.cancel();
     _svc.removeListener(_sync);
     _app.removeListener(_sync);
+    JuzzioAmbienceRouteObserver.instance.onHome.removeListener(_sync);
     _loop.dispose();
     super.dispose();
   }
@@ -366,6 +369,12 @@ class _JuzzioWeatherDoodleLayerState extends State<JuzzioWeatherDoodleLayer> wit
   Widget build(BuildContext context) {
     final st = _svc.state;
     if (st == null || !_app.weatherThemeEnabled) return const SizedBox.shrink();
+    // GM-037: ana ekran sekmelerinde (Sohbetler, Keşfet…) HD hava sahnesi zaten çiziliyor;
+    // ikinci bir ay/bulut katmanı (çift ay) çizilmez. Açılan alt sayfalarda doodle görünür.
+    final route = ModalRoute.of(context);
+    if ((route == null || route.isFirst) && JuzzioAmbienceRouteObserver.instance.onHome.value) {
+      return const SizedBox.shrink();
+    }
     final fresh = DateTime.now().difference(st.fetchedAt) <= const Duration(hours: 3);
     final night = juzzioIsNightNowForDoodles(DateTime.now(), isDay: fresh ? st.isDay : null);
     return IgnorePointer(

@@ -67,7 +67,7 @@ class _JuzzioProfileQrPageState extends State<JuzzioProfileQrPage> {
 
   Future<void> _share() async {
     final ok = await JuzzioNative.shareText(
-      _app.trEn("Juzzio'da beni ekle: $_link", 'Add me on Juzzio: $_link', 'Füge mich auf Juzzio hinzu: $_link'),
+      _app.trEn("Trawave'da beni ekle: $_link", 'Add me on Trawave: $_link', 'Füge mich auf Trawave hinzu: $_link'),
       title: _app.trEn('Profili paylaş', 'Share profile', 'Profil teilen'),
     );
     if (!ok) await _copy();
@@ -113,7 +113,7 @@ class _JuzzioProfileQrPageState extends State<JuzzioProfileQrPage> {
   void _openScanned(String res) {
     final u = juzzioUsernameFromScan(res);
     if (u == null) {
-      _snack(_app.trEn('Geçerli bir Juzzio bağlantısı değil.', 'Not a valid Juzzio link.', 'Kein gültiger Juzzio-Link.'));
+      _snack(_app.trEn('Geçerli bir Trawave bağlantısı değil.', 'Not a valid Trawave link.', 'Kein gültiger Trawave-Link.'));
       return;
     }
     if (!mounted) return;
@@ -133,8 +133,8 @@ class _JuzzioProfileQrPageState extends State<JuzzioProfileQrPage> {
           children: [
             Text(
               _app.trEn(
-                'Telefonunun kamerasını karekoda tut: bağlantı Juzzio\'yu açar. Ya da bağlantıyı / kullanıcı adını buraya yapıştır.',
-                'Point your phone camera at the code — the link opens Juzzio. Or paste the link / username here.',
+                'Telefonunun kamerasını karekoda tut: bağlantı Trawave\'yu açar. Ya da bağlantıyı / kullanıcı adını buraya yapıştır.',
+                'Point your phone camera at the code — the link opens Trawave. Or paste the link / username here.',
                 'Richte die Kamera auf den Code oder füge den Link / Benutzernamen hier ein.',
               ),
               style: const TextStyle(fontSize: 13),
@@ -171,8 +171,8 @@ class _JuzzioProfileQrPageState extends State<JuzzioProfileQrPage> {
           children: [
             JuzzioScreenHeader(
               title: _app.trEn('Profil Karekodum', 'My Profile QR', 'Mein Profil-QR'),
-              subtitle: _app.trEn("Beni Juzzio'da eklemek için karekodu tara.", 'Scan the code to add me on Juzzio.',
-                  'Scanne den Code, um mich auf Juzzio hinzuzufügen.'),
+              subtitle: _app.trEn("Beni Trawave'da eklemek için karekodu tara.", 'Scan the code to add me on Trawave.',
+                  'Scanne den Code, um mich auf Trawave hinzuzufügen.'),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),

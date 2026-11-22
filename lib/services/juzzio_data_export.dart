@@ -1,6 +1,6 @@
 // Juzzio 2.1 (Faz 9.4) — "Verilerimi indir" (KVKK m.11 · GDPR m.15/20)
 // Sunucudaki juzzio_export_my_data() yalnız çağıranın kendi verisini döndürür.
-// Android'de İndirilenler/Juzzio, masaüstünde İndirilenler, iOS'ta uygulama Belgeler klasörüne kaydedilir.
+// Android'de İndirilenler/Trawave, masaüstünde İndirilenler, iOS'ta uygulama Belgeler klasörüne kaydedilir.
 // Mesaj içerikleri uçtan uca şifreli olduğu için dosyaya konmaz.
 
 import 'dart:convert';

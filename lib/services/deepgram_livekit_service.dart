@@ -1848,7 +1848,7 @@ class DeepgramLiveKitController extends ChangeNotifier {
       } catch (_) {}
       if (android) {
         try {
-          await _screenNative.invokeMethod('setScreenShareForeground', {'on': false, 'title': 'Juzzio'});
+          await _screenNative.invokeMethod('setScreenShareForeground', {'on': false, 'title': 'Trawave'});
         } catch (_) {}
       }
       isScreenSharing = false;
@@ -1864,7 +1864,7 @@ class DeepgramLiveKitController extends ChangeNotifier {
           lastScreenShareError = 'permission';
           return false;
         }
-        await _screenNative.invokeMethod('setScreenShareForeground', {'on': true, 'title': 'Juzzio'});
+        await _screenNative.invokeMethod('setScreenShareForeground', {'on': true, 'title': 'Trawave'});
         // servis türü güncellensin diye kısa bekleme (aksi hâlde Android 14 yansıtmayı reddeder)
         await Future<void>.delayed(const Duration(milliseconds: 350));
         await lp.setScreenShareEnabled(true);
@@ -1892,7 +1892,7 @@ class DeepgramLiveKitController extends ChangeNotifier {
       lastScreenShareError = e.toString();
       if (android) {
         try {
-          await _screenNative.invokeMethod('setScreenShareForeground', {'on': false, 'title': 'Juzzio'});
+          await _screenNative.invokeMethod('setScreenShareForeground', {'on': false, 'title': 'Trawave'});
         } catch (_) {}
       }
       isScreenSharing = false;

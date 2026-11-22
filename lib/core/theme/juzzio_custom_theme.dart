@@ -254,12 +254,12 @@ class JuzzioCustomTheme {
       {required String newId, List<String>? errors, List<String>? warnings}) {
     final err = errors ?? <String>[];
     final warn = warnings ?? <String>[];
-    if (map['schema'] != schema) err.add('Bu bir Juzzio teması değil (schema).');
+    if (map['schema'] != schema) err.add('Bu bir Trawave teması değil (schema).');
     final ver = map['version'];
     if (ver is! int || ver < 1) {
       err.add('Geçersiz sürüm.');
     } else if (ver > version) {
-      err.add('Bu tema daha yeni bir Juzzio sürümüyle oluşturulmuş (v$ver).');
+      err.add('Bu tema daha yeni bir Trawave sürümüyle oluşturulmuş (v$ver).');
     }
     final mode = map['mode'];
     final dark = mode != 'light';

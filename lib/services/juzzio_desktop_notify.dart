@@ -24,7 +24,7 @@ class JuzzioDesktopNotify {
   Future<void> _ensure() async {
     if (_ready || !juzzioIsDesktop) return;
     try {
-      await localNotifier.setup(appName: 'Juzzio', shortcutPolicy: ShortcutPolicy.requireCreate);
+      await localNotifier.setup(appName: 'Trawave', shortcutPolicy: ShortcutPolicy.requireCreate);
       _ready = true;
     } catch (e) {
       debugPrint('Desktop notify setup failed: $e');

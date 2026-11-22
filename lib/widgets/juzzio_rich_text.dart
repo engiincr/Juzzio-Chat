@@ -186,7 +186,7 @@ Future<bool> juzzioConfirmRiskyLink(BuildContext context, Uri uri) async {
         for (final r in risks.take(4))
           Padding(padding: const EdgeInsets.only(bottom: 4), child: Text('• ${_riskText(r)}')),
         const SizedBox(height: 6),
-        Text(app.trEn('Şifre, kart veya kod bilgisi girme. Juzzio asla şifreni sormaz.', 'Never enter passwords, card details or codes. Juzzio never asks for your password.',
+        Text(app.trEn('Şifre, kart veya kod bilgisi girme. Trawave asla şifreni sormaz.', 'Never enter passwords, card details or codes. Trawave never asks for your password.',
             'Gib keine Passwörter oder Codes ein.')),
       ]),
       actions: [
@@ -302,7 +302,7 @@ JuzzioGeoPoint? juzzioParseLocation(String text) {
 /// Platformun harita uygulaması (Android: geo: → Google Haritalar/seçici, iOS: Apple Haritalar)
 Uri juzzioNativeMapUri(JuzzioGeoPoint p) {
   final q = '${p.lat.toStringAsFixed(6)},${p.lng.toStringAsFixed(6)}';
-  final label = Uri.encodeComponent(p.label.isEmpty ? 'Juzzio' : p.label);
+  final label = Uri.encodeComponent(p.label.isEmpty ? 'Trawave' : p.label);
   if (!Platform.isIOS) return Uri.parse('geo:$q?q=$q($label)');
   return Uri.parse('https://maps.apple.com/?ll=$q&q=$label');
 }

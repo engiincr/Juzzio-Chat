@@ -15,7 +15,7 @@
 //     ana ekranda görünür (JuzzioAmbienceRouteObserver), başka sayfa açılınca yumuşakça söner.
 //   • Hava/saat değişimi fark edilmeyecek kadar yumuşak: eski ve yeni sahne 12 sn boyunca
 //     çapraz geçişle karışır; ilk görünüş de 3 sn'de belirir (ani "tema kayması" yok).
-//   • Yağmurlu/fırtınalı havada ara sıra (20–55 sn'de bir) sol üstteki "Juzzio — senin alanın"
+//   • Yağmurlu/fırtınalı havada ara sıra (20–55 sn'de bir) sol üstteki "Trawave — senin alanın"
 //     köşesinden gelen kutusu/mesajlar alanına kadar parlak bir şimşek çakar.
 //  Okunabilirlik için saydamlık düşük tutulur. "Hareketi azalt" ve Performans modunda yalnız
 //  durağan renk tonu çizilir (animasyon/ticker yok). Ayar: Görünüm → Hava durumu teması.
@@ -187,6 +187,7 @@ class _JuzzioWeatherAmbienceState extends State<JuzzioWeatherAmbience> with Tick
     JuzzioAppController.instance.addListener(_sync);
     _route.onHome.addListener(_sync);
     JuzzioSpecialThemes.instance.addListener(_sync);
+    JuzzioWeatherService.debugPreview.addListener(_sync);
     _trackScene();
     _updateLoop();
     // v2.1: güneş/ay yayda ilerlesin diye her dakika yeniden hesaplanır
@@ -227,7 +228,8 @@ class _JuzzioWeatherAmbienceState extends State<JuzzioWeatherAmbience> with Tick
     _boltTimer?.cancel();
     final st = _svc.state;
     // GM-030: HD şimşek flaşı yalnız fırtınada (referans); özel temada hava yok
-    if (st == null || !_visible || !_animate || st.kind != JuzzioWeatherKind.thunder || _special != JuzzioSpecialTheme.none) return;
+    final kind = JuzzioWeatherService.debugPreview.value?.$1 ?? st?.kind;
+    if (st == null || !_visible || !_animate || kind != JuzzioWeatherKind.thunder || _special != JuzzioSpecialTheme.none) return;
     final secs = 8 + _rnd.nextInt(14);
     _boltTimer = Timer(Duration(seconds: secs), () {
       if (!mounted || !_visible) return;
@@ -282,6 +284,7 @@ class _JuzzioWeatherAmbienceState extends State<JuzzioWeatherAmbience> with Tick
     JuzzioAppController.instance.removeListener(_sync);
     _route.onHome.removeListener(_sync);
     JuzzioSpecialThemes.instance.removeListener(_sync);
+    JuzzioWeatherService.debugPreview.removeListener(_sync);
     _loop.dispose();
     _fade.dispose();
     _bolt.dispose();
@@ -294,8 +297,8 @@ class _JuzzioWeatherAmbienceState extends State<JuzzioWeatherAmbience> with Tick
   // GM-030 (v2.2.0): Sohbetler ekranında Engin'in HD şeffaf hava görselleri (referans yerleşim).
   // Eski "doodle" gökyüzü (JuzzioDoodleSkyPainter) diğer sayfalardaki küçük katmanda kalır.
   Widget _scenePaint(JuzzioSkyScene sc) => JuzzioHdWeatherScene(
-        kind: sc.kind,
-        night: sc.showMoon,
+        kind: JuzzioWeatherService.debugPreview.value?.$1 ?? sc.kind,
+        night: JuzzioWeatherService.debugPreview.value?.$2 ?? sc.showMoon,
         dark: JuzzioAppController.instance.isDark,
         moonIndex: juzzioMoonPhaseIndex(sc.moonPhase),
         loop: _loop,

@@ -201,7 +201,7 @@ class JuzzioGlassTokens {
   static Color get icon => _ct?.icon ?? textPrimary;
   static const Color accent = JuzzioColors.accent;
   /// Birincil buton dolgusu: koyu modda beyaz, aydınlık modda grafit (her temada okunur)
-  /// v1.0.0: birincil buton dolgusu temanın parlayan vurgusudur (Figma "Juzzio Space")
+  /// v1.0.0: birincil buton dolgusu temanın parlayan vurgusudur (Figma "Trawave Space")
   static Color get accentFill => glow;
   static Color get onAccent => onGlow;
   static const double radius = 22;

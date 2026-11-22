@@ -141,7 +141,7 @@ const Map<String, JuzzioGlassCharacter> kJuzzioGlassCharacters = {
       blur: 1.3, opacity: 0.9, sheen: 1.5, depth: 0.9, rim: Color(0xFFBAE6FD)),
 };
 
-/// v1.0.0 "Juzzio Space" tasarım dili (Figma): her temanın parlayan vurgu rengi
+/// v1.0.0 "Trawave Space" tasarım dili (Figma): her temanın parlayan vurgu rengi
 /// (okunmamış rozeti, aktif sekme, hikâye halkası, oluştur düğmesi, seçili filtre) ve
 /// derin dikey zemin gradyanı. Renkler YALNIZ burada tanımlıdır; bileşenler
 /// [JuzzioSpaceSpec] üzerinden okur — sayfalarda sabit hex yoktur.
@@ -342,9 +342,9 @@ const List<JuzzioAuroraPalette> kJuzzioAuroraPalettes = [
   // sol üstte cyan, sağda electric blue, altta derin turkuaz, hafif aurora moru.
   JuzzioAuroraPalette(
     id: 'juzzio_liquid',
-    nameTr: 'Juzzio Sıvı Cam',
-    nameEn: 'Juzzio Liquid Glass',
-    nameDe: 'Juzzio Liquid Glass',
+    nameTr: 'Trawave Sıvı Cam',
+    nameEn: 'Trawave Liquid Glass',
+    nameDe: 'Trawave Liquid Glass',
     base: Color(0xFF050A12),
     baseLight: Color(0xFFEAF6FB),
     swatchA: Color(0xFF20D9F2),

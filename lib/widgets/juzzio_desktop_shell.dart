@@ -15,6 +15,7 @@
 
 import 'dart:io' show Platform;
 import 'dart:math' as math;
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -319,7 +320,9 @@ class JuzzioDesktopRightPlaceholder extends StatelessWidget {
       fit: StackFit.expand,
       children: [
         Positioned.fill(child: JuzzioDesktopSceneBackdrop(dark: dark, accent: glow)),
-        Center(
+        // GM-035: görseldeki yerleşim — panelin ortası, biraz yukarıda
+        Align(
+          alignment: const Alignment(0, -0.12),
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
@@ -328,7 +331,7 @@ class JuzzioDesktopRightPlaceholder extends StatelessWidget {
                 JuzzioOrbitAppIcon(dark: dark, accent: glow),
                 const SizedBox(height: 18),
                 Text(
-                  'Juzzio',
+                  'Trawave',
                   style: TextStyle(
                     fontFamily: JuzzioConfig.fontRegularBold,
                     color: JuzzioGlassTokens.heading,
@@ -502,16 +505,105 @@ class _OrbitPainter extends CustomPainter {
   bool shouldRepaint(_OrbitPainter o) => o.accent != accent || o.dark != dark || o.front != front;
 }
 
-/// GM-028: masaüstü sağ panel sahnesi (gece: hilal-yıldız, yıldızlar, ışık yayı, tepeler;
-/// gündüz: güneş, bulutlar, açık tepeler). Saf çizim; görsel dosyası yok.
+/// GM-028 / GM-035 (v2.2.0): masaüstü sağ panel sahnesi — Engin'in görseline birebir:
+/// gece: gerçek (fotoğraf dokulu) hilal + sıcak parıltı, metalik yıldız, yumuşak HD bulutlar,
+/// sol üstten yükselen ince ışık yayı, vurgu renginde parlayan modern tepe sırtları;
+/// gündüz: bulutların ardından doğan güneş, beyaz HD bulutlar, açık tepeler.
 class JuzzioDesktopSceneBackdrop extends StatelessWidget {
   const JuzzioDesktopSceneBackdrop({super.key, required this.dark, required this.accent});
   final bool dark;
   final Color accent;
 
+  static const String _moon = 'assets/weather_hd/moon_7_waning_crescent.webp';
+  static const String _cloud = 'assets/weather_hd/cloud_white.webp';
+  static const String _sun = 'assets/weather_hd/sun_rise_clouds.webp';
+
+  Widget _img(String a, double w, {double opacity = 1, Color? tint}) {
+    Widget i = Image.asset(a, width: w, fit: BoxFit.contain, filterQuality: FilterQuality.high, errorBuilder: (_, __, ___) => const SizedBox.shrink());
+    if (tint != null) i = ColorFiltered(colorFilter: ColorFilter.mode(tint, BlendMode.modulate), child: i);
+    return Opacity(opacity: opacity, child: i);
+  }
+
+  /// Paketteki bulutun bir kenarı düz kesik: aynası ile üst üste bindirilerek iki ucu da doğal,
+  /// yumuşak bir bulut elde edilir (GM-037 kesik bulut kuralı).
+  Widget _puff(double w, {required double opacity, Color? tint}) => SizedBox(
+        width: w,
+        height: w * 0.36,
+        child: Stack(clipBehavior: Clip.none, children: [
+          Positioned(left: 0, top: 0, child: _img(_cloud, w * 0.62, opacity: opacity, tint: tint)),
+          Positioned(
+              left: w * 0.38,
+              top: w * 0.02,
+              child: Transform.flip(flipX: true, child: _img(_cloud, w * 0.62, opacity: opacity, tint: tint))),
+        ]),
+      );
+
   @override
-  Widget build(BuildContext context) =>
-      IgnorePointer(child: CustomPaint(key: const ValueKey('gm028-scene'), painter: JuzzioDesktopScenePainter(dark: dark, accent: accent)));
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: LayoutBuilder(
+        key: const ValueKey('gm028-scene'),
+        builder: (context, c) {
+          final w = c.maxWidth, h = c.maxHeight;
+          final m = math.min(w, h);
+          final cloudTint = dark ? const Color(0xFF6B7380) : null;
+          final cloudOp = dark ? 0.16 : 0.85;
+          return Stack(clipBehavior: Clip.hardEdge, children: [
+            Positioned.fill(child: CustomPaint(painter: JuzzioDesktopScenePainter(dark: dark, accent: accent))),
+            Positioned(left: w * 0.02, top: h * 0.17, child: _puff(w * 0.26, opacity: cloudOp * 0.9, tint: cloudTint)),
+            Positioned(right: -w * 0.04, top: h * 0.36, child: _puff(w * 0.30, opacity: cloudOp, tint: cloudTint)),
+            Positioned(left: w * 0.03, top: h * 0.68, child: _puff(w * 0.22, opacity: cloudOp * 0.8, tint: cloudTint)),
+            if (dark) ...[
+              // hilalin sıcak parıltısı: aynı şeklin bulanık kopyası (kare gölge değil)
+              Positioned(
+                right: w * 0.075 - m * 0.02,
+                top: h * 0.06 - m * 0.02,
+                child: ImageFiltered(
+                  imageFilter: ImageFilter.blur(sigmaX: m * 0.025, sigmaY: m * 0.025),
+                  child: _img(_moon, m * 0.24 + m * 0.04, tint: const Color(0xFFF4F1B0), opacity: 0.55),
+                ),
+              ),
+              Positioned(right: w * 0.075, top: h * 0.06, child: _img(_moon, m * 0.24)),
+              Positioned(
+                right: w * 0.045,
+                top: h * 0.10,
+                child: SizedBox(width: m * 0.07, height: m * 0.07, child: const CustomPaint(painter: _MetalStarPainter())),
+              ),
+            ] else
+              Positioned(right: w * 0.02, top: h * 0.02, child: _img(_sun, m * 0.46)),
+          ]);
+        },
+      ),
+    );
+  }
+}
+
+/// Görseldeki gri, eğimli (bombeli) yıldız
+class _MetalStarPainter extends CustomPainter {
+  const _MetalStarPainter();
+  @override
+  void paint(Canvas canvas, Size size) {
+    final c = size.center(Offset.zero);
+    final r = size.shortestSide / 2;
+    final pts = <Offset>[];
+    for (var i = 0; i < 10; i++) {
+      final rr = i.isEven ? r : r * 0.45;
+      final a = -math.pi / 2 + i * math.pi / 5;
+      pts.add(Offset(c.dx + rr * math.cos(a), c.dy + rr * math.sin(a)));
+    }
+    // her kol iki yüz: açık ve koyu (bombeli görünüm)
+    for (var i = 0; i < 10; i++) {
+      final tri = Path()
+        ..moveTo(c.dx, c.dy)
+        ..lineTo(pts[i].dx, pts[i].dy)
+        ..lineTo(pts[(i + 1) % 10].dx, pts[(i + 1) % 10].dy)
+        ..close();
+      canvas.drawPath(tri, Paint()..color = i.isEven ? const Color(0xFF9EA2A6) : const Color(0xFF6E7378));
+    }
+  }
+
+  @override
+  bool shouldRepaint(_MetalStarPainter o) => false;
 }
 
 class JuzzioDesktopScenePainter extends CustomPainter {
@@ -519,138 +611,102 @@ class JuzzioDesktopScenePainter extends CustomPainter {
   final bool dark;
   final Color accent;
 
-  void _cloud(Canvas canvas, Offset at, double s, Color color) {
-    final p = Paint()
-      ..color = color
-      ..maskFilter = MaskFilter.blur(BlurStyle.normal, s * 0.06);
-    final path = Path()
-      ..addOval(Rect.fromCenter(center: at + Offset(-s * 0.55, s * 0.08), width: s * 0.9, height: s * 0.42))
-      ..addOval(Rect.fromCenter(center: at + Offset(-s * 0.15, -s * 0.12), width: s * 0.75, height: s * 0.62))
-      ..addOval(Rect.fromCenter(center: at + Offset(s * 0.3, -s * 0.02), width: s * 0.8, height: s * 0.5))
-      ..addOval(Rect.fromCenter(center: at + Offset(s * 0.65, s * 0.1), width: s * 0.7, height: s * 0.34));
-    canvas.drawPath(path, p);
-  }
-
   void _sparkle(Canvas canvas, Offset c, double r, Color color) {
-    final p = Paint()..color = color;
     final path = Path()
       ..moveTo(c.dx, c.dy - r)
       ..quadraticBezierTo(c.dx, c.dy, c.dx + r, c.dy)
       ..quadraticBezierTo(c.dx, c.dy, c.dx, c.dy + r)
       ..quadraticBezierTo(c.dx, c.dy, c.dx - r, c.dy)
       ..quadraticBezierTo(c.dx, c.dy, c.dx, c.dy - r);
-    canvas.drawPath(path, p);
+    canvas.drawPath(path, Paint()..color = color);
+  }
+
+  /// Yumuşak tepe sırtı: (x0,y0) → (x1,y1) arası pürüzsüz eğri, iki kontrol noktasıyla
+  Path _ridge(Size s, List<Offset> pts) {
+    final p = Path()..moveTo(pts.first.dx * s.width, pts.first.dy * s.height);
+    for (var i = 1; i < pts.length; i++) {
+      final a = Offset(pts[i - 1].dx * s.width, pts[i - 1].dy * s.height);
+      final b = Offset(pts[i].dx * s.width, pts[i].dy * s.height);
+      final mx = (a.dx + b.dx) / 2;
+      p.cubicTo(mx, a.dy, mx, b.dy, b.dx, b.dy);
+    }
+    return p;
+  }
+
+  void _hill(Canvas canvas, Size s, List<Offset> pts, {required List<Color> fill, required double rim, required double peakX}) {
+    final ridge = _ridge(s, pts);
+    final body = Path.from(ridge)
+      ..lineTo(s.width, s.height)
+      ..lineTo(0, s.height)
+      ..close();
+    final top = pts.map((e) => e.dy).reduce(math.min) * s.height;
+    canvas.drawPath(
+        body,
+        Paint()
+          ..shader = LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: fill)
+              .createShader(Rect.fromLTRB(0, top, s.width, s.height)));
+    if (rim <= 0) return;
+    // ışık sırtı: tepede en parlak, kenarlara doğru söner (görseldeki modern parıltı)
+    final along = LinearGradient(
+      colors: [accent.withValues(alpha: 0), accent.withValues(alpha: rim), accent.withValues(alpha: 0)],
+      stops: [math.max(0, peakX - 0.38), peakX, math.min(1, peakX + 0.38)],
+    ).createShader(Rect.fromLTWH(0, 0, s.width, s.height));
+    canvas.drawPath(
+        ridge,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 10
+          ..shader = along
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 9));
+    canvas.drawPath(
+        ridge,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.6
+          ..shader = along);
   }
 
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width, h = size.height;
     if (w <= 0 || h <= 0) return;
-    // ışık yayı (sol üstten sağa kıvrılan ince parıltı)
+    // sol üstten yükselen ince ışık yayı
     final arc = Path()
-      ..moveTo(w * 0.02, h * 0.30)
-      ..quadraticBezierTo(w * 0.35, h * 0.12, w * 0.60, -h * 0.02);
+      ..moveTo(w * 0.04, h * 0.40)
+      ..quadraticBezierTo(w * 0.30, h * 0.16, w * 0.62, -h * 0.02);
+    final arcShader = LinearGradient(
+      colors: [accent.withValues(alpha: 0), (dark ? accent : Colors.white).withValues(alpha: dark ? 0.45 : 0.9)],
+    ).createShader(Rect.fromLTWH(0, 0, w * 0.62, h * 0.4));
     canvas.drawPath(
         arc,
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 16
-          ..color = (dark ? accent : Colors.white).withValues(alpha: dark ? 0.06 : 0.55)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10));
+          ..strokeWidth = 14
+          ..shader = arcShader
+          ..color = Colors.white.withValues(alpha: 0.12)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12));
     canvas.drawPath(
         arc,
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.6
-          ..color = (dark ? accent : Colors.white).withValues(alpha: dark ? 0.45 : 0.9));
+          ..strokeWidth = 1.2
+          ..shader = arcShader);
     if (dark) {
-      // yıldızlar
       final rnd = math.Random(11);
-      for (var i = 0; i < 16; i++) {
+      for (var i = 0; i < 14; i++) {
         _sparkle(canvas, Offset(rnd.nextDouble() * w, rnd.nextDouble() * h * 0.7), 2 + rnd.nextDouble() * 3,
-            Colors.white.withValues(alpha: 0.25 + rnd.nextDouble() * 0.35));
+            Colors.white.withValues(alpha: 0.22 + rnd.nextDouble() * 0.3));
       }
-      // hilal + yıldız (sağ üst, ince ışıklı kenar)
-      final mc = Offset(w * 0.86, h * 0.16);
-      final mr = math.min(w, h) * 0.085;
-      final crescent = Path.combine(
-        PathOperation.difference,
-        Path()..addOval(Rect.fromCircle(center: mc, radius: mr)),
-        Path()..addOval(Rect.fromCircle(center: mc + Offset(mr * 0.36, -mr * 0.12), radius: mr * 0.86)),
-      );
-      canvas.drawPath(
-          crescent,
-          Paint()
-            ..color = const Color(0xFFFFF4C2).withValues(alpha: 0.35)
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12));
-      canvas.drawPath(crescent, Paint()..color = const Color(0xFF2A2C25));
-      canvas.drawPath(
-          crescent,
-          Paint()
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 1.6
-            ..color = const Color(0xFFE9F5A6).withValues(alpha: 0.85));
-      final star = Path();
-      final sc = mc + Offset(mr * 1.2, -mr * 0.35);
-      final sr = mr * 0.30;
-      for (var i = 0; i < 10; i++) {
-        final rr = i.isEven ? sr : sr * 0.42;
-        final a = -math.pi / 2 + i * math.pi / 5;
-        final pt = Offset(sc.dx + rr * math.cos(a), sc.dy + rr * math.sin(a));
-        i == 0 ? star.moveTo(pt.dx, pt.dy) : star.lineTo(pt.dx, pt.dy);
-      }
-      star.close();
-      canvas.drawPath(star, Paint()..color = const Color(0xFF8D9188));
-      // ince bulutlar
-      _cloud(canvas, Offset(w * 0.18, h * 0.26), w * 0.09, Colors.white.withValues(alpha: 0.05));
-      _cloud(canvas, Offset(w * 0.90, h * 0.42), w * 0.10, Colors.white.withValues(alpha: 0.05));
-      _cloud(canvas, Offset(w * 0.16, h * 0.76), w * 0.08, Colors.white.withValues(alpha: 0.04));
-    } else {
-      // güneş + hale
-      final sc = Offset(w * 0.86, h * 0.17);
-      final sr = math.min(w, h) * 0.075;
-      canvas.drawCircle(sc, sr * 3.2, Paint()..shader = RadialGradient(colors: [const Color(0x66FFF3B0), const Color(0x00FFF3B0)]).createShader(Rect.fromCircle(center: sc, radius: sr * 3.2)));
-      canvas.drawCircle(sc, sr, Paint()..color = const Color(0xFFFFF1B8));
-      _cloud(canvas, Offset(w * 0.80, h * 0.22), w * 0.10, Colors.white.withValues(alpha: 0.95));
-      _cloud(canvas, Offset(w * 0.20, h * 0.18), w * 0.07, Colors.white.withValues(alpha: 0.85));
-      _cloud(canvas, Offset(w * 0.93, h * 0.38), w * 0.08, Colors.white.withValues(alpha: 0.85));
-      _cloud(canvas, Offset(w * 0.18, h * 0.58), w * 0.07, Colors.white.withValues(alpha: 0.75));
     }
-    // tepeler (üç katman, üstte vurgu renginde ince ışık kenarı)
-    void hill(double y0, double amp, double phase, Color fill, double rimAlpha) {
-      final path = Path()..moveTo(0, h);
-      path.lineTo(0, h * y0);
-      const steps = 40;
-      for (var i = 0; i <= steps; i++) {
-        final x = w * i / steps;
-        final y = h * y0 - math.sin(i / steps * math.pi * 1.6 + phase) * h * amp;
-        path.lineTo(x, y);
-      }
-      path
-        ..lineTo(w, h)
-        ..close();
-      canvas.drawPath(path, Paint()..color = fill);
-      final rim = Path()..moveTo(0, h * y0 - math.sin(phase) * h * amp);
-      for (var i = 0; i <= steps; i++) {
-        final x = w * i / steps;
-        rim.lineTo(x, h * y0 - math.sin(i / steps * math.pi * 1.6 + phase) * h * amp);
-      }
-      canvas.drawPath(
-          rim,
-          Paint()
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 1.4
-            ..color = accent.withValues(alpha: rimAlpha)
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.2));
-    }
-
-    if (dark) {
-      hill(0.86, 0.05, 0.6, const Color(0xFF16181A).withValues(alpha: 0.85), 0.18);
-      hill(0.90, 0.07, 2.4, const Color(0xFF111315).withValues(alpha: 0.92), 0.55);
-    } else {
-      hill(0.84, 0.05, 0.6, Colors.white.withValues(alpha: 0.55), 0.25);
-      hill(0.89, 0.07, 2.4, const Color(0xFFF3F6EC).withValues(alpha: 0.85), 0.6);
-    }
+    // tepeler: arkadan öne üç katman; orta sırtta vurgu renginde parlayan ışık
+    final base = dark ? const Color(0xFF15181C) : const Color(0xFFEFF3E6);
+    final deep = dark ? const Color(0xFF0C0E11) : const Color(0xFFE2E9D6);
+    _hill(canvas, size, const [Offset(0, 0.86), Offset(0.30, 0.80), Offset(0.62, 0.88), Offset(1, 0.84)],
+        fill: [base.withValues(alpha: 0.55), deep.withValues(alpha: 0.65)], rim: dark ? 0.18 : 0.25, peakX: 0.30);
+    _hill(canvas, size, const [Offset(0, 0.93), Offset(0.40, 0.90), Offset(0.78, 0.84), Offset(1, 0.80)],
+        fill: [base.withValues(alpha: 0.85), deep], rim: dark ? 0.75 : 0.65, peakX: 0.86);
+    _hill(canvas, size, const [Offset(0, 0.90), Offset(0.22, 0.94), Offset(0.55, 0.985), Offset(1, 0.97)],
+        fill: [deep, deep], rim: dark ? 0.30 : 0.35, peakX: 0.12);
   }
 
   @override

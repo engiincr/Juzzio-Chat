@@ -178,8 +178,8 @@ class _BusinessOverviewTabState extends State<_BusinessOverviewTab> {
           ),
         ),
         const SizedBox(height: 12),
-        Text(t('Değerler yalnız Juzzio\'daki gerçek kayıtlardan hesaplanır; veri yoksa 0 görünür.',
-            'Values are computed only from real records in Juzzio; 0 when there is no data.', 'Werte stammen nur aus echten Daten.'),
+        Text(t('Değerler yalnız Trawave\'daki gerçek kayıtlardan hesaplanır; veri yoksa 0 görünür.',
+            'Values are computed only from real records in Trawave; 0 when there is no data.', 'Werte stammen nur aus echten Daten.'),
             style: TextStyle(color: p.textMuted, fontSize: 11.5)),
       ]),
     );

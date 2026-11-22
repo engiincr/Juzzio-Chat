@@ -130,7 +130,7 @@ object JuzzioWidgets {
             v.setTextViewText(R.id.w_title, d.lastName)
             v.setTextViewText(R.id.w_sub, d.lastText.ifBlank { d.t("Yeni mesaj", "New message", "Neue Nachricht") })
         } else {
-            v.setTextViewText(R.id.w_title, "Juzzio")
+            v.setTextViewText(R.id.w_title, "Trawave")
             v.setTextViewText(R.id.w_sub, d.t("Her şey güncel", "All caught up", "Alles erledigt"))
         }
         badge(v, R.id.w_badge, d.unread)

@@ -1,7 +1,7 @@
 // =============================================================================
 // JUZZIO v1.2.1 — Kompakt 3B "Cloth-Pinch" aşağı çekip yenileme
 //
-//  Referans: "JUZZIO – COMPACT 3D PULL-TO-REFRESH SPECIFICATION" (5 aşama)
+//  Referans: "TRAWAVE – COMPACT 3D PULL-TO-REFRESH SPECIFICATION" (5 aşama)
 //   01 START   (0–20%)  : çentiğin (Dynamic Island) altından tombul kil elin parmak uçları görünür
 //   02 EXTEND  (20–60%) : el aşağı uzanır; içerik aynı miktarda aşağı kayar → el başlığa DOKUNMAZ
 //   03 PINCH   (100%)   : el yumruk yapar, ekran yüzeyi yumruğun altında kumaş gibi büzülür

@@ -100,7 +100,7 @@ class JuzzioCallGlass extends StatelessWidget {
 // Başlık, avatar, haplar
 // -----------------------------------------------------------------------------
 
-/// "J Juzzio · sesli arama"
+/// "J Trawave · sesli arama"
 class JuzzioCallTitleBrand extends StatelessWidget {
   const JuzzioCallTitleBrand({super.key, this.caption, this.size = 22});
   final String? caption;

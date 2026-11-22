@@ -18,6 +18,12 @@ const String kHalloweenTree = 'assets/special/halloween/pumpkin_tree.webp';
 const String kHalloweenMoonClouds = 'assets/special/halloween/moon_clouds.webp';
 const List<String> kJuzzioHalloweenAssets = [kHalloweenCastle, kHalloweenTree, kHalloweenMoonClouds];
 
+/// GM-037: paketteki karışık Halloween görsellerinden temiz kırpılıp referansın mor-turuncu
+/// renklerine göre renklendirilmiş parçalar (en/boy oranları)
+const double kHwCastleAspect = 1157 / 622;
+const double kHwTreeAspect = 1229 / 1152;
+const double kHwBandAspect = 532 / 323;
+
 /// Türk bayrağı resmî oranları (TS 2/1983 — G: bayrak eni; boy 1.5 G) (saf; test edilir)
 class JuzzioTurkFlagGeometry {
   const JuzzioTurkFlagGeometry(this.g);
@@ -68,14 +74,41 @@ class JuzzioSpecialThemeLayer extends StatelessWidget {
         final sw = juzzioHdSceneWidth(c.maxWidth);
         final band = juzzioHdBandHeight(c.maxHeight);
         if (theme == JuzzioSpecialTheme.halloween) {
+          // Referans (Engin'in Halloween ekranı): mor-turuncu gökyüzü bandı, sağda dolunaylı şato +
+          // yarasalar, solda kabaklı ağaç, hikâyelerin arkasında çıplak ağaçlı ikinci şerit.
           final o = dark ? 1.0 : 0.92;
           return Stack(clipBehavior: Clip.hardEdge, children: [
-            // ikinci şerit: hikâyelerin arkasında çıplak ağaçlar + turuncu gök
-            Positioned(left: -sw * 0.10, top: band * 0.50, child: _img(kHalloweenMoonClouds, sw * 1.2, 2048 / 1536, 0.75 * o)),
-            // şato + dolunay (sağ üst)
-            Positioned(left: sw * 0.22, top: band * 0.12, child: _img(kHalloweenCastle, sw * 0.86, 2048 / 1152, o)),
-            // kabaklı ağaç (sol üst)
-            Positioned(left: -sw * 0.10, top: band * 0.16, child: _img(kHalloweenTree, sw * 0.56, 1.0, o)),
+            Positioned(
+              left: 0,
+              top: 0,
+              width: sw,
+              height: band * 1.02,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      const Color(0xFF1A0F24).withValues(alpha: 0.0),
+                      const Color(0xFF3B1E4F).withValues(alpha: 0.55 * o),
+                      const Color(0xFF5A2A3A).withValues(alpha: 0.45 * o),
+                      const Color(0xFF1A0F24).withValues(alpha: 0.0),
+                    ],
+                    stops: const [0.0, 0.35, 0.65, 1.0],
+                  ),
+                ),
+              ),
+            ),
+            // ikinci şerit: hikâyelerin arkasında çıplak ağaçlar (karartılmış, iki kopya aynalı)
+            Positioned(left: -sw * 0.06, top: band * 0.62, child: _img(kHalloweenMoonClouds, sw * 0.60, kHwBandAspect, 0.9 * o)),
+            Positioned(
+                left: sw * 0.46,
+                top: band * 0.60,
+                child: Transform.flip(flipX: true, child: _img(kHalloweenMoonClouds, sw * 0.62, kHwBandAspect, 0.9 * o))),
+            // sağda dolunaylı şato + yarasalar
+            Positioned(left: sw * 0.30, top: band * 0.20, child: _img(kHalloweenCastle, sw * 0.76, kHwCastleAspect, o)),
+            // solda kabaklı ağaç
+            Positioned(left: -sw * 0.08, top: band * 0.22, child: _img(kHalloweenTree, sw * 0.50, kHwTreeAspect, o)),
           ]);
         }
         return AnimatedBuilder(
@@ -103,8 +136,8 @@ class JuzzioTurkFlagPainter extends CustomPainter {
 
   void _swoosh(Canvas canvas) {
     final path = Path()
-      ..moveTo(-width * 0.05, band * 0.52)
-      ..quadraticBezierTo(width * 0.45, band * 0.05, width * 1.05, band * 0.02);
+      ..moveTo(-width * 0.02, band * 0.36)
+      ..cubicTo(width * 0.30, band * 0.40, width * 0.55, band * 0.22, width * 0.92, band * 0.02);
     for (final (w, a) in [(18.0, 0.10), (8.0, 0.20), (2.2, 0.85)]) {
       canvas.drawPath(
           path,
@@ -127,52 +160,77 @@ class JuzzioTurkFlagPainter extends CustomPainter {
     canvas.drawPath(juzzioStarPath(geo.starCenter, geo.starRadius), paint);
   }
 
+  /// Metalik (3B görünümlü) ay-yıldız: gümüş gradyan + üst kenarda ışık, altta gölge
+  void _metalEmblem(Canvas canvas, JuzzioTurkFlagGeometry geo, {required bool onRed}) {
+    final bounds = Rect.fromLTWH(geo.outerCenter.dx - geo.outerRadius, 0, geo.length, geo.g);
+    canvas.save();
+    canvas.translate(2, 3);
+    _emblem(canvas, geo, Paint()
+      ..color = Colors.black.withValues(alpha: onRed ? 0.25 : 0.45)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4));
+    canvas.restore();
+    _emblem(
+        canvas,
+        geo,
+        Paint()
+          ..shader = LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: onRed
+                ? const [Color(0xFFFFFFFF), Color(0xFFF2F2F2), Color(0xFFCFD2D6)]
+                : const [Color(0xFFFFFFFF), Color(0xFFD9DCE0), Color(0xFF8A9098), Color(0xFFC9CDD2)],
+          ).createShader(bounds));
+    // ince parlak kenar
+    _emblem(
+        canvas,
+        geo,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 0.8
+          ..color = Colors.white.withValues(alpha: 0.7));
+  }
+
   @override
   void paint(Canvas canvas, Size size) {
     _swoosh(canvas);
-    final g = (band * 0.36).clamp(70.0, 170.0);
+    // Referans (Engin'in görseli): ay-yıldız başlık düğmelerinin altında, ekranın ortasının biraz sağında
+    final g = (width * 0.20).clamp(54.0, 120.0);
     final geo = JuzzioTurkFlagGeometry(g);
-    final origin = Offset(width - geo.length - width * 0.02, band * 0.30);
-    if (dark) {
-      // gece: gümüş ay-yıldız, hafif parıltı (referanstaki gibi kırmızı zemin yok)
-      canvas.save();
-      canvas.translate(origin.dx + g * 0.1, origin.dy);
-      final glow = Paint()
-        ..color = Colors.white.withValues(alpha: 0.30)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
-      _emblem(canvas, geo, glow);
-      final silver = Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFFFFFFFF), Color(0xFFC9CED6), Color(0xFF8E959F)],
-        ).createShader(Rect.fromLTWH(0, 0, geo.length, g));
-      _emblem(canvas, geo, silver);
-      canvas.restore();
-      return;
-    }
-    // gündüz: dalgalanan kırmızı bayrak (şeritler halinde sinüs dalgası + kıvrım gölgesi)
-    const strips = 36;
-    final sw = geo.length / strips;
-    final amp = g * 0.06;
-    for (var i = 0; i < strips; i++) {
-      final x = i * sw;
-      final phase = (x / geo.length) * 2 * math.pi * 1.3 - t * 2 * math.pi * 4;
-      final dy = math.sin(phase) * amp * (x / geo.length);
-      final shade = math.cos(phase);
-      canvas.save();
-      canvas.translate(origin.dx, origin.dy + dy);
-      canvas.clipRect(Rect.fromLTWH(x, -amp, sw + 0.8, g + amp * 2));
-      // hafif saydam kenar: soldaki uç yumuşakça kaybolur (referanstaki gibi)
-      final edge = (x / (geo.length * 0.18)).clamp(0.0, 1.0);
-      canvas.drawRect(Rect.fromLTWH(0, 0, geo.length, g), Paint()..color = red.withValues(alpha: 0.92 * edge));
-      _emblem(canvas, geo, Paint()..color = Colors.white.withValues(alpha: edge));
-      canvas.drawRect(
-          Rect.fromLTWH(x, 0, sw + 0.8, g),
+    final emblemOrigin = Offset(width * 0.47, band * 0.27);
+    if (!dark) {
+      // gündüz: emblemin arkasında yumuşak kenarlı, dalgalanan kırmızı bayrak kumaşı
+      final fw = width * 0.62, fh = g * 1.05;
+      final fo = Offset(width * 0.44, band * 0.27 - g * 0.05);
+      const strips = 40;
+      final sw = fw / strips;
+      for (var i = 0; i < strips; i++) {
+        final x = i * sw;
+        final ph = (x / fw) * 2 * math.pi * 1.2 - t * 2 * math.pi * 4;
+        final dy = math.sin(ph) * fh * 0.06;
+        final shade = math.cos(ph);
+        // kenarlar (özellikle sol) kumaş gibi yumuşakça kaybolur
+        final edge = ((x / (fw * 0.35)).clamp(0.0, 1.0)) * (((fw - x) / (fw * 0.12)).clamp(0.0, 1.0));
+        final r = Rect.fromLTWH(fo.dx + x, fo.dy + dy, sw + 0.8, fh);
+        canvas.drawRect(
+            r,
+            Paint()
+              ..color = Color.lerp(red, shade > 0 ? const Color(0xFFFF4A52) : const Color(0xFFA0050F), shade.abs() * 0.45)!
+                  .withValues(alpha: 0.88 * edge)
+              ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.5));
+      }
+    } else {
+      // gece: emblemin çevresinde soğuk, hafif hale
+      canvas.drawCircle(
+          emblemOrigin + geo.outerCenter,
+          geo.outerRadius * 1.9,
           Paint()
-            ..color = (shade > 0 ? Colors.white : Colors.black).withValues(alpha: (shade.abs() * 0.14) * edge));
-      canvas.restore();
+            ..shader = RadialGradient(colors: [Colors.white.withValues(alpha: 0.10), Colors.white.withValues(alpha: 0)])
+                .createShader(Rect.fromCircle(center: emblemOrigin + geo.outerCenter, radius: geo.outerRadius * 1.9)));
     }
+    canvas.save();
+    canvas.translate(emblemOrigin.dx, emblemOrigin.dy);
+    _metalEmblem(canvas, geo, onRed: !dark);
+    canvas.restore();
   }
 
   @override

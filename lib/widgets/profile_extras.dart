@@ -1184,7 +1184,7 @@ class _JuzzioGlassMusicCapsuleState extends State<JuzzioGlassMusicCapsule> with 
               const SizedBox(width: 7),
               Flexible(
                 child: JuzzioMarqueeText(
-                  text: widget.label.isNotEmpty ? widget.label : 'Juzzio Music',
+                  text: widget.label.isNotEmpty ? widget.label : 'Trawave Music',
                   style: const TextStyle(
                     fontFamily: JuzzioConfig.fontRegularBold,
                     color: Colors.white,

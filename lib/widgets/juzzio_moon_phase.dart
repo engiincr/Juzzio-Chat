@@ -1,6 +1,6 @@
 // =============================================================================
 // JUZZIO v1.2.9 — Ay evresi (internet gerektirmez, saf astronomik hesap)
-//  • "Senin alanın — Juzzio" başlığında Juzzio yazısının yanında bugünkü Ay evresi
+//  • "Senin alanın — Trawave" başlığında Juzzio yazısının yanında bugünkü Ay evresi
 //  • Hava katmanındaki ay simgesi de gerçek evreyi çizer (hep aynı hilal değil)
 //  Hesap: sinodik ay 29,530588853 gün; referans yeni ay 2000-01-06 18:14 UTC.
 //  Doğruluk ±0,5 gün — simge için fazlasıyla yeterli.
@@ -162,7 +162,7 @@ class _MoonIconPainter extends CustomPainter {
   bool shouldRepaint(covariant _MoonIconPainter old) => old.phase != phase || old.spriteVersion != spriteVersion;
 }
 
-/// v1.2.9: "Juzzio." yanındaki gökyüzü simgesi — gece (kişinin kendi konumunda güneş batmışsa ya da
+/// v1.2.9: "Trawave." yanındaki gökyüzü simgesi — gece (kişinin kendi konumunda güneş batmışsa ya da
 /// hava bilgisi yoksa yerel saat 19:00–06:00) gerçek Ay evresi, gündüz Güneş. Dakikada bir ve hava
 /// bilgisi değiştiğinde kendini günceller.
 class JuzzioSkyIcon extends StatefulWidget {

@@ -88,8 +88,8 @@ class JuzzioMfaService {
     } catch (_) {}
     final dynamic res = await _auth.mfa.enroll(
       factorType: FactorType.totp,
-      issuer: 'Juzzio',
-      friendlyName: 'Juzzio ${DateTime.now().millisecondsSinceEpoch ~/ 1000}',
+      issuer: 'Trawave',
+      friendlyName: 'Trawave ${DateTime.now().millisecondsSinceEpoch ~/ 1000}',
     );
     final dynamic totp = res.totp;
     return JuzzioMfaEnrollment(

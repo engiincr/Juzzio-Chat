@@ -276,7 +276,7 @@ String juzzioSha256Sums(Map<String, List<int>> files) =>
 /// DOGRULAMA.txt — özet ve zaman damgasının doğrulanması
 String juzzioVerificationReadme({required bool hasTimestamp, required String tsaHost, bool english = false}) => english
     ? [
-        'JUZZIO — LEGAL DELIVERY PACKAGE VERIFICATION GUIDE',
+        'TRAWAVE — LEGAL DELIVERY PACKAGE VERIFICATION GUIDE',
         '',
         '1) File integrity',
         '   sha256sum -c SHA256SUMS.txt        (Linux / macOS)',
@@ -293,17 +293,17 @@ String juzzioVerificationReadme({required bool hasTimestamp, required String tsa
         ] else ...[
           '2) Timestamp',
           '   Timestamp servers were unreachable when the report was generated; the package has no zaman_damgasi.tsr.',
-          '   Times in the report are Juzzio server time (UTC).',
+          '   Times in the report are Trawave server time (UTC).',
         ],
         '',
         '3) Server package digest',
         '   "integrity_sha256" inside juzzio_veri.json is the digest computed by the server when producing the data and',
-        '   is stored with the same value in the legal request record (legal_requests) in the Juzzio database.',
+        '   is stored with the same value in the legal request record (legal_requests) in the Trawave database.',
         '',
       ].join('\n')
     : [
 
-      'JUZZIO — YASAL TESLİM PAKETİ DOĞRULAMA KILAVUZU',
+      'TRAWAVE — YASAL TESLİM PAKETİ DOĞRULAMA KILAVUZU',
       '',
       '1) Dosya bütünlüğü',
       '   sha256sum -c SHA256SUMS.txt        (Linux / macOS)',
@@ -321,11 +321,11 @@ String juzzioVerificationReadme({required bool hasTimestamp, required String tsa
       ] else ...[
         '2) Zaman damgası',
         '   Rapor üretilirken zaman damgası sunucularına ulaşılamadı; pakette zaman_damgasi.tsr yoktur.',
-        '   Rapordaki zaman, Juzzio sunucusunun (UTC) saatidir.',
+        '   Rapordaki zaman, Trawave sunucusunun (UTC) saatidir.',
       ],
       '',
       '3) Sunucu paket özeti',
       '   juzzio_veri.json içindeki "integrity_sha256", sunucunun veriyi üretirken hesapladığı özettir ve',
-      '   Juzzio veritabanındaki yasal talep kaydında (legal_requests) aynı değerle saklanır.',
+      '   Trawave veritabanındaki yasal talep kaydında (legal_requests) aynı değerle saklanır.',
       '',
       ].join('\n');

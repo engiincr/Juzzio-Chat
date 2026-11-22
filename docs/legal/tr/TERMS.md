@@ -1,14 +1,14 @@
-# Juzzio Kullanım Koşulları
+# Trawave Kullanım Koşulları
 
 Son güncelleme: 10 Kasım 2026 · v1.2.3 (BETA · Erken Erişim)
 
 ## 1. Kabul
 
-Kayıt ve giriş ekranındaki zorunlu kutuyu işaretleyerek bu koşulları kabul etmiş olursunuz. Kişisel verilerinizin işlenmesine ilişkin bilgiler ayrı bir metin olan Aydınlatma Metni'nde (Gizlilik Politikası) yer alır. Juzzio bir **BETA (Erken Erişim)** uygulamasıdır; özellikler değişebilir, hatalar olabilir.
+Kayıt ve giriş ekranındaki zorunlu kutuyu işaretleyerek bu koşulları kabul etmiş olursunuz. Kişisel verilerinizin işlenmesine ilişkin bilgiler ayrı bir metin olan Aydınlatma Metni'nde (Gizlilik Politikası) yer alır. Trawave bir **BETA (Erken Erişim)** uygulamasıdır; özellikler değişebilir, hatalar olabilir.
 
 ## 2. Hesap
 
-- Juzzio'yu kullanmak için **en az 15 yaşında** olmalısınız; kayıt sırasında bunu beyan edersiniz. 18 yaşından küçükseniz Juzzio'yu veli veya vasinizin bilgisi dahilinde kullanmalısınız.
+- Trawave'yu kullanmak için **en az 15 yaşında** olmalısınız; kayıt sırasında bunu beyan edersiniz. 18 yaşından küçükseniz Trawave'yu veli veya vasinizin bilgisi dahilinde kullanmalısınız.
 - Kayıt olurken doğru bilgi vermelisiniz; hesabınızın güvenliğinden siz sorumlusunuz.
 - Uygunsuz kullanıcı adı, ad veya profil fotoğrafı kullanılamaz; sahte veya trol hesap açmak yasaktır.
 
@@ -22,13 +22,13 @@ Kayıt ve giriş ekranındaki zorunlu kutuyu işaretleyerek bu koşulları kabul
 
 - Paylaştığınız içerikten siz sorumlusunuz. İçeriğinizin hakları sizde kalır; hizmetin çalışması için gereken ölçüde (saklama, iletme, gösterme) işlenmesine izin vermiş olursunuz.
 - Kurallara aykırı içerikler kaldırılabilir, hesaplar askıya alınabilir.
-- **Telif hakkı:** Hakkına sahip olmadığınız müzik, film, dizi, maç yayını veya başka korunan içeriği paylaşamaz, Sinema Parti'de açamazsınız. Juzzio içerik barındırmaz; Sinema Parti yalnız sizin açtığınız bağlantıyı katılımcılar arasında eş zamanlar. Korsan içerik sunan alan adları engellenir.
+- **Telif hakkı:** Hakkına sahip olmadığınız müzik, film, dizi, maç yayını veya başka korunan içeriği paylaşamaz, Sinema Parti'de açamazsınız. Trawave içerik barındırmaz; Sinema Parti yalnız sizin açtığınız bağlantıyı katılımcılar arasında eş zamanlar. Korsan içerik sunan alan adları engellenir.
 - **Telif bildirimi:** Hakkınızın ihlal edildiğini düşünüyorsanız içerikteki "Şikâyet et → Telif hakkı" seçeneğiyle ya da engiincr@pm.me adresine eserin ve ihlalin bağlantısıyla bildirin. Bildirim incelenene kadar içerik gizlenebilir; tekrarlayan ihlallerde hesap kapatılır.
 - **Dosyalar:** Zararlı yazılım, betik veya çalıştırılabilir dosya (ör. .php, .jsp, .exe, .apk) göndermek yasaktır; bu dosyalar otomatik olarak engellenir.
 
 ## 5. Tüketici hakları
 
-- Juzzio ücretsizdir; uygulama içi satın alma, abonelik veya ödeme yoktur.
+- Trawave ücretsizdir; uygulama içi satın alma, abonelik veya ödeme yoktur.
 - 6502 sayılı Tüketicinin Korunması Hakkında Kanun ve ilgili mevzuattan doğan haklarınız saklıdır.
 
 ## 6. Sorumluluğun sınırlandırılması
@@ -37,13 +37,13 @@ Hizmet "olduğu gibi" sunulur. Kesintisiz veya hatasız çalışacağı garanti 
 
 ## 7. Fikri mülkiyet
 
-Juzzio'nun kaynak kodu, tasarımı, adı ve logosu telif hakkıyla korunur. Kopyalanması, çoğaltılması, dağıtılması, satılması ve türev uygulama yapılması yazılı izin olmadan yasaktır. Ayrıntılar: `LICENSE`.
+Trawave'nun kaynak kodu, tasarımı, adı ve logosu telif hakkıyla korunur. Kopyalanması, çoğaltılması, dağıtılması, satılması ve türev uygulama yapılması yazılı izin olmadan yasaktır. Ayrıntılar: `LICENSE`.
 
 ## 8. Güvenlik ihlalleri, saldırılar ve izinsiz erişim
 
 Aşağıdaki eylemler kesinlikle yasaktır ve tespit edildiğinde hesap ve cihaz kalıcı olarak engellenir, kayıtlar (IP, cihaz kimliği, zaman damgası) delil olarak saklanır ve yetkili makamlara suç duyurusunda bulunulur:
 
-- Juzzio sunucularına, veritabanına, depolama alanına veya diğer kullanıcıların hesaplarına izinsiz erişmek ya da erişmeye çalışmak (**TCK m.243 – bilişim sistemine girme**),
+- Trawave sunucularına, veritabanına, depolama alanına veya diğer kullanıcıların hesaplarına izinsiz erişmek ya da erişmeye çalışmak (**TCK m.243 – bilişim sistemine girme**),
 - Sistemin işleyişini engellemek, bozmak, verileri silmek, değiştirmek veya erişilmez kılmak; hizmet engelleme (DoS/DDoS), otomatik istek bombardımanı, kaba kuvvet denemeleri (**TCK m.244**),
 - Başkasına ait kimlik, oturum belirteci veya anahtarları kullanmak; kimlik avı (phishing) yapmak (**TCK m.245** ve **TCK m.158/1-f**),
 - Kişisel verileri hukuka aykırı olarak ele geçirmek, kaydetmek, yaymak (**TCK m.135–136**, **6698 sayılı KVKK m.12 ve m.17**),

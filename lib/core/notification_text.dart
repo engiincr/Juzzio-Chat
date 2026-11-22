@@ -44,7 +44,7 @@ String? juzzioLocalizedCallPreview(String preview) {
 String juzzioLocalizedNotificationText(JuzzioNotificationItem item) {
   final app = JuzzioAppController.instance;
   final preview = item.previewText.trim();
-  final actor = item.actorDisplayName.isNotEmpty ? item.actorDisplayName : (item.actorUsername.isNotEmpty ? '@${item.actorUsername}' : 'Juzzio');
+  final actor = item.actorDisplayName.isNotEmpty ? item.actorDisplayName : (item.actorUsername.isNotEmpty ? '@${item.actorUsername}' : 'Trawave');
   final call = juzzioLocalizedCallPreview(preview);
   if (call != null) {
     if (item.eventType == 'missed_call') {

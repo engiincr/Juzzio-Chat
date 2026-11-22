@@ -150,8 +150,11 @@ bool Win32Window::Create(const std::wstring& title,
 }
 
 bool Win32Window::Show() {
-  // GM-017 (v2.2.0): open maximized (full-screen window) on Windows
-  return ShowWindow(window_handle_, SW_SHOWMAXIMIZED);
+  // GM-017 (v2.2.0): open maximized (full-screen window) on Windows.
+  // The first ShowWindow call of a process may be overridden by the launcher's
+  // STARTUPINFO show flag (e.g. a .bat "start"), so maximize again explicitly.
+  ShowWindow(window_handle_, SW_SHOWMAXIMIZED);
+  return ShowWindow(window_handle_, SW_MAXIMIZE);
 }
 
 // static

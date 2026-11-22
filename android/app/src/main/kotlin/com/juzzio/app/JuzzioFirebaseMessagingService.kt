@@ -46,7 +46,7 @@ class JuzzioFirebaseMessagingService : FirebaseMessagingService() {
             val targetSecondaryId = data["target_secondary_id"] ?: ""
             val actorId = data["actor_id"] ?: ""
             val channelId = data["channel_id"] ?: MainActivity.NOTIF_CHANNEL_ID
-            var title = data["title"] ?: notif?.title ?: "Juzzio"
+            var title = data["title"] ?: notif?.title ?: "Trawave"
             var body = data["body"] ?: notif?.body ?: ""
 
             if (body.isBlank() && title.isBlank()) return
@@ -84,7 +84,7 @@ class JuzzioFirebaseMessagingService : FirebaseMessagingService() {
                 lockScreenBody = genericNewMessage()
                 when (mode) {
                     "hidden" -> {
-                        title = "Juzzio"
+                        title = "Trawave"
                         body = genericNewMessage()
                     }
                     "sender" -> Unit
@@ -98,7 +98,7 @@ class JuzzioFirebaseMessagingService : FirebaseMessagingService() {
             }
 
             // v1.2.4: aynı sohbetin mesajları TEK bildirimde birikir (sohbet başına sabit kimlik)
-            val chatEvent = (eventType == "message" || eventType == "group_activity") && targetId.isNotBlank() && title != "Juzzio"
+            val chatEvent = (eventType == "message" || eventType == "group_activity") && targetId.isNotBlank() && title != "Trawave"
             val notifIntId = when {
                 chatEvent -> ("room_$targetId").hashCode() and 0x7FFFFFFF
                 notificationId.isNotBlank() -> notificationId.hashCode() and 0x7FFFFFFF

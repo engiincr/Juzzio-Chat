@@ -100,7 +100,7 @@ class _JuzzioSplashState extends State<JuzzioSplash> with SingleTickerProviderSt
             ),
           ),
           const SizedBox(height: 22),
-          const Text('Juzzio',
+          const Text('Trawave',
               style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: -0.4)),
           const SizedBox(height: 14),
           SizedBox(

@@ -1,6 +1,6 @@
 // =============================================================================
 // JUZZIO GM-002 — Giriş / Kayıt ortak bileşenleri (Design System v1.3)
-//  Referans: Engin'in "Juzzio Giriş Ekranı" ve "Juzzio Kayıt Ekranı" görselleri.
+//  Referans: Engin'in "Trawave Giriş Ekranı" ve "Trawave Kayıt Ekranı" görselleri.
 //  Katman haritası (K4, arkadan öne):
 //   L1 lime hero zemin (kod)  → JuzzioAuthBackdrop
 //   L2 portre (ayrı PNG)      → JuzzioAuthHeroScene
@@ -138,7 +138,7 @@ class JuzzioAuthHeroScene extends StatelessWidget {
             child: Center(
               child: Semantics(
                 header: true,
-                label: 'Juzzio',
+                label: 'Trawave',
                 child: ExcludeSemantics(
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -146,7 +146,7 @@ class JuzzioAuthHeroScene extends StatelessWidget {
                       _shadowed(JuzzioLogoGlyph(size: logoGlyph), u),
                       SizedBox(width: _Scene.logoGap * u),
                       Text(
-                        'Juzzio',
+                        'Trawave',
                         maxLines: 1,
                         textScaler: TextScaler.noScaling,
                         style: TextStyle(

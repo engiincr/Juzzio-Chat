@@ -168,7 +168,7 @@ class JuzzioUserProfile {
     return JuzzioUserProfile(
       id: (map['id'] ?? '').toString(),
       username: cleanUname.isNotEmpty ? cleanUname : (display.isNotEmpty ? display : 'user'),
-      displayName: display.isNotEmpty ? display : (cleanUname.isNotEmpty ? cleanUname : 'Juzzio User'),
+      displayName: display.isNotEmpty ? display : (cleanUname.isNotEmpty ? cleanUname : 'Trawave User'),
       email: (map['email'] ?? '').toString(),
       bio: (map['bio'] ?? '').toString(),
       preferredLang: (map['preferred_lang'] ?? 'tr').toString(),
@@ -515,11 +515,11 @@ class JuzzioFriendship {
       id: (map['id'] ?? '').toString(),
       requesterId: (map['requester_id'] ?? '').toString(),
       requesterUsername: (map['requester_username'] ?? '').toString(),
-      requesterName: reqName.isNotEmpty ? reqName : 'Juzzio',
+      requesterName: reqName.isNotEmpty ? reqName : 'Trawave',
       requesterAvatar: map['requester_avatar']?.toString(),
       receiverId: (map['receiver_id'] ?? '').toString(),
       receiverUsername: (map['receiver_username'] ?? '').toString(),
-      receiverName: recName.isNotEmpty ? recName : 'Juzzio',
+      receiverName: recName.isNotEmpty ? recName : 'Trawave',
       receiverAvatar: map['receiver_avatar']?.toString(),
       status: (map['status'] ?? 'pending').toString(),
       createdAt: _parseDate(map['created_at']),
@@ -562,7 +562,7 @@ class JuzzioStory {
   final String overlayColor;
   // v0.5 hikâye stüdyosu: emoji çıkartmaları (x/y 0..1 oransal konum, scale çarpanı)
   final List<JuzzioStorySticker> stickers;
-  /// v0.9.3: Admin → Juzzio Story panelinden paylaşılan "Juzzio Official" hikâyesi
+  /// v0.9.3: Admin → Juzzio Story panelinden paylaşılan "Trawave Official" hikâyesi
   final bool isOfficial;
 
   const JuzzioStory({
@@ -612,7 +612,7 @@ class JuzzioStory {
       id: (map['id'] ?? '').toString(),
       userId: (map['user_id'] ?? '').toString(),
       username: (map['username'] ?? '').toString(),
-      displayName: juzzioWellFormed((map['display_name'] ?? map['username'] ?? 'Juzzio').toString()),
+      displayName: juzzioWellFormed((map['display_name'] ?? map['username'] ?? 'Trawave').toString()),
       userAvatar: map['user_avatar']?.toString(),
       mediaType: (map['media_type'] ?? 'image').toString(),
       mediaUrl: map['media_url']?.toString(),
@@ -758,7 +758,7 @@ class JuzzioCallLog {
       isGroup: map['is_group'] == true,
       groupTitle: (map['group_title'] ?? '').toString(),
       callerId: (map['caller_id'] ?? '').toString(),
-      callerName: (map['caller_name'] ?? 'Juzzio').toString(),
+      callerName: (map['caller_name'] ?? 'Trawave').toString(),
       callerAvatar: map['caller_avatar']?.toString(),
       receiverId: map['receiver_id']?.toString(),
       receiverName: (map['receiver_name'] ?? '').toString(),
@@ -935,7 +935,7 @@ class JuzzioConversation {
     Map<String, dynamic>? call;
     if (map['active_call'] is Map) call = Map<String, dynamic>.from(map['active_call'] as Map);
     // v1.2.0: Juzzio Topluluğu → yerelleştirilmiş ad + uygulama logosu
-    final rawTitle = juzzioWellFormed((map['title'] ?? 'Juzzio').toString());
+    final rawTitle = juzzioWellFormed((map['title'] ?? 'Trawave').toString());
     final community = map['is_community'] == true ||
         (map['is_group'] == true && map['is_channel'] != false && juzzioIsCommunityTitle(rawTitle));
     return JuzzioConversation(
@@ -1158,19 +1158,19 @@ class SupabaseService {
     }
     // v1.2.6: Juzzio Community resmî kanal kuralları + grup/kanal logosu
     if (raw.contains('community_logo_fixed')) {
-      return _app.trEn('Juzzio Topluluğu\'nun logosu uygulama logosudur ve değiştirilemez.',
-          'The Juzzio Community logo is the app logo and cannot be changed.',
-          'Das Logo der Juzzio Community ist das App-Logo und kann nicht geändert werden.');
+      return _app.trEn('Trawave Topluluğu\'nun logosu uygulama logosudur ve değiştirilemez.',
+          'The Trawave Community logo is the app logo and cannot be changed.',
+          'Das Logo der Trawave Community ist das App-Logo und kann nicht geändert werden.');
     }
     if (raw.contains('community_roles_fixed') || raw.contains('community_membership_automatic')) {
-      return _app.trEn('Juzzio Topluluğu\'nun tek yetkilisi @tugkancr\'dir; rol atama ve elle üye ekleme kapalıdır.',
-          'Juzzio Community has a single admin (@tugkancr); assigning roles and adding members manually are turned off.',
-          'Die Juzzio Community hat nur einen Admin (@tugkancr); Rollenvergabe und manuelles Hinzufügen sind deaktiviert.');
+      return _app.trEn('Trawave Topluluğu\'nun tek yetkilisi @tugkancr\'dir; rol atama ve elle üye ekleme kapalıdır.',
+          'Trawave Community has a single admin (@tugkancr); assigning roles and adding members manually are turned off.',
+          'Die Trawave Community hat nur einen Admin (@tugkancr); Rollenvergabe und manuelles Hinzufügen sind deaktiviert.');
     }
     if (raw.contains('community_read_only')) {
-      return _app.trEn('Juzzio Topluluğu bir duyuru kanalıdır: mesaj ve tepki gönderilemez.',
-          'Juzzio Community is an announcement channel: messages and reactions cannot be sent.',
-          'Die Juzzio Community ist ein Ankündigungskanal: Nachrichten und Reaktionen sind nicht möglich.');
+      return _app.trEn('Trawave Topluluğu bir duyuru kanalıdır: mesaj ve tepki gönderilemez.',
+          'Trawave Community is an announcement channel: messages and reactions cannot be sent.',
+          'Die Trawave Community ist ein Ankündigungskanal: Nachrichten und Reaktionen sind nicht möglich.');
     }
     if (raw.contains('invalid_avatar_url')) {
       return _app.trEn('Logo yüklenemedi. Lütfen fotoğrafı yeniden seçin.',
@@ -1883,7 +1883,7 @@ class SupabaseService {
       'id': userId,
       'email': email.trim().toLowerCase(),
       if (cleanUsername.isNotEmpty) 'username': cleanUsername,
-      'display_name': displayName.trim().isEmpty ? (cleanUsername.isEmpty ? 'Juzzio User' : cleanUsername) : displayName.trim(),
+      'display_name': displayName.trim().isEmpty ? (cleanUsername.isEmpty ? 'Trawave User' : cleanUsername) : displayName.trim(),
       ...update,
     });
   }
@@ -3977,7 +3977,7 @@ class SupabaseService {
     }
   }
 
-  /// v0.9.3: Admin → Juzzio Story: "Juzzio Official" adına herkese görünen hikâye paylaşır.
+  /// v0.9.3: Admin → Juzzio Story: "Trawave Official" adına herkese görünen hikâye paylaşır.
   /// v1.2.0: Juzzio Topluluğu kanal kimliği (önbellekli)
   String? _communityRoomId;
   Future<String?> communityRoomId({bool force = false}) async {

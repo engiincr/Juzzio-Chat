@@ -83,15 +83,15 @@ class _JuzzioMaintenanceScreenState extends State<JuzzioMaintenanceScreen> {
                   const SizedBox(height: 10),
                   Text(
                     widget.updateRequired
-                        ? app.trEn('Bu Juzzio sürümü artık desteklenmiyor. Güvenliğin için lütfen en yeni sürüme güncelle.',
-                            'This Juzzio version is no longer supported. Please update to the latest version for your security.',
-                            'Diese Juzzio-Version wird nicht mehr unterstützt. Bitte aktualisiere.')
+                        ? app.trEn('Bu Trawave sürümü artık desteklenmiyor. Güvenliğin için lütfen en yeni sürüme güncelle.',
+                            'This Trawave version is no longer supported. Please update to the latest version for your security.',
+                            'Diese Trawave-Version wird nicht mehr unterstützt. Bitte aktualisiere.')
                         : _message.trim().isNotEmpty
                         ? _message.trim()
                         : app.trEn(
-                            'Juzzio\'yu daha iyi hâle getiriyoruz. Lütfen birazdan tekrar deneyin.',
-                            'We are making Juzzio better. Please try again shortly.',
-                            'Wir verbessern Juzzio. Bitte versuche es gleich noch einmal.',
+                            'Trawave\'yu daha iyi hâle getiriyoruz. Lütfen birazdan tekrar deneyin.',
+                            'We are making Trawave better. Please try again shortly.',
+                            'Wir verbessern Trawave. Bitte versuche es gleich noch einmal.',
                           ),
                     textAlign: TextAlign.center,
                     style: const TextStyle(color: Colors.white70, height: 1.45, fontSize: 15),

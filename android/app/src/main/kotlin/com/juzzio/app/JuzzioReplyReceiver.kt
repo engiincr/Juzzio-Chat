@@ -49,7 +49,7 @@ class JuzzioReplyReceiver : BroadcastReceiver() {
         val text = RemoteInput.getResultsFromIntent(intent)?.getCharSequence(KEY_TEXT)?.toString()?.trim().orEmpty()
         val roomId = intent.getStringExtra(EXTRA_ROOM).orEmpty()
         val notifId = intent.getIntExtra(EXTRA_NOTIF_ID, 0)
-        val title = intent.getStringExtra(EXTRA_TITLE) ?: "Juzzio"
+        val title = intent.getStringExtra(EXTRA_TITLE) ?: "Trawave"
         val channelId = intent.getStringExtra(EXTRA_CHANNEL) ?: MainActivity.NOTIF_CHANNEL_ID
         if (text.isEmpty() || roomId.isEmpty()) return
         val clientMsgId = "qr_" + UUID.randomUUID().toString().replace("-", "")
@@ -194,7 +194,7 @@ class JuzzioReplyReceiver : BroadcastReceiver() {
             // Kilit ekranında yanıt metni görünmez; yalnızca durum
             val publicVersion = NotificationCompat.Builder(ctx, channelId)
                 .setSmallIcon(icon)
-                .setContentTitle("Juzzio")
+                .setContentTitle("Trawave")
                 .setContentText(status)
                 .build()
             // v1.2.4: sohbet tarzı bildirim varsa yanıt aynı konuşmanın altına eklenir

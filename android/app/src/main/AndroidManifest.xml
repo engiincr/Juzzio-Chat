@@ -82,7 +82,7 @@
     </queries>
 
     <application
-        android:label="Juzzio"
+        android:label="Trawave"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:enableOnBackInvokedCallback="true"

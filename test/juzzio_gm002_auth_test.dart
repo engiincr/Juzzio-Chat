@@ -307,7 +307,7 @@ void main() {
       const Size(393, 800),
     );
     expect(find.bySemanticsLabel('Tekrar Hoş Geldin!'), findsOneWidget);
-    expect(find.bySemanticsLabel('Juzzio'), findsWidgets);
+    expect(find.bySemanticsLabel('Trawave'), findsWidgets);
     handle.dispose();
   });
 }

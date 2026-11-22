@@ -38,7 +38,7 @@ import '../widgets/juzzio_ui_kit.dart';
 import 'admin_audit_format.dart';
 import 'admin_overview_v22.dart';
 import '../services/juzzio_special_themes.dart';
-import '../widgets/juzzio_special_theme_layer.dart' show JuzzioTurkFlagPainter, kHalloweenCastle;
+import '../widgets/juzzio_special_theme_layer.dart' show JuzzioTurkFlagPainter, kHalloweenCastle, kHwCastleAspect;
 import '../widgets/juzzio_brand.dart';
 import '../widgets/juzzio_neon_kit.dart';
 import '../widgets/juzzio_motion.dart';
@@ -1108,7 +1108,7 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> {
         _relSecurity.text = (tr['security'] is List ? (tr['security'] as List).join('\n') : '');
       }
     }
-    if (_relReason.text.trim().isEmpty) _relReason.text = _relTr.text.trim().isNotEmpty ? _relTr.text.trim() : 'Juzzio v$name';
+    if (_relReason.text.trim().isEmpty) _relReason.text = _relTr.text.trim().isNotEmpty ? _relTr.text.trim() : 'Trawave v$name';
     if (_relTr.text.trim().isEmpty) _relTr.text = _relReason.text.trim();
     if (name.isEmpty || code <= 0 || !url.startsWith('https://') || _relTr.text.trim().isEmpty) {
       _snack(
@@ -1269,13 +1269,13 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> {
       case 12:
         return (Icons.history_rounded, _al('Denetim Kayıtları', 'Audit Log', 'Protokoll'));
       case 13:
-        return (Icons.auto_awesome_rounded, 'Juzzio Story');
+        return (Icons.auto_awesome_rounded, 'Trawave Story');
       case 14:
         return (Icons.verified_user_rounded, _al('Güven Puanı', 'Trust Score', 'Vertrauen'));
       case 15:
         return (Icons.admin_panel_settings_rounded, _al('Sistem ve Bakım', 'System & Maintenance', 'System'));
       case 16:
-        return (Icons.forum_rounded, 'Juzzio Community');
+        return (Icons.forum_rounded, 'Trawave Community');
       default:
         return (Icons.circle_outlined, '');
     }
@@ -1495,7 +1495,7 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> {
             top: -46,
             child: IgnorePointer(
               child: Image.asset(kHalloweenCastle,
-                  width: 270, height: 270 / (2048 / 1152), fit: BoxFit.contain, filterQuality: FilterQuality.high,
+                  width: 270, height: 270 / kHwCastleAspect, fit: BoxFit.contain, filterQuality: FilterQuality.high,
                   errorBuilder: (_, __, ___) => const SizedBox.shrink()),
             ),
           ),
@@ -2698,7 +2698,7 @@ class _JuzzioAdminPanelScreenState extends State<JuzzioAdminPanelScreen> {
                         builder: (_, __) => Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(_bcTitle.text.isEmpty ? 'Juzzio' : _bcTitle.text, style: const TextStyle(fontWeight: FontWeight.w800)),
+                            Text(_bcTitle.text.isEmpty ? 'Trawave' : _bcTitle.text, style: const TextStyle(fontWeight: FontWeight.w800)),
                             Text(_bcBody.text.isEmpty ? _al('Önizleme', 'Preview', 'Vorschau') : _bcBody.text,
                                 maxLines: 3, overflow: TextOverflow.ellipsis),
                           ],

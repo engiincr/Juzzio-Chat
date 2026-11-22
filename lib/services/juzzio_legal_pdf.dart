@@ -26,12 +26,12 @@ const String kJuzzioPdfFontRegular = 'assets/fonts/pdf/LiberationSans-Regular.tt
 const String kJuzzioPdfFontBold = 'assets/fonts/pdf/LiberationSans-Bold.ttf';
 
 const String kJuzzioPdfFooterNote =
-    'Bu belge Juzzio Sistemleri tarafından resmi makamların talebi üzerine otomatik olarak oluşturulmuştur.';
+    'Bu belge Trawave Sistemleri tarafından resmi makamların talebi üzerine otomatik olarak oluşturulmuştur.';
 
 /// PDF'teki resmî beyan paragrafı (kısa biçim; uzun açıklama bölümde ayrıca yer alır)
 const String kJuzzioPdfE2eeStatement =
     'Uçtan uca şifreleme sebebiyle birebir sohbet içerikleri sunucuda barındırılmamakta ve okunamamaktadır. '
-    'Bu raporda yer alan birebir sohbet ve sesli/görüntülü arama içerikleri, Juzzio protokolü gereği uçtan uca '
+    'Bu raporda yer alan birebir sohbet ve sesli/görüntülü arama içerikleri, Trawave protokolü gereği uçtan uca '
     'şifrelendiğinden sunucularda açık metin olarak bulunmaz; sistem yöneticileri dahil hiç kimse tarafından '
     'okunamaz veya çözülemez. Sunucuda yalnız bağlantı üst verileri (zaman, IP, cihaz, oda kimliği) yer alır.';
 
@@ -44,16 +44,16 @@ const String kJuzzioPdfDeviceStatement =
 /// Teslim şerhi. (5651: internet yayınları; 5271: Ceza Muhakemesi Kanunu; 6698: KVKK)
 const String kJuzzioPdfDeliveryNote =
     'İşbu dijital rapor, 5651 sayılı Kanun, 5271 sayılı Ceza Muhakemesi Kanunu ve 6698 sayılı Kişisel Verilerin '
-    'Korunması Kanunu çerçevesinde, talep eden yetkili makama sunulmak üzere Juzzio sunucu altyapısındaki '
+    'Korunması Kanunu çerçevesinde, talep eden yetkili makama sunulmak üzere Trawave sunucu altyapısındaki '
     'kayıtlardan otomatik olarak derlenmiştir. Belge ve ekindeki ham veri dosyasının bütünlüğü SHA-256 özetiyle '
     'korunmaktadır; tek bir karakterin değişmesi hâlinde özet değeri tutmaz.';
 
 // v2.1: İngilizce sürümler (yönetici uygulaması İngilizce ise PDF İngilizce üretilir)
 const String kJuzzioPdfFooterNoteEn =
-    'This document was generated automatically by Juzzio Systems at the request of the competent authorities.';
+    'This document was generated automatically by Trawave Systems at the request of the competent authorities.';
 const String kJuzzioPdfE2eeStatementEn =
     'Because of end-to-end encryption, one-to-one chat contents are not stored on the server and cannot be read. '
-    'One-to-one chat and voice/video call contents in this report are end-to-end encrypted under the Juzzio protocol; '
+    'One-to-one chat and voice/video call contents in this report are end-to-end encrypted under the Trawave protocol; '
     'they do not exist in plain text on the servers and cannot be read or decrypted by anyone, including system '
     'administrators. The server holds only connection metadata (time, IP, device, room ID).';
 const String kJuzzioPdfDeviceStatementEn =
@@ -62,7 +62,7 @@ const String kJuzzioPdfDeviceStatementEn =
     'collected; the subscriber and approximate location of an IP address can be requested from the internet service '
     'provider named in this report by official letter.';
 const String kJuzzioPdfDeliveryNoteEn =
-    'This digital report was compiled automatically from records in the Juzzio server infrastructure for submission to '
+    'This digital report was compiled automatically from records in the Trawave server infrastructure for submission to '
     'the requesting competent authority, within the framework of applicable law (in Türkiye: Law No. 5651, Code of '
     'Criminal Procedure No. 5271 and Personal Data Protection Law No. 6698). The integrity of this document and the '
     'attached raw data file is protected by a SHA-256 digest; changing a single character invalidates the digest.';
@@ -196,7 +196,7 @@ Future<Uint8List> juzzioBuildLegalPdf(
           if (logoImage != null)
             pw.Image(logoImage, height: 44)
           else
-            pw.Text('Juzzio.', style: st(size: 22, isBold: true)),
+            pw.Text('Trawave.', style: st(size: 22, isBold: true)),
           pw.SizedBox(width: 16),
           pw.Expanded(
             child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
@@ -291,7 +291,7 @@ Future<Uint8List> juzzioBuildLegalPdf(
       child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
         pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
           pw.Text(L('BÜTÜNLÜK MÜHRÜ — SHA-256', 'INTEGRITY SEAL — SHA-256'), style: st(size: 10.5, isBold: true)),
-          pw.Text('JUZZIO · $archiveId', style: st(size: 8.5, isBold: true, color: _accent)),
+          pw.Text('TRAWAVE · $archiveId', style: st(size: 8.5, isBold: true, color: _accent)),
         ]),
         pw.SizedBox(height: 6),
         kvTable([
@@ -321,9 +321,9 @@ Future<Uint8List> juzzioBuildLegalPdf(
     pw.Text(_t(english ? kJuzzioPdfDeliveryNoteEn : kJuzzioPdfDeliveryNote), style: st(size: 8.5)),
     pw.SizedBox(height: 6),
     pw.Text(
-      _t(L('Bu rapor, Juzzio sistem kuralları gereği yalnız Süper Yönetici yetkisine sahip @${_v(b['exported_by'])} kullanıcısının '
+      _t(L('Bu rapor, Trawave sistem kuralları gereği yalnız Süper Yönetici yetkisine sahip @${_v(b['exported_by'])} kullanıcısının '
               'doğrulanmış oturumu üzerinden dışa aktarılmıştır. İşlem kimliği: $archiveId.',
-          'Under Juzzio system rules, this report was exported only through the verified session of @${_v(b['exported_by'])}, '
+          'Under Trawave system rules, this report was exported only through the verified session of @${_v(b['exported_by'])}, '
               'who holds Super Administrator rights. Transaction ID: $archiveId.')),
       style: st(size: 8.5, isBold: true),
     ),
@@ -331,9 +331,9 @@ Future<Uint8List> juzzioBuildLegalPdf(
 
   final doc = pw.Document(
     theme: theme,
-    title: L('Juzzio Yasal Bilgi Talebi Raporu — $archiveId', 'Juzzio Legal Data Request Report — $archiveId'),
-    author: L('Juzzio Sistemleri', 'Juzzio Systems'),
-    creator: 'Juzzio',
+    title: L('Trawave Yasal Bilgi Talebi Raporu — $archiveId', 'Trawave Legal Data Request Report — $archiveId'),
+    author: L('Trawave Sistemleri', 'Trawave Systems'),
+    creator: 'Trawave',
     subject: juzzioPdfSafeText('${info.authority.trim()} · ${info.caseNo.trim()}'),
   );
   doc.addPage(

@@ -888,7 +888,7 @@ class _JuzzioAdminGodTabState extends State<JuzzioAdminGodTab> {
   Future<String> _saveLegalZip(String name, List<int> bytes) async {
     final candidates = <Directory>[];
     if (Platform.isAndroid) {
-      candidates.add(Directory('/storage/emulated/0/Download/Juzzio'));
+      candidates.add(Directory('/storage/emulated/0/Download/Trawave'));
       try {
         final ext = await getExternalStorageDirectory();
         if (ext != null) candidates.add(Directory('${ext.path}/yasal'));

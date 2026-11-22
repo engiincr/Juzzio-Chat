@@ -28,7 +28,7 @@ class JuzzioSounds extends ChangeNotifier {
   static const MethodChannel _ch = MethodChannel('juzzio/notifications');
 
   static const List<JuzzioSound> messageTones = [
-    JuzzioSound('juzzio_tone_glass', 'Juzzio Cam', 'Juzzio Glass', 'Juzzio Glas'),
+    JuzzioSound('juzzio_tone_glass', 'Trawave Cam', 'Trawave Glass', 'Trawave Glas'),
     JuzzioSound('juzzio_tone_drop', 'Damla', 'Drop', 'Tropfen'),
     JuzzioSound('juzzio_tone_pop', 'Pop', 'Pop', 'Pop'),
     JuzzioSound('juzzio_tone_chime', 'Çan', 'Chime', 'Glockenspiel'),
@@ -36,7 +36,7 @@ class JuzzioSounds extends ChangeNotifier {
   ];
 
   static const List<JuzzioSound> ringtones = [
-    JuzzioSound('juzzio_ring_aurora', 'Juzzio Aurora', 'Juzzio Aurora', 'Juzzio Aurora'),
+    JuzzioSound('juzzio_ring_aurora', 'Trawave Aurora', 'Trawave Aurora', 'Trawave Aurora'),
     JuzzioSound('juzzio_ring_crystal', 'Kristal', 'Crystal', 'Kristall'),
     JuzzioSound('juzzio_ring_pulse', 'Nabız', 'Pulse', 'Puls'),
     JuzzioSound('juzzio_ring_breeze', 'Esinti', 'Breeze', 'Brise'),

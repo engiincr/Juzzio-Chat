@@ -181,7 +181,7 @@ class _JuzzioReleaseNotesPageState extends State<JuzzioReleaseNotesPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Juzzio v${n.versionName}',
+                          Text('Trawave v${n.versionName}',
                               style: const TextStyle(
                                   fontFamily: JuzzioConfig.fontRegularBold,
                                   color: Colors.white,

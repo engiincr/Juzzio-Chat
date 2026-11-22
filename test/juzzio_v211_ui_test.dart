@@ -117,7 +117,7 @@ void main() {
 
   test('macOS DMG: .app dinamik bulunur', () {
     final ci = _src('.github/workflows/android-ci.yml');
-    expect(ci.contains('Juzzio Chat.app'), isFalse);
+    expect(ci.contains('Trawave Chat.app'), isFalse);
     expect(ci.contains("-name '*.app'"), isTrue);
   });
 

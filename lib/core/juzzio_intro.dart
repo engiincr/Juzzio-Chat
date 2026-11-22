@@ -83,7 +83,7 @@ Future<void> juzzioMaybeShowIntro(BuildContext context) async {
     await JuzzioCreatorReelPage.open(
       context,
       asset: juzzioIntroAssetFor(app.uiLang),
-      title: app.trEn('Juzzio\'ya hoş geldin', 'Welcome to Juzzio', 'Willkommen bei Juzzio'),
+      title: app.trEn('Trawave\'ya hoş geldin', 'Welcome to Trawave', 'Willkommen bei Trawave'),
       isIntro: true,
     );
   } catch (_) {

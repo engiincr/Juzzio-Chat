@@ -43,7 +43,7 @@ class LiveCaptionPanel extends StatelessWidget {
             const Icon(Icons.translate, color: JuzzioColors.cyan),
             const SizedBox(width: 8),
             Expanded(
-              child: Text(app.trEn('Juzzio Canlı Çeviri', 'Juzzio Live Translation', 'Juzzio Live-Übersetzung'),
+              child: Text(app.trEn('Trawave Canlı Çeviri', 'Trawave Live Translation', 'Trawave Live-Übersetzung'),
                   style: TextStyle(color: t, fontWeight: FontWeight.w700)),
             ),
             if (isProcessing)
