@@ -150,9 +150,9 @@ else
   fi
   pushed=0
   for attempt in 1 2 3; do
-    if git push -q -u origin "$CURRENT_BRANCH" 2>/tmp/juzzio_push_err.txt; then pushed=1; break; fi
-    if grep -qiE "could not read Username|Authentication failed|403|denied" /tmp/juzzio_push_err.txt; then
-      cat /tmp/juzzio_push_err.txt
+    if git push -q -u origin "$CURRENT_BRANCH" 2>"${TMPDIR:-/tmp}/juzzio_push_err.txt"; then pushed=1; break; fi
+    if grep -qiE "could not read Username|Authentication failed|403|denied" "${TMPDIR:-/tmp}/juzzio_push_err.txt"; then
+      cat "${TMPDIR:-/tmp}/juzzio_push_err.txt"
       fail "GitHub kimlik doğrulaması gerekli: 'gh auth login' çalıştırın ve tekrar deneyin."
     fi
     # Uzakta yeni commit var (ör. CI'nin version.json güncellemesi): yerel değişiklikler
@@ -167,7 +167,7 @@ else
     fi
     sleep 2
   done
-  [ "$pushed" = "1" ] || { cat /tmp/juzzio_push_err.txt 2>/dev/null; fail "Push 3 denemede başarısız. İnternet bağlantısını ve 'gh auth status' çıktısını kontrol edin."; }
+  [ "$pushed" = "1" ] || { cat "${TMPDIR:-/tmp}/juzzio_push_err.txt" 2>/dev/null; fail "Push 3 denemede başarısız. İnternet bağlantısını ve 'gh auth status' çıktısını kontrol edin."; }
 fi
 
 REPO_PATH="$(git remote get-url origin | sed -E 's#(https://github.com/|git@github.com:)##; s#\.git$##')"
