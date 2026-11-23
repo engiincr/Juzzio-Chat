@@ -19790,3 +19790,225 @@ AS $$
      WHERE status IN ('consumed', 'rejected') OR created_at < NOW() - INTERVAL '7 days';
 $$;
 REVOKE ALL ON FUNCTION public.e2ee_key_envelopes_cleanup() FROM PUBLIC, anon, authenticated;
+
+-- =============================================================================
+-- 10.58 (v2.2.0, GM-055) — Tescilli marka adları kullanıcı adı olamaz
+--   Uygulamadaki lib/core/juzzio_brand_names.dart ile aynı liste. "." ve "_" atılarak bakılır;
+--   markanın kendisi ve taklit kalıpları (official/resmi/support/destek/tr/app/hq/the…) reddedilir.
+--   Mevcut hesapların adı değiştirilmez; yalnız yeni kayıt / ad değişikliği engellenir.
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS public.reserved_brands (
+    name TEXT PRIMARY KEY CHECK (name ~ '^[a-z0-9]{2,40}$')
+);
+ALTER TABLE public.reserved_brands ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.reserved_brands FROM anon, authenticated;
+INSERT INTO public.reserved_brands (name) VALUES
+    ('trawave'),
+    ('juzzio'),
+    ('apple'),
+    ('iphone'),
+    ('icloud'),
+    ('google'),
+    ('gmail'),
+    ('youtube'),
+    ('android'),
+    ('microsoft'),
+    ('windows'),
+    ('xbox'),
+    ('linkedin'),
+    ('meta'),
+    ('facebook'),
+    ('instagram'),
+    ('whatsapp'),
+    ('messenger'),
+    ('threads'),
+    ('twitter'),
+    ('xcorp'),
+    ('tiktok'),
+    ('snapchat'),
+    ('telegram'),
+    ('signal'),
+    ('discord'),
+    ('reddit'),
+    ('pinterest'),
+    ('tumblr'),
+    ('twitch'),
+    ('kick'),
+    ('skype'),
+    ('zoom'),
+    ('viber'),
+    ('wechat'),
+    ('line'),
+    ('kakaotalk'),
+    ('tinder'),
+    ('bumble'),
+    ('hinge'),
+    ('badoo'),
+    ('grindr'),
+    ('happn'),
+    ('okcupid'),
+    ('match'),
+    ('amazon'),
+    ('netflix'),
+    ('spotify'),
+    ('disney'),
+    ('hbo'),
+    ('primevideo'),
+    ('openai'),
+    ('chatgpt'),
+    ('anthropic'),
+    ('claude'),
+    ('gemini'),
+    ('samsung'),
+    ('xiaomi'),
+    ('huawei'),
+    ('oppo'),
+    ('vivo'),
+    ('oneplus'),
+    ('sony'),
+    ('playstation'),
+    ('nintendo'),
+    ('steam'),
+    ('valve'),
+    ('nvidia'),
+    ('amd'),
+    ('intel'),
+    ('tesla'),
+    ('spacex'),
+    ('paypal'),
+    ('visa'),
+    ('mastercard'),
+    ('revolut'),
+    ('binance'),
+    ('coinbase'),
+    ('uber'),
+    ('airbnb'),
+    ('booking'),
+    ('ebay'),
+    ('aliexpress'),
+    ('alibaba'),
+    ('temu'),
+    ('shein'),
+    ('yandex'),
+    ('proton'),
+    ('protonmail'),
+    ('supabase'),
+    ('livekit'),
+    ('deepgram'),
+    ('firebase'),
+    ('github'),
+    ('gitlab'),
+    ('trendyol'),
+    ('hepsiburada'),
+    ('getir'),
+    ('yemeksepeti'),
+    ('turkcell'),
+    ('vodafone'),
+    ('turktelekom'),
+    ('garanti'),
+    ('akbank'),
+    ('ziraat'),
+    ('isbankasi'),
+    ('yapikredi'),
+    ('papara'),
+    ('thy'),
+    ('turkishairlines'),
+    ('pegasus'),
+    ('aselsan'),
+    ('baykar'),
+    ('bim'),
+    ('migros'),
+    ('cocacola'),
+    ('pepsi'),
+    ('nike'),
+    ('adidas'),
+    ('puma'),
+    ('mcdonalds'),
+    ('starbucks'),
+    ('burgerking'),
+    ('redbull'),
+    ('bmw'),
+    ('mercedes'),
+    ('audi'),
+    ('toyota'),
+    ('ferrari'),
+    ('porsche'),
+    ('gucci'),
+    ('prada'),
+    ('zara'),
+    ('ikea'),
+    ('lego'),
+    ('pokemon'),
+    ('marvel'),
+    ('nasa'),
+    ('fifa'),
+    ('uefa')
+ON CONFLICT (name) DO NOTHING;
+
+CREATE OR REPLACE FUNCTION public.juzzio_username_is_brand(p_username TEXT)
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    WITH v AS (SELECT REGEXP_REPLACE(LOWER(REGEXP_REPLACE(BTRIM(COALESCE(p_username, '')), '^@+', '')), '[._]', '', 'g') AS u),
+         a AS (SELECT UNNEST(ARRAY['official', 'resmi', 'support', 'destek', 'help', 'team', 'tr', 'turkiye', 'app', 'hq', 'inc', 'real', 'the', 'global']) AS x)
+    SELECT EXISTS (
+        SELECT 1 FROM public.reserved_brands b, v
+         WHERE v.u = b.name
+            OR EXISTS (SELECT 1 FROM a WHERE v.u = b.name || a.x OR v.u = a.x || b.name)
+    );
+$$;
+GRANT EXECUTE ON FUNCTION public.juzzio_username_is_brand(TEXT) TO anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.check_username_available(p_username TEXT)
+RETURNS TEXT
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v TEXT := LOWER(REGEXP_REPLACE(BTRIM(COALESCE(p_username, '')), '^@+', ''));
+BEGIN
+    IF v !~ '^[a-z0-9_.]{3,30}$' THEN RETURN 'invalid'; END IF;
+    IF EXISTS (SELECT 1 FROM public.reserved_usernames r WHERE r.username = v)
+       AND NOT EXISTS (SELECT 1 FROM public.profiles p WHERE LOWER(p.username) = v AND p.id = auth.uid()) THEN
+        RETURN 'reserved';
+    END IF;
+    IF public.juzzio_username_is_brand(v)
+       AND NOT EXISTS (SELECT 1 FROM public.profiles p WHERE LOWER(p.username) = v AND p.id = auth.uid())
+       AND NOT EXISTS (SELECT 1 FROM public.reserved_usernames r WHERE r.username = v) THEN
+        RETURN 'brand';
+    END IF;
+    IF EXISTS (SELECT 1 FROM public.profiles p WHERE LOWER(p.username) = v
+               AND p.id IS DISTINCT FROM auth.uid()) THEN
+        RETURN 'taken';
+    END IF;
+    IF NOT public.juzzio_text_is_clean(v, false) THEN RETURN 'inappropriate'; END IF;
+    RETURN 'ok';
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.check_username_available(TEXT) TO anon, authenticated;
+
+-- Sunucu kapısı: yeni ad marka ise kaydı/değişikliği reddeder (rezerve adın gerçek sahibi muaf)
+CREATE OR REPLACE FUNCTION public.profiles_brand_username_guard()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    IF NEW.username IS NOT NULL
+       AND (TG_OP = 'INSERT' OR LOWER(NEW.username) IS DISTINCT FROM LOWER(OLD.username))
+       AND public.juzzio_username_is_brand(NEW.username)
+       AND NOT EXISTS (SELECT 1 FROM public.reserved_usernames r WHERE r.username = LOWER(NEW.username)) THEN
+        RAISE EXCEPTION 'username_brand' USING ERRCODE = 'P0001';
+    END IF;
+    RETURN NEW;
+END;
+$$;
+DROP TRIGGER IF EXISTS trg_profiles_brand_username_guard ON public.profiles;
+CREATE TRIGGER trg_profiles_brand_username_guard BEFORE INSERT OR UPDATE OF username ON public.profiles
+    FOR EACH ROW EXECUTE FUNCTION public.profiles_brand_username_guard();

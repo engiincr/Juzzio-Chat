@@ -22,6 +22,7 @@ import '../widgets/motion/juzzio_send_fx.dart' show juzzioBigEmojiCount;
 import '../widgets/juzzio_encrypted_image.dart' show JuzzioEncryptedMedia;
 import '../core/juzzio_community.dart';
 import '../core/juzzio_input_guard.dart';
+import '../core/juzzio_brand_names.dart';
 import 'juzzio_e2ee.dart';
 import 'juzzio_local_db.dart';
 import '../core/app_theme_and_locale.dart';
@@ -1193,6 +1194,7 @@ class SupabaseService {
           'This feature has been temporarily turned off by the administrator.',
           'Diese Funktion wurde vom Administrator vorübergehend deaktiviert.');
     }
+    if (raw.contains('username_brand')) return juzzioBrandUsernameMessage(); // GM-055
     if (raw.contains('signup_blocked')) {
       return _app.trEn('Bu cihazdan veya bu e-posta adresiyle yeni hesap açılamaz (kalıcı engel).',
           'A new account cannot be created from this device or with this email (permanent ban).',
@@ -1328,6 +1330,7 @@ class SupabaseService {
       throw AuthException(_app.t('err_email_invalid'));
     }
     final status = await checkUsernameStatus(cleanUsername);
+    if (status == 'brand') throw AuthException(juzzioBrandUsernameMessage());
     if (status == 'reserved') throw AuthException(_app.t('err_username_reserved'));
     if (status == 'taken') throw AuthException(_app.t('err_username_taken'));
     if (status == 'inappropriate') throw AuthException(_app.t('err_inappropriate'));
@@ -1526,10 +1529,17 @@ class SupabaseService {
     await recordLifecycle('password_changed');
   }
 
-  /// Sunucu kontrolü: ok | taken | reserved | invalid | inappropriate | error
+  /// GM-055: resmî uyarı metni
+  String juzzioBrandUsernameMessage() => _app.trEn(
+      'Bu ad tescilli bir markaya aittir ve Trawave\'de kullanıcı adı olarak alınamaz. Lütfen başka bir kullanıcı adı seç.',
+      'This name belongs to a registered trademark and cannot be used as a Trawave username. Please choose another username.',
+      'Dieser Name gehört zu einer eingetragenen Marke und kann nicht als Benutzername verwendet werden.');
+
+  /// Sunucu kontrolü: ok | taken | reserved | brand | invalid | inappropriate | error
   Future<String> checkUsernameStatus(String candidateUsername) async {
     final clean = candidateUsername.trim().replaceAll('@', '').toLowerCase();
     if (!_usernamePattern.hasMatch(clean)) return 'invalid';
+    if (juzzioUsernameIsBrand(clean)) return 'brand'; // GM-055: sunucu SQL'i uygulanmadan da çalışır
     try {
       final res = await client.rpc('check_username_available', params: {'p_username': clean});
       return (res ?? 'error').toString();
@@ -1550,6 +1560,7 @@ class SupabaseService {
     if (!_usernamePattern.hasMatch(clean)) {
       throw JuzzioServiceException(_app.trEn('Geçersiz kullanıcı adı.', 'Invalid username.', 'Ungültiger Benutzername.'));
     }
+    if (juzzioUsernameIsBrand(clean)) throw JuzzioServiceException(juzzioBrandUsernameMessage());
     await client.from('profiles').update({
       'username': clean,
       'updated_at': DateTime.now().toUtc().toIso8601String(),

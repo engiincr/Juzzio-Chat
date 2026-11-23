@@ -22,9 +22,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../core/app_theme_and_locale.dart';
 import '../core/config.dart';
+import '../core/juzzio_brand_names.dart';
 import '../core/notification_text.dart';
 import '../main.dart';
-import '../widgets/juzzio_weather_hd.dart' show JuzzioWeatherDebugPreview;
 import '../widgets/juzzio_consent.dart';
 import 'creator_reel_page.dart';
 import '../services/juzzio_weather_service.dart';
@@ -67,7 +67,7 @@ import 'settings/juzzio_settings_v21.dart';
 import '../services/juzzio_mfa_service.dart';
 import '../services/juzzio_data_export.dart';
 import '../widgets/juzzio_brand.dart';
-import '../widgets/juzzio_space_kit.dart' show JuzzioSpaceBrand;
+import '../widgets/juzzio_space_kit.dart' show JuzzioSpaceBrand, JuzzioSpaceHeader, JuzzioSpacePageHeader, JuzzioSpaceIconButton;
 import '../widgets/juzzio_neon_kit.dart';
 import '../widgets/juzzio_settings_kit.dart';
 
@@ -907,32 +907,35 @@ class _JuzzioNotificationsFeedPageState
     return ListenableBuilder(
       listenable: appCtrl,
       builder: (context, _) {
-        final isDark = appCtrl.isDark;
         final unreadCount = _items.where((n) => !n.isRead).length;
 
+        // GM-046: güncel tasarım — temanın kendi zemini (aurora + hava), uzay başlığı, cam kartlar
+        final settingsBtn = JuzzioSpaceIconButton(
+          icon: Icons.tune_rounded,
+          tooltip: appCtrl.trEn('Bildirim Ayarları', 'Notification Settings', 'Benachrichtigungseinstellungen'),
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const JuzzioNotificationsSettingsPage())),
+        );
+        final eyebrow = unreadCount > 0
+            ? '$unreadCount ${appCtrl.trEn("okunmamış bildirim", "unread notifications", "ungelesene Benachrichtigungen")}'
+            : appCtrl.trEn('Tüm bildirimler okundu', 'All caught up', 'Alles erledigt');
         return Scaffold(
-          backgroundColor: JuzzioSocialTokens.pageBg(isDark),
+          key: const ValueKey('gm046-notifications'),
+          backgroundColor: Colors.transparent,
           body: Column(
             children: [
-              JuzzioDarkHeaderBar(
-                title: appCtrl.trEn('Bildirimler', 'Notifications', 'Benachrichtigungen'),
-                subtitle: unreadCount > 0
-                    ? '$unreadCount ${appCtrl.trEn("okunmamış bildirim", "unread notifications", "ungelesene Benachrichtigungen")}'
-                    : appCtrl.trEn('Tüm bildirimler okundu', 'All caught up', 'Alles erledigt'),
-                onBack: widget.embedded ? null : () => Navigator.of(context).pop(),
-                // Figma 04: "Tümünü okundu yap" başlık satırından çıkarıldı (başlığı "Bil..." diye kesiyordu);
-                // aşağıda sayaçlı vurgu kartı olarak duruyor.
-                actions: [
-                  IconButton(
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const JuzzioNotificationsSettingsPage(),
+              SafeArea(
+                bottom: false,
+                child: widget.embedded
+                    ? JuzzioSpaceHeader(
+                        eyebrow: eyebrow,
+                        title: JuzzioSpaceBrand(text: appCtrl.trEn('Bildirimler', 'Notifications', 'Mitteilungen'), size: 32),
+                        actions: [settingsBtn],
+                      )
+                    : JuzzioSpacePageHeader(
+                        title: appCtrl.trEn('Bildirimler', 'Notifications', 'Benachrichtigungen'),
+                        eyebrow: eyebrow,
+                        actions: [settingsBtn],
                       ),
-                    ),
-                    icon: const Icon(Icons.tune_rounded, color: Colors.white, size: 20),
-                    tooltip: appCtrl.trEn('Bildirim Ayarları', 'Notification Settings', 'Benachrichtigungseinstellungen'),
-                  ),
-                ],
               ),
               if (unreadCount > 0) _unreadHero(appCtrl, unreadCount),
               const SizedBox(height: 10),
@@ -1028,18 +1031,10 @@ class _JuzzioNotificationsFeedPageState
                                               .deleteNotification(removed.id);
                                         } catch (_) {}
                                       },
-                                      child: Container(
-                                        decoration: BoxDecoration(
-                                          color: item.isRead
-                                              ? JuzzioSocialTokens.cardBg(isDark)
-                                              : JuzzioSocialTokens.royalBlue.withValues(alpha: isDark ? 0.14 : 0.07),
-                                          borderRadius: BorderRadius.circular(18),
-                                          border: Border.all(
-                                            color: item.isRead
-                                                ? JuzzioSocialTokens.borderSubtle(isDark)
-                                                : JuzzioSocialTokens.royalBlue.withValues(alpha: 0.35),
-                                          ),
-                                        ),
+                                      child: JuzzioLiquidGlass(
+                                        radius: 18,
+                                        padding: EdgeInsets.zero,
+                                        glowBorder: !item.isRead,
                                         child: ListTile(
                                           onTap: () => _handleTapNotification(item),
                                           contentPadding: const EdgeInsets.symmetric(
@@ -1064,7 +1059,7 @@ class _JuzzioNotificationsFeedPageState
                                                     color: badgeColor,
                                                     shape: BoxShape.circle,
                                                     border: Border.all(
-                                                      color: JuzzioSocialTokens.cardBg(isDark),
+                                                      color: JuzzioGlassTokens.surfaceStrong,
                                                       width: 1.8,
                                                     ),
                                                   ),
@@ -1085,7 +1080,7 @@ class _JuzzioNotificationsFeedPageState
                                                   maxLines: 1,
                                                   overflow: TextOverflow.ellipsis,
                                                   style: TextStyle(
-                                                    color: JuzzioSocialTokens.textPrimary(isDark),
+                                                    color: JuzzioGlassTokens.textPrimary,
                                                     fontWeight: FontWeight.w800,
                                                     fontSize: 14.5,
                                                   ),
@@ -1097,7 +1092,7 @@ class _JuzzioNotificationsFeedPageState
                                                   appCtrl,
                                                 ),
                                                 style: TextStyle(
-                                                  color: JuzzioSocialTokens.textSecondary(isDark),
+                                                  color: JuzzioGlassTokens.textSecondary,
                                                   fontSize: 11.5,
                                                 ),
                                               ),
@@ -1110,7 +1105,7 @@ class _JuzzioNotificationsFeedPageState
                                               maxLines: 2,
                                               overflow: TextOverflow.ellipsis,
                                               style: TextStyle(
-                                                color: JuzzioSocialTokens.textSecondary(isDark),
+                                                color: JuzzioGlassTokens.textSecondary,
                                                 fontSize: 13,
                                               ),
                                             ),
@@ -1394,10 +1389,12 @@ class _JuzzioEditProfilePageState extends State<JuzzioEditProfilePage> {
           setState(() {
             _isSaving = false;
             _isUsernameAvailable = false;
-            _validationError = app.loc(
-              'Bu kullanıcı adı zaten alınmış. Lütfen farklı bir kullanıcı adı seçin.',
-              'This username is already taken. Please choose another.', 'Dieser Benutzername ist bereits vergeben. Bitte wähle einen anderen.',
-            );
+            _validationError = juzzioUsernameIsBrand(cleanUname)
+                ? SupabaseService.instance.juzzioBrandUsernameMessage()
+                : app.loc(
+                    'Bu kullanıcı adı zaten alınmış. Lütfen farklı bir kullanıcı adı seçin.',
+                    'This username is already taken. Please choose another.', 'Dieser Benutzername ist bereits vergeben. Bitte wähle einen anderen.',
+                  );
           });
           return;
         }
@@ -2661,6 +2658,8 @@ class _JuzzioUsernameSettingsPageState extends State<JuzzioUsernameSettingsPage>
       _isAvailable = available;
       _availabilityMessage = available
           ? _l3('Bu kullanıcı adı müsait, kullanılabilir.', 'This username is available.', 'Dieser Benutzername ist verfügbar.')
+          : juzzioUsernameIsBrand(clean)
+          ? SupabaseService.instance.juzzioBrandUsernameMessage()
           : _l3('Bu kullanıcı adı şu anda başka bir kullanıcıya aittir ve kullanılamaz.', 'This username belongs to another user and cannot be used.', 'Dieser Benutzername gehört einem anderen Nutzer und kann nicht verwendet werden.');
     });
   }
@@ -3808,6 +3807,9 @@ class JuzzioGroupsPrivacyPage extends StatelessWidget {
 // -----------------------------------------------------------------------------
 // 2E. KİŞİLER VE ENGELLENMİŞ HESAPLAR (WhatsApp / Windows QR Senkronizasyon)
 // -----------------------------------------------------------------------------
+/// GM-054: "@ad" → "ad"; boşluk ve geçersiz karakterler atılır
+String juzzioNormalizeBlockUsername(String raw) => raw.trim().replaceFirst(RegExp(r'^@+'), '').replaceAll(RegExp(r'[^A-Za-z0-9._]'), '');
+
 class JuzzioContactsAndBlockedPage extends StatefulWidget {
   const JuzzioContactsAndBlockedPage({super.key});
 
@@ -3818,6 +3820,38 @@ class JuzzioContactsAndBlockedPage extends StatefulWidget {
 class _JuzzioContactsAndBlockedPageState extends State<JuzzioContactsAndBlockedPage> {
   final TextEditingController _blockCtrl = TextEditingController();
   List<JuzzioBlockedUserItem> _dbBlocked = <JuzzioBlockedUserItem>[];
+  bool _blocking = false;
+
+  /// GM-054: kullanıcı adı sunucuda birebir bulunursa engellenir; yoksa resmî uyarı gösterilir
+  Future<void> _blockByUsername() async {
+    final app = JuzzioAppController.instance;
+    final name = juzzioNormalizeBlockUsername(_blockCtrl.text);
+    if (name.isEmpty) return;
+    setState(() => _blocking = true);
+    String msg;
+    try {
+      final hits = await SupabaseService.instance.searchUsersByUsername(name);
+      final match = hits.where((u) => u.username.toLowerCase() == name.toLowerCase()).toList();
+      if (match.isEmpty) {
+        msg = app.trEn('@$name adında bir kullanıcı bulunamadı. Yalnız Trawave\'de kayıtlı kullanıcılar engellenebilir.',
+            'No user named @$name was found. Only registered Trawave users can be blocked.', 'Kein Nutzer @$name gefunden.');
+      } else if (match.first.id == SupabaseService.instance.currentUserId) {
+        msg = app.trEn('Kendini engelleyemezsin.', 'You can\'t block yourself.', 'Du kannst dich nicht selbst blockieren.');
+      } else {
+        await JuzzioSocialService.instance.blockUser(targetUser: match.first);
+        app.blockUsername(match.first.username);
+        _blockCtrl.clear();
+        await _loadDbBlocked();
+        msg = app.trEn('@${match.first.username} engellendi.', '@${match.first.username} blocked.', '@${match.first.username} blockiert.');
+      }
+    } catch (_) {
+      msg = app.trEn('Engelleme şu an yapılamadı. Bağlantını kontrol edip tekrar dene.', 'Couldn\'t block right now. Check your connection and try again.',
+          'Blockieren gerade nicht möglich.');
+    }
+    if (!mounted) return;
+    setState(() => _blocking = false);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
 
   @override
   void initState() {
@@ -3909,12 +3943,8 @@ class _JuzzioContactsAndBlockedPageState extends State<JuzzioContactsAndBlockedP
                             backgroundColor: p.dangerRed,
                             foregroundColor: Colors.white,
                           ),
-                          onPressed: () {
-                            if (_blockCtrl.text.trim().isNotEmpty) {
-                              appCtrl.blockUsername(_blockCtrl.text.trim());
-                              _blockCtrl.clear();
-                            }
-                          },
+                          // GM-054: yalnız gerçekten var olan kullanıcı engellenebilir
+                          onPressed: _blocking ? null : _blockByUsername,
                           child: Text(JuzzioAppController.instance.loc('Engelle', 'Block', 'Blockieren')),
                         ),
                       ],
@@ -5037,7 +5067,6 @@ class JuzzioAppearanceSettingsPage extends StatelessWidget {
                     );
                   },
                 ),
-                const JuzzioWeatherDebugPreview(), // GM-037: yalnız hata ayıklama derlemesinde
               ]),
               // ---- 2) UYGULAMA TEMASI ----
               _section(p, _l3('Uygulama teması', 'App theme', 'App-Design'), Icons.palette_rounded, [

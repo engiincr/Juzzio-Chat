@@ -16,6 +16,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/app_theme_and_locale.dart';
 import 'core/config.dart';
 import 'widgets/juzzio_desktop_frame.dart';
+import 'widgets/juzzio_weather_hd.dart' show JuzzioWeatherDebugFile;
 import 'widgets/juzzio_clock_guard.dart';
 import 'widgets/juzzio_eye_comfort.dart';
 import 'widgets/juzzio_theme_reveal.dart';
@@ -131,6 +132,7 @@ Future<void> main() async {
 
   // v1.2.4: dil değişince açık olan TÜM ekranlar anında yeni dile geçer
   JuzzioUiSync.attach();
+  JuzzioWeatherDebugFile.start(); // yalnız hata ayıklama derlemesi; arayüzde iz yok
   runApp(const JuzzioApp());
 }
 

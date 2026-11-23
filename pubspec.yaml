@@ -120,6 +120,7 @@ flutter:
     - assets/weather_hd/
     # GM-031 (v2.2.0): Halloween özel teması görselleri
     - assets/special/halloween/
+    - assets/special/turkey/
     - assets/fonts/pdf/LiberationSans-Regular.ttf
     - assets/fonts/pdf/LiberationSans-Bold.ttf
     - assets/fonts/pdf/LiberationSans-LICENSE.txt

@@ -15,11 +15,14 @@
 //  yerine özel tema dekoru gelir (JuzzioSpecialThemeLayer). Yalnız yönetici panelinden açılır.
 // =============================================================================
 
+import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/foundation.dart' show kDebugMode, visibleForTesting;
 import 'package:flutter/material.dart';
 
+import '../core/theme/juzzio_glass.dart' show JuzzioGlassTokens;
 import '../services/juzzio_special_themes.dart';
 import '../services/juzzio_weather_service.dart';
 
@@ -40,6 +43,9 @@ const String kHdCloudStorm = 'assets/weather_hd/cloud_storm.webp';
 
 /// GM-037: iki yanı ve altı yumuşatılmış, kesiksiz bulut (paketteki cloud_white'tan üretildi)
 const String kHdCloudPuff = 'assets/weather_hd/cloud_puff.webp';
+
+/// GM-037: açık tema için gündoğumu (bulut gövdeleri beyaz/mavi-gri, ışınlar sarı — Engin'in gündüz görseli)
+const String kHdSunRiseLight = 'assets/weather_hd/sun_rise_clouds_light.webp';
 const String kHdSunRise = 'assets/weather_hd/sun_rise_clouds.webp';
 const String kHdSunRays = 'assets/weather_hd/sun_rays.webp';
 const String kHdSnowFlakes = 'assets/weather_hd/snow_flakes.webp';
@@ -54,7 +60,7 @@ const String kHdRainHeavy = 'assets/weather_hd/rain_heavy.webp';
 /// Tüm HD görseller (pubspec ve testler için)
 const List<String> kJuzzioHdWeatherAssets = [
   ...kJuzzioHdMoonAssets,
-  kHdCloudWhite, kHdCloudStorm, kHdCloudPuff, kHdSunRise, kHdSunRays, kHdSnowFlakes, kHdSnowLight,
+  kHdCloudWhite, kHdCloudStorm, kHdCloudPuff, kHdSunRise, kHdSunRiseLight, kHdSunRays, kHdSnowFlakes, kHdSnowLight,
   kHdBolt, kHdBoltCloud, kHdFogBank, kHdFogLow, kHdRainCloud, kHdRainHeavy,
 ];
 
@@ -63,6 +69,7 @@ const Map<String, double> kJuzzioHdAspect = {
   kHdCloudWhite: 2048 / 1250,
   kHdCloudStorm: 2048 / 1250,
   kHdCloudPuff: 1212 / 526,
+  kHdSunRiseLight: 2048 / 1536,
   kHdSunRise: 2048 / 1536,
   kHdSunRays: 2048 / 1536,
   kHdSnowFlakes: 1.0,
@@ -180,7 +187,7 @@ void juzzioHdAnchorEnabled(bool on) {
 }
 
 /// Gök cismi (ay/güneş) katmanı mı — arama kutusu görünmüyorsa çizilmez
-bool juzzioHdIsCelestial(String asset) => asset == kHdSunRise || kJuzzioHdMoonAssets.contains(asset);
+bool juzzioHdIsCelestial(String asset) => asset == kHdSunRise || asset == kHdSunRiseLight || kJuzzioHdMoonAssets.contains(asset);
 
 /// Hava türüne göre referans ekranlardaki yerleşim (saf; test edilir)
 List<JuzzioHdLayer> juzzioHdWeatherLayers(JuzzioWeatherKind kind, {required bool night, required bool dark, required int moonIndex}) {
@@ -197,25 +204,18 @@ List<JuzzioHdLayer> juzzioHdWeatherLayers(JuzzioWeatherKind kind, {required bool
           JuzzioHdLayer(kHdCloudPuff, left: -0.32, top: 0.62, width: 0.66, opacity: 0.14, drift: 0.02, flip: true),
         ];
       }
-      final dayTint = dark ? const Color(0xFF8E98AC) : null; // referans: koyu temada gri-mavi bulut
-      // referans: güneş arama kutusunun üstünde bulutların ardından doğar (merkez ≈ 0.77W)
-      return [
-        JuzzioHdLayer(kHdCloudPuff, left: -0.26, top: -0.20, width: 0.60, opacity: 0.45, drift: 0.015, flip: true, tint: dayTint, anchored: true),
-        const JuzzioHdLayer(kHdSunRise, left: 0.43, top: -0.27, width: 0.59, anchored: true),
-        JuzzioHdLayer(kHdCloudPuff, left: 0.56, top: 0.17, width: 0.62, opacity: 0.50, drift: 0.02, tint: dayTint, anchored: true),
-      ];
+      // referans (Engin'in güneşli gece/gündüz görselleri): yalnız arama kutusunun üstünde, bulut
+      // kümesinin ardından doğan güneş (merkez ≈ 0.77W); açık temada bulutlar beyaz, ışınlar sarı
+      return [JuzzioHdLayer(dark ? kHdSunRise : kHdSunRiseLight, left: 0.43, top: -0.27, width: 0.59, anchored: true)];
     case JuzzioWeatherKind.clouds:
-      if (night) {
-        return [
-          JuzzioHdLayer(moon, left: 0.535, top: -0.13, width: 0.12, opacity: 0.85, anchored: true),
-          JuzzioHdLayer(kHdCloudPuff, left: -0.28, top: -0.34, width: 0.74, opacity: 0.55 * storm, drift: 0.02, flip: true, tint: const Color(0xFF5E6A7C), anchored: true),
-          JuzzioHdLayer(kHdCloudPuff, left: 0.52, top: 0.08, width: 0.74, opacity: 0.45 * storm, drift: 0.015, tint: const Color(0xFF5E6A7C), anchored: true),
-        ];
-      }
-      final cTint = dark ? const Color(0xFF8E98AC) : null;
+      // bulutlu: yumuşak (kenarları kesiksiz) bulutlar başlık düğmelerinin altında ve aramanın solunda;
+      // içerik üstüne binmez. Gece ay bulutların ardından görünür.
+      final cTint = night ? const Color(0xFF6A7788) : (dark ? const Color(0xFF8E98AC) : null);
       return [
-        JuzzioHdLayer(kHdCloudPuff, left: -0.30, top: -0.30, width: 0.84, opacity: 0.80, drift: 0.02, flip: true, tint: cTint, anchored: true),
-        JuzzioHdLayer(kHdCloudPuff, left: 0.40, top: 0.10, width: 0.88, opacity: 0.72, drift: 0.02, tint: cTint, anchored: true),
+        if (night) JuzzioHdLayer(moon, left: 0.535, top: -0.13, width: 0.12, opacity: 0.85, anchored: true),
+        JuzzioHdLayer(kHdCloudPuff, left: 0.48, top: -0.30, width: 0.58, opacity: night ? 0.70 : 0.85, drift: 0.015, tint: cTint, anchored: true),
+        JuzzioHdLayer(kHdCloudPuff, left: -0.18, top: -0.20, width: 0.60, opacity: night ? 0.60 : 0.80, drift: 0.012, flip: true, tint: cTint, anchored: true),
+        JuzzioHdLayer(kHdCloudPuff, left: 0.50, top: 0.12, width: 0.50, opacity: night ? 0.45 : 0.60, drift: 0.018, tint: cTint, anchored: true),
       ];
     case JuzzioWeatherKind.fog:
       return [
@@ -225,13 +225,15 @@ List<JuzzioHdLayer> juzzioHdWeatherLayers(JuzzioWeatherKind kind, {required bool
     case JuzzioWeatherKind.drizzle:
     case JuzzioWeatherKind.rain:
       final heavy = kind == JuzzioWeatherKind.rain;
-      // referans: koyu gri-mavi bulutlar başlıkta (logo ve düğmelerin ardında) ve hikâyelerin yanında
-      final rTint = dark ? const Color(0xFF55606F) : const Color(0xFF8E9AAB);
+      // referans (Engin'in yağmurlu görseli): arduvaz-mavi gök, yumuşak koyu bulutlar — aramanın solunda,
+      // düğmelerin altında sağda, hikâyelerin sağında ve avatarın yanında küçük; ince seyrek yağmur
+      final rTint = dark ? const Color(0xFF5B6A7C) : const Color(0xFF9AA8BA);
       return [
-        JuzzioHdLayer(kHdCloudPuff, left: -0.26, top: -0.32, width: 0.76, opacity: 0.70 * storm, drift: 0.012, flip: true, tint: rTint, anchored: true),
-        JuzzioHdLayer(kHdCloudPuff, left: 0.46, top: -0.36, width: 0.76, opacity: 0.62 * storm, drift: 0.012, tint: rTint, anchored: true),
-        JuzzioHdLayer(kHdCloudPuff, left: 0.42, top: 0.10, width: 0.76, opacity: 0.55 * storm, drift: 0.015, tint: rTint, anchored: true),
-        JuzzioHdLayer(kHdRainHeavy, left: 0, top: 0, width: 0.5, opacity: heavy ? 0.40 : 0.22, fall: true),
+        JuzzioHdLayer(kHdCloudPuff, left: 0.50, top: -0.31, width: 0.56, opacity: 0.70 * storm, drift: 0.012, tint: rTint, anchored: true),
+        JuzzioHdLayer(kHdCloudPuff, left: -0.14, top: -0.15, width: 0.62, opacity: 0.62 * storm, drift: 0.010, flip: true, tint: rTint, anchored: true),
+        JuzzioHdLayer(kHdCloudPuff, left: 0.48, top: 0.10, width: 0.60, opacity: 0.62 * storm, drift: 0.014, tint: rTint, anchored: true),
+        JuzzioHdLayer(kHdCloudPuff, left: 0.20, top: 0.30, width: 0.26, opacity: 0.40 * storm, drift: 0.01, tint: rTint, anchored: true),
+        JuzzioHdLayer(kHdRainHeavy, left: 0, top: 0, width: 0.5, opacity: heavy ? 0.34 : 0.20, fall: true),
       ];
     case JuzzioWeatherKind.snow:
       return [
@@ -315,6 +317,31 @@ class JuzzioHdWeatherScene extends StatelessWidget {
             final anchorKnown = kJuzzioHdSearchTop.value != null;
             final anchor = kJuzzioHdSearchTop.value ?? juzzioHdFallbackAnchor(MediaQuery.paddingOf(context).top);
             final children = <Widget>[];
+            final rainy = kind == JuzzioWeatherKind.rain || kind == JuzzioWeatherKind.drizzle || kind == JuzzioWeatherKind.thunder;
+            if (rainy) {
+              // referans: yağmurda başlık arduvaz-mavi bir göğe bürünür
+              children.add(Positioned(
+                left: 0,
+                top: 0,
+                width: sw,
+                height: anchor + sw * 0.55,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: dark
+                          ? const [Color(0x8C2A3846), Color(0x732C3B4A), Color(0x00222C36)]
+                          : const [Color(0x598FA2B6), Color(0x408FA2B6), Color(0x008FA2B6)],
+                    ),
+                  ),
+                ),
+              ));
+            }
+            if (anchorKnown && (kind == JuzzioWeatherKind.clear || kind == JuzzioWeatherKind.clouds)) {
+              // referans: logonun altından düğmelerin ardına yükselen limon ışık yayı
+              children.add(Positioned.fill(child: CustomPaint(painter: JuzzioHdSwooshPainter(width: sw, anchor: anchor, color: JuzzioGlassTokens.glow))));
+            }
             if (night && (kind == JuzzioWeatherKind.clear || kind == JuzzioWeatherKind.clouds)) {
               children.add(Positioned(
                 left: 0,
@@ -375,6 +402,36 @@ class JuzzioHdWeatherScene extends StatelessWidget {
   }
 }
 
+/// GM-037: referanslardaki limon ışık yayı (Türk bayrağı temasındakiyle aynı eğri)
+class JuzzioHdSwooshPainter extends CustomPainter {
+  JuzzioHdSwooshPainter({required this.width, required this.anchor, required this.color});
+  final double width;
+  final double anchor;
+  final Color color;
+
+  static Path path(double width, double anchor) => Path()
+    ..moveTo(-width * 0.02, anchor - width * 0.05)
+    ..cubicTo(width * 0.30, anchor - width * 0.01, width * 0.55, anchor - width * 0.20, width * 0.92, anchor - width * 0.40);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final p = path(width, anchor);
+    for (final (w, a) in [(18.0, 0.08), (8.0, 0.18), (2.0, 0.80)]) {
+      canvas.drawPath(
+          p,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = w
+            ..strokeCap = StrokeCap.round
+            ..color = color.withValues(alpha: a)
+            ..maskFilter = w > 3 ? MaskFilter.blur(BlurStyle.normal, w / 2) : null);
+    }
+  }
+
+  @override
+  bool shouldRepaint(JuzzioHdSwooshPainter o) => o.width != width || o.anchor != anchor || o.color != color;
+}
+
 class _HdStarsPainter extends CustomPainter {
   _HdStarsPainter({required this.t, required this.dark});
   final double t;
@@ -403,43 +460,54 @@ extension on Widget {
   Widget flipped(bool on) => on ? Transform.flip(flipX: true, child: this) : this;
 }
 
-/// GM-037: YALNIZ hata ayıklama derlemesinde Görünüm sayfasında görünen önizleme seçicisi —
-/// her hava türünü gece/gündüz ve özel gün temalarını Sohbetler ekranında denemek için.
-class JuzzioWeatherDebugPreview extends StatelessWidget {
-  const JuzzioWeatherDebugPreview({super.key});
+/// GM-037: Görünüm sayfasındaki önizleme seçicisi KALDIRILDI (Engin: hava ve özel gün temaları yalnız
+/// otomatik gelir; kullanıcıya seçenek gösterilmez). Geliştirici denetimi için YALNIZ hata ayıklama
+/// derlemesinde, depo DIŞINDAKİ `..\juzzio_logs\juzzio_debug_preview.txt` dosyası okunur
+/// (ör. `rain:night`, `clear:day`, `turkey`, `halloween`; boş = gerçek hava). Kullanıcı arayüzünde iz yok.
+class JuzzioWeatherDebugFile {
+  static Timer? _t;
+  static String _last = '';
 
-  @override
-  Widget build(BuildContext context) {
-    if (!kDebugMode) return const SizedBox.shrink();
-    return ListenableBuilder(
-      listenable: Listenable.merge([JuzzioWeatherService.debugPreview, JuzzioSpecialThemes.instance]),
-      builder: (context, _) {
-        final cur = JuzzioWeatherService.debugPreview.value;
-        final sp = JuzzioSpecialThemes.instance.debugForced;
-        Widget chip(String label, bool on, VoidCallback tap) => Padding(
-              padding: const EdgeInsets.only(right: 6, bottom: 6),
-              child: ChoiceChip(label: Text(label), selected: on, onSelected: (_) => tap()),
-            );
-        return Padding(
-          key: const ValueKey('gm037-debug-preview'),
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-          child: Wrap(children: [
-            chip('Gerçek', cur == null && sp == null, () {
-              JuzzioWeatherService.debugPreview.value = null;
-              JuzzioSpecialThemes.instance.debugForce(null);
-            }),
-            for (final k in JuzzioWeatherKind.values)
-              for (final n in [false, true])
-                chip('${k.name}${n ? ' gece' : ' gündüz'}', cur?.$1 == k && cur?.$2 == n, () {
-                  JuzzioSpecialThemes.instance.debugForce(null);
-                  JuzzioWeatherService.debugPreview.value = (k, n);
-                }),
-            chip('Türk bayrağı', sp == JuzzioSpecialTheme.turkey, () => JuzzioSpecialThemes.instance.debugForce(JuzzioSpecialTheme.turkey)),
-            chip('Halloween', sp == JuzzioSpecialTheme.halloween,
-                () => JuzzioSpecialThemes.instance.debugForce(JuzzioSpecialTheme.halloween)),
-          ]),
-        );
-      },
-    );
+  static String? _path() {
+    try {
+      if (!(Platform.isWindows || Platform.isLinux || Platform.isMacOS)) return null;
+      var d = File(Platform.resolvedExecutable).parent;
+      for (var i = 0; i < 8; i++) {
+        if (File('${d.path}${Platform.pathSeparator}pubspec.yaml').existsSync()) {
+          return '${d.parent.path}${Platform.pathSeparator}juzzio_logs${Platform.pathSeparator}juzzio_debug_preview.txt';
+        }
+        d = d.parent;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  static void start() {
+    if (!kDebugMode || _t != null) return;
+    final path = _path();
+    if (path == null) return;
+    _t = Timer.periodic(const Duration(milliseconds: 1500), (_) {
+      String v = '';
+      try {
+        final f = File(path);
+        if (f.existsSync()) v = f.readAsStringSync().trim().toLowerCase();
+      } catch (_) {}
+      if (v == _last) return;
+      _last = v;
+      apply(v);
+    });
+  }
+
+  @visibleForTesting
+  static void apply(String v) {
+    if (v == 'turkey' || v == 'halloween') {
+      JuzzioWeatherService.debugPreview.value = null;
+      JuzzioSpecialThemes.instance.debugForce(v == 'turkey' ? JuzzioSpecialTheme.turkey : JuzzioSpecialTheme.halloween);
+      return;
+    }
+    JuzzioSpecialThemes.instance.debugForce(null);
+    final parts = v.split(':');
+    final kind = JuzzioWeatherKind.values.where((k) => k.name == parts.first).firstOrNull;
+    JuzzioWeatherService.debugPreview.value = kind == null ? null : (kind, parts.length > 1 && parts[1] == 'night');
   }
 }
