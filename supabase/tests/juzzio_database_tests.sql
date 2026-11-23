@@ -291,8 +291,16 @@ SELECT admin_delete_banned_term('test-admin-token-060', 'deneme kufur');
 SELECT pg_temp.check('ad taraması çalışır', jsonb_typeof(admin_scan_names('test-admin-token-060')->'users') = 'array');
 SELECT admin_set_setting('test-admin-token-060', 'default_glass_palette', '"emerald"'::jsonb);
 SELECT pg_temp.check('cam teması ayarı', (get_app_config()->>'default_glass_palette') = 'emerald');
-SELECT admin_set_setting('test-admin-token-060', 'default_glass_palette', '"cyber_neon"'::jsonb);
-SELECT pg_temp.check('v0.9.5: yeni cam temaları da seçilebilir', (get_app_config()->>'default_glass_palette') = 'cyber_neon');
+SELECT admin_set_setting('test-admin-token-060', 'default_glass_palette', '"amber_gold"'::jsonb);
+SELECT pg_temp.check('v2.2.0: yeni tema (Amber Altın) seçilebilir', (get_app_config()->>'default_glass_palette') = 'amber_gold');
+-- v2.2.0 (10.56): kaldırılan temalar (cyber_neon, chrome, obsidian_oled, frosted_pearl, midnight_sapphire) artık reddedilir
+DO $$ BEGIN
+  PERFORM admin_set_setting('test-admin-token-060', 'default_glass_palette', '"cyber_neon"'::jsonb);
+  RAISE EXCEPTION 'FAIL kaldırılan cam teması kabul edildi';
+EXCEPTION WHEN raise_exception THEN
+  IF SQLERRM LIKE 'FAIL%' THEN RAISE; END IF;
+  RAISE NOTICE 'PASS kaldırılan cam teması reddedildi';
+END $$;
 SELECT admin_set_setting('test-admin-token-060', 'default_glass_palette', '"juzzio_liquid"'::jsonb);
 SELECT admin_set_setting('test-admin-token-060', 'default_glass_palette', '"ocean"'::jsonb);
 DO $$ BEGIN
@@ -3092,7 +3100,10 @@ UPDATE profiles SET username = (SELECT username FROM _u47) WHERE id = :'A';
 -- 10.51 GitHub güncelleme bildirimi anahtarı (varsayılan kapalı, yalnız süper yönetici)
 RESET ROLE;
 SET search_path = public, extensions;
-SELECT pg_temp.check('güncelleme bildirimi varsayılan kapalı', (get_app_config()->>'github_updates_enabled') = 'false');
+-- 10.60: v2.2.0 yayınıyla tek seferlik açılır (işaret yazılır; yeniden uygulamada tekrar açılmaz)
+SELECT pg_temp.check('v2.2.0: güncelleme bildirimi bir kez açıldı', (get_app_config()->>'github_updates_enabled') = 'true');
+SELECT pg_temp.check('v2.2.0: tek seferlik işaret yazıldı', EXISTS (SELECT 1 FROM juzzio_once_steps WHERE step = 'v220_github_updates_on'));
+SELECT pg_temp.check('tek seferlik işaret tablosu istemciye kapalı', NOT has_table_privilege('authenticated', 'public.juzzio_once_steps', 'SELECT'));
 UPDATE profiles SET username = 'tugkancr' WHERE id = :'A';
 DELETE FROM admin_sessions WHERE user_id = :'A';
 INSERT INTO admin_sessions (token_hash, user_id, expires_at) VALUES (encode(digest('tok251', 'sha256'), 'hex'), :'A', NOW() + INTERVAL '1 hour');
@@ -3109,3 +3120,14 @@ RESET ROLE;
 DELETE FROM admin_sessions WHERE user_id = :'A';
 UPDATE profiles SET username = (SELECT username FROM _u47) WHERE id = :'A';
 SELECT 'TÜM v2.1 TESTLERİ GEÇTİ';
+-- 10.60: yönetici kapattıktan sonra kanonik SQL'in tekrar uygulanması bildirimi AÇMAMALI
+RESET ROLE;
+UPDATE app_settings SET value = 'false'::jsonb WHERE key = 'github_updates_enabled';
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM public.juzzio_once_steps WHERE step = 'v220_github_updates_on') THEN
+        UPDATE public.app_settings SET value = 'true'::jsonb WHERE key = 'github_updates_enabled';
+    END IF;
+END $$;
+SELECT pg_temp.check('10.60 tekrar uygulanınca yöneticinin kapatması korunur', (get_app_config()->>'github_updates_enabled') = 'false');
+SELECT 'TÜM v2.2.0 TESTLERİ GEÇTİ';

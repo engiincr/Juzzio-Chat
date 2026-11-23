@@ -20055,3 +20055,26 @@ RETURNS JSONB LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $
       FROM public.user_devices d WHERE d.user_id = auth.uid();
 $$;
 GRANT EXECUTE ON FUNCTION public.list_my_devices(TEXT) TO authenticated;
+
+-- ============================================================================
+-- 10.60 (v2.2.0) — Güncelleme bildirimini v2.2.0 yayınıyla BİR KEZ yeniden aç
+-- Engin (23.11.2026): bildirim geçici olarak kapatılmıştı; bu sürümle yüklü uygulamalara
+-- güncelleme bildirimi gitmeli. Kanonik SQL her push'ta yeniden uygulandığı için açma işlemi
+-- tek seferlik işaretle yapılır: yönetici panelden sonradan kapatırsa sonraki push'lar AÇMAZ.
+-- CI sırası: supabase-sync (bu blok) → release (version.json + app_releases + duyuru).
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS public.juzzio_once_steps (
+    step TEXT PRIMARY KEY,
+    done_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+ALTER TABLE public.juzzio_once_steps ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.juzzio_once_steps FROM PUBLIC, anon, authenticated;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM public.juzzio_once_steps WHERE step = 'v220_github_updates_on') THEN
+        INSERT INTO public.app_settings (key, value, updated_at) VALUES ('github_updates_enabled', 'true'::jsonb, NOW())
+        ON CONFLICT (key) DO UPDATE SET value = 'true'::jsonb, updated_at = NOW();
+        INSERT INTO public.juzzio_once_steps (step) VALUES ('v220_github_updates_on');
+    END IF;
+END $$;
