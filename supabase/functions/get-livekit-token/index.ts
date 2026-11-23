@@ -103,7 +103,7 @@ Deno.serve(async (req: Request) => {
       .select("display_name, username")
       .eq("id", user.id)
       .maybeSingle();
-    const displayName = String(profile?.display_name || profile?.username || body.displayName || "Juzzio").slice(0, 64);
+    const displayName = String(profile?.display_name || profile?.username || body.displayName || "Trawave").slice(0, 64);
 
     const token = await participantJwt({
       apiKey: requiredEnv("LIVEKIT_API_KEY"),

@@ -23,6 +23,10 @@ import 'juzzio_quick_reply.dart';
 import 'juzzio_notification_preview.dart';
 import 'juzzio_call_actions.dart';
 
+/// GM-058: "JUZZIO/Juzzio" → "TRAWAVE/Trawave" (bildirim başlık ve metinleri)
+String juzzioRebrandText(String s) =>
+    s.replaceAll(RegExp(r'\bJUZZIO\b'), 'TRAWAVE').replaceAll(RegExp(r'\bJuzzio\b'), 'Trawave');
+
 class JuzzioPushEventPayload {
   final String notificationId;
   final String eventType;
@@ -58,8 +62,9 @@ class JuzzioPushEventPayload {
       eventType:
           (map['event_type'] ?? map['type'] ?? data['event_type'] ?? 'system')
               .toString(),
-      title: (map['title'] ?? 'Trawave').toString(),
-      body: (map['body'] ?? '').toString(),
+      // GM-058: sunucudaki eski marka adı istemcide Trawave'e çevrilir
+      title: juzzioRebrandText((map['title'] ?? 'Trawave').toString()),
+      body: juzzioRebrandText((map['body'] ?? '').toString()),
       targetId: (map['target_id'] ?? data['target_id'] ?? '').toString(),
       targetSecondaryId:
           (map['target_secondary_id'] ?? data['target_secondary_id'] ?? '')

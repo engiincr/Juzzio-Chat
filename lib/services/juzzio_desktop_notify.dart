@@ -42,7 +42,11 @@ class JuzzioDesktopNotify {
     await _ensure();
     if (!_ready) return;
     try {
-      final n = LocalNotification(identifier: key, title: title, body: body);
+      // GM-058: eski marka adı görünmez
+      final n = LocalNotification(
+          identifier: key,
+          title: title.replaceAll(RegExp(r'\bJUZZIO\b'), 'TRAWAVE').replaceAll(RegExp(r'\bJuzzio\b'), 'Trawave'),
+          body: body.replaceAll(RegExp(r'\bJUZZIO\b'), 'TRAWAVE').replaceAll(RegExp(r'\bJuzzio\b'), 'Trawave'));
       if (onTap != null) n.onClick = onTap;
       await n.show();
     } catch (e) {

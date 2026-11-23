@@ -219,8 +219,9 @@ List<JuzzioHdLayer> juzzioHdWeatherLayers(JuzzioWeatherKind kind, {required bool
       ];
     case JuzzioWeatherKind.fog:
       return [
-        JuzzioHdLayer(kHdFogBank, left: -0.12, top: 0.04, width: 1.24, opacity: dark ? 0.85 : 0.70, drift: 0.04),
-        JuzzioHdLayer(kHdFogLow, left: -0.14, top: 0.58, width: 1.28, opacity: dark ? 0.75 : 0.60, drift: 0.05),
+        // sis: başlığın ardında ince, yazıları örtmeyen pus (hikâyelerin altına inmez)
+        JuzzioHdLayer(kHdFogBank, left: -0.12, top: -0.36, width: 1.24, opacity: dark ? 0.38 : 0.45, drift: 0.04, anchored: true),
+        JuzzioHdLayer(kHdFogLow, left: -0.14, top: 0.02, width: 1.28, opacity: dark ? 0.26 : 0.32, drift: 0.05, anchored: true),
       ];
     case JuzzioWeatherKind.drizzle:
     case JuzzioWeatherKind.rain:
@@ -236,16 +237,20 @@ List<JuzzioHdLayer> juzzioHdWeatherLayers(JuzzioWeatherKind kind, {required bool
         JuzzioHdLayer(kHdRainHeavy, left: 0, top: 0, width: 0.5, opacity: heavy ? 0.34 : 0.20, fall: true),
       ];
     case JuzzioWeatherKind.snow:
+      // kar: yumuşak bulutlar (yazıların üstüne binmez) + ressamla çizilen gerçekçi kar taneleri
+      final sTint = dark ? const Color(0xFFB8C2D0) : null;
       return [
-        JuzzioHdLayer(kHdCloudPuff, left: -0.30, top: -0.36, width: 0.80, opacity: 0.85, drift: 0.015, flip: true, anchored: true),
-        JuzzioHdLayer(kHdCloudPuff, left: 0.44, top: -0.22, width: 0.80, opacity: 0.80, drift: 0.015, anchored: true),
-        const JuzzioHdLayer(kHdSnowLight, left: 0, top: 0, width: 0.17, opacity: 0.60, fall: true),
+        JuzzioHdLayer(kHdCloudPuff, left: 0.48, top: -0.30, width: 0.58, opacity: dark ? 0.55 : 0.80, drift: 0.012, tint: sTint, anchored: true),
+        JuzzioHdLayer(kHdCloudPuff, left: -0.18, top: -0.20, width: 0.60, opacity: dark ? 0.45 : 0.70, drift: 0.010, flip: true, tint: sTint, anchored: true),
       ];
     case JuzzioWeatherKind.thunder:
+      // fırtına: koyu, yumuşak bulutlar + yağmur; şimşek yalnız kısa flaşlarda (sahne kodunda) çakar
+      final tTint = dark ? const Color(0xFF4C5868) : const Color(0xFF8592A4);
       return [
-        JuzzioHdLayer(kHdBoltCloud, left: -0.06, top: -0.50, width: 0.62, opacity: 0.80 * storm, anchored: true),
-        JuzzioHdLayer(kHdCloudPuff, left: 0.46, top: -0.34, width: 0.76, opacity: 0.62 * storm, drift: 0.015, tint: const Color(0xFF5E6A7C), anchored: true),
-        const JuzzioHdLayer(kHdRainHeavy, left: 0, top: 0, width: 0.5, opacity: 0.38, fall: true),
+        JuzzioHdLayer(kHdCloudPuff, left: 0.46, top: -0.33, width: 0.60, opacity: 0.80 * storm, drift: 0.012, tint: tTint, anchored: true),
+        JuzzioHdLayer(kHdCloudPuff, left: -0.16, top: -0.18, width: 0.64, opacity: 0.72 * storm, drift: 0.010, flip: true, tint: tTint, anchored: true),
+        JuzzioHdLayer(kHdCloudPuff, left: 0.46, top: 0.10, width: 0.60, opacity: 0.62 * storm, drift: 0.014, tint: tTint, anchored: true),
+        const JuzzioHdLayer(kHdRainHeavy, left: 0, top: 0, width: 0.5, opacity: 0.36, fall: true),
       ];
   }
 }
@@ -338,6 +343,20 @@ class JuzzioHdWeatherScene extends StatelessWidget {
                 ),
               ));
             }
+            if (anchorKnown && !dark && !night && kind == JuzzioWeatherKind.clear) {
+              // açık tema referansı: güneşin ardında yumuşak açık mavi gök lekesi
+              children.add(Positioned(
+                left: sw * 0.30,
+                top: anchor - sw * 0.40,
+                width: sw * 0.90,
+                height: sw * 0.50,
+                child: const DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(colors: [Color(0x66BFD6EE), Color(0x00BFD6EE)]),
+                  ),
+                ),
+              ));
+            }
             if (anchorKnown && (kind == JuzzioWeatherKind.clear || kind == JuzzioWeatherKind.clouds)) {
               // referans: logonun altından düğmelerin ardına yükselen limon ışık yayı
               children.add(Positioned.fill(child: CustomPaint(painter: JuzzioHdSwooshPainter(width: sw, anchor: anchor, color: JuzzioGlassTokens.glow))));
@@ -377,10 +396,14 @@ class JuzzioHdWeatherScene extends StatelessWidget {
               final y = l.anchored ? anchor + l.top * sw : band * l.top;
               children.add(Positioned(left: sw * l.left + dx, top: y, child: _img(l.asset, w, l.opacity, flip: l.flip, tint: l.tint)));
             }
+            if (kind == JuzzioWeatherKind.snow) {
+              children.add(Positioned.fill(child: CustomPaint(painter: JuzzioHdSnowPainter(t: t, dark: dark))));
+            }
             if (kind == JuzzioWeatherKind.thunder) {
               final f = still ? 0.0 : juzzioBoltFlash(bolt.value);
               if (f > 0) {
-                children.add(Positioned(left: sw * 0.02, top: band * 0.02, child: _img(kHdBolt, sw * 0.98, f)));
+                // şimşek bulutların arasından aramaya doğru iner
+                children.add(Positioned(left: sw * 0.30, top: anchor - sw * 0.34, child: _img(kHdBolt, sw * 0.62, f)));
                 children.add(Positioned.fill(child: ColoredBox(color: Colors.white.withValues(alpha: 0.06 * f))));
               }
             }
@@ -430,6 +453,41 @@ class JuzzioHdSwooshPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(JuzzioHdSwooshPainter o) => o.width != width || o.anchor != anchor || o.color != color;
+}
+
+/// GM-037: kar — farklı boyda, yumuşak kenarlı, salınarak düşen taneler (ikon ızgarası yok)
+class JuzzioHdSnowPainter extends CustomPainter {
+  JuzzioHdSnowPainter({required this.t, required this.dark});
+  final double t;
+  final bool dark;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rnd = math.Random(11);
+    final h = size.height * 0.62; // yalnız üst bölüm; altta içerikle birleşir
+    for (var i = 0; i < 90; i++) {
+      final x0 = rnd.nextDouble() * size.width;
+      final y0 = rnd.nextDouble();
+      final r = 0.9 + rnd.nextDouble() * 2.4;
+      final speed = 0.6 + r / 3.3; // büyük tane daha hızlı (yakın)
+      final ph = rnd.nextDouble() * math.pi * 2;
+      final y = ((y0 + t * speed * 2) % 1.0) * h;
+      final x = x0 + math.sin(t * 2 * math.pi * 3 + ph) * (6 + r * 2);
+      final fade = (1 - (y / h)).clamp(0.0, 1.0);
+      final a = (0.45 + 0.45 * (r / 3.3)) * (0.35 + 0.65 * fade);
+      final c = (dark ? Colors.white : const Color(0xFFFFFFFF)).withValues(alpha: a);
+      canvas.drawCircle(Offset(x, y), r, Paint()..color = c..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.45));
+      if (!dark) {
+        canvas.drawCircle(Offset(x, y), r + 0.6, Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 0.6
+          ..color = const Color(0xFF9DB0C8).withValues(alpha: a * 0.6));
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(JuzzioHdSnowPainter o) => o.t != t || o.dark != dark;
 }
 
 class _HdStarsPainter extends CustomPainter {

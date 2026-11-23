@@ -78,6 +78,8 @@ class JuzzioSpecialThemeLayer extends StatelessWidget {
       child: LayoutBuilder(builder: (context, c) {
         final sw = juzzioHdSceneWidth(c.maxWidth);
         final band = juzzioHdBandHeight(c.maxHeight);
+        // geniş pencerede (Windows masaüstü) liste sütununa bayrak sığmaz; sahne yalnız telefon düzeninde
+        if (c.maxWidth > 720) return const SizedBox.shrink();
         return ValueListenableBuilder<double?>(
           valueListenable: kJuzzioHdSearchTop,
           builder: (context, top, _) {

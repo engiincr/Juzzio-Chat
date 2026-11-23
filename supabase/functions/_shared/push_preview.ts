@@ -43,7 +43,7 @@ export function messagePushView(
   const mode = normalizePreviewMode(rawMode);
   if (mode === "hidden") {
     const code = (lang || "en").toLowerCase().split(/[-_]/)[0];
-    return { mode, title: "Juzzio", body: HIDDEN_BODY[code] ?? HIDDEN_BODY.en, dataOnly: true };
+    return { mode, title: "Trawave", body: HIDDEN_BODY[code] ?? HIDDEN_BODY.en, dataOnly: true };
   }
   // 'sender' kipinde tepki bildirimindeki mesaj alıntısı ("…") da çıkarılır
   if (mode === "sender" && eventType === "reaction") {

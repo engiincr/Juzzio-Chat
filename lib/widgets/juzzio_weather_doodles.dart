@@ -317,6 +317,9 @@ Path juzzioFlatMoonPath(Offset c, double r, double phase) {
 
 /// Ana ekran dışındaki sayfalarda (Ayarlar, Arkadaşlar…) aynı hava katmanı. Ayarda kapalıysa,
 /// hava bilgisi yoksa ya da "Hareketi azalt" açıksa durağan çizilir/çizilmez.
+/// GM-046: alt sayfa doodle katmanı emekliye ayrıldı
+const bool kJuzzioSubpageDoodlesRetired = true;
+
 class JuzzioWeatherDoodleLayer extends StatefulWidget {
   const JuzzioWeatherDoodleLayer({super.key});
 
@@ -367,6 +370,9 @@ class _JuzzioWeatherDoodleLayerState extends State<JuzzioWeatherDoodleLayer> wit
 
   @override
   Widget build(BuildContext context) {
+    // GM-046 (Engin): alt sayfalarda eski ay/yıldız/güneş/bulut çizimleri artık YOK; hava durumu yalnız
+    // ana ekrandaki HD sahnede (otomatik) görünür.
+    if (kJuzzioSubpageDoodlesRetired) return const SizedBox.shrink();
     final st = _svc.state;
     if (st == null || !_app.weatherThemeEnabled) return const SizedBox.shrink();
     // GM-037: ana ekran sekmelerinde (Sohbetler, Keşfet…) HD hava sahnesi zaten çiziliyor;

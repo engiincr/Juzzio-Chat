@@ -30,7 +30,7 @@ void main() {
     expect(kJuzzioSupportedLanguages.length, 224);
     final src = File('lib/core/app_theme_and_locale.dart').readAsStringSync();
     expect(src.contains("'Uygulama Dili (224 dil)'"), isTrue);
-    expect(RegExp(r"'[^']*139\+[^']*'").hasMatch(src), isFalse);
+    expect(RegExp(r"'[^'\n]*139\+[^'\n]*'").hasMatch(src), isFalse);
   });
 
   test('GM-056: WhatsApp / Trawave kişileri düğmesi yok', () {

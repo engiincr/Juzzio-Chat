@@ -623,6 +623,15 @@ class _JuzzioPrivacySecurityHubPageState extends State<JuzzioPrivacySecurityHubP
 // =============================================================================
 // EKRAN 8: BİLDİRİMLER SAYFASI (Görseldeki "Bildirimler" Ekranı ile Birebir!)
 // =============================================================================
+/// GM-058: eski "Juzzio" sistem göndereni Trawave olarak gösterilir
+bool juzzioIsSystemActor(String name) {
+  final n = name.trim().toLowerCase();
+  return n == 'juzzio' || n == 'trawave' || n == 'juzzio sistem' || n == 'trawave sistem';
+}
+
+String juzzioActorName(String name) =>
+    name.replaceAll(RegExp(r'\bJUZZIO\b'), 'TRAWAVE').replaceAll(RegExp(r'\bJuzzio\b'), 'Trawave').replaceAll(RegExp(r'\bjuzzio\b'), 'trawave');
+
 class JuzzioNotificationsFeedPage extends StatefulWidget {
   final JuzzioUserProfile? currentUser;
 
@@ -1044,11 +1053,14 @@ class _JuzzioNotificationsFeedPageState
                                           leading: Stack(
                                             clipBehavior: Clip.none,
                                             children: [
-                                              JuzzioUserAvatar(
-                                                imageUrl: item.actorAvatarUrl,
-                                                displayName: item.actorDisplayName,
-                                                radius: 22,
-                                              ),
+                                              // GM-058: sistem bildirimleri Trawave adı ve logosuyla
+                                              juzzioIsSystemActor(item.actorDisplayName)
+                                                  ? const JuzzioLogoTile(size: 44, glow: false)
+                                                  : JuzzioUserAvatar(
+                                                      imageUrl: item.actorAvatarUrl,
+                                                      displayName: item.actorDisplayName,
+                                                      radius: 22,
+                                                    ),
                                               Positioned(
                                                 right: -2,
                                                 bottom: -2,
@@ -1076,7 +1088,7 @@ class _JuzzioNotificationsFeedPageState
                                             children: [
                                               Expanded(
                                                 child: Text(
-                                                  item.actorDisplayName,
+                                                  juzzioActorName(item.actorDisplayName),
                                                   maxLines: 1,
                                                   overflow: TextOverflow.ellipsis,
                                                   style: TextStyle(
@@ -1101,7 +1113,7 @@ class _JuzzioNotificationsFeedPageState
                                           subtitle: Padding(
                                             padding: const EdgeInsets.only(top: 3),
                                             child: Text(
-                                              juzzioLocalizedNotificationText(item),
+                                              juzzioActorName(juzzioLocalizedNotificationText(item)),
                                               maxLines: 2,
                                               overflow: TextOverflow.ellipsis,
                                               style: TextStyle(

@@ -1,7 +1,7 @@
 // =============================================================================
 // JUZZIO v0.1.0 - Instagram.jpg Beyaz Tema & "Cool!" Buton Tasarım Motoru,
 // RBold-İtalic.otf & R-RegularBold.otf Özel Font Altyapısı,
-// Cihaz Dilini Otomatik Baz Alan 139+ (142) Dil Çeviri Motoru ve
+// Cihaz Dilini Otomatik Baz Alan 224 Dil Çeviri Motoru ve
 // Telegram/WhatsApp Seviyesi Modern Görsel Kırpma & Filtre Stüdyosu
 // =============================================================================
 
@@ -45,7 +45,7 @@ class JuzzioLanguageOption {
   });
 }
 
-/// 142 Farklı Dünya Dili (139+ Dil Altyapısı)
+/// 224 dünya dili (GM-045: gerçek sayı)
 /// v0.9.3: uygulama kodunu Google Çeviri biçimine çevirir (zh-tw → zh-TW, pa-arab → pa-Arab, pt-pt → pt-PT).
 String juzzioGoogleLangCode(String code) {
   final c = code.trim();
@@ -1456,7 +1456,7 @@ class JuzzioAppController extends ChangeNotifier {
     };
   }
 
-  /// Dinamik 139+ dil çevirisi (Sözlükte olmayan diller için arka planda çevirip önbelleğe alır)
+  /// Dinamik 224 dil çevirisi (Sözlükte olmayan diller için arka planda çevirip önbelleğe alır)
   String translateUiDynamic(String trText, {String? enText, String? deText}) {
     final code = _uiLang.toLowerCase();
     if (code == 'tr') return trText;

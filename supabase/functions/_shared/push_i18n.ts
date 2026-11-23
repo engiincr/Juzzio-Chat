@@ -139,9 +139,9 @@ const T: Record<PushLang, Record<string, Builder>> = {
     }),
     chick_dying: (c) => ({ title: `🐥 ${c.preview || "Civciv"}`, body: "Ölüyorum! 3 gündür beni beslemedin 😢" }),
     chick_died: (c) => ({ title: "🪦 Civcivin öldü", body: `${c.preview || "Civciv"} 7 gün boyunca beslenmediği için öldü.` }),
-    system: (c) => adminSystem(c.preview, "🛠 Yeni hata kaydı", "⚠️ Yönetici uyarısı") ?? ({ title: "Juzzio", body: c.preview || "Yeni bir bildiriminiz var." }),
+    system: (c) => adminSystem(c.preview, "🛠 Yeni hata kaydı", "⚠️ Yönetici uyarısı") ?? ({ title: "Trawave", body: c.preview || "Yeni bir bildiriminiz var." }),
     request_accepted: (c) => ({ title: c.actor, body: "Beklemedeki mesajını kabul etti. Sohbete devam edebilirsin." }),
-    push_test: () => ({ title: "Juzzio ✅", body: "Bildirimler çalışıyor. Bu test bildirimi sunucudan gönderildi." }),
+    push_test: () => ({ title: "Trawave ✅", body: "Bildirimler çalışıyor. Bu test bildirimi sunucudan gönderildi." }),
   },
   en: {
     message: (c) => ({ title: c.actor, body: "Sent you a new message." }),
@@ -202,9 +202,9 @@ const T: Record<PushLang, Record<string, Builder>> = {
     }),
     chick_dying: (c) => ({ title: `🐥 ${c.preview || "Chick"}`, body: "I'm dying! You haven't fed me for 3 days 😢" }),
     chick_died: (c) => ({ title: "🪦 Your chick died", body: `${c.preview || "Chick"} died after 7 days without food.` }),
-    system: (c) => adminSystem(c.preview, "🛠 New error report", "⚠️ Admin alert") ?? ({ title: "Juzzio", body: c.preview || "You have a new notification." }),
+    system: (c) => adminSystem(c.preview, "🛠 New error report", "⚠️ Admin alert") ?? ({ title: "Trawave", body: c.preview || "You have a new notification." }),
     request_accepted: (c) => ({ title: c.actor, body: "Accepted your pending message. You can keep chatting." }),
-    push_test: () => ({ title: "Juzzio ✅", body: "Notifications are working. This test notification was sent by the server." }),
+    push_test: () => ({ title: "Trawave ✅", body: "Notifications are working. This test notification was sent by the server." }),
   },
   de: {
     message: (c) => ({ title: c.actor, body: "Hat dir eine neue Nachricht gesendet." }),
@@ -269,9 +269,9 @@ const T: Record<PushLang, Record<string, Builder>> = {
     }),
     chick_dying: (c) => ({ title: `🐥 ${c.preview || "Küken"}`, body: "Ich sterbe! Du hast mich seit 3 Tagen nicht gefüttert 😢" }),
     chick_died: (c) => ({ title: "🪦 Dein Küken ist gestorben", body: `${c.preview || "Küken"} ist nach 7 Tagen ohne Futter gestorben.` }),
-    system: (c) => adminSystem(c.preview, "🛠 Neue Fehlermeldung", "⚠️ Admin-Warnung") ?? ({ title: "Juzzio", body: c.preview || "Du hast eine neue Benachrichtigung." }),
+    system: (c) => adminSystem(c.preview, "🛠 Neue Fehlermeldung", "⚠️ Admin-Warnung") ?? ({ title: "Trawave", body: c.preview || "Du hast eine neue Benachrichtigung." }),
     request_accepted: (c) => ({ title: c.actor, body: "Hat deine wartende Nachricht angenommen." }),
-    push_test: () => ({ title: "Juzzio ✅", body: "Benachrichtigungen funktionieren. Diese Testnachricht kam vom Server." }),
+    push_test: () => ({ title: "Trawave ✅", body: "Benachrichtigungen funktionieren. Diese Testnachricht kam vom Server." }),
   },
 };
 
@@ -340,8 +340,8 @@ export async function buildLocalizedPush(
   const table = (code === "tr" || code === "en" || code === "de") ? T[code as PushLang] : T.en;
   const builder = table[eventType] ?? table.system;
   const safeCtx: Ctx = {
-    actor: ctx.actor.trim() || "Juzzio",
-    me: ctx.me.trim() || "Juzzio",
+    actor: ctx.actor.trim() || "Trawave",
+    me: ctx.me.trim() || "Trawave",
     preview: ctx.preview,
     gender: ctx.gender,
   };
@@ -350,7 +350,7 @@ export async function buildLocalizedPush(
 
   // Diğer diller: başlık kişi adıysa olduğu gibi kalır; gövde çevrilir
   const translatedBody = await machineTranslate(built.body, code);
-  const titleIsName = built.title === safeCtx.actor || built.title.startsWith("Juzzio");
+  const titleIsName = built.title === safeCtx.actor || (built.title.startsWith("Juzzio") || built.title.startsWith("Trawave"));
   const translatedTitle = titleIsName ? built.title : (await machineTranslate(built.title, code)) ?? built.title;
   return { title: translatedTitle, body: translatedBody ?? built.body };
 }

@@ -118,7 +118,8 @@ void main() {
       expect(clearNight.first.top, lessThan(0));
       expect(juzzioHdFallbackAnchor(24), 120);
       expect(juzzioHdWeatherLayers(JuzzioWeatherKind.rain, night: false, dark: true, moonIndex: 0).any((l) => l.fall), isTrue);
-      expect(juzzioHdWeatherLayers(JuzzioWeatherKind.snow, night: false, dark: true, moonIndex: 0).any((l) => l.asset == kHdSnowLight), isTrue);
+      expect(juzzioHdWeatherLayers(JuzzioWeatherKind.snow, night: false, dark: true, moonIndex: 0).any((l) => l.asset == kHdSnowLight), isFalse); // GM-037: ikon ızgarası yerine kar ressamı
+      expect(File('lib/widgets/juzzio_weather_hd.dart').readAsStringSync().contains('JuzzioHdSnowPainter(t: t'), isTrue);
     });
     test('şimşek kısa flaşlar (100–160 ms aralığı, 1100 ms animasyonda)', () {
       expect(juzzioBoltFlash(0), 0);

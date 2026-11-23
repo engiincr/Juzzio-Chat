@@ -266,7 +266,7 @@ Deno.serve(async (req: Request) => {
     let actorId = "";
     let notificationId = "";
     let eventType = "system";
-    let title = "Juzzio";
+    let title = "Trawave";
     let body = "";
     let targetId = "";
     let targetSecondaryId = "";
@@ -332,7 +332,7 @@ Deno.serve(async (req: Request) => {
       const { data: testerProfile } = await adminClient
         .from("profiles").select("app_lang").eq("id", authenticatedUid).maybeSingle();
       const testText = await buildLocalizedPush("push_test", String(testerProfile?.app_lang ?? "tr"), {
-        actor: "Juzzio", me: "", preview: "", gender: "unspecified",
+        actor: "Trawave", me: "", preview: "", gender: "unspecified",
       });
       title = testText.title;
       body = testText.body;
@@ -439,8 +439,8 @@ Deno.serve(async (req: Request) => {
         ? String(recipientPrivate?.gender)
         : "unspecified") as Gender;
       const built = await buildLocalizedPush(eventType, String(recipientProfile?.app_lang ?? "tr"), {
-        actor: String(verifiedNotif.actor_display_name || verifiedNotif.actor_username || "Juzzio"),
-        me: String(recipientProfile?.display_name || recipientProfile?.username || "Juzzio"),
+        actor: String(verifiedNotif.actor_display_name || verifiedNotif.actor_username || "Trawave"),
+        me: String(recipientProfile?.display_name || recipientProfile?.username || "Trawave"),
         preview: String(verifiedNotif.preview_text ?? ""),
         gender,
       });
