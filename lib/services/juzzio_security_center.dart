@@ -10,7 +10,11 @@ import 'juzzio_features_service.dart';
 import 'supabase_service.dart';
 
 class JuzzioDeviceEntry {
-  const JuzzioDeviceEntry({required this.suffix, required this.platform, required this.firstSeen, required this.lastSeen, required this.current});
+  const JuzzioDeviceEntry({required this.suffix, required this.platform, required this.firstSeen, required this.lastSeen, required this.current,
+      this.model = '', this.country = '', this.place = ''});
+  final String model;
+  final String country; // ISO-2 (IP başlığından)
+  final String place; // "Türkiye / Aydın" (cihazın kendi yaklaşık konumundan)
   final String suffix;
   final String platform;
   final DateTime? firstSeen;
@@ -23,7 +27,44 @@ class JuzzioDeviceEntry {
         firstSeen: DateTime.tryParse((m['first_seen'] ?? '').toString())?.toLocal(),
         lastSeen: DateTime.tryParse((m['last_seen'] ?? '').toString())?.toLocal(),
         current: m['current'] == true,
+        model: (m['model'] ?? '').toString().trim(),
+        country: (m['country'] ?? '').toString().trim().toUpperCase(),
+        place: (m['place'] ?? '').toString().trim(),
       );
+
+  /// GM-050: "Xiaomi 15 Ultra | Türkiye / Aydın". Model yoksa platform adı; kimlik soneki gösterilmez.
+  String title({String lang = 'tr'}) {
+    final name = model.isNotEmpty ? model : juzzioPlatformLabel(platform);
+    final loc = place.isNotEmpty ? place : juzzioCountryName(country, lang: lang);
+    return loc.isEmpty ? name : '$name | $loc';
+  }
+}
+
+String juzzioPlatformLabel(String p) => switch (p.toLowerCase()) {
+      'android' => 'Android',
+      'ios' => 'iPhone',
+      'windows' => 'Windows PC',
+      'macos' => 'Mac',
+      'linux' => 'Linux PC',
+      _ => 'Cihaz',
+    };
+
+/// Yerleşik kısa ülke adı tablosu (bilinmeyen kod → kodun kendisi)
+String juzzioCountryName(String cc, {String lang = 'tr'}) {
+  if (cc.length != 2 || cc == 'XX' || cc == 'T1') return '';
+  const tr = {
+    'TR': 'Türkiye', 'US': 'ABD', 'GB': 'Birleşik Krallık', 'DE': 'Almanya', 'FR': 'Fransa', 'NL': 'Hollanda',
+    'IT': 'İtalya', 'ES': 'İspanya', 'RU': 'Rusya', 'UA': 'Ukrayna', 'AZ': 'Azerbaycan', 'GR': 'Yunanistan',
+    'BG': 'Bulgaristan', 'IR': 'İran', 'IQ': 'Irak', 'SA': 'Suudi Arabistan', 'AE': 'BAE', 'CY': 'Kıbrıs',
+    'AT': 'Avusturya', 'CH': 'İsviçre', 'BE': 'Belçika', 'SE': 'İsveç', 'NO': 'Norveç', 'PL': 'Polonya',
+    'CN': 'Çin', 'JP': 'Japonya', 'KR': 'Güney Kore', 'IN': 'Hindistan', 'CA': 'Kanada', 'BR': 'Brezilya',
+  };
+  const en = {
+    'TR': 'Türkiye', 'US': 'USA', 'GB': 'United Kingdom', 'DE': 'Germany', 'FR': 'France', 'NL': 'Netherlands',
+    'IT': 'Italy', 'ES': 'Spain', 'RU': 'Russia', 'UA': 'Ukraine', 'AZ': 'Azerbaijan', 'GR': 'Greece',
+  };
+  if (lang == 'tr') return tr[cc] ?? cc;
+  return en[cc] ?? cc;
 }
 
 class JuzzioSecurityEvent {

@@ -20012,3 +20012,46 @@ $$;
 DROP TRIGGER IF EXISTS trg_profiles_brand_username_guard ON public.profiles;
 CREATE TRIGGER trg_profiles_brand_username_guard BEFORE INSERT OR UPDATE OF username ON public.profiles
     FOR EACH ROW EXECUTE FUNCTION public.profiles_brand_username_guard();
+
+-- ============================================================================
+-- 10.59 (v2.2.0, GM-050) — Cihaz listesi: "Xiaomi 15 Ultra | Türkiye / Aydın"
+-- Model adı + ülke (IP başlığından) + şehir (cihaz kendi yaklaşık konumundan çözer; koordinat SUNUCUYA GİTMEZ).
+-- Eski 5 parametreli juzzio_record_login korunur (eski sürümler için). Yeni sürüm 7 parametreli; p_place ve
+-- p_platform varsayılansızdır ki 5 parametreli çağrılar belirsiz olmasın (PostgREST aşırı yükleme seçimi).
+-- ============================================================================
+ALTER TABLE public.user_devices ADD COLUMN IF NOT EXISTS last_place TEXT NOT NULL DEFAULT '';
+
+CREATE OR REPLACE FUNCTION public.juzzio_record_login(p_device_id TEXT, p_model TEXT, p_os TEXT,
+                                                    p_app_version TEXT, p_locale TEXT, p_place TEXT, p_platform TEXT)
+RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+    v_uid UUID := auth.uid();
+    v_dev TEXT := LEFT(BTRIM(COALESCE(p_device_id, '')), 128);
+    v_place TEXT := LEFT(regexp_replace(BTRIM(COALESCE(p_place, '')), '[[:cntrl:]<>]', '', 'g'), 80);
+    v_plat TEXT := CASE WHEN LOWER(COALESCE(p_platform, '')) IN ('android', 'ios', 'windows', 'macos', 'linux')
+                        THEN LOWER(p_platform) ELSE 'other' END;
+    v_ok BOOLEAN;
+BEGIN
+    v_ok := public.juzzio_record_login(p_device_id, p_model, p_os, p_app_version, p_locale);
+    IF NOT v_ok THEN RETURN false; END IF;
+    UPDATE public.user_devices
+       SET platform = v_plat,
+           last_place = CASE WHEN v_place <> '' THEN v_place ELSE last_place END
+     WHERE user_id = v_uid AND device_id = v_dev;
+    RETURN true;
+END $$;
+REVOKE ALL ON FUNCTION public.juzzio_record_login(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.juzzio_record_login(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT) TO authenticated;
+
+-- Kendi cihazlarım: + model, ülke kodu, şehir (kimlik yine yalnız son 6 hane; IP dönmez)
+CREATE OR REPLACE FUNCTION public.list_my_devices(p_current_device TEXT DEFAULT '')
+RETURNS JSONB LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+    SELECT COALESCE(jsonb_agg(jsonb_build_object(
+        'device', RIGHT(d.device_id, 6), 'platform', d.platform, 'first_seen', d.first_seen,
+        'last_seen', d.last_seen, 'current', d.device_id = COALESCE(p_current_device, ''),
+        'model', COALESCE(d.device_model, ''), 'country', COALESCE(d.last_country, ''),
+        'place', COALESCE(d.last_place, ''))
+        ORDER BY d.last_seen DESC), '[]'::jsonb)
+      FROM public.user_devices d WHERE d.user_id = auth.uid();
+$$;
+GRANT EXECUTE ON FUNCTION public.list_my_devices(TEXT) TO authenticated;

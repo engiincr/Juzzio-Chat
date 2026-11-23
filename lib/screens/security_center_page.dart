@@ -103,9 +103,9 @@ class _JuzzioSecurityCenterPageState extends State<JuzzioSecurityCenterPage> {
   Future<void> _forget(JuzzioDeviceEntry d) async {
     final ok = await _confirm(
       _app.trEn('Cihazı listeden kaldır', 'Remove device', 'Gerät entfernen'),
-      _app.trEn('Cihaz …${d.suffix} listeden kaldırılacak. Oturumunu da kapatmak için "Diğer oturumları kapat"ı kullan.',
-          'Device …${d.suffix} will be removed from the list. Use "Sign out other sessions" to end its session too.',
-          'Gerät …${d.suffix} wird entfernt. Nutze „Andere Sitzungen abmelden“, um die Sitzung zu beenden.'),
+      _app.trEn('"${d.title()}" listeden kaldırılacak. Oturumunu da kapatmak için "Diğer oturumları kapat"ı kullan.',
+          '"${d.title(lang: 'en')}" will be removed from the list. Use "Sign out other sessions" to end its session too.',
+          '„${d.title(lang: 'en')}“ wird entfernt. Nutze „Andere Sitzungen abmelden“, um die Sitzung zu beenden.'),
     );
     if (!ok) return;
     try {
@@ -187,10 +187,17 @@ class _JuzzioSecurityCenterPageState extends State<JuzzioSecurityCenterPage> {
           _section(p, '${_app.trEn('Cihazlar', 'Devices', 'Geräte')} (${_devices.length})', [
             for (final d in _devices)
               ListTile(
-                leading: Icon(Icons.smartphone_rounded, color: d.current ? p.onlineGreen : p.textSecondary),
-                title: Text('${d.platform.isEmpty ? '?' : d.platform} …${d.suffix}${d.current ? ' · ${_app.trEn('bu cihaz', 'this device', 'dieses Gerät')}' : ''}',
-                    style: TextStyle(color: p.textPrimary)),
-                subtitle: Text('${_app.trEn('Son görülme', 'Last seen', 'Zuletzt')}: ${_date(d.lastSeen)}',
+                leading: Icon(
+                    const {'windows', 'macos', 'linux'}.contains(d.platform.toLowerCase())
+                        ? Icons.desktop_windows_rounded
+                        : Icons.smartphone_rounded,
+                    color: d.current ? p.onlineGreen : p.textSecondary),
+                // GM-050: "Xiaomi 15 Ultra | Türkiye / Aydın"
+                title: Text(d.title(lang: _app.trEn('tr', 'en', 'en')),
+                    maxLines: 2, overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: p.textPrimary, fontWeight: d.current ? FontWeight.w700 : FontWeight.w500)),
+                subtitle: Text(
+                    '${d.current ? '${_app.trEn('Bu cihaz', 'This device', 'Dieses Gerät')} · ' : ''}${_app.trEn('Son görülme', 'Last seen', 'Zuletzt')}: ${_date(d.lastSeen)}',
                     style: TextStyle(color: p.textSecondary, fontSize: 12)),
                 trailing: d.current
                     ? null

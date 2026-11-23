@@ -236,6 +236,7 @@ class _JuzzioMfaCodePageState extends State<JuzzioMfaCodePage> {
   void initState() {
     super.initState();
     _ctrl.addListener(() {
+      if (_done || !mounted) return;
       if (_error != null) setState(() => _error = null);
       setState(() {});
       if (_ctrl.text.length == 6) _submit();
@@ -249,19 +250,31 @@ class _JuzzioMfaCodePageState extends State<JuzzioMfaCodePage> {
     super.dispose();
   }
 
+  /// GM-060: kod bir kez gönderilir. Yapıştırınca denetleyici birden çok kez bildirim yapıyor,
+  /// _submit iki kez çalışıp ikinci pop alttaki giriş sayfasını da kapatıyordu → gri boş ekran.
+  bool _done = false;
+
   void _submit() {
+    if (_done || !mounted) return;
     final code = juzzioCleanTotpCode(_ctrl.text);
     if (code == null) {
       setState(() => _error = _app.trEn('6 haneli kodu gir', 'Enter the 6-digit code', '6-stelligen Code eingeben'));
       return;
     }
+    _done = true;
     Navigator.of(context).pop(code);
   }
 
   Future<void> _paste() async {
     final data = await Clipboard.getData(Clipboard.kTextPlain);
+    if (!mounted || _done) return;
     final digits = (data?.text ?? '').replaceAll(RegExp(r'[^0-9]'), '');
-    if (digits.length >= 6) _ctrl.text = digits.substring(0, 6);
+    if (digits.length < 6) {
+      setState(() => _error = _app.trEn('Panoda 6 haneli kod yok', 'No 6-digit code on the clipboard', 'Kein 6-stelliger Code in der Zwischenablage'));
+      return;
+    }
+    final code = digits.substring(0, 6);
+    _ctrl.value = TextEditingValue(text: code, selection: TextSelection.collapsed(offset: code.length));
   }
 
   @override

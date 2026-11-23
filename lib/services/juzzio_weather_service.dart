@@ -103,6 +103,9 @@ class JuzzioWeatherService extends ChangeNotifier {
 
   JuzzioWeatherState? _state;
   JuzzioWeatherState? get state => _state;
+
+  /// GM-050: son gerçek konum (~10 km'ye yuvarlanmış); yalnız kullanıcı hava temasına konum izni verdiyse
+  (double, double)? lastCoords;
   Timer? _timer;
   bool _busy = false;
   bool _started = false;
@@ -148,6 +151,8 @@ class JuzzioWeatherService extends ChangeNotifier {
       final approx = pos == null ? juzzioApproxCoordsForLocale(_localeName(), DateTime.now().timeZoneOffset) : null;
       final lat = pos?.latitude ?? approx!.$1;
       final lon = pos?.longitude ?? approx!.$2;
+      // GM-050: gerçek konum varsa (ülke başkenti tahmini değil) cihaz listesinde şehir için saklanır (~10 km)
+      if (pos != null) lastCoords = (juzzioRoundCoord(lat), juzzioRoundCoord(lon));
       final res = await http.get(juzzioWeatherUri(lat, lon)).timeout(const Duration(seconds: 12));
       if (res.statusCode != 200) return;
       final body = jsonDecode(res.body);

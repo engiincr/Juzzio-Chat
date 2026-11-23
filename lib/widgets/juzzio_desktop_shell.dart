@@ -548,7 +548,7 @@ class JuzzioDesktopSceneBackdrop extends StatelessWidget {
                 child: SizedBox(
                     width: moonR * 3,
                     height: moonR * 3,
-                    child: CustomPaint(painter: JuzzioCrescentPainter(rim: const Color(0xFFE4F0A0), glow: accent))),
+                    child: CustomPaint(painter: JuzzioCrescentPainter(rim: const Color(0xFFC4C79B), glow: const Color(0xFF8E9170)))),
               ),
               Positioned(
                 left: w * 0.784 - h * 0.024,
@@ -596,16 +596,26 @@ class JuzzioCrescentPainter extends CustomPainter {
       ],
       stops: const [0.0, 0.25, 0.40, 0.56, 0.72],
     ).createShader(Rect.fromCircle(center: c, radius: r));
-    // 1) dış parıltı
+    // 1) dış parıltı — referansta çok zayıf, sıcak haki (yeşil/limon DEĞİL)
+    final glowSweep = SweepGradient(
+      center: Alignment.center,
+      colors: [
+        glow.withValues(alpha: 0),
+        glow.withValues(alpha: 0),
+        glow.withValues(alpha: 0.30),
+        glow.withValues(alpha: 0.30),
+        glow.withValues(alpha: 0),
+      ],
+      stops: const [0.0, 0.25, 0.40, 0.56, 0.72],
+    ).createShader(Rect.fromCircle(center: c, radius: r));
     canvas.drawCircle(
         c,
         r,
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = r * 0.16
-          ..shader = sweep
-          ..color = glow
-          ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.14));
+          ..strokeWidth = r * 0.10
+          ..shader = glowSweep
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.08));
     // 2) gövde: kenarda açık, içe doğru gök rengine karışan yarı saydam gri-mavi
     canvas.drawPath(
         crescent,
@@ -624,7 +634,7 @@ class JuzzioCrescentPainter extends CustomPainter {
         r - 0.6,
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = math.max(1.2, r * 0.022)
+          ..strokeWidth = math.max(1.0, r * 0.014)
           ..shader = sweep);
     canvas.restore();
     // 4) iç kenarda çok hafif soğuk çizgi (görseldeki ikinci, soluk kenar)

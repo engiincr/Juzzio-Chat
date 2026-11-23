@@ -3570,7 +3570,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             onShortcutTap: _openMessageSearch,
           )),
         ),
-        const JuzzioSpaceDivider(),
+        // GM-064: referanslarda arama altında çizgi yok (hava/özel gün sahnesini ikiye bölüyordu)
         ],
         Expanded(
           child: !_conversationsLoaded

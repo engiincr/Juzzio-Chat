@@ -367,10 +367,25 @@ class JuzzioSpaceSearchBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final r = BorderRadius.circular(JuzzioSpaceMetrics.searchRadius);
-    // v2.1 Liquid Glass arama çubuğu
-    return Container(
+    // v2.1 Liquid Glass arama çubuğu — GM-064: hava bulutları ardında kaybolmasın diye koyu (gece) /
+    // süt beyazı (gündüz) buzlu cam; referanstaki gibi her temada okunur
+    final dark = JuzzioGlassTokens.isDarkResolver();
+    final bar = Container(
       height: JuzzioSpaceMetrics.searchHeight,
-      decoration: juzzioLiquidDecoration(radius: r),
+      decoration: BoxDecoration(
+        borderRadius: r,
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: dark
+              ? const [Color(0xC2232A35), Color(0xCC1A2029)]
+              : const [Color(0xE6FFFFFF), Color(0xD9F4F6FA)],
+        ),
+        border: Border.all(color: dark ? Colors.white.withValues(alpha: 0.18) : Colors.white, width: 1),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: dark ? 0.30 : 0.10), blurRadius: 20, offset: const Offset(0, 8), spreadRadius: -8),
+        ],
+      ),
       padding: const EdgeInsets.only(left: 16, right: 10),
       child: Row(
         children: [
@@ -417,6 +432,10 @@ class JuzzioSpaceSearchBar extends StatelessWidget {
             ),
         ],
       ),
+    );
+    return ClipRRect(
+      borderRadius: r,
+      child: BackdropFilter(filter: ui.ImageFilter.blur(sigmaX: 14, sigmaY: 14), child: bar),
     );
   }
 }

@@ -781,8 +781,9 @@ class MainActivity : FlutterActivity() {
                     result.success(true)
                 }
                 // v1.2.9: cihaz modeli / Android sürümü (giriş kaydı için; IMEI ASLA okunmaz)
+                // GM-050: sistemin pazarlama adı (ör. "Xiaomi 15 Ultra"); yoksa üretici + model
                 "deviceInfo" -> result.success(mapOf(
-                    "model" to ("${Build.MANUFACTURER} ${Build.MODEL}").trim(),
+                    "model" to juzzioMarketingModel(),
                     "os" to "Android ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})"
                 ))
                 "speechStart" -> {
@@ -792,6 +793,25 @@ class MainActivity : FlutterActivity() {
                 "speechStop" -> {
                     juzzioSpeech?.stop()
                     result.success(true)
+                }
+                // GM-050: yaklaşık konumdan "Ülke / Şehir" (cihaz listesinde gösterilir; koordinat sunucuya gitmez)
+                "reverseGeocode" -> {
+                    val lat = call.argument<Double>("lat")
+                    val lng = call.argument<Double>("lng")
+                    if (lat == null || lng == null || !android.location.Geocoder.isPresent()) {
+                        result.success("")
+                    } else {
+                        Thread {
+                            val place = try {
+                                @Suppress("DEPRECATION")
+                                val list = android.location.Geocoder(this, java.util.Locale("tr", "TR")).getFromLocation(lat, lng, 1)
+                                val a = list?.firstOrNull()
+                                val city = a?.adminArea ?: a?.subAdminArea ?: a?.locality ?: ""
+                                listOfNotNull(a?.countryName, city.ifBlank { null }).joinToString(" / ")
+                            } catch (_: Throwable) { "" }
+                            Handler(Looper.getMainLooper()).post { result.success(place.take(80)) }
+                        }.start()
+                    }
                 }
                 // v1.2.4: sohbet medyasını galeriye kaydet (arka plan iş parçacığında)
                 "saveToGallery" -> {
@@ -1356,5 +1376,22 @@ class MainActivity : FlutterActivity() {
         } catch (_: Exception) {
             "wifi"
         }
+    }
+
+    // GM-050: "Xiaomi 15 Ultra" gibi kullanıcıya görünen cihaz adı. Kişisel isim ("Engin'in telefonu") ise kullanılmaz.
+    private fun juzzioMarketingModel(): String {
+        val fallback = ("${Build.MANUFACTURER.replaceFirstChar { it.uppercase() }} ${Build.MODEL}").trim()
+        val candidates = listOf("ro.product.marketname", "ro.product.vendor.marketname", "ro.vendor.product.display")
+        for (key in candidates) {
+            try {
+                val v = Class.forName("android.os.SystemProperties").getMethod("get", String::class.java)
+                    .invoke(null, key) as? String
+                if (!v.isNullOrBlank()) {
+                    val brand = Build.MANUFACTURER.replaceFirstChar { it.uppercase() }
+                    return if (v.startsWith(brand, ignoreCase = true)) v.trim() else "$brand ${v.trim()}"
+                }
+            } catch (_: Throwable) {}
+        }
+        return fallback
     }
 }

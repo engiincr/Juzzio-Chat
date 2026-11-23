@@ -20,6 +20,7 @@ import '../core/config.dart';
 import 'juzzio_special_themes.dart';
 import 'juzzio_error_reporter.dart';
 import 'juzzio_media_cache.dart';
+import 'juzzio_weather_service.dart';
 import 'supabase_service.dart';
 
 class JuzzioBadgeInfo {
@@ -346,6 +347,31 @@ String juzzioRoomAvatarSlug(String roomId) {
   return clean.length > 8 ? clean.substring(0, 8) : clean;
 }
 
+/// GM-050: platform adı (eskiden her cihaz "android" yazılıyordu)
+String juzzioPlatformName() {
+  if (Platform.isAndroid) return 'android';
+  if (Platform.isIOS) return 'ios';
+  if (Platform.isWindows) return 'windows';
+  if (Platform.isMacOS) return 'macos';
+  if (Platform.isLinux) return 'linux';
+  return 'other';
+}
+
+/// GM-050: görünür model adı. Android'de sistemin "cihaz adı" (ör. Xiaomi 15 Ultra) gelir; masaüstünde
+/// işletim sistemi adı ("Windows 11 PC") kullanılır — bilgisayar adı (kişisel) gönderilmez.
+String juzzioDeviceModelLabel(String raw, {String? os}) {
+  final r = raw.trim();
+  if (r.isNotEmpty) return r.length > 80 ? r.substring(0, 80) : r;
+  final v = os ?? Platform.operatingSystemVersion;
+  if (Platform.isWindows || (os != null && v.contains('Windows'))) {
+    final build = int.tryParse(RegExp(r'Build (\d+)').firstMatch(v)?.group(1) ?? '') ?? 0;
+    return build >= 22000 ? 'Windows 11 PC' : 'Windows PC';
+  }
+  if (Platform.isMacOS) return 'Mac';
+  if (Platform.isLinux) return 'Linux PC';
+  return 'Cihaz';
+}
+
 class JuzzioFeaturesService {
   JuzzioFeaturesService._();
   static final JuzzioFeaturesService instance = JuzzioFeaturesService._();
@@ -400,13 +426,29 @@ class JuzzioFeaturesService {
       try {
         info = await const MethodChannel('juzzio/notifications').invokeMethod<Map<Object?, Object?>>('deviceInfo') ?? const {};
       } catch (_) {}
-      await _svc.client.rpc('juzzio_record_login', params: {
+      // GM-050: "Xiaomi 15 Ultra | Türkiye / Aydın" — model adı + (izin verildiyse) şehir
+      final model = juzzioDeviceModelLabel('${info['model'] ?? ''}');
+      var place = '';
+      final c = JuzzioWeatherService.instance.lastCoords;
+      if (c != null && Platform.isAndroid) {
+        try {
+          place = await const MethodChannel('juzzio/notifications')
+                  .invokeMethod<String>('reverseGeocode', {'lat': c.$1, 'lng': c.$2}) ??
+              '';
+        } catch (_) {}
+      }
+      final params = {
         'p_device_id': deviceId,
-        'p_model': '${info['model'] ?? ''}',
+        'p_model': model,
         'p_os': '${info['os'] ?? Platform.operatingSystemVersion}',
         'p_app_version': '${JuzzioConfig.appVersion}+${JuzzioConfig.appVersionCode}',
         'p_locale': Platform.localeName,
-      });
+      };
+      try {
+        await _svc.client.rpc('juzzio_record_login', params: {...params, 'p_place': place, 'p_platform': juzzioPlatformName()});
+      } catch (_) {
+        await _svc.client.rpc('juzzio_record_login', params: params); // SQL 10.59 uygulanmadıysa
+      }
     } catch (_) {}
   }
 
@@ -416,7 +458,7 @@ class JuzzioFeaturesService {
     try {
       final id = await deviceId();
       final res = register && _svc.currentUserId != null
-          ? await _svc.client.rpc('register_my_device', params: {'p_device_id': id, 'p_platform': 'android'})
+          ? await _svc.client.rpc('register_my_device', params: {'p_device_id': id, 'p_platform': juzzioPlatformName()})
           : await _svc.client.rpc('check_device_access', params: {'p_device_id': id});
       if (register && _svc.currentUserId != null) unawaited(_recordLogin(id));
       final map = _asMap(res);

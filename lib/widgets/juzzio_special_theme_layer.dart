@@ -16,7 +16,14 @@ import 'juzzio_weather_hd.dart' show juzzioHdBandHeight, juzzioHdSceneWidth, kJu
 const String kHalloweenCastle = 'assets/special/halloween/castle_scene.webp';
 const String kHalloweenTree = 'assets/special/halloween/pumpkin_tree.webp';
 const String kHalloweenMoonClouds = 'assets/special/halloween/moon_clouds.webp';
-const List<String> kJuzzioHalloweenAssets = [kHalloweenCastle, kHalloweenTree, kHalloweenMoonClouds];
+const List<String> kJuzzioHalloweenAssets = [kHalloweenCastle, kHalloweenTree, kHalloweenMoonClouds, kHalloweenBand];
+
+/// GM-064: Engin'in Halloween referans ekranındaki sahnenin kendisi (paketteki tema konsepti):
+/// marka satırının altından "Gelen kutusu"na kadar tek parça bant; arama kutusu ve avatarın
+/// altında kalan yerler rötuşlandı. Ölçü: genişlik = ekran, üst = arama üstü − 0.24W.
+const String kHalloweenBand = 'assets/special/halloween/halloween_band.webp';
+const double kHwBandFullAspect = 860 / 544;
+const double kHwBandTop = -0.24;
 
 /// GM-037: paketteki karışık Halloween görsellerinden temiz kırpılıp referansın mor-turuncu
 /// renklerine göre renklendirilmiş parçalar (en/boy oranları)
@@ -25,7 +32,7 @@ const double kHwCastleAspect = 1200 / 600;
 /// GM-029: HD dalgalanan Türk bayrağı (resmî geometri; gece saten + gümüş amblem)
 const String kTurkFlagDay = 'assets/special/turkey/flag_day.webp';
 const String kTurkFlagNight = 'assets/special/turkey/flag_night.webp';
-const double kTurkFlagAspect = 1300 / 660;
+const double kTurkFlagAspect = 1422 / 639; // GM-064: Engin'in gönderdiği şeffaf dalgalanan bayrak görseli
 const double kHwTreeAspect = 1229 / 1152;
 const double kHwBandAspect = 532 / 323;
 
@@ -90,15 +97,15 @@ class JuzzioSpecialThemeLayer extends StatelessWidget {
             if (theme == JuzzioSpecialTheme.halloween) {
               // Referans (Engin'in Halloween ekranı): mor-turuncu gök, sağda dolunaylı şato + yarasalar
               // (alt kısmı arama kutusunun ardında), solda kabaklı ağaç, arama altında çıplak ağaçlar şeridi.
-              final o = dark ? 1.0 : 0.95;
-              final bottom = a + sw * 0.44;
+              final o = dark ? 1.0 : 0.96;
+              final bandTop = a + sw * kHwBandTop;
               return Stack(clipBehavior: Clip.hardEdge, children: [
-                // mor gök: üstte koyu mor, ortada canlı mor, arama hizasında turuncu ufuk, altta sayfaya erir
+                // bandın üstü (selamlama + logo satırı): referanstaki koyu mor gök
                 Positioned(
                   left: 0,
                   top: 0,
                   width: sw,
-                  height: bottom,
+                  height: bandTop + sw * 0.10,
                   child: DecoratedBox(
                     key: const ValueKey('gm031-sky'),
                     decoration: BoxDecoration(
@@ -106,50 +113,27 @@ class JuzzioSpecialThemeLayer extends StatelessWidget {
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          const Color(0xFF1E0F2C).withValues(alpha: 0.92 * o),
-                          const Color(0xFF4A2468).withValues(alpha: 0.88 * o),
-                          const Color(0xFF7A3A63).withValues(alpha: 0.80 * o),
-                          const Color(0xFFB0522F).withValues(alpha: 0.55 * o),
-                          const Color(0xFF241229).withValues(alpha: 0.70 * o),
-                          const Color(0xFF140A18).withValues(alpha: 0.0),
+                          const Color(0xFF1A0F22).withValues(alpha: 0.94 * o),
+                          const Color(0xFF2A1636).withValues(alpha: 0.94 * o),
+                          const Color(0xFF2A1636).withValues(alpha: 0.0),
                         ],
-                        stops: [0.0, (a - sw * 0.30) / bottom, (a - sw * 0.08) / bottom, a / bottom, (a + sw * 0.22) / bottom, 1.0]
-                            .map((e) => e.clamp(0.0, 1.0))
-                            .toList(),
+                        stops: const [0.0, 0.7, 1.0],
                       ),
                     ),
                   ),
                 ),
-                // ayın ve şatonun ardındaki turuncu hâle
                 Positioned(
-                  left: sw * 0.69 - sw * 0.42,
-                  top: a - sw * 0.10 - sw * 0.30,
-                  width: sw * 0.84,
-                  height: sw * 0.60,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: RadialGradient(colors: [
-                        const Color(0xFFFF8A2A).withValues(alpha: 0.45 * o),
-                        const Color(0xFFFF8A2A).withValues(alpha: 0.0),
-                      ]),
-                    ),
-                  ),
+                  key: const ValueKey('gm064-halloween-band'),
+                  left: 0,
+                  top: bandTop,
+                  child: _img(kHalloweenBand, sw, kHwBandFullAspect, o),
                 ),
-                Positioned(left: -sw * 0.04, top: a + sw * 0.06, child: _img(kHalloweenMoonClouds, sw * 0.58, kHwBandAspect, 0.95 * o)),
-                Positioned(
-                    left: sw * 0.46,
-                    top: a + sw * 0.05,
-                    child: Transform.flip(flipX: true, child: _img(kHalloweenMoonClouds, sw * 0.60, kHwBandAspect, 0.95 * o))),
-                Positioned(left: sw * 0.40, top: a - sw * 0.27, child: _img(kHalloweenCastle, sw * 0.60, kHwCastleAspect, o)),
-                Positioned(left: -sw * 0.06, top: a - sw * 0.30, child: _img(kHalloweenTree, sw * 0.46, kHwTreeAspect, o)),
-                // uçan yarasalar (referans: gökte dağınık)
-                Positioned.fill(child: AnimatedBuilder(animation: loop, builder: (context, _) => CustomPaint(painter: JuzzioBatsPainter(t: loop.value, width: sw, anchor: a)))),
               ]);
             }
             // Referans (Engin'in Türk bayraklı ekranı): dalgalanan Türk bayrağı başlık düğmelerinin altında,
             // ay-yıldız ≈ (0.66W, arama üstü − 0.07W), bayrak sağ kenara uzanır; gece koyu saten kırmızı +
             // gümüş ay-yıldız, gündüz resmî kırmızı + beyaz ay-yıldız; soldan limon ışık yayı.
-            final fw = sw * 0.60;
+            final fw = sw * 0.62;
             return AnimatedBuilder(
               animation: loop,
               builder: (context, _) {
@@ -163,8 +147,8 @@ class JuzzioSpecialThemeLayer extends StatelessWidget {
                   ),
                   Positioned(
                     key: const ValueKey('gm029-flag'),
-                    left: sw * 0.4385 + sway,
-                    top: a - sw * 0.222,
+                    left: sw * 0.44 + sway,
+                    top: a - sw * 0.23,
                     child: _img(dark ? kTurkFlagNight : kTurkFlagDay, fw, kTurkFlagAspect, dark ? 0.95 : 1.0),
                   ),
                 ]);
